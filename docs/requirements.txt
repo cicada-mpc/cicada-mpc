@@ -1,4 +1,5 @@
 netifaces
+nbsphinx
 numpy
 pynng
 shamir
