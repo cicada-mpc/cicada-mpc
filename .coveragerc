@@ -1,0 +1,5 @@
+[run]
+branch = False
+concurrency = multiprocessing
+omit = features/steps/*.py
+parallel = True
