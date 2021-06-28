@@ -5,4 +5,5 @@
 *.egg-info
 *.pyc
 .ipynb_checkpoints
+dist
 docs/_build

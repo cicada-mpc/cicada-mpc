@@ -18,7 +18,7 @@ from setuptools import setup, find_packages
 import re
 
 setup(
-    name="cicada",
+    name="cicada-mpc",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
