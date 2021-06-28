@@ -1,4 +1,6 @@
+netifaces
 numpy
 pynng
+shamir
 sphinx-gallery
 sphinx_rtd_theme
