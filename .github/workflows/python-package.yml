@@ -30,6 +30,8 @@ jobs:
         pip install behave coveralls coverage
         python setup.py develop
     - name: Test using coverage and behave
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         coverage run -m behave -i encoder
         coveralls
