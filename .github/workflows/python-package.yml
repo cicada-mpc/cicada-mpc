@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.8, 3.9]
+        python-version: [3.8]
 
     steps:
     - uses: actions/checkout@v2
@@ -29,6 +29,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install behave coverage
         python setup.py develop
-    - name: Test with pytest
+    - name: Test using coverage and behave
       run: |
-        python regression.py
+        coverage run -m behave -i encoder
