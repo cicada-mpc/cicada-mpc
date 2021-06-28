@@ -31,7 +31,7 @@ setup(
         "Topic :: Scientific/Engineering",
         "Topic :: Utilities",
     ],
-    description="Support for experiments in secure multiparty computation.",
+    description="Support for fault tolerant secure multiparty computation.",
     install_requires=[
         "netifaces",
         "numpy",

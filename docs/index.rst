@@ -46,6 +46,7 @@ Documentation
     contributing.rst
     tutorial.ipynb
     reference.rst
+    release-notes.rst
 
 Indices and tables
 ==================
