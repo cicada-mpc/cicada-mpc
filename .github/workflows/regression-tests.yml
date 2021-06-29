@@ -27,7 +27,7 @@ jobs:
         python setup.py develop
     - name: Run tests
       run: |
-        coverage run --source cicada -m behave
+        coverage run --source cicada -m behave -i encoder
         coverage combine
     - name: Coverage report
       run: coverage report
