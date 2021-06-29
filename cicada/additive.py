@@ -520,6 +520,55 @@ class AdditiveProtocol(object):
         return bit_share, secret_share
 
 
+    def random_secret(self, *, shape=None, src=None, generator=None):
+        """Return a AdditiveSharedArray with the specified shape and filled with random field elements
+
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random field elements which are then added together elementwise.
+        Communication and computation costs increase with the number of elements to generate 
+        and the number of players, while security increases with the number of
+        players.
+
+        Parameters
+        ----------
+        shape: :class:`tuple`, optional
+            Shape of the array to populate. By default, 
+            a shapeless array of one random element will be generated.
+        src: sequence of :class:`int`, optional
+            Players that will contribute to random array generation.  By default,
+            all players contribute.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        secret: :class:`AdditiveArrayShare`
+            A share of the random generated value.
+        """
+        if src is None:
+            src = self.communicator.ranks
+        if not src:
+            raise ValueError(f"src must include at least one player, got {src} instead.") # pragma: no cover
+
+        if shape==None:
+            shape=()
+
+        if generator is None:
+            generator = numpy.random.default_rng()
+
+        # Generate a pseudo-random zero sharing ...
+        przs = self.encoder.uniform(size=shape, generator=self._g0)
+        self.encoder.inplace_subtract(przs, self.encoder.uniform(size=shape, generator=self._g1))
+
+        # Each participating player adds in locally generated randomness
+        if self.communicator.rank in src:
+            self.encoder.inplace_add(przs, self.encoder.uniform(size=shape, generator=generator))
+
+        # Package the result.
+        return AdditiveArrayShare(przs)
+
     def reveal(self, share, dst=None):
         """Reveals a secret shared value to a subset of players.
 
