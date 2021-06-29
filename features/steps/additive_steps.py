@@ -49,7 +49,7 @@ def step_impl(context, count):
     @cicada.communicator.NNGCommunicator.run(world_size=context.players)
     def operation(communicator, count):
         protocol = cicada.additive.AdditiveProtocol(communicator)
-        shares = [protocol.share(src=0, secret=numpy.array(5)).share.storage for i in range(count)]
+        shares = [protocol.share(src=0, secret=numpy.array(5), shape=()).share.storage for i in range(count)]
         return shares
 
     context.shares = numpy.column_stack(operation(count))
