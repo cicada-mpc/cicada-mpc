@@ -27,7 +27,7 @@ jobs:
         python setup.py develop
     - name: Run tests
       run: |
-        coverage run --source cicada -m behave --no-capture --no-capture-stderr --no-logcapture
+        coverage run --source cicada -m behave --logging-level DEBUG --no-capture --no-capture-stderr --no-logcapture
         coverage combine
     - name: Coverage report
       run: coverage report
