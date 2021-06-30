@@ -153,6 +153,33 @@ class AdditiveProtocol(object):
         if not isinstance(share, AdditiveArrayShare):
             raise ValueError(f"{label} must be an instance of AdditiveArrayShare, got {type(share)} instead.")
 
+    def absolute_value(self, operand):
+        """Return the array with the absolute value function applied elementwise.
+
+        The result is the secret shared elementwise absolute value of operand.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared value to which the absolute value function should be applied.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared elementwise absolute value of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        ltz = self.less_than_zero(operand)
+        nltz = self.logical_not(ltz)
+        addinvop = AdditiveArrayShare(self.encoder.negative(operand.storage))
+        ltz_parts = self.untruncated_multiply(ltz, addinvop)
+        nltz_parts = self.untruncated_multiply(nltz, operand)
+        return self.add(ltz_parts, nltz_parts)
 
     def add(self, lhs, rhs):
         """Return the elementwise sum of two secret shared arrays.
@@ -238,6 +265,67 @@ class AdditiveProtocol(object):
             notwxorxnoty = self.untruncated_multiply(notwxorx, noty)
             result.append(self.add(xwxorx, notwxorxnoty))
         return AdditiveArrayShare(numpy.array([x.storage for x in result], dtype=self.encoder.dtype).reshape(lhs.storage.shape))#, order="C"))
+
+
+    def less_than_zero(self, operand):
+        """Return an elementwise less-than comparison between operand elements and zero.
+
+        The result is the secret shared elementwise comparison `operand` < `0`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared result of computing `operand` < `0` elementwise.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        two = numpy.array(2, dtype=self.encoder.dtype)
+        result = []
+        for loopop in operand.storage.flat:
+            loopop = AdditiveArrayShare(numpy.array(loopop, dtype=self.encoder.dtype))
+            twoloopop = AdditiveArrayShare(self.encoder.untruncated_multiply(two, loopop.storage))
+            result.append(self._lsb(operand=twoloopop))
+        return AdditiveArrayShare(numpy.array([x.storage for x in result], dtype=self.encoder.dtype).reshape(operand.storage.shape))#, order="C"))
+
+
+    def logical_not(self, operand):
+        """Return an elementwise logical NOT of two secret shared array.
+
+        The operand *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical negation of `operand`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be negated.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise logical NOT of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+
+        ones = numpy.full(operand.storage.shape, 1, dtype=self.encoder.dtype)
+        return self.public_private_subtract(lhs=ones, rhs=operand)
 
 
     def logical_or(self, lhs, rhs):
