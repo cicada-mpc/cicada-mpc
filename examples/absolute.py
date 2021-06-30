@@ -30,7 +30,7 @@ def main(communicator):
     protocol = cicada.additive.AdditiveProtocol(communicator)
     generator = numpy.random.default_rng()
 
-    secret_share = protocol.random_secret(shape=(2,2))
+    secret_share = protocol.uniform(shape=(2,2))
     secret = protocol.encoder.decode(protocol.reveal(secret_share))
     log.info(f"Player {communicator.rank} secret: {secret}")
 

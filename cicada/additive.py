@@ -461,7 +461,7 @@ class AdditiveProtocol(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        mask = self.random_secret(shape=operand.storage.shape)
+        mask = self.uniform(shape=operand.storage.shape)
         masked_op = self.untruncated_multiply(mask, operand)
         revealed_masked_op = self.reveal(masked_op)
         nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)))
@@ -646,15 +646,15 @@ class AdditiveProtocol(object):
         return bit_share, secret_share
 
 
-    def random_secret(self, *, shape=None, src=None, generator=None):
+    def uniform(self, *, shape=None, src=None, generator=None):
         """Return a AdditiveSharedArray with the specified shape and filled with random field elements
 
         This method is secure against non-colluding semi-honest adversaries.  A
         subset of players (by default: all) generate and secret share vectors
-        of pseudo-random field elements which are then added together elementwise.
-        Communication and computation costs increase with the number of elements to generate 
-        and the number of players, while security increases with the number of
-        players.
+        of pseudo-random field elements which are then added together
+        elementwise.  Computation costs increase with the number of elements to
+        generate and the number of players, while security increases with the
+        number of players.
 
         Parameters
         ----------
@@ -694,6 +694,7 @@ class AdditiveProtocol(object):
 
         # Package the result.
         return AdditiveArrayShare(przs)
+
 
     def reveal(self, share, dst=None):
         """Reveals a secret shared value to a subset of players.
