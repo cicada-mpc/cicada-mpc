@@ -53,7 +53,7 @@ def main(communicator):
         secret1 = protocol.encoder.decode(protocol.reveal(secret_share1))
         secret2 = protocol.encoder.decode(protocol.reveal(secret_share2))
         t0 = time()
-        lt = protocol.less_than(lhs=secret_share1, rhs=secret_share2)
+        lt = protocol.less(lhs=secret_share1, rhs=secret_share2)
         times.append(time()-t0)
         revealed_lt = protocol.reveal(lt)
         if revealed_lt == 1 and secret1 < secret2:

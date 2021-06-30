@@ -35,9 +35,9 @@ def main(communicator):
     winning_share = protocol.share(src=0, secret=protocol.encoder.zeros(shape=()), shape=())
     for rank in communicator.ranks:
         fortune_share = protocol.share(src=rank, secret=protocol.encoder.encode(fortune), shape=())
-        less_than_share = protocol.less_than(fortune_share, winning_share)
-        less_than = protocol.reveal(less_than_share)
-        if not less_than:
+        less_share = protocol.less(fortune_share, winning_share)
+        less = protocol.reveal(less_share)
+        if not less:
             winner = rank
             winning_share = fortune_share
 

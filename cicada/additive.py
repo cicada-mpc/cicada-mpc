@@ -220,7 +220,7 @@ class AdditiveProtocol(object):
         return self._encoder
 
 
-    def less_than(self, lhs, rhs):
+    def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
 
         The result is the secret shared elementwise comparison `lhs` < `rhs`.

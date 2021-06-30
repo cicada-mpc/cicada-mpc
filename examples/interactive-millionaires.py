@@ -33,9 +33,9 @@ with cicada.communicator.NNGCommunicator(timeout=300) as communicator:
 
     for rank in communicator.ranks:
         fortune_share = cicada.interactive.secret_input(protocol=protocol, encoder=protocol.encoder, src=rank, prompt="Fortune: ")
-        less_than_share = protocol.less_than(fortune_share, winning_share)
-        less_than = protocol.reveal(less_than_share)
-        if not less_than:
+        less_share = protocol.less(fortune_share, winning_share)
+        less = protocol.reveal(less_share)
+        if not less:
             winner = rank
             winning_share = fortune_share
 
