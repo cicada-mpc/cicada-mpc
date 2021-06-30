@@ -29,8 +29,6 @@ jobs:
       run: |
         coverage run --source cicada -m behave --logging-level DEBUG --no-capture --no-capture-stderr --no-logcapture --no-color
         coverage combine
-    - name: Coverage report
-      run: coverage report
     - name: Upload coverage to Coveralls
       run: coveralls --service=github
       env:
