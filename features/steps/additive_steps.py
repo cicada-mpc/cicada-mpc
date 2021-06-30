@@ -26,7 +26,7 @@ import cicada.interactive
 
 import test
 
-@when(u'secret sharing the same value for {} sessions')
+@when(u'secret sharing the same value for {count} sessions')
 def step_impl(context, count):
     count = eval(count)
 
@@ -34,23 +34,23 @@ def step_impl(context, count):
     def operation(communicator):
         protocol = cicada.additive.AdditiveProtocol(communicator)
         share = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=())
-        return share.storage
+        return int(share.storage)
 
     context.shares = []
     for i in range(count):
         context.shares.append(operation())
-    context.shares = numpy.array(context.shares)
+    context.shares = numpy.array(context.shares, dtype=numpy.object)
 
 
-@when(u'secret sharing the same value {} times in one session')
+@when(u'secret sharing the same value {count} times in one session')
 def step_impl(context, count):
     count = eval(count)
 
     @cicada.communicator.NNGCommunicator.run(world_size=context.players)
     def operation(communicator, count):
         protocol = cicada.additive.AdditiveProtocol(communicator)
-        shares = [protocol.share(src=0, secret=numpy.array(5), shape=()).share.storage for i in range(count)]
-        return shares
+        shares = [protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=()) for i in range(count)]
+        return numpy.array([int(share.storage) for share in shares], dtype=numpy.object)
 
     context.shares = numpy.column_stack(operation(count))
 

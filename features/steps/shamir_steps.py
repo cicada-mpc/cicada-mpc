@@ -51,7 +51,7 @@ def step_impl(context, count):
     @cicada.communicator.NNGCommunicator.run(world_size=context.players)
     def operation(communicator, count):
         protocol = cicada.shamir.ShamirProtocol(communicator)
-        shares = [protocol.share(src=0, k=context.k, value=numpy.array(5))._storage for i in range(count)]
+        shares = [protocol.share(src=0, k=context.k, secret=numpy.array(5))._storage for i in range(count)]
         return shares
 
     context.shares = numpy.column_stack(operation(count))
