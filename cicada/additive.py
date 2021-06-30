@@ -513,6 +513,7 @@ class AdditiveProtocol(object):
             result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
         return result
 
+
     def public_private_add(self, lhs, rhs):
         """Return the elementwise sum of public and secret shared arrays.
 
@@ -644,56 +645,6 @@ class AdditiveProtocol(object):
         secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
 
         return bit_share, secret_share
-
-
-    def uniform(self, *, shape=None, src=None, generator=None):
-        """Return a AdditiveSharedArray with the specified shape and filled with random field elements
-
-        This method is secure against non-colluding semi-honest adversaries.  A
-        subset of players (by default: all) generate and secret share vectors
-        of pseudo-random field elements which are then added together
-        elementwise.  Computation costs increase with the number of elements to
-        generate and the number of players, while security increases with the
-        number of players.
-
-        Parameters
-        ----------
-        shape: :class:`tuple`, optional
-            Shape of the array to populate. By default, 
-            a shapeless array of one random element will be generated.
-        src: sequence of :class:`int`, optional
-            Players that will contribute to random array generation.  By default,
-            all players contribute.
-        generator: :class:`numpy.random.Generator`, optional
-            A psuedorandom number generator for sampling.  By default,
-            `numpy.random.default_rng()` will be used.
-
-        Returns
-        -------
-        secret: :class:`AdditiveArrayShare`
-            A share of the random generated value.
-        """
-        if src is None:
-            src = self.communicator.ranks
-        if not src:
-            raise ValueError(f"src must include at least one player, got {src} instead.") # pragma: no cover
-
-        if shape==None:
-            shape=()
-
-        if generator is None:
-            generator = numpy.random.default_rng()
-
-        # Generate a pseudo-random zero sharing ...
-        przs = self.encoder.uniform(size=shape, generator=self._g0)
-        self.encoder.inplace_subtract(przs, self.encoder.uniform(size=shape, generator=self._g1))
-
-        # Each participating player adds in locally generated randomness
-        if self.communicator.rank in src:
-            self.encoder.inplace_add(przs, self.encoder.uniform(size=shape, generator=generator))
-
-        # Package the result.
-        return AdditiveArrayShare(przs)
 
 
     def reveal(self, share, dst=None):
@@ -953,6 +904,56 @@ class AdditiveProtocol(object):
         # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
         result = self.encoder.untruncated_multiply(result.storage, shift_right)
         return result
+
+
+    def uniform(self, *, shape=None, src=None, generator=None):
+        """Return a AdditiveSharedArray with the specified shape and filled with random field elements
+
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random field elements which are then added together
+        elementwise.  Computation costs increase with the number of elements to
+        generate and the number of players, while security increases with the
+        number of players.
+
+        Parameters
+        ----------
+        shape: :class:`tuple`, optional
+            Shape of the array to populate. By default, 
+            a shapeless array of one random element will be generated.
+        src: sequence of :class:`int`, optional
+            Players that will contribute to random array generation.  By default,
+            all players contribute.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        secret: :class:`AdditiveArrayShare`
+            A share of the random generated value.
+        """
+        if src is None:
+            src = self.communicator.ranks
+        if not src:
+            raise ValueError(f"src must include at least one player, got {src} instead.") # pragma: no cover
+
+        if shape==None:
+            shape=()
+
+        if generator is None:
+            generator = numpy.random.default_rng()
+
+        # Generate a pseudo-random zero sharing ...
+        przs = self.encoder.uniform(size=shape, generator=self._g0)
+        self.encoder.inplace_subtract(przs, self.encoder.uniform(size=shape, generator=self._g1))
+
+        # Each participating player adds in locally generated randomness
+        if self.communicator.rank in src:
+            self.encoder.inplace_add(przs, self.encoder.uniform(size=shape, generator=generator))
+
+        # Package the result.
+        return AdditiveArrayShare(przs)
 
 
     def untruncated_multiply(self, lhs, rhs):
