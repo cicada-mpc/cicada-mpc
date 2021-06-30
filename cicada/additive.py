@@ -153,10 +153,9 @@ class AdditiveProtocol(object):
         if not isinstance(share, AdditiveArrayShare):
             raise ValueError(f"{label} must be an instance of AdditiveArrayShare, got {type(share)} instead.")
 
-    def absolute_value(self, operand):
-        """Return the array with the absolute value function applied elementwise.
 
-        The result is the secret shared elementwise absolute value of operand.
+    def absolute(self, operand):
+        """Return the elementwise absolute value of a secret shared array.
 
         Note
         ----
@@ -180,6 +179,7 @@ class AdditiveProtocol(object):
         ltz_parts = self.untruncated_multiply(ltz, addinvop)
         nltz_parts = self.untruncated_multiply(nltz, operand)
         return self.add(ltz_parts, nltz_parts)
+
 
     def add(self, lhs, rhs):
         """Return the elementwise sum of two secret shared arrays.

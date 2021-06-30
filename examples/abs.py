@@ -34,10 +34,10 @@ def main(communicator):
     secret = protocol.encoder.decode(protocol.reveal(secret_share))
     log.info(f"Player {communicator.rank} secret: {secret}")
 
-    abs_share = protocol.absolute_value(secret_share)
+    absolute_share = protocol.absolute(secret_share)
 
-    absolute_value = protocol.encoder.decode(protocol.reveal(abs_share))
-    log.info(f"Player {communicator.rank} abs: {absolute_value}")
+    absolute = protocol.encoder.decode(protocol.reveal(absolute_share))
+    log.info(f"Player {communicator.rank} abs: {absolute}")
 
 main()
 
