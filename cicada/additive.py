@@ -710,6 +710,31 @@ class AdditiveProtocol(object):
         return bit_share, secret_share
 
 
+    def relu(self, operand):
+        """Return the elementwise ReLU of a secret shared array.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared value to which the ReLU function should be applied.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared elementwise ReLU of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        ltz = self.less_than_zero(operand)
+        nltz = self.logical_not(ltz)
+        nltz_parts = self.untruncated_multiply(nltz, operand)
+        return nltz_parts
+
+
     def reveal(self, share, dst=None):
         """Reveals a secret shared value to a subset of players.
 
@@ -969,7 +994,7 @@ class AdditiveProtocol(object):
         return result
 
 
-    def uniform(self, *, shape=None, src=None, generator=None):
+    def uniform(self, *, shape=None, generator=None):
         """Return a AdditiveSharedArray with the specified shape and filled with random field elements
 
         This method is secure against non-colluding semi-honest adversaries.  A
@@ -996,10 +1021,6 @@ class AdditiveProtocol(object):
         secret: :class:`AdditiveArrayShare`
             A share of the random generated value.
         """
-        if src is None:
-            src = self.communicator.ranks
-        if not src:
-            raise ValueError(f"src must include at least one player, got {src} instead.") # pragma: no cover
 
         if shape==None:
             shape=()
@@ -1007,16 +1028,7 @@ class AdditiveProtocol(object):
         if generator is None:
             generator = numpy.random.default_rng()
 
-        # Generate a pseudo-random zero sharing ...
-        przs = self.encoder.uniform(size=shape, generator=self._g0)
-        self.encoder.inplace_subtract(przs, self.encoder.uniform(size=shape, generator=self._g1))
-
-        # Each participating player adds in locally generated randomness
-        if self.communicator.rank in src:
-            self.encoder.inplace_add(przs, self.encoder.uniform(size=shape, generator=generator))
-
-        # Package the result.
-        return AdditiveArrayShare(przs)
+        return AdditiveArrayShare(self.encoder.uniform(size=shape, generator=generator)) 
 
 
     def untruncated_multiply(self, lhs, rhs):
