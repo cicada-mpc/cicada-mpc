@@ -190,12 +190,13 @@ Feature: Additive Protocol
         Then the group should return <result>
 
         Examples:
-        | players | operation          | a      | b      | count | result            |
-        | 3       | max                | 2      | 3.5    | 10    | [[3.5] * 3] * 10  |
-        | 3       | max                | 3.5    | 2      | 10    | [[3.5] * 3] * 10  |
-        | 3       | max                | -3     | 2      | 10    | [[2] * 3] * 10    |
-        | 3       | max                | 2      | -3     | 10    | [[2] * 3] * 10    |
-        | 3       | max                | -4     | -3     | 10    | [[-3] * 3] * 10   |
+        | players | operation          | a              | b                  | count | result                         |
+        | 3       | max                | 2              | 3.5                | 10    | [[3.5] * 3] * 10               |
+        | 3       | max                | 3.5            | 2                  | 10    | [[3.5] * 3] * 10               |
+        | 3       | max                | -3             | 2                  | 10    | [[2] * 3] * 10                 |
+        | 3       | max                | 2              | -3                 | 10    | [[2] * 3] * 10                 |
+        | 3       | max                | -4             | -3                 | 10    | [[-3] * 3] * 10                |
+        | 3       | max                | [2, 3, -2, -1] | [3.5, 1, 1, -4]    | 10    | [[[3.5, 3, 1, -1]] * 3] * 10   |
 
 
     Scenario Outline: Min
@@ -206,12 +207,13 @@ Feature: Additive Protocol
         Then the group should return <result>
 
         Examples:
-        | players | operation          | a      | b      | count | result             |
-        | 3       | min                | 2      | 3.5    | 10    | [[2] * 3] * 10     |
-        | 3       | min                | 3.5    | 2      | 10    | [[2] * 3] * 10     |
-        | 3       | min                | -3     | 2      | 10    | [[-3] * 3] * 10    |
-        | 3       | min                | 2      | -3     | 10    | [[-3] * 3] * 10    |
-        | 3       | min                | -4     | -3     | 10    | [[-4] * 3] * 10    |
+        | players | operation          | a              | b                  | count | result                         |
+        | 3       | min                | 2              | 3.5                | 10    | [[2] * 3] * 10                 |
+        | 3       | min                | 3.5            | 2                  | 10    | [[2] * 3] * 10                 |
+        | 3       | min                | -3             | 2                  | 10    | [[-3] * 3] * 10                |
+        | 3       | min                | 2              | -3                 | 10    | [[-3] * 3] * 10                |
+        | 3       | min                | -4             | -3                 | 10    | [[-4] * 3] * 10                |
+        | 3       | min                | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | 10    | [[[2, 1, -2, -4]] * 3] * 10    |
 
 
     Scenario Outline: Random Bitwise Secret
