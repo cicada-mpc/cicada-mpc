@@ -182,6 +182,38 @@ Feature: Additive Protocol
         | 2       | private-private or | 1      | 1      | 10    | [[1] * 2] * 10     |
 
 
+    Scenario Outline: Max
+        Given <players> players
+        And binary operation <operation>
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players | operation          | a      | b      | count | result            |
+        | 3       | max                | 2      | 3.5    | 10    | [[3.5] * 3] * 10  |
+        | 3       | max                | 3.5    | 2      | 10    | [[3.5] * 3] * 10  |
+        | 3       | max                | -3     | 2      | 10    | [[2] * 3] * 10    |
+        | 3       | max                | 2      | -3     | 10    | [[2] * 3] * 10    |
+        | 3       | max                | -4     | -3     | 10    | [[-3] * 3] * 10   |
+
+
+    Scenario Outline: Min
+        Given <players> players
+        And binary operation <operation>
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players | operation          | a      | b      | count | result             |
+        | 3       | min                | 2      | 3.5    | 10    | [[2] * 3] * 10     |
+        | 3       | min                | 3.5    | 2      | 10    | [[2] * 3] * 10     |
+        | 3       | min                | -3     | 2      | 10    | [[-3] * 3] * 10    |
+        | 3       | min                | 2      | -3     | 10    | [[-3] * 3] * 10    |
+        | 3       | min                | -4     | -3     | 10    | [[-4] * 3] * 10    |
+
+
     Scenario Outline: Random Bitwise Secret
         Given <players> players
         Then generating <bits> random bits with players <src> and seed <seed> produces a valid result

@@ -432,6 +432,69 @@ class AdditiveProtocol(object):
         return result
 
 
+    def max(self, lhs, rhs):
+        """Return the elementwise maximum of two secret shared arrays.
+
+        The result is the secret shared elementwise maximum of the operands.
+        If revealed, the result will need to be decoded to obtain the actual
+        maximum values.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared operand.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared operand.
+
+        Returns
+        -------
+        max: :class:`AdditiveArrayShare`
+            Secret-shared elementwise maximum of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        max_share = self.add(self.add(lhs, rhs), self.absolute(self.subtract(lhs, rhs)))
+        shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
+        return max_share
+
+
+    def min(self, lhs, rhs):
+        """Return the elementwise minimum of two secret shared arrays.
+
+        The result is the secret shared elementwise minimum of the operands.
+        If revealed, the result will need to be decoded to obtain the actual
+        minimum values.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared operand.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared operand.
+
+        Returns
+        -------
+        min: :class:`AdditiveArrayShare`
+            Secret-shared elementwise minimum of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        max_share = self.subtract(self.add(lhs, rhs), self.absolute(self.subtract(lhs, rhs)))
+        shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
+
+        return max_share
+
+
     def multiplicative_inverse(self, operand):
         """Return an elementwise multiplicative inverse of a shared array 
         in the context of the underlying finite field. Explicitly, this 
