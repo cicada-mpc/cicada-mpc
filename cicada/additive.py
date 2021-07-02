@@ -527,7 +527,7 @@ class AdditiveProtocol(object):
         mask = self.uniform(shape=operand.storage.shape)
         masked_op = self.untruncated_multiply(mask, operand)
         revealed_masked_op = self.reveal(masked_op)
-        nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)))
+        nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self.encoder.dtype])
         inv = numpy.array(nppowmod(revealed_masked_op, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         op_inv_share = self.encoder.untruncated_multiply(inv, mask.storage)
         return AdditiveArrayShare(op_inv_share)
