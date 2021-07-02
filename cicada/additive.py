@@ -432,7 +432,7 @@ class AdditiveProtocol(object):
         return result
 
 
-    def max(self, lhs, rhs):
+    def _max(self, lhs, rhs):
         """Return the elementwise maximum of two secret shared arrays.
 
         The result is the secret shared elementwise maximum of the operands.
@@ -463,7 +463,7 @@ class AdditiveProtocol(object):
         return max_share
 
 
-    def min(self, lhs, rhs):
+    def _min(self, lhs, rhs):
         """Return the elementwise minimum of two secret shared arrays.
 
         The result is the secret shared elementwise minimum of the operands.

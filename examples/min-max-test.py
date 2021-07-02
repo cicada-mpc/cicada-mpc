@@ -48,8 +48,8 @@ def main(communicator):
         rand2dec = protocol.encoder.decode(rand2)
         secret_share1 = protocol.share(src=0, secret=(rand1), shape = ())
         secret_share2 = protocol.share(src=0, secret=(rand2), shape = ())
-        min_share = protocol.min(secret_share1, secret_share2)
-        max_share = protocol.max(secret_share1, secret_share2)
+        min_share = protocol._min(secret_share1, secret_share2)
+        max_share = protocol._max(secret_share1, secret_share2)
         secret1 = protocol.encoder.decode(protocol.reveal(secret_share1))
         secret2 = protocol.encoder.decode(protocol.reveal(secret_share2))
 

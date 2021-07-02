@@ -1,3 +1,4 @@
+ipython
 netifaces
 nbsphinx
 numpy
