@@ -51,9 +51,9 @@ release = cicada.__version__
 import sphinx_rtd_theme
 
 extensions = [
-    "IPython.sphinxext.ipython_console_highlighting",
+#    "IPython.sphinxext.ipython_console_highlighting",
     "nbsphinx",
-#    "sphinxarg.ext",
+    "sphinxarg.ext",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
