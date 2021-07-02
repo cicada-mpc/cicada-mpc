@@ -216,7 +216,7 @@ def step_impl(context):
         a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
         b = numpy.array(b)
         b_share = protocol.share(src=1, secret=protocol.encoder.encode(b), shape=b.shape)
-        c_share = protocol.max(a_share, b_share)
+        c_share = protocol._max(a_share, b_share)
 
         return protocol.encoder.decode(protocol.reveal(c_share))
     context.binary_operation = operation
@@ -232,7 +232,7 @@ def step_impl(context):
         a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
         b = numpy.array(b)
         b_share = protocol.share(src=1, secret=protocol.encoder.encode(b), shape=b.shape)
-        c_share = protocol.min(a_share, b_share)
+        c_share = protocol._min(a_share, b_share)
 
         return protocol.encoder.decode(protocol.reveal(c_share))
     context.binary_operation = operation
