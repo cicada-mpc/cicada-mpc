@@ -43,6 +43,7 @@ Documentation
 
     tutorial.ipynb
     user-guide.rst
+    commands.rst
     reference.rst
     installation.rst
     dependencies.rst
