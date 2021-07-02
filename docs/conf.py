@@ -52,7 +52,7 @@ import sphinx_rtd_theme
 
 extensions = [
     "nbsphinx",
-    "sphinxarg.ext",
+#    "sphinxarg.ext",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
