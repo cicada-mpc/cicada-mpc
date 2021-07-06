@@ -27,7 +27,7 @@ jobs:
         python setup.py develop
     - name: Run tests
       run: |
-        coverage run --source cicada -m behave --logging-level DEBUG --no-capture --no-capture-stderr --no-logcapture --no-color
+        coverage run --source cicada -m behave --logging-level INFO --no-capture --no-capture-stderr --no-logcapture --no-color
         coverage combine
     - name: Upload coverage to Coveralls
       run: coveralls --service=github
