@@ -220,6 +220,32 @@ class AdditiveProtocol(object):
         return self._encoder
 
 
+    def floor(self, operand):
+        """Remove the `bits` least significant bits from each element in a secret shared array 
+            then shift back left so that only the original integer part of 'operand' remains.
+
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the shared integer part of operand.
+        """
+        if not isinstance(operand, AdditiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+
+        bits = self.encoder.precision
+        shift_left = numpy.array(2 ** bits, dtype=self.encoder.dtype)
+        truncd = self.truncate(operand)
+
+        return AdditiveArrayShare(self.encoder.untruncated_multiply(truncd.storage, shift_left))
+
+
+
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
 
