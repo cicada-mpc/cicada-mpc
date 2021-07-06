@@ -32,9 +32,6 @@ def step_impl(context, players):
 def step_impl(context):
     @cicada.communicator.NNGCommunicator.run(world_size=context.players)
     def operation(communicator):
-        # Disable communicator timeouts
-        communicator.timeout = None
-
         time.sleep(communicator.rank * 0.1)
         enter = time.time()
         communicator.barrier()
