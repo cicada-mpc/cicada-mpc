@@ -41,6 +41,13 @@ setup(
     maintainer="Timothy M. Shead",
     maintainer_email="tshead@sandia.gov",
     packages=find_packages(),
+    project_urls={
+        "Chat": "https://github.com/cicada-mpc/cicada-mpc/discussions",
+        "Coverage": "https://coveralls.io/r/cicada-mpc/cicada-mpc",
+        "Documentation": "https://cicada-mpc.readthedocs.io",
+        "Issue Tracker": "https://github.com/cicada-mpc/cicada-mpc/issues",
+        "Source": "https://github.com/cicada-mpc/cicada-mpc",
+    },
     scripts=[
         "bin/cicada-exec",
     ],
