@@ -58,8 +58,10 @@ def main(communicator):
         if my_rank == 0:
             if min_rev != min(rand1dec, rand2dec):
                 errcount += 1
+                print(f'diff: {rand1dec-rand2dec}')
                 colorcode = "\033[1;31;40m "  
             else:
+                print(f'diff: {rand1dec-rand2dec}')
                 colorcode = "\033[1;32;40m "
             print(f'{colorcode}\tmin({secret1}, {secret2}) = {min_rev}')
 

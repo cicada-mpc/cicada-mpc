@@ -238,13 +238,12 @@ class AdditiveProtocol(object):
         if not isinstance(lhs, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
-        rhsbits = [int(x) for x in bin(rhspub)[2:]]
+        rhsbits = [int(x) for x in bin(rhspub)[2:]][::-1]
         tmp = AdditiveArrayShare(lhs.storage)
-        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, 2**16, dtype=self.encoder.dtype),shape=lhs.storage.shape)
-        rhsbits = rhsbits[::-1]
+        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
         limit = len(rhsbits)-1
-        for i,v in enumerate(rhsbits):
-            if v:
+        for i, bit in enumerate(rhsbits):
+            if bit:
                 ans = self.untruncated_multiply(ans, tmp)
                 ans = self.truncate(ans)
             if i < limit:
@@ -516,7 +515,7 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         max_share = self.add(self.add(lhs, rhs), self.absolute(self.subtract(lhs, rhs)))
-        shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        shift_right = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
         return max_share
 
@@ -547,7 +546,7 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         max_share = self.subtract(self.add(lhs, rhs), self.absolute(self.subtract(lhs, rhs)))
-        shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        shift_right = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
 
         return max_share
