@@ -220,63 +220,6 @@ class AdditiveProtocol(object):
         return self._encoder
 
 
-    def exp(self, lhs, rhspub):
-        """Raise the array contained in lhs to the power rshpub on an elementwise basis
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Shared secret to which floor should be applied.
-        rhspub: :class:`Int`, required 
-            a publically known integer and the power to which each element in lhs should be raised 
-
-        Returns
-        -------
-        array: :class:`AdditiveArrayShare`
-            Share of the array elements from lhs all raised to the power rhspub.
-        """
-        if not isinstance(lhs, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-
-        rhsbits = [int(x) for x in bin(rhspub)[2:]][::-1]
-        tmp = AdditiveArrayShare(lhs.storage)
-        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
-        limit = len(rhsbits)-1
-        for i, bit in enumerate(rhsbits):
-            if bit:
-                ans = self.untruncated_multiply(ans, tmp)
-                ans = self.truncate(ans)
-            if i < limit:
-                tmp = self.untruncated_multiply(tmp,tmp)
-                tmp = self.truncate(tmp)
-        return ans
-
-
-    def floor(self, operand):
-        """Remove the `bits` least significant bits from each element in a secret shared array 
-            then shift back left so that only the original integer part of 'operand' remains.
-
-
-        Parameters
-        ----------
-        operand: :class:`AdditiveArrayShare`, required
-            Shared secret to which floor should be applied.
-
-        Returns
-        -------
-        array: :class:`AdditiveArrayShare`
-            Share of the shared integer part of operand.
-        """
-        if not isinstance(operand, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-
-        bits = self.encoder.precision
-        shift_left = numpy.array(2 ** bits, dtype=self.encoder.dtype)
-        truncd = self.truncate(operand)
-
-        return AdditiveArrayShare(self.encoder.untruncated_multiply(truncd.storage, shift_left))
-
-
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
 
@@ -515,7 +458,7 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         max_share = self.add(self.add(lhs, rhs), self.absolute(self.subtract(lhs, rhs)))
-        shift_right = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
         return max_share
 
@@ -545,8 +488,15 @@ class AdditiveProtocol(object):
             Secret-shared elementwise minimum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        max_share = self.subtract(self.add(lhs, rhs), self.absolute(self.subtract(lhs, rhs)))
-        shift_right = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        diff = self.subtract(lhs, rhs)
+        abs_diff = self.absolute(diff)
+        diff_rev = self.reveal(diff)
+        abs_diff_rev = self.reveal(abs_diff)
+        if self.communicator.rank == 0:
+            print(f'diff: {self.encoder.decode(diff_rev)}')
+            print(f'abs_diff: {self.encoder.decode(abs_diff_rev)}')
+        max_share = self.subtract(self.add(lhs, rhs), abs_diff)
+        shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
 
         return max_share

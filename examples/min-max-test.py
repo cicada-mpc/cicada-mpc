@@ -24,9 +24,12 @@ import cicada.communicator
 from time import time
 from statistics import mean, stdev
 from random import randint, choice
+from math import log2
 logging.basicConfig(level=logging.INFO)
 
 NUMROUNDS = 100
+rand = True
+vs1 = True
 
 @cicada.communicator.NNGCommunicator.run(world_size=3)
 def main(communicator):
@@ -39,11 +42,20 @@ def main(communicator):
     comp_times = []
     my_rank = communicator.rank
     errcount = 0
+    rand1 = numpy.array(1, dtype=object)
+    rand2 = numpy.array(-1, dtype=object)
     for i in range(NUMROUNDS):
         if my_rank == 0: print(f'\033[1;37;40m\nRound {i}: ')
         fieldsize = 2**64-59
-        rand1 = numpy.array(randint(0,fieldsize), dtype=object)
-        rand2 = numpy.array(randint(0,fieldsize), dtype=object)
+        if rand:
+            rand1 = numpy.array(randint(0, fieldsize), dtype=object)
+            rand2 = numpy.array(randint(0, fieldsize), dtype=object)
+        else:
+            if not vs1:
+                rand1 *= 2
+            rand2 *= 2
+        if (rand1 >= fieldsize) or (rand2 >= fieldsize):
+            break
         rand1dec = protocol.encoder.decode(rand1)
         rand2dec = protocol.encoder.decode(rand2)
         secret_share1 = protocol.share(src=0, secret=(rand1), shape = ())
@@ -56,17 +68,18 @@ def main(communicator):
         min_rev = protocol.encoder.decode(protocol.reveal(min_share))
         max_rev = protocol.encoder.decode(protocol.reveal(max_share))
         if my_rank == 0:
-            if min_rev != min(rand1dec, rand2dec):
+            if min_rev != min(rand1dec, rand2dec) or max_rev != max(rand1dec,rand2dec):
                 errcount += 1
-                print(f'diff: {rand1dec-rand2dec}')
                 colorcode = "\033[1;31;40m "  
             else:
-                print(f'diff: {rand1dec-rand2dec}')
                 colorcode = "\033[1;32;40m "
             print(f'{colorcode}\tmin({secret1}, {secret2}) = {min_rev}')
 
             colorcode = "\033[1;31;40m " if max_rev != max(rand1dec, rand2dec) else "\033[1;32;40m "
+            print(f'{colorcode}\tdiff true: {rand1dec-rand2dec}')
+            print(f'{colorcode}\tabs_diff true: {abs(rand1dec-rand2dec)}')
             print(f'{colorcode}\tmax({secret1}, {secret2}) = {max_rev}')
+            print(f'\tLog2 rand1: {log2(rand1)} \n\tlog2 rand2: {log2(rand2)}')
     if my_rank == 0:
         print(f'\033[1;37;40m There were {errcount} errors') 
 
