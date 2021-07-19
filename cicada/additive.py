@@ -601,8 +601,8 @@ class AdditiveProtocol(object):
         """Return an elementwise result of division of lhs by rhspub 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
-        of the division in which lhs is the dividend and rhspub is a publicaly 
-        known divisor.. 
+        of the division in which lhs is the secret shared dividend and 
+        rhspub is a publicly known divisor. 
 
         Note
         ----
