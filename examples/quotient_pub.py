@@ -28,7 +28,7 @@ def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     protocol = cicada.additive.AdditiveProtocol(communicator)
 
-    secret_a = numpy.array(35, dtype=object) if communicator.rank == 0 else None
+    secret_a = numpy.array(37, dtype=object)
     b = numpy.array(7, dtype=object)
     b_enc = protocol.encoder.encode(b)
 
@@ -42,5 +42,8 @@ def main(communicator):
     quotient = protocol.encoder.decode(protocol.reveal(quotient_share))
     log.info(f"Player {communicator.rank} quotient: {quotient}")
 
+    actual= secret_a/b
+    err_percent = 100*(quotient-actual)/actual
+    log.info(f"Player {communicator.rank} quotient error %: {err_percent}", src=0)
 main()
 
