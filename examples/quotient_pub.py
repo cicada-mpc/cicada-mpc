@@ -30,14 +30,14 @@ def main(communicator):
 
     secret_a = numpy.array(37, dtype=object)
     b = numpy.array(7, dtype=object)
-    b_enc = protocol.encoder.encode(b)
+    b_enc = protocol.encoder.encode(numpy.array(b, dtype=object))
 
     log.info(f"Player {communicator.rank} secret a: {secret_a}", src=0)
     log.info(f"Player {communicator.rank} b: {b}", src=1)
 
     a_share = protocol.share(src=0, secret=secret_a, shape=())#secret=protocol.encoder.encode(secret_a), shape=())
 
-    quotient_share = protocol.division_private_public(a_share, b)
+    quotient_share = protocol.division_private_public(a_share, b_enc)
 
     quotient = protocol.encoder.decode(protocol.reveal(quotient_share))
     log.info(f"Player {communicator.rank} quotient: {quotient}")

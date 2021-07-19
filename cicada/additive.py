@@ -601,8 +601,8 @@ class AdditiveProtocol(object):
         """Return an elementwise result of division of lhs by rhspub 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
-        of the division in which lhs is the dividend and rhspub is a publicaly 
-        known divisor.. 
+        of the division in which lhs is the secret shared dividend and 
+        rhspub is a publicly known divisor. 
 
         Note
         ----
@@ -626,7 +626,7 @@ class AdditiveProtocol(object):
 
         c = numpy.array(self.encoder.modulus // 2**precision // rhspub, dtype=self.encoder.dtype)
         w = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, c))
-        w = self.truncate(w, bits=self.encoder.fieldbits-2*precision)
+        w = self.truncate(w, bits=precision)
         return w
 
 
