@@ -597,6 +597,40 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
+    def division_private_public(self, lhs, rhspub, *, precision=16):
+        """Return an elementwise result of division of lhs by rhspub 
+        in the context of the underlying finite field. Explicitly, this 
+        function returns a same shape array which contains an approximation
+        of the division in which lhs is the dividend and rhspub is a publicaly 
+        known divisor.. 
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to act as the dividend.
+        rhspub: :class:`numpy.ndarray`, required
+            Public value to act as divisor, which must have been encoded
+            with this protocol's :attr:`encoder`.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret approximate result of lhs/rhspub on an elementwise basis.
+        """
+        self._assert_unary_compatible(lhs, "lhs")
+
+        c = numpy.array(self.encoder.modulus // 2**precision // rhspub, dtype=self.encoder.dtype)
+        w = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, c))
+        print(self.encoder.fieldbits, precision, self.encoder.precision, self.encoder.fieldbits-precision+self.encoder.precision)
+        w = self.truncate(w, bits=self.encoder.fieldbits-2*precision)
+        return w
+
+
     def _public_bitwise_less_than(self,*, lhspub, rhs):
         """Comparison Operator
 
