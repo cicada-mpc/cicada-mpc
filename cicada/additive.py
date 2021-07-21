@@ -626,7 +626,7 @@ class AdditiveProtocol(object):
 
         c = numpy.array(self.encoder.modulus // 2**precision // rhspub, dtype=self.encoder.dtype)
         w = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, c))
-        w = self.truncate(w, bits=precision)
+        w = self.truncate(w, bits=2*precision)
         return w
 
 
