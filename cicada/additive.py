@@ -597,7 +597,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
-    def division_private_public(self, lhs, rhspub, *, precision=16, enc=False):
+    def division_private_public(self, lhs, rhspub, *, enc=False):
         """Return an elementwise result of division of lhs by rhspub 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
