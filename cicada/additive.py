@@ -597,7 +597,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
-    def division_private_public(self, lhs, rhspub, *, precision=16):
+    def division_private_public(self, lhs, rhspub, *, precision=16, enc=False):
         """Return an elementwise result of division of lhs by rhspub 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
@@ -614,8 +614,9 @@ class AdditiveProtocol(object):
         lhs: :class:`AdditiveArrayShare`, required
             Secret shared array to act as the dividend.
         rhspub: :class:`numpy.ndarray`, required
-            Public value to act as divisor, which must have been encoded
-            with this protocol's :attr:`encoder`.
+            Public value to act as divisor, it is assumed to not
+            be encoded, but we optionally provide an argument to 
+            handle the case in which it is
 
         Returns
         -------
@@ -623,11 +624,13 @@ class AdditiveProtocol(object):
             The secret approximate result of lhs/rhspub on an elementwise basis.
         """
         self._assert_unary_compatible(lhs, "lhs")
-
-        c = numpy.array(self.encoder.modulus // 2**precision // rhspub, dtype=self.encoder.dtype)
-        w = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, c))
-        w = self.truncate(w, bits=2*precision)
-        return w
+        if not enc:
+            divisor = self.encoder.encode(numpy.array(1/rhspub))
+        else:
+            divisor = self.encoder.encode(numpy.array(1/self.encoder.decode(rhspub)))
+        quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
+        quotient = self.truncate(quotient)
+        return quotient
 
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
