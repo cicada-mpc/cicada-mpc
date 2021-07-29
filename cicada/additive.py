@@ -220,6 +220,46 @@ class AdditiveProtocol(object):
         return self._encoder
 
 
+    def equal(self, lhs, rhs):
+        """Return an elementwise probabilistic equality comparison between secret shared arrays.
+
+        The result is the secret shared elementwise comparison `lhs` == `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared result of computing `lhs` == `rhs` elementwise.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        one = self.share(src=0, secret=numpy.array(1,dtype=self.encoder.dtype), shape=())
+        result = []
+        for looplhs, looprhs in zip(lhs.storage.flat, rhs.storage.flat):
+            looplhs = AdditiveArrayShare(numpy.array(looplhs, dtype=self.encoder.dtype))
+            looprhs = AdditiveArrayShare(numpy.array(looprhs, dtype=self.encoder.dtype))
+            diff = self.subtract(looplhs, looprhs)
+            mask = self.uniform(shape=())
+            mask_prod = self.untruncated_multiply(diff, mask)
+            ltz = self.less_than_zero(mask_prod)
+            gteq1 = self.logical_not(self.less(mask_prod, one))
+            ltz_or_gtz = self.logical_or(ltz, gteq1)
+            result.append(self.logical_not(ltz_or_gtz))
+        return AdditiveArrayShare(numpy.array([x.storage for x in result], dtype=self.encoder.dtype).reshape(lhs.storage.shape))#, order="C"))
+
+
     def exp(self, lhs, rhspub):
         """Raise the array contained in lhs to the power rshpub on an elementwise basis
 
