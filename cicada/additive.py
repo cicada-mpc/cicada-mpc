@@ -637,42 +637,6 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
-    def division_private_public(self, lhs, rhspub, *, enc=False):
-        """Return an elementwise result of division of lhs by rhspub 
-        in the context of the underlying finite field. Explicitly, this 
-        function returns a same shape array which contains an approximation
-        of the division in which lhs is the secret shared dividend and 
-        rhspub is a publicly known divisor. 
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Secret shared array to act as the dividend.
-        rhspub: :class:`numpy.ndarray`, required
-            Public value to act as divisor, it is assumed to not
-            be encoded, but we optionally provide an argument to 
-            handle the case in which it is
-
-        Returns
-        -------
-        value: :class:`AdditiveArrayShare`
-            The secret approximate result of lhs/rhspub on an elementwise basis.
-        """
-        self._assert_unary_compatible(lhs, "lhs")
-        if not enc:
-            divisor = self.encoder.encode(numpy.array(1/rhspub))
-        else:
-            divisor = self.encoder.encode(numpy.array(1/self.encoder.decode(rhspub)))
-        quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
-        quotient = self.truncate(quotient)
-        return quotient
-
-
     def modulus_private_public(self, lhs, rhspub, *, enc=False):
         """Return an elementwise result of applying moduli contained in rhspub to lhs 
         in the context of the underlying finite field. Explicitly, this 
@@ -756,7 +720,6 @@ class AdditiveProtocol(object):
         for i in range(1,bitwidth):
             result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
         return result
-
 
     def public_private_add(self, lhs, rhs):
         """Return the elementwise sum of public and secret shared arrays.
@@ -1224,8 +1187,6 @@ class AdditiveProtocol(object):
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
 
-        This method can shared+shared values.
-
         Parameters
         ----------
         lhs: :class:`AdditiveArrayShare`, required
@@ -1282,3 +1243,30 @@ class AdditiveProtocol(object):
             result += x * other_y + other_x * y
 
         return AdditiveArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
+
+
+    def untruncated_private_public_divide(self, lhs, rhs):
+        """Element-wise division of private and public values.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array dividend.
+        rhs: :class:`numpy.ndarray`, required
+            Public array divisor, which must *not* be encoded.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret element-wise result of lhs / rhs.
+        """
+        self._assert_unary_compatible(lhs, "lhs")
+        divisor = self.encoder.encode(numpy.array(1 / rhs))
+        quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
+        return quotient
+
