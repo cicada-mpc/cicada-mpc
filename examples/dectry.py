@@ -29,13 +29,13 @@ def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     protocol = cicada.additive.AdditiveProtocol(communicator)
 
-    secret = numpy.array(1) if communicator.rank == 0 else numpy.zeros(3)
+    secret = numpy.array([[0,1],[3,9]]) if communicator.rank == 0 else numpy.zeros((2,2))
     log.info(f"Player {communicator.rank} secret: {secret}", src=0)
 
     share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
     log.info(f"Player {communicator.rank} share: {share}",src=0)
     
-    decd_share = protocol._bit_decompose(share)
+    decd_share = protocol.bit_decompose(share)
     revealed = (protocol.reveal(decd_share))
     log.info(f"Player {communicator.rank} revealed: {revealed}",src=0)
     log.info(f"Player {communicator.rank} revealed shape: {revealed.shape}",src=0)
