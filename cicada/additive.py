@@ -207,6 +207,45 @@ class AdditiveProtocol(object):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return AdditiveArrayShare(self.encoder.add(lhs.storage, rhs.storage))
 
+    def _bit_decompose(self, operand):
+        """Decompose operand into shares of its bitwise representation.  
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder
+        This operation will add a dimension to the array containing operand
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Shared secret to be truncated.
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the bit decomposed secret.
+        """
+        if not isinstance(operand, AdditiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+
+        list_o_bits = []
+        two_inv = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        for element in operand.storage.flat: # Iterates in "C" order.
+            loopop = AdditiveArrayShare(numpy.array(element, dtype=self.encoder.dtype))
+            elebits = []
+            t2p = self.reveal(loopop)
+            if self.communicator.rank == 0: print(f'pre-loop: {t2p}')
+            t2p = self.reveal(self._lsb(loopop))
+            if self.communicator.rank == 0: print(f'pre-loop: {t2p}')
+            for i in range(self.encoder.fieldbits):
+                elebits.append(self._lsb(loopop))
+                e2p = self.reveal(loopop)
+                if self.communicator.rank == 0: print(f'{i}: {t2p} \t {e2p}')
+                loopop = self.subtract(loopop, elebits[-1])
+                loopop = AdditiveArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
+            list_o_bits.append(elebits)
+        return AdditiveArrayShare(numpy.array(list_o_bits, dtype=self.encoder.dtype).reshape(operand.storage.shape+(self.encoder.fieldbits,))) #, order="C"))
+
 
     @property
     def communicator(self):
@@ -491,7 +530,7 @@ class AdditiveProtocol(object):
 
 
     def _lsb(self, operand):
-        """Return the elementwise least significant bits of a secret shared array.
+        """Return the elementwise least significant bit of a secret shared array.
 
         When revealed, the result will contain the values `0` or `1`, which do
         not need to be decoded.
