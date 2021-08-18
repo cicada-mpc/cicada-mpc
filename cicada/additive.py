@@ -1278,6 +1278,38 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
 
 
+    def _untruncated_private_divide(self, lhs, rhs):
+        """Element-wise division of private and public values.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array dividend.
+        rhs: :class:`numpy.ndarray`, required
+            Public array divisor, which must *not* be encoded.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret element-wise result of lhs / rhs.
+        """
+        self._assert_unary_compatible(lhs, "lhs")
+        rmask = self.modulus_private_public(self.uniform(shape=rhs.storage.shape), numpy.full(shape = rhs.storage.shape, fill_value = 2**self.encoder.precision))
+        rhsmasked = self.untruncated_multiply(rmask, rhs)
+        rhsmasked = self.truncate(rhsmasked)
+        revealrhsmasked = self.reveal(rhsmasked)
+        revrmask = self.reveal(rmask)
+        if self.communicator.rank == 0:
+            print(revealrhsmasked, revrmask)
+        maskquotient = self.untruncated_private_public_divide(lhs, revealrhsmasked)
+        return maskquotient 
+
+
     def untruncated_private_public_divide(self, lhs, rhs):
         """Element-wise division of private and public values.
 
