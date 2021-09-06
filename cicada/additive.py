@@ -1334,4 +1334,40 @@ class AdditiveProtocol(object):
         divisor = self.encoder.encode(numpy.array(1 / rhs))
         quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
         return quotient
+    
+    def zigmoid(self, operand):
+        """Return the elementwise result of applying the so-called zigmoid funtion to a secret shared array.
+        Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much 
+        more efficient to sompute in an SMC context.
+                   { 0      if x < -0.5
+        zigmoid(x)={ x+0.5  if -0.5<= x <=0.5
+                   { 1      if x > 0.5
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
 
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared value to which the zigmoid function should be applied.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared elementwise zigmoid of `operand`.
+        """
+        ones=self.encoder.encode(numpy.full(operand.storage.shape, 1))
+        half = self.encoder.encode(numpy.full(operand.storage.shape, .5))
+        secret_plushalf = cicada.additive.AdditiveArrayShare(self.encoder.add(operand.storage,half))
+        secret_minushalf = cicada.additive.AdditiveArrayShare(self.encoder.subtract(operand.storage, half))
+        ltph = self.less_than_zero(secret_minushalf)
+        nltph = self.logical_not(ltph)
+        ltnh = self.less_than_zero(secret_plushalf)
+        nltnh = self.logical_not(ltnh)
+        middlins = self.subtract(ltph, ltnh)
+        extracted_middlins = self.untruncated_multiply(middlins, operand)
+        extracted_halfs = cicada.additive.AdditiveArrayShare(self.encoder.untruncated_multiply(middlins.storage, half))
+        extracted_middlins = self.add(extracted_middlins, extracted_halfs)
+        ones_part = cicada.additive.AdditiveArrayShare(self.encoder.untruncated_multiply(nltph.storage, ones))
+        return self.add(ones_part, extracted_middlins)
