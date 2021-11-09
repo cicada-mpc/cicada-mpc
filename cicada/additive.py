@@ -146,7 +146,7 @@ class AdditiveProtocol(object):
         self._assert_unary_compatible(lhs, lhslabel)
         self._assert_unary_compatible(rhs, rhslabel)
         if lhs.storage.shape != rhs.storage.shape:
-            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.shape} and {rhs.shape} instead.")
+            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.")
 
 
     def _assert_unary_compatible(self, share, label):
@@ -861,7 +861,7 @@ class AdditiveProtocol(object):
         if generator is None:
             generator = numpy.random.default_rng()
         if shape is None:
-            shape = (1,)
+            shape = ()
             shape_was_none = True
         bit_res = []
         share_res = []
@@ -891,7 +891,7 @@ class AdditiveProtocol(object):
             share_res.append(secret_share)
         if shape_was_none:
             bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(bits))
-            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype))#, order="C"))
+            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
         else:
             bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(shape+(bits,)))#, order="C"))
             secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
@@ -1152,35 +1152,43 @@ class AdditiveProtocol(object):
 
         fieldbits = self.encoder.fieldbits
 
-        shift_left = numpy.array(2 ** bits, dtype=self.encoder.dtype)
+        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self.encoder.dtype)
         # Multiplicative inverse of shift_left.
-        shift_right = numpy.array(pow(2 ** bits, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        shift_right = numpy.full(operand.storage.shape, pow(2 ** bits, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
 
-        results = []
+
         # Generate random bits that will mask the region to be truncated.
-        _, truncation_masks = zip(*[self.random_bitwise_secret(bits=bits, src=src, generator=generator) for x in range(operand.storage.size)])
-        truncation_masks = AdditiveArrayShare(numpy.array(truncation_masks, dtype=self.encoder.dtype))
+        _, truncation_mask = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.storage.shape)
+
         # Generate random bits that will mask everything outside the region to be truncated.
-        _, remaining_masks = zip(*[self.random_bitwise_secret(bits=bits, src=src, generator=generator) for x in range(operand.storage.size)])
-        remaining_masks = AdditiveArrayShare(numpy.array(remaining_masks, dtype=self.encoder.dtype))
-        remaining_masks.storage = self.encoder.untruncated_multiply(remaining_masks.storage, shift_left)
+        _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
+        remaining_mask.storage = self.encoder.untruncated_multiply(remaining_mask.storage, shift_left)
+
         # Combine the two masks.
         mask = self.add(remaining_mask, truncation_mask)
+
         # Mask the array element.
         masked_element = self.add(mask, operand)
+
         # Reveal the element to all players (because it's masked, no player learns the underlying secret).
-        masked_element = int(self.reveal(masked_element))
+        masked_element = self.reveal(masked_element)
+
         # Retain just the bits within the region to be truncated, which need to be removed.
         masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self.encoder.dtype)
+
         # Remove the mask, leaving just the bits to be removed from the
         # truncation region.  Because the result of the subtraction is
         # secret shared, the secret still isn't revealed.
-        truncation_bits = self.public_private_subtract(masked_truncation_bits, truncation_masks)
+        truncation_bits = self.public_private_subtract(masked_truncation_bits, truncation_mask)
+
         # Remove the bits in the truncation region from the element.  The result can be safely truncated.
         result = self.subtract(operand, truncation_bits)
+
         # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
         result = self.encoder.untruncated_multiply(result.storage, shift_right)
-        return result
+
+        return AdditiveArrayShare(result)
+
 
 
     def uniform(self, *, shape=None, generator=None):
