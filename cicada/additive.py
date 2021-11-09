@@ -707,6 +707,39 @@ class AdditiveProtocol(object):
         remainder = self.subtract(lhs, val2subtract) 
         return remainder 
 
+    def modulus_private(self, lhs, rhs):
+        """Return an elementwise result of applying moduli contained in rhspub to lhs 
+        in the context of the underlying finite field. Explicitly, this 
+        function returns a same shape array which contains an approximation
+        of the division remainder in which lhs is the secret shared dividend and 
+        rhspub is a private known divisor. 
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to act as the dend.
+        rhspub: :class:`numpy.ndarray`, required
+            Public value to act as divisor, it is assumed to not
+            be encoded, but we optionally provide an argument to 
+            handle the case in which it is
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret approximate result of lhs/rhspub on an elementwise basis.
+        """
+        self._assert_unary_compatible(lhs, "lhs")
+        quotient = untruncated_private_divide(lhs, rhs)
+        quotient = self.truncate(quotient)
+        quotient = self.floor(quotient)
+        val2subtract = self.truncate(self.untruncated_multiply(quotient, rhs))
+        remainder = self.subtract(lhs, val2subtract) 
+        return remainder 
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
         """Comparison Operator
@@ -1223,7 +1256,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
 
 
-    def _untruncated_private_divide(self, lhs, rhs):
+    def untruncated_private_divide(self, lhs, rhs):
         """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
         close to or bigger than 2^precision
 
