@@ -734,12 +734,12 @@ class AdditiveProtocol(object):
             The secret approximate result of lhs/rhspub on an elementwise basis.
         """
         self._assert_unary_compatible(lhs, "lhs")
-        quotient = untruncated_private_divide(lhs, rhs)
+        quotient = self.untruncated_private_divide(lhs, rhs)
         quotient = self.truncate(quotient)
         quotient = self.floor(quotient)
         val2subtract = self.truncate(self.untruncated_multiply(quotient, rhs))
         remainder = self.subtract(lhs, val2subtract) 
-        return remainder 
+        return self.truncate(remainder)
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
         """Comparison Operator
@@ -1278,7 +1278,7 @@ class AdditiveProtocol(object):
             The secret element-wise result of lhs / rhs.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        _, rmask = self.random_bitwise_secret(bits=self.encoder.precision, shape=)
+        _, rmask = self.random_bitwise_secret(bits=self.encoder.precision, shape=rhs.storage.shape)
         rhsmasked = self.untruncated_multiply(rmask, rhs)
         rhsmasked = self.truncate(rhsmasked)
         revealrhsmasked = self.encoder.decode(self.reveal(rhsmasked))
