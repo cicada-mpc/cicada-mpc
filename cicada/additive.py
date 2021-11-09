@@ -624,7 +624,7 @@ class AdditiveProtocol(object):
         abs_diff_rev = self.reveal(abs_diff)
         min_share = self.subtract(self.add(lhs, rhs), abs_diff)
         shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        min_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
+        min_share.storage = self.encoder.untruncated_multiply(min_share.storage, shift_right)
 
         return min_share
 
@@ -1224,7 +1224,8 @@ class AdditiveProtocol(object):
 
 
     def _untruncated_private_divide(self, lhs, rhs):
-        """Element-wise division of private and public values.
+        """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
+        close to or bigger than 2^precision
 
         Note
         ----
@@ -1243,15 +1244,12 @@ class AdditiveProtocol(object):
         value: :class:`AdditiveArrayShare`
             The secret element-wise result of lhs / rhs.
         """
-        self._assert_unary_compatible(lhs, "lhs")
-        rmask = self.modulus_private_public(self.uniform(shape=rhs.storage.shape), numpy.full(shape = rhs.storage.shape, fill_value = 2**self.encoder.precision))
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        _, rmask = self.random_bitwise_secret(bits=self.encoder.precision, shape=)
         rhsmasked = self.untruncated_multiply(rmask, rhs)
         rhsmasked = self.truncate(rhsmasked)
-        revealrhsmasked = self.reveal(rhsmasked)
-        revrmask = self.reveal(rmask)
-        if self.communicator.rank == 0:
-            print(revealrhsmasked, revrmask)
-        maskquotient = self.untruncated_private_public_divide(lhs, revealrhsmasked)
+        revealrhsmasked = self.encoder.decode(self.reveal(rhsmasked))
+        maskquotient = self.untruncated_private_public_divide(self.truncate(self.untruncated_multiply(lhs, rmask)), revealrhsmasked)
         return maskquotient 
 
 
