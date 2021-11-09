@@ -29,12 +29,14 @@ def main(communicator):
     protocol = cicada.additive.AdditiveProtocol(communicator)
     generator = numpy.random.default_rng()
 
-    bit_share, secret_share = protocol.random_bitwise_secret(generator=generator, bits=4)
+    bit_share, secret_share = protocol.random_bitwise_secret(generator=generator, bits=4, shape=(3,3))
     log.info(f"Player {communicator.rank} secret: {secret_share} bits: {bit_share}")
 
     bits = protocol.reveal(bit_share)
     secret = protocol.reveal(secret_share)
-    log.info(f"Player {communicator.rank} secret: {secret} bits: {bits}")
+    log.info(f"Player {communicator.rank} secret: {secret}\n bits:\n {bits}")
+    log.info(f"Player {communicator.rank} bitshape: {bit_share.storage.shape} ")
+    log.info(f"Player {communicator.rank} secretshape: {secret_share.storage.shape}")
 
 
 main()

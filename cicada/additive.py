@@ -622,14 +622,11 @@ class AdditiveProtocol(object):
         abs_diff = self.absolute(diff)
         diff_rev = self.reveal(diff)
         abs_diff_rev = self.reveal(abs_diff)
-        if self.communicator.rank == 0:
-            print(f'diff: {self.encoder.decode(diff_rev)}')
-            print(f'abs_diff: {self.encoder.decode(abs_diff_rev)}')
-        max_share = self.subtract(self.add(lhs, rhs), abs_diff)
+        min_share = self.subtract(self.add(lhs, rhs), abs_diff)
         shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
+        min_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
 
-        return max_share
+        return min_share
 
 
     def multiplicative_inverse(self, operand):
@@ -823,7 +820,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(self.encoder.negative(rhs.storage))
 
 
-    def random_bitwise_secret(self, *, bits, src=None, generator=None):
+    def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
         """Return a vector of randomly generated bits.
 
         This method is secure against non-colluding semi-honest adversaries.  A
@@ -852,6 +849,7 @@ class AdditiveProtocol(object):
             A share of the value defined by `bits` (in big-endian order).
         """
         bits = int(bits)
+        shape_was_none = False
         if bits < 1:
             raise ValueError(f"bits must be a positive integer, got {bits} instead.") # pragma: no cover
 
@@ -862,27 +860,41 @@ class AdditiveProtocol(object):
 
         if generator is None:
             generator = numpy.random.default_rng()
+        if shape is None:
+            shape = (1,)
+            shape_was_none = True
+        bit_res = []
+        share_res = []
+        numzeros = numpy.zeros(shape)
+        for loopop in numzeros.flat:
+            # Each participating player generates a vector of random bits.
+            if self.communicator.rank in src:
+                local_bits = generator.choice(2, size=bits).astype(self.encoder.dtype)
+            else:
+                local_bits = None
 
-        # Each participating player generates a vector of random bits.
-        if self.communicator.rank in src:
-            local_bits = generator.choice(2, size=bits).astype(self.encoder.dtype)
+            # Each participating player secret shares their bit vectors.
+            player_bit_shares = []
+            for rank in src:
+                player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,)))
+
+            # Generate the final bit vector by xor-ing everything together elementwise.
+            bit_share = player_bit_shares[0]
+            for player_bit_share in player_bit_shares[1:]:
+                bit_share = self.logical_xor(bit_share, player_bit_share)
+
+            # Shift and combine the resulting bits in big-endian order to produce a random value.
+            shift = numpy.power(2, numpy.arange(bits, dtype=self.encoder.dtype)[::-1])
+            shifted = self.encoder.untruncated_multiply(shift, bit_share.storage)
+            secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
+            bit_res.append(bit_share)
+            share_res.append(secret_share)
+        if shape_was_none:
+            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(bits))
+            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype))#, order="C"))
         else:
-            local_bits = None
-
-        # Each participating player secret shares their bit vectors.
-        player_bit_shares = []
-        for rank in src:
-            player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,)))
-
-        # Generate the final bit vector by xor-ing everything together elementwise.
-        bit_share = player_bit_shares[0]
-        for player_bit_share in player_bit_shares[1:]:
-            bit_share = self.logical_xor(bit_share, player_bit_share)
-
-        # Shift and combine the resulting bits in big-endian order to produce a random value.
-        shift = numpy.power(2, numpy.arange(bits, dtype=self.encoder.dtype)[::-1])
-        shifted = self.encoder.untruncated_multiply(shift, bit_share.storage)
-        secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
+            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(shape+(bits,)))#, order="C"))
+            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
 
         return bit_share, secret_share
 
