@@ -278,19 +278,14 @@ class AdditiveProtocol(object):
             Secret-shared result of computing `lhs` == `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        one = self.share(src=0, secret=numpy.array(1,dtype=self.encoder.dtype), shape=())
-        result = []
-        for looplhs, looprhs in zip(lhs.storage.flat, rhs.storage.flat):
-            looplhs = AdditiveArrayShare(numpy.array(looplhs, dtype=self.encoder.dtype))
-            looprhs = AdditiveArrayShare(numpy.array(looprhs, dtype=self.encoder.dtype))
-            diff = self.subtract(looplhs, looprhs)
-            mask = self.uniform(shape=())
-            mask_prod = self.untruncated_multiply(diff, mask)
-            ltz = self.less_than_zero(mask_prod)
-            gteq1 = self.logical_not(self.less(mask_prod, one))
-            ltz_or_gtz = self.logical_or(ltz, gteq1)
-            result.append(self.logical_not(ltz_or_gtz))
-        return AdditiveArrayShare(numpy.array([x.storage for x in result], dtype=self.encoder.dtype).reshape(lhs.storage.shape))#, order="C"))
+        one = self.share(src=0, secret=numpy.full(lhs.storage.shape, 1,dtype=self.encoder.dtype), shape=lhs.storage.shape)
+        diff = self.subtract(lhs, rhs)
+        mask = self.uniform(shape=(lhs.storage.shape))
+        mask_prod = self.untruncated_multiply(diff, mask)
+        ltz = self.less_than_zero(mask_prod)
+        gteq1 = self.logical_not(self.less(mask_prod, one))
+        ltz_or_gtz = self.logical_or(ltz, gteq1)
+        return self.logical_not(ltz_or_gtz)
 
 
     def exp(self, lhs, rhspub):
