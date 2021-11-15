@@ -325,6 +325,36 @@ class AdditiveProtocol(object):
         return ans
 
 
+    def exp_field(self, lhs, rhspub):
+        """Raise the array contained in lhs to the power rshpub on an elementwise basis
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+        rhspub: :class:`Int`, required 
+            a publically known integer and the power to which each element in lhs should be raised 
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the array elements from lhs all raised to the power rhspub.
+        """
+        if not isinstance(lhs, AdditiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+
+        rhsbits = [int(x) for x in bin(rhspub)[2:]][::-1]
+        tmp = AdditiveArrayShare(lhs.storage)
+        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, numpy.array(1), dtype=self.encoder.dtype),shape=lhs.storage.shape)
+        limit = len(rhsbits)-1
+        for i, bit in enumerate(rhsbits):
+            if bit:
+                ans = self.untruncated_multiply(ans, tmp)
+            if i < limit:
+                tmp = self.untruncated_multiply(tmp,tmp)
+        return ans
+
+
     def floor(self, operand):
         """Remove the `bits` least significant bits from each element in a secret shared array 
             then shift back left so that only the original integer part of 'operand' remains.
