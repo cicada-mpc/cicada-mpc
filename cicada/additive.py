@@ -278,14 +278,8 @@ class AdditiveProtocol(object):
             Secret-shared result of computing `lhs` == `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        one = self.share(src=0, secret=numpy.full(lhs.storage.shape, 1,dtype=self.encoder.dtype), shape=lhs.storage.shape)
         diff = self.subtract(lhs, rhs)
-        mask = self.uniform(shape=(lhs.storage.shape))
-        mask_prod = self.untruncated_multiply(diff, mask)
-        ltz = self.less_than_zero(mask_prod)
-        gteq1 = self.logical_not(self.less(mask_prod, one))
-        ltz_or_gtz = self.logical_or(ltz, gteq1)
-        return self.logical_not(ltz_or_gtz)
+        return self.logical_not(self.exp_field(diff, self.encoder.modulus-1))
 
 
     def exp(self, lhs, rhspub):
