@@ -415,6 +415,46 @@ class AdditiveProtocol(object):
             result.append(self.add(xwxorx, notwxorxnoty))
         return AdditiveArrayShare(numpy.array([x.storage for x in result], dtype=self.encoder.dtype).reshape(lhs.storage.shape))#, order="C"))
 
+    def less_vectorized(self, lhs, rhs):
+        """Return an elementwise less-than comparison between secret shared arrays.
+
+        The result is the secret shared elementwise comparison `lhs` < `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared result of computing `lhs` < `rhs` elementwise.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        one = numpy.full(lhs.storage.shape, 1, dtype=self.encoder.dtype)
+        two = numpy.full(lhs.storage.shape, 2, dtype=self.encoder.dtype)
+        twolhs = AdditiveArrayShare(self.encoder.untruncated_multiply(two, lhs.storage))
+        tworhs = AdditiveArrayShare(self.encoder.untruncated_multiply(two, rhs.storage))
+        diff = self.subtract(lhs, rhs)
+        twodiff = AdditiveArrayShare(self.encoder.untruncated_multiply(two, diff.storage))
+        w = self.public_private_subtract(one, self._lsb(operand=twolhs))
+        x = self.public_private_subtract(one, self._lsb(operand=tworhs))
+        y = self.public_private_subtract(one, self._lsb(operand=twodiff))
+        wxorx = self.logical_xor(w,x)
+        notwxorx = self.public_private_subtract(one, wxorx)
+        xwxorx = self.untruncated_multiply(x, wxorx)
+        noty = self.public_private_subtract(one, y)
+        notwxorxnoty = self.untruncated_multiply(notwxorx, noty)
+        return self.add(xwxorx, notwxorxnoty)
 
     def less_than_zero(self, operand):
         """Return an elementwise less-than comparison between operand elements and zero.
