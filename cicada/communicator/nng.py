@@ -347,7 +347,8 @@ class NNGCommunicator(Communicator):
                 self._incoming.put(message, block=True, timeout=None)
             except pynng.exceptions.Closed:
                 # The communicator has been freed, so exit the thread.
-                return
+                log.debug(f"Comm {self.name!r} player {self.rank} receiving socket closed.")
+                break
 
 
     def _receive(self, *, tag, sender, block):
@@ -490,27 +491,20 @@ class NNGCommunicator(Communicator):
 
     def free(self):
         # Stop sending.
-        log.debug(f"Comm {self.name!r} player {self.rank} stop sending.")
         self._outgoing.put(NNGCommunicator._Done())
-        log.debug(f"Comm {self.name!r} player {self.rank} join outgoing thread.")
         self._outgoing_thread.join()
 
         # Stop receiving.
-        log.debug(f"Comm {self.name!r} player {self.rank} stop receiving.")
         self._receiver.close()
         self._receiver = None
-        log.debug(f"Comm {self.name!r} player {self.rank} join receiving thread.")
-        self._receiving_thread.join()
+        #self._receiving_thread.join()
 
         # Stop handling incoming messages.
-        log.debug(f"Comm {self.name!r} player {self.rank} stop handling incoming.")
         self._incoming.put(NNGCommunicator._Done())
-        log.debug(f"Comm {self.name!r} player {self.rank} join incoming thread.")
         self._queueing_thread.join()
 
         # Close outgoing sockets.
         for player in self._players:
-            log.debug(f"Comm {self.name!r} player {self.rank} close player socket.")
             player.close()
         self._players = None
 
