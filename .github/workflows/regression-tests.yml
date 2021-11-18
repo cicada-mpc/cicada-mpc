@@ -29,11 +29,10 @@ jobs:
       uses: lhotari/action-upterm@v1
     - name: Run tests
       run: |
-        behave --logging-level DEBUG --no-capture --no-capture-stderr --no-logcapture --no-color
-#      run: |
-#        coverage run --source cicada -m behave --logging-level INFO --no-capture --no-capture-stderr --no-logcapture --no-color
-#        coverage combine
-#        coverage report
+      run: |
+        coverage run --source cicada -m behave
+        coverage combine
+        coverage report
     - name: Upload coverage to Coveralls
       run: coveralls --service=github
       env:

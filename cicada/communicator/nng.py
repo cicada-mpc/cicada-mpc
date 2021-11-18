@@ -497,6 +497,8 @@ class NNGCommunicator(Communicator):
         # Stop receiving.
         self._receiver.close()
         self._receiver = None
+        # The following blocks intermittently when doing CI with Github
+        # actions, for reasons I don't understand.
         #self._receiving_thread.join()
 
         # Stop handling incoming messages.
