@@ -36,10 +36,15 @@ def step_impl(context, count):
         share = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=())
         return int(share.storage)
 
+    logging.info("a")
     context.shares = []
+    logging.info("b")
     for i in range(count):
+        logging.info("c")
         context.shares.append(operation())
+        logging.info("c")
     context.shares = numpy.array(context.shares, dtype=numpy.object)
+    logging.info("e")
 
 
 @when(u'secret sharing the same value {count} times in one session')
