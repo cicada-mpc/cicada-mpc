@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -27,8 +27,11 @@ jobs:
         python setup.py develop
     - name: Run tests
       run: |
-        coverage run --source cicada -m behave --logging-level INFO --no-capture --no-capture-stderr --no-logcapture --no-color
-        coverage combine
+        behave --logging-level INFO --no-capture --no-capture-stderr --no-logcapture --no-color
+#      run: |
+#        coverage run --source cicada -m behave --logging-level INFO --no-capture --no-capture-stderr --no-logcapture --no-color
+#        coverage combine
+#        coverage report
     - name: Upload coverage to Coveralls
       run: coveralls --service=github
       env:
