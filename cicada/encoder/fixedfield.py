@@ -153,7 +153,7 @@ class FixedFieldEncoder(object):
         if not isinstance(array, numpy.ndarray):
             raise ValueError("Value to be encoded must be an instance of numpy.ndarray.") # pragma: no cover
         if not all([abs(int(int(x)*self._scale)) < self._posbound for x in numpy.nditer(array, ['refs_ok'])]):
-            raise ValueError("Value to be encoded is too large for representation in the field.")
+            raise ValueError("Value to be encoded is too large for representation in the field.") # pragma: no cover
 
         dimzero = array.ndim == 0
         arr = array * self._scale
