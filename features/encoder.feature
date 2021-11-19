@@ -94,14 +94,24 @@ Feature: Encoders
 
     Scenario Outline: Zeros
         Given a <encoder>
-        When generating zeros with shape <shape> the result should match <y>
+        When generating zeros with shape <shape> the result should match <result>
 
         Examples:
-        | encoder                  | shape              | y                  |
-        | 4 bit FixedFieldEncoder  | 1                  | [0]                |
+        | encoder                  | shape              | result             |
         | FixedFieldEncoder        | ()                 | 0                  |
         | FixedFieldEncoder        | 1                  | [0]                |
         | FixedFieldEncoder        | (2, 3)             | [[0, 0, 0],[0, 0, 0]] |
+
+
+    Scenario Outline: Zeros Like
+        Given a <encoder>
+        When generating zeros like <other> the result should match <result>
+
+        Examples:
+        | encoder                  | other              | result             |
+        | FixedFieldEncoder        | 3                  | 0                  |
+        | FixedFieldEncoder        | [3, 4]             | [0, 0]             |
+        | FixedFieldEncoder        | [[3,4,5],[5,6,7]]  | [[0, 0, 0],[0, 0, 0]] |
 
 
     Scenario Outline: Subtraction
