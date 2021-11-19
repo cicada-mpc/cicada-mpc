@@ -208,13 +208,13 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(self.encoder.add(lhs.storage, rhs.storage))
 
     def bit_decompose(self, operand):
-        """Decompose operand into shares of its bitwise representation.  
+        """Decompose operand into shares of its bitwise representation.
 
         Note
         ----
-        The operand *must* be encoded with FixedFieldEncoder
-        This operation will add a dimension to the array containing operand
-        The returned bits are in little-endian format
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in little-endian order.
 
         Parameters
         ----------
