@@ -97,6 +97,16 @@ def step_impl(context):
     test.assert_is_none(decoded)
 
 
+@when(u'generating zeros with shape {shape} the result should match {result}')
+def step_impl(context, shape, result):
+    shape = eval(shape)
+    result = eval(result)
+
+    encoder = context.encoders[-1]
+    encoded = encoder.zeros(shape)
+    numpy.testing.assert_array_equal(encoded, result)
+
+
 @when(u'{x} is encoded and decoded the result should match {y}')
 def step_impl(context, x, y):
     x = numpy.array(eval(x), dtype=numpy.float64)

@@ -92,6 +92,18 @@ Feature: Encoders
         When None is encoded and decoded the result should be None
 
 
+    Scenario Outline: Zeros
+        Given a <encoder>
+        When generating zeros with shape <shape> the result should match <y>
+
+        Examples:
+        | encoder                  | shape              | y                  |
+        | 4 bit FixedFieldEncoder  | 1                  | [0]                |
+        | FixedFieldEncoder        | ()                 | 0                  |
+        | FixedFieldEncoder        | 1                  | [0]                |
+        | FixedFieldEncoder        | (2, 3)             | [[0, 0, 0],[0, 0, 0]] |
+
+
     Scenario Outline: Subtraction
         Given a <encoder>
         When <b> is subtracted from <a> the result should match <c>
