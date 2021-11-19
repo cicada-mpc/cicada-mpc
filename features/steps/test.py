@@ -31,6 +31,9 @@ def assert_equal(first, second, msg=None):
 def assert_is_instance(obj, cls, msg=None):
     return unittest.TestCase().assertIsInstance(obj, cls, msg)
 
+def assert_is_none(expr, msg=None):
+    return unittest.TestCase().assertIsNone(expr, msg)
+
 def assert_raises(exception, *, msg=None):
     return unittest.TestCase().assertRaises(exception, msg)
 

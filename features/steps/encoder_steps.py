@@ -88,6 +88,14 @@ def step_impl(context, x, shape):
     decoded = encoder.decode(encoded)
     test.assert_equal(decoded.shape, shape)
 
+@when(u'None is encoded and decoded the result should be None')
+def step_impl(context):
+    encoder = context.encoders[-1]
+    encoded = encoder.encode(None)
+    test.assert_is_none(encoded)
+    decoded = encoder.decode(encoded)
+    test.assert_is_none(decoded)
+
 
 @when(u'{x} is encoded and decoded the result should match {y}')
 def step_impl(context, x, y):

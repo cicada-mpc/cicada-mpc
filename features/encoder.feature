@@ -87,6 +87,11 @@ Feature: Encoders
         | FixedFieldEncoder        | [[1.5,2.5],[3.5,4.5]] | [[1.5,2.5],[3.5,4.5]] |
 
 
+    Scenario: Encoding and Decoding None
+        Given a FixedFieldEncoder
+        When None is encoded and decoded the result should be None
+
+
     Scenario Outline: Subtraction
         Given a <encoder>
         When <b> is subtracted from <a> the result should match <c>
