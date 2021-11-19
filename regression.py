@@ -14,20 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
+import glob
 import os
 import shutil
 import subprocess
 
-parser = argparse.ArgumentParser("Run all Cicada regression tests.")
-arguments = parser.parse_args()
-
-if os.path.exists(".coverage"):
-    os.remove(".coverage")
+for path in glob.glob(".coverage*"):
+    if path not in [".coveragerc"]:
+        os.remove(path)
 if os.path.exists(".cover"):
     shutil.rmtree(".cover")
-subprocess.call(["coverage", "run", "-m", "behave", "--tags", "~@wip"])
+subprocess.call(["coverage", "run", "-m", "behave"])
 subprocess.call(["coverage", "combine"])
 subprocess.call(["coverage", "report"])
 subprocess.call(["coverage", "html", "--directory", ".cover"])
-
