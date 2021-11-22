@@ -260,3 +260,25 @@ Feature: Additive Protocol
         | 5       | private-private multiplication | -5  | -2.5 | 10    | [[12.5] * 5] * 10     |
         | 5       | private-private multiplication | [5, 3.5]   | [2, 4]  | 10    | [[[10, 14]] * 5] * 10       |
 
+
+
+    Scenario Outline: Floor
+        Given <players> players
+        And unary operation <operation>
+        And operand <a>
+        When the unary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players | operation | a             | count | result               |
+        | 2       | floor     | 1             | 10    | [[1] * 2] * 10       |
+        | 2       | floor     | 1.1           | 10    | [[1] * 2] * 10       |
+        | 2       | floor     | -2            | 10    | [[-2] * 2] * 10      |
+        | 2       | floor     | -2.1          | 10    | [[-3] * 2] * 10      |
+        | 2       | floor     | [1.2, -3.4]   | 10    | [[[1, -4]] * 2] * 10 |
+        | 3       | floor     | 1             | 10    | [[1] * 3] * 10       |
+        | 3       | floor     | 1.1           | 10    | [[1] * 3] * 10       |
+        | 3       | floor     | -2            | 10    | [[-2] * 3] * 10      |
+        | 3       | floor     | -2.1          | 10    | [[-3] * 3] * 10      |
+        | 3       | floor     | [1.2, -3.4]   | 10    | [[[1, -4]] * 3] * 10 |
+

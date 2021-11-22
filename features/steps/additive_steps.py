@@ -259,19 +259,47 @@ def step_impl(context):
     context.binary_operation = operation
 
 
-@given(u'operands {} and {}')
+@given(u'operands {a} and {b}')
 def step_impl(context, a, b):
     context.a = eval(a)
     context.b = eval(b)
 
 
-@when(u'the binary operation is executed {} times')
+@given(u'operand {a}')
+def step_impl(context, a):
+    context.a = eval(a)
+
+
+@when(u'the binary operation is executed {count} times')
 def step_impl(context, count):
     count = eval(count)
 
     context.result = []
     for i in range(count):
         context.result.append(context.binary_operation(context.a, context.b))
+
+
+@given(u'unary operation floor')
+def step_impl(context):
+    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    def operation(communicator, a):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+        a = numpy.array(a)
+        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
+        b_share = protocol.floor(a_share)
+        return protocol.encoder.decode(protocol.reveal(b_share))
+    context.unary_operation = operation
+
+
+@when(u'the unary operation is executed {count} times')
+def step_impl(context, count):
+    count = eval(count)
+
+    context.result = []
+    for i in range(count):
+        context.result.append(context.unary_operation(context.a))
+
 
 
 @when(u'player {player} shares and reveals {count} random secrets, the revealed secrets should match the originals')
