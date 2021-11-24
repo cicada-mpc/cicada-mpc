@@ -443,6 +443,34 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(numpy.array([x.storage for x in result], dtype=self.encoder.dtype).reshape(operand.storage.shape))#, order="C"))
 
 
+    def less_than_zero_vectorized(self, operand):
+        """Return an elementwise less-than comparison between operand elements and zero.
+
+        The result is the secret shared elementwise comparison `operand` < `0`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared result of computing `operand` < `0` elementwise.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        two = numpy.array(2, dtype=self.encoder.dtype)
+        twoop = AdditiveArrayShare(self.encoder.untruncated_multiply(two, operand.storage))
+        return self._lsb(operand=twoop)
+
+
     def logical_not(self, operand):
         """Return an elementwise logical NOT of two secret shared array.
 
@@ -575,6 +603,42 @@ class AdditiveProtocol(object):
         result = self.add(lhs=comp_result, rhs=result)
         return result
 
+    def _lsb_vectorized(self, operand):
+        """Return the elementwise least significant bit of a secret shared array.
+
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array from which the least significant bits will be extracted
+
+        Returns
+        -------
+        lsb: :class:`AdditiveArrayShare`
+            Additive shared array containing the elementwise least significant
+            bits of `operand`.
+        """
+        one = numpy.array(1, dtype=self.encoder.dtype)
+        tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=operand.storage.shape)
+        maskedlop = self.add(lhs=operand, rhs=tmp)
+        c = self.reveal(maskedlop)
+        comp_result = self._publi_bitwise_less_than(lhspub=c, rhs=tmpBW)
+        if c%2:
+            c0xr0 = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[-1], dtype=self.encoder.dtype)))
+        else:
+            c0xr0 = AdditiveArrayShare(storage=numpy.array(tmpBW.storage[-1], dtype=self.encoder.dtype))
+        result = self.untruncated_multiply(lhs=comp_result, rhs=c0xr0)
+        result = AdditiveArrayShare(storage=self.encoder.untruncated_multiply(lhs=numpy.array(2, dtype=object), rhs=result.storage))
+        result = self.subtract(lhs=c0xr0, rhs=result)
+        result = self.add(lhs=comp_result, rhs=result)
+        return result
 
     def _max(self, lhs, rhs):
         """Return the elementwise maximum of two secret shared arrays.
@@ -768,6 +832,49 @@ class AdditiveProtocol(object):
         Returns
         -------
         an additive shared array containing the result of the comparison: 1 if lhspub < rhs and 0 otherwise
+        """
+        if rhs.storage.shape[0] != rhs.storage.size:
+            raise ValueError('rhs is not of the expected shape - it should be a flat array of bits')
+        bitwidth = rhs.storage.size
+        lhsbits = [int(x) for x in bin(lhspub)[2:]]
+        one = numpy.array(1, dtype=object)
+        if len(lhsbits) < rhs.storage.size:
+            lhsbits = [0 for x in range(rhs.storage.size-len(lhsbits))] + lhsbits
+        xord = []
+        for i, bit in enumerate(numpy.nditer(rhs.storage, ['refs_ok'])):
+            rhsbit=AdditiveArrayShare(storage=numpy.array(bit, dtype=self.encoder.dtype))
+            if lhsbits[i]:
+                xord.append(self.public_private_subtract(lhs=one, rhs=rhsbit))
+            else:
+                xord.append(rhsbit)
+        preord = [xord[0]] 
+        for i in range(1,bitwidth):
+            preord.append(self.logical_or(lhs=preord[i-1], rhs=xord[i]))
+        msbdiff = [preord[0]]
+        for i in range(1,bitwidth):
+            msbdiff.append(self.subtract(lhs=preord[i], rhs=preord[i-1]))
+        rhs_bit_at_msb_diff = []
+        for i, bit in enumerate(numpy.nditer(rhs.storage, ['refs_ok'])):
+            rhsbit=AdditiveArrayShare(storage=numpy.array(bit, dtype=self.encoder.dtype))
+            rhs_bit_at_msb_diff.append(self.untruncated_multiply(rhsbit, msbdiff[i]))
+        result = rhs_bit_at_msb_diff[0]
+        for i in range(1,bitwidth):
+            result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
+        return result
+
+    def _public_bitwise_less_than_vectorized(self,*, lhspub, rhs):
+        """Comparison Operator
+
+        Parameters
+        ----------
+        lhs: :class:`ndarray`, required 
+            a publically known numpy array of integers and one of the two objects to be compared 
+        rhs: :class:`AdditiveArrayShare`, required 
+            bit decomposed shared secret(s) and the other of the two objects to be compared 
+
+        Returns
+        -------
+        an additive shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
         """
         if rhs.storage.shape[0] != rhs.storage.size:
             raise ValueError('rhs is not of the expected shape - it should be a flat array of bits')
