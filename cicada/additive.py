@@ -629,7 +629,8 @@ class AdditiveProtocol(object):
         tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=operand.storage.shape)
         maskedlop = self.add(lhs=operand, rhs=tmp)
         c = self.reveal(maskedlop)
-        comp_result = self._publi_bitwise_less_than(lhspub=c, rhs=tmpBW)
+        # gotta sort the next function call first
+        comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         if c%2:
             c0xr0 = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[-1], dtype=self.encoder.dtype)))
         else:
@@ -862,6 +863,7 @@ class AdditiveProtocol(object):
             result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
         return result
 
+#TODO sort this first - highest priority
     def _public_bitwise_less_than_vectorized(self,*, lhspub, rhs):
         """Comparison Operator
 
