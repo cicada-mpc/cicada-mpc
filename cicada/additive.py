@@ -282,68 +282,6 @@ class AdditiveProtocol(object):
         return self.logical_not(self.exp_field(diff, self.encoder.modulus-1))
 
 
-    def exp(self, lhs, rhspub):
-        """Raise the array contained in lhs to the power rshpub on an elementwise basis
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Shared secret to which floor should be applied.
-        rhspub: :class:`Int`, required 
-            a publically known integer and the power to which each element in lhs should be raised 
-
-        Returns
-        -------
-        array: :class:`AdditiveArrayShare`
-            Share of the array elements from lhs all raised to the power rhspub.
-        """
-        if not isinstance(lhs, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-
-        rhsbits = [int(x) for x in bin(rhspub)[2:]][::-1]
-        tmp = AdditiveArrayShare(lhs.storage)
-        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
-        limit = len(rhsbits)-1
-        for i, bit in enumerate(rhsbits):
-            if bit:
-                ans = self.untruncated_multiply(ans, tmp)
-                ans = self.truncate(ans)
-            if i < limit:
-                tmp = self.untruncated_multiply(tmp,tmp)
-                tmp = self.truncate(tmp)
-        return ans
-
-
-    def exp_field(self, lhs, rhspub):
-        """Raise the array contained in lhs to the power rshpub on an elementwise basis
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Shared secret to which floor should be applied.
-        rhspub: :class:`Int`, required 
-            a publically known integer and the power to which each element in lhs should be raised 
-
-        Returns
-        -------
-        array: :class:`AdditiveArrayShare`
-            Share of the array elements from lhs all raised to the power rhspub.
-        """
-        if not isinstance(lhs, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-
-        rhsbits = [int(x) for x in bin(rhspub)[2:]][::-1]
-        tmp = AdditiveArrayShare(lhs.storage)
-        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, numpy.array(1), dtype=self.encoder.dtype),shape=lhs.storage.shape)
-        limit = len(rhsbits)-1
-        for i, bit in enumerate(rhsbits):
-            if bit:
-                ans = self.untruncated_multiply(ans, tmp)
-            if i < limit:
-                tmp = self.untruncated_multiply(tmp,tmp)
-        return ans
-
-
     def floor(self, operand):
         """Remove the `bits` least significant bits from each element in a secret shared array 
             then shift back left so that only the original integer part of 'operand' remains.
@@ -747,6 +685,41 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
+    def private_modulus(self, lhs, rhs):
+        """Return an elementwise result of applying moduli contained in rhspub to lhs 
+        in the context of the underlying finite field. Explicitly, this 
+        function returns a same shape array which contains an approximation
+        of the division remainder in which lhs is the secret shared dividend and 
+        rhspub is a private known divisor. 
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to act as the dend.
+        rhspub: :class:`numpy.ndarray`, required
+            Public value to act as divisor, it is assumed to not
+            be encoded, but we optionally provide an argument to 
+            handle the case in which it is
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret approximate result of lhs/rhspub on an elementwise basis.
+        """
+        self._assert_unary_compatible(lhs, "lhs")
+        quotient = self.untruncated_private_divide(lhs, rhs)
+        quotient = self.truncate(quotient)
+        quotient = self.floor(quotient)
+        val2subtract = self.truncate(self.untruncated_multiply(quotient, rhs))
+        remainder = self.subtract(lhs, val2subtract) 
+        return self.truncate(remainder)
+
+
     def private_public_modulus(self, lhs, rhspub, *, enc=False):
         """Return an elementwise result of applying moduli contained in rhspub to lhs 
         in the context of the underlying finite field. Explicitly, this 
@@ -787,39 +760,68 @@ class AdditiveProtocol(object):
         remainder = self.subtract(lhs, val2subtract) 
         return remainder 
 
-    def private_modulus(self, lhs, rhs):
-        """Return an elementwise result of applying moduli contained in rhspub to lhs 
-        in the context of the underlying finite field. Explicitly, this 
-        function returns a same shape array which contains an approximation
-        of the division remainder in which lhs is the secret shared dividend and 
-        rhspub is a private known divisor. 
 
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
+    def private_public_power(self, lhs, rhspub):
+        """Raise the array contained in lhs to the power rshpub on an elementwise basis
 
         Parameters
         ----------
         lhs: :class:`AdditiveArrayShare`, required
-            Secret shared array to act as the dend.
-        rhspub: :class:`numpy.ndarray`, required
-            Public value to act as divisor, it is assumed to not
-            be encoded, but we optionally provide an argument to 
-            handle the case in which it is
+            Shared secret to which floor should be applied.
+        rhspub: :class:`Int`, required 
+            a publically known integer and the power to which each element in lhs should be raised 
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
-            The secret approximate result of lhs/rhspub on an elementwise basis.
+        array: :class:`AdditiveArrayShare`
+            Share of the array elements from lhs all raised to the power rhspub.
         """
-        self._assert_unary_compatible(lhs, "lhs")
-        quotient = self.untruncated_private_divide(lhs, rhs)
-        quotient = self.truncate(quotient)
-        quotient = self.floor(quotient)
-        val2subtract = self.truncate(self.untruncated_multiply(quotient, rhs))
-        remainder = self.subtract(lhs, val2subtract) 
-        return self.truncate(remainder)
+        if not isinstance(lhs, AdditiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+
+        rhsbits = [int(x) for x in bin(rhspub)[2:]][::-1]
+        tmp = AdditiveArrayShare(lhs.storage)
+        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
+        limit = len(rhsbits)-1
+        for i, bit in enumerate(rhsbits):
+            if bit:
+                ans = self.untruncated_multiply(ans, tmp)
+                ans = self.truncate(ans)
+            if i < limit:
+                tmp = self.untruncated_multiply(tmp,tmp)
+                tmp = self.truncate(tmp)
+        return ans
+
+
+    def private_public_power_field(self, lhs, rhspub):
+        """Raise the array contained in lhs to the power rshpub on an elementwise basis
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+        rhspub: :class:`Int`, required 
+            a publically known integer and the power to which each element in lhs should be raised 
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the array elements from lhs all raised to the power rhspub.
+        """
+        if not isinstance(lhs, AdditiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+
+        rhsbits = [int(x) for x in bin(rhspub)[2:]][::-1]
+        tmp = AdditiveArrayShare(lhs.storage)
+        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, numpy.array(1), dtype=self.encoder.dtype),shape=lhs.storage.shape)
+        limit = len(rhsbits)-1
+        for i, bit in enumerate(rhsbits):
+            if bit:
+                ans = self.untruncated_multiply(ans, tmp)
+            if i < limit:
+                tmp = self.untruncated_multiply(tmp,tmp)
+        return ans
+
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
         """Comparison Operator
