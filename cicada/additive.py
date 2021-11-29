@@ -603,6 +603,7 @@ class AdditiveProtocol(object):
         result = self.add(lhs=comp_result, rhs=result)
         return result
 
+    #TODO
     def _lsb_vectorized(self, operand):
         """Return the elementwise least significant bit of a secret shared array.
 
@@ -746,7 +747,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
-    def modulus_private_public(self, lhs, rhspub, *, enc=False):
+    def private_public_modulus(self, lhs, rhspub, *, enc=False):
         """Return an elementwise result of applying moduli contained in rhspub to lhs 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
@@ -786,7 +787,7 @@ class AdditiveProtocol(object):
         remainder = self.subtract(lhs, val2subtract) 
         return remainder 
 
-    def modulus_private(self, lhs, rhs):
+    def private_modulus(self, lhs, rhs):
         """Return an elementwise result of applying moduli contained in rhspub to lhs 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
