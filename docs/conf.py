@@ -89,6 +89,8 @@ nbsphinx_thumbnails = {
     "user-guide/floor": "_static/floor.png",
     "user-guide/less-than": "_static/less-than.png",
     "user-guide/less-than-zero": "_static/less-than-zero.png",
+    "user-guide/logical-not": "_static/logical-not.png",
+    "user-guide/logical-xor": "_static/logical-xor.png",
     "user-guide/modulus": "_static/modulus.png",
     "user-guide/multiplication-and-truncation": "_static/multiplication.png",
     "user-guide/power": "_static/power.png",
