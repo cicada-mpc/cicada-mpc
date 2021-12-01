@@ -685,7 +685,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
-    def private_modulus(self, lhs, rhs):
+    def mod(self, lhs, rhs):
         """Return an elementwise result of applying moduli contained in rhspub to lhs 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
