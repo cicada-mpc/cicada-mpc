@@ -168,6 +168,12 @@ class FixedFieldEncoder(object):
         self._assert_unary_compatible(result, "result")
         return result
 
+    def encode_binary(self, array):
+        if array is None:
+            return array
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError("Value to be encoded must be an instance of numpy.ndarray.") # pragma: no cover
+        return array.astype(self.dtype)
 
     @property
     def fieldbits(self):

@@ -82,6 +82,20 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 nbsphinx_execute = "never" if "READTHEDOCS" in os.environ else "always"
 
+nbsphinx_thumbnails = {
+    "user-guide/absolute": "_static/absolute.png",
+    "user-guide/division": "_static/division.png",
+    "user-guide/equality": "_static/equality.png",
+    "user-guide/floor": "_static/floor.png",
+    "user-guide/less-than": "_static/less-than.png",
+    "user-guide/less-than-zero": "_static/less-than-zero.png",
+    "user-guide/logical-not": "_static/logical-not.png",
+    "user-guide/logical-xor": "_static/logical-xor.png",
+    "user-guide/modulus": "_static/modulus.png",
+    "user-guide/multiplication-and-truncation": "_static/multiplication.png",
+    "user-guide/power": "_static/power.png",
+}
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -92,7 +106,7 @@ html_theme = "sphinx_rtd_theme"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ["_static"]
+html_static_path = ["_static"]
 
 def warn_undocumented_members(app, what, name, obj, options, lines):
     if what not in [] and len(lines) == 0:
