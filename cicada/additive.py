@@ -237,7 +237,7 @@ class AdditiveProtocol(object):
                 elebits.append(self._lsb(loopop))
                 loopop = self.subtract(loopop, elebits[-1])
                 loopop = AdditiveArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
-            list_o_bits.append(elebits)
+            list_o_bits.append(elebits[::-1])
         return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(self.encoder.fieldbits,)))
 
 
