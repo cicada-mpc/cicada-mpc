@@ -720,7 +720,7 @@ class AdditiveProtocol(object):
         return self.truncate(remainder)
 
 
-    def private_public_modulus(self, lhs, rhspub, *, enc=False):
+    def private_public_mod(self, lhs, rhspub, *, enc=False):
         """Return an elementwise result of applying moduli contained in rhspub to lhs 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
