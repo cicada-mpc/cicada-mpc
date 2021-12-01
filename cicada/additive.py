@@ -214,7 +214,7 @@ class AdditiveProtocol(object):
         ----
         The operand *must* be encoded with FixedFieldEncoder.  The result will
         have one more dimension than the operand, containing the returned bits
-        in little-endian order.
+        in big-endian order.
 
         Parameters
         ----------
