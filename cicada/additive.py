@@ -876,12 +876,16 @@ class AdditiveProtocol(object):
             a publically known numpy array of integers and one of the two objects to be compared 
         rhs: :class:`AdditiveArrayShare`, required 
             bit decomposed shared secret(s) and the other of the two objects to be compared 
+            the bitwidth of each value in rhs (deduced from its shape) is taken to be the 
+            bitwidth of interest for the comparison if the values in lhspub require more bits 
+            for their representation, the computation will be incorrect
+
 
         Returns
         -------
         an additive shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
         """
-        if lhs.shape != rhs.storage.shape[:-1]:
+        if lhspub.shape != rhs.storage.shape[:-1]:
             raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension')
         bitwidth = rhs.storage.shape[-1]
         lhsbits = []
@@ -890,17 +894,21 @@ class AdditiveProtocol(object):
             if len(tmplist) < bitwidth:
                 tmplist = [0 for x in range(bitwidth-len(tmplist))] + tmplist
             lhsbits.append(tmplist)
-        lhsbits = numpy.array(lhsbits)
+        lhsbits = numpy.array(lhsbits, dtype=self.encoder.dtype)
         assert(lhsbits.shape == rhs.storage.shape)
-        one = numpy.full(bitwidth, 1, dtype=object)
+        one = numpy.array(1, dtype=object)
         flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
-        flatrhsbits = rhs.storage.reshape((-1, rhsbits.shape[-1]))
+        flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
         results=[]
-        for j in range(len(flatlshbits)):
+        for j in range(len(flatlhsbits)):
         ##################################
             xord = []
-            for i, bit in enumerate(numpy.nditer(flatrhsbits[j], ['refs_ok'])):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(bit, dtype=self.encoder.dtype))
+            preord = []
+            msbdiff=[]
+            rhs_bit_at_msb_diff = []
+            result = []
+            for i in range(bitwidth):
+                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
                 if flatlhsbits[j][i]:
                     xord.append(self.public_private_subtract(lhs=one, rhs=rhsbit))
                 else:
@@ -911,15 +919,14 @@ class AdditiveProtocol(object):
             msbdiff = [preord[0]]
             for i in range(1,bitwidth):
                 msbdiff.append(self.subtract(lhs=preord[i], rhs=preord[i-1]))
-            rhs_bit_at_msb_diff = []
-            for i, bit in enumerate(numpy.nditer(rhs.storage, ['refs_ok'])):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(bit, dtype=self.encoder.dtype))
+            for i in range(bitwidth):
+                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
                 rhs_bit_at_msb_diff.append(self.untruncated_multiply(rhsbit, msbdiff[i]))
             result = rhs_bit_at_msb_diff[0]
             for i in range(1,bitwidth):
                 result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
-        return AdditiveArrayShare(storage = numpy.array(results).reshape(rhs.shape[:-1]), dtype=self.encoder.dtype)
+        return AdditiveArrayShare(storage = numpy.array(results, dtype=self.encoder.dtype).reshape(rhs.storage.shape[:-1]))
 
     def public_private_add(self, lhs, rhs):
         """Return the elementwise sum of public and secret shared arrays.
