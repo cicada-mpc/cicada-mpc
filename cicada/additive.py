@@ -906,7 +906,6 @@ class AdditiveProtocol(object):
             preord = []
             msbdiff=[]
             rhs_bit_at_msb_diff = []
-            result = []
             for i in range(bitwidth):
                 rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
                 if flatlhsbits[j][i]:
@@ -926,7 +925,7 @@ class AdditiveProtocol(object):
             for i in range(1,bitwidth):
                 result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
-        return AdditiveArrayShare(storage = numpy.array(results, dtype=self.encoder.dtype).reshape(rhs.storage.shape[:-1]))
+        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.encoder.dtype).reshape(rhs.storage.shape[:-1]))
 
     def public_private_add(self, lhs, rhs):
         """Return the elementwise sum of public and secret shared arrays.

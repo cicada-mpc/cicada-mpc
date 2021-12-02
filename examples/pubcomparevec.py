@@ -38,7 +38,7 @@ def main(communicator):
     lt = protocol._public_bitwise_less_than_vectorized(lhspub=testVal, rhs=bit_share)
     print(f'type of lt: {type(lt)} {type(lt.storage)}, shape lt: {lt.storage.shape}, shape orig: {testVal.shape}')
     revealed_lt = protocol.reveal(lt)
-    log.info(f"Player {communicator.rank} secret: {testVal} {'<' if revealed_lt==1 else '>='} {secret}")
+    log.info(f"Player {communicator.rank} secret: {testVal} {['<' if x==1 else '>=' for x in revealed_lt]} {secret}")
 
 
 main()
