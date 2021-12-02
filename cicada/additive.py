@@ -896,7 +896,7 @@ class AdditiveProtocol(object):
             lhsbits.append(tmplist)
         lhsbits = numpy.array(lhsbits, dtype=self.encoder.dtype)
         assert(lhsbits.shape == rhs.storage.shape)
-        one = numpy.array(1, dtype=object)
+        one = numpy.array(1, dtype=self.encoder.dtype)
         flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
         flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
         results=[]
@@ -908,7 +908,7 @@ class AdditiveProtocol(object):
             rhs_bit_at_msb_diff = []
             for i in range(bitwidth):
                 rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
-                if flatlhsbits[j][i]:
+                if flatlhsbits[j][i] == 1:
                     xord.append(self.public_private_subtract(lhs=one, rhs=rhsbit))
                 else:
                     xord.append(rhsbit)

@@ -20,17 +20,18 @@ import numpy
 
 import cicada.additive
 import cicada.communicator
+from random import randint
 
 logging.basicConfig(level=logging.INFO)
-
+numinarray = 1000000
 @cicada.communicator.NNGCommunicator.run(world_size=3)
 def main(communicator):
-    testVal =numpy.array([0, 1, 2, 3])# 2**64 - 59 -7
+    testVal =numpy.array([x for x in range(numinarray)])# 2**64 - 59 -7
     log = cicada.Logger(logging.getLogger(), communicator)
     protocol = cicada.additive.AdditiveProtocol(communicator)
     generator = numpy.random.default_rng()
 
-    bit_share, secret_share = protocol.random_bitwise_secret(generator=generator, bits=4, shape=testVal.shape)
+    bit_share, secret_share = protocol.random_bitwise_secret(generator=generator, bits=20, shape=testVal.shape)
     print(type(testVal), type(bit_share), type(bit_share.storage))
     secret = protocol.reveal(secret_share)
     secret_bits = protocol.reveal(bit_share)
@@ -38,7 +39,30 @@ def main(communicator):
     lt = protocol._public_bitwise_less_than_vectorized(lhspub=testVal, rhs=bit_share)
     print(f'type of lt: {type(lt)} {type(lt.storage)}, shape lt: {lt.storage.shape}, shape orig: {testVal.shape}')
     revealed_lt = protocol.reveal(lt)
-    log.info(f"Player {communicator.rank} secret: {[str(testVal[i])+str(' < ' if revealed_lt[i]==1 else ' >= ')+str(secret[i]) for i in range(4)]}")
+    comp_str = []
+    for i in range(numinarray):
+        if revealed_lt[i] == 0:
+            comp_str.append(' >= ')
+        elif revealed_lt[i] == 1:
+            comp_str.append(' < ')
+        else:
+            comp_str.append(' ##### ERROR ##### ')
+
+
+    log.info(f"Player {communicator.rank} secret: {[str(testVal[i])+comp_str[i]+str(secret[i]) for i in range(numinarray)]}")
+    test_result = []
+    for i in range(numinarray):
+        try:
+            if testVal[i] < secret[i] and revealed_lt[i]:
+                test_result.append(True)
+            elif testVal[i] >= secret[i] and not revealed_lt[i]:
+                test_result.append(True)
+            else:
+                test_result.append(False)
+        except:
+            print(i, testVal[i] , secret[i] , revealed_lt[i])
+    print(all(test_result))
+
 
 
 main()
