@@ -155,18 +155,14 @@ class FixedFieldEncoder(object):
         if not all([abs(int(int(x)*self._scale)) < self._posbound for x in numpy.nditer(array, ['refs_ok'])]):
             raise ValueError("Value to be encoded is too large for representation in the field.") # pragma: no cover
 
-        dimzero = array.ndim == 0
-        arr = array * self._scale
-        if dimzero:
-            arr = int(arr)
+        if array.ndim == 0:
+            result = numpy.array(int(array * self._scale) % self._modulus, dtype=self.dtype)
         else:
-            arr = numpy.array([int(x) for x in numpy.nditer(arr, ['refs_ok'])],dtype=self.dtype).reshape(array.shape)
-        arr = arr % self._modulus
-        if dimzero:
-            arr = numpy.array(arr, dtype=self.dtype)
-        result = arr.astype(self.dtype)
+            result = numpy.array([int(x) for x in numpy.nditer(array * self._scale)], dtype=self.dtype).reshape(array.shape)
+
         self._assert_unary_compatible(result, "result")
         return result
+
 
     def encode_binary(self, array):
         if array is None:
@@ -174,6 +170,7 @@ class FixedFieldEncoder(object):
         if not isinstance(array, numpy.ndarray):
             raise ValueError("Value to be encoded must be an instance of numpy.ndarray.") # pragma: no cover
         return array.astype(self.dtype)
+
 
     @property
     def fieldbits(self):
