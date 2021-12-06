@@ -531,7 +531,7 @@ class AdditiveProtocol(object):
         maskedlop = self.add(lhs=lop, rhs=tmp)
         c = self.reveal(maskedlop)
         # gotta sort the next function call first
-        comp_result = self._public_bitwise_less_than_vectorized(lhspub=c, rhs=tmpBW)
+        comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
         c0xr0 = numpy.empty(c.shape, dtype = self.encoder.dtype) 
         for i, lc in enumerate(c):
@@ -790,49 +790,6 @@ class AdditiveProtocol(object):
 
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
-        """Comparison Operator
-
-        Parameters
-        ----------
-        lhs: :class:`Int`, required 
-            a publically known integer and one of the two objects to be compared 
-        rhs: :class:`AdditiveArrayShare`, required 
-            a bit decomposed shared secret and the other of the two objects to be compared 
-
-        Returns
-        -------
-        an additive shared array containing the result of the comparison: 1 if lhspub < rhs and 0 otherwise
-        """
-        if rhs.storage.shape[0] != rhs.storage.size:
-            raise ValueError('rhs is not of the expected shape - it should be a flat array of bits')
-        bitwidth = rhs.storage.size
-        lhsbits = [int(x) for x in bin(lhspub)[2:]]
-        one = numpy.array(1, dtype=object)
-        if len(lhsbits) < rhs.storage.size:
-            lhsbits = [0 for x in range(rhs.storage.size-len(lhsbits))] + lhsbits
-        xord = []
-        for i, bit in enumerate(numpy.nditer(rhs.storage, ['refs_ok'])):
-            rhsbit=AdditiveArrayShare(storage=numpy.array(bit, dtype=self.encoder.dtype))
-            if lhsbits[i]:
-                xord.append(self.public_private_subtract(lhs=one, rhs=rhsbit))
-            else:
-                xord.append(rhsbit)
-        preord = [xord[0]] 
-        for i in range(1,bitwidth):
-            preord.append(self.logical_or(lhs=preord[i-1], rhs=xord[i]))
-        msbdiff = [preord[0]]
-        for i in range(1,bitwidth):
-            msbdiff.append(self.subtract(lhs=preord[i], rhs=preord[i-1]))
-        rhs_bit_at_msb_diff = []
-        for i, bit in enumerate(numpy.nditer(rhs.storage, ['refs_ok'])):
-            rhsbit=AdditiveArrayShare(storage=numpy.array(bit, dtype=self.encoder.dtype))
-            rhs_bit_at_msb_diff.append(self.untruncated_multiply(rhsbit, msbdiff[i]))
-        result = rhs_bit_at_msb_diff[0]
-        for i in range(1,bitwidth):
-            result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
-        return result
-
-    def _public_bitwise_less_than_vectorized(self,*, lhspub, rhs):
         """Comparison Operator
 
         Parameters

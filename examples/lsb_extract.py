@@ -32,7 +32,7 @@ def main(communicator):
     expected_lsb = encoded_secret % 2
 
     secret_share = protocol.share(src=0, secret=encoded_secret, shape=encoded_secret.shape)
-    lsb_share = protocol._lsb_vectorized(secret_share)
+    lsb_share = protocol._lsb(secret_share)
     lsb = protocol.reveal(lsb_share)
 
     log.info(f"Player {communicator.rank} expected LSB: {expected_lsb} revealed LSB: {lsb}")
