@@ -30,9 +30,8 @@ class AdditiveArrayShare(object):
 
     Parameters
     ----------
-    storage: :class:`numpy.ndarray`, required
-        Local additive share of a secret array, which *must* have been encoded
-        using :class:`cicada.encoder.fixedfield.FixedFieldEncoder`.
+    storage: :any:`BinaryFieldArray` or :any:`FixedFieldArray`, required
+        Local additive share of a secret array.
     """
     def __init__(self, storage):
         self.storage = storage
@@ -52,12 +51,11 @@ class AdditiveArrayShare(object):
 
         Returns
         -------
-        storage: :class:`numpy.ndarray`
+        storage: :any:`BinaryFieldArray` or :any:`FixedFieldArray`
             The local additive share of the secret array.  The share is encoded
-            using an instance of
-            :class:`cicada.encoder.fixedfield.FixedFieldEncoder` which is owned
-            by an instance of :class:`AdditiveProtocol`, and **must** be used
-            for any modifications to the share value.
+            either the :any:`BinaryFieldEncoder` or :any:`FixedFieldEncoder`
+            that is owned by an instance of :class:`AdditiveProtocol`, and
+            **must** be used for any modifications to the share value.
         """
         return self._storage
 
@@ -141,6 +139,7 @@ class AdditiveProtocol(object):
 
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
+        self._binary_encoder = cicada.encoder.BinaryFieldEncoder(modulus=modulus)
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -208,6 +207,13 @@ class AdditiveProtocol(object):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return AdditiveArrayShare(self.encoder.add(lhs.storage, rhs.storage))
 
+
+    @property
+    def binary_encoder(self):
+        """Return the :class:`.BinaryFieldEncoder` used by this protocol."""
+        return self._encoder
+
+
     def bit_decompose(self, operand):
         """Decompose operand into shares of its bitwise representation.
 
@@ -250,7 +256,7 @@ class AdditiveProtocol(object):
 
     @property
     def encoder(self):
-        """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
+        """Return the :class:`.FixedFieldEncoder` used by this protocol."""
         return self._encoder
 
 
