@@ -526,45 +526,6 @@ class AdditiveProtocol(object):
             bits of `operand`.
         """
         one = numpy.array(1, dtype=self.encoder.dtype)
-        lop = operand
-        tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits)
-        maskedlop = self.add(lhs=lop, rhs=tmp)
-        c = int(self.reveal(maskedlop))
-        comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
-        if c%2:
-            c0xr0 = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[-1], dtype=self.encoder.dtype)))
-        else:
-            c0xr0 = AdditiveArrayShare(storage=numpy.array(tmpBW.storage[-1], dtype=self.encoder.dtype))
-        result = self.untruncated_multiply(lhs=comp_result, rhs=c0xr0)
-        result = AdditiveArrayShare(storage=self.encoder.untruncated_multiply(lhs=numpy.array(2, dtype=object), rhs=result.storage))
-        result = self.subtract(lhs=c0xr0, rhs=result)
-        result = self.add(lhs=comp_result, rhs=result)
-        return result
-
-    #TODO
-    def _lsb_vectorized(self, operand):
-        """Return the elementwise least significant bit of a secret shared array.
-
-        When revealed, the result will contain the values `0` or `1`, which do
-        not need to be decoded.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        operand: :class:`AdditiveArrayShare`, required
-            Secret shared array from which the least significant bits will be extracted
-
-        Returns
-        -------
-        lsb: :class:`AdditiveArrayShare`
-            Additive shared array containing the elementwise least significant
-            bits of `operand`.
-        """
-        one = numpy.array(1, dtype=self.encoder.dtype)
         lop = AdditiveArrayShare(storage = operand.storage.flatten())
         tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=lop.storage.shape)
         maskedlop = self.add(lhs=lop, rhs=tmp)
