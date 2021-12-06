@@ -23,7 +23,9 @@ import cicada.communicator
 from random import randint
 
 logging.basicConfig(level=logging.INFO)
-numinarray = 1000000
+numinarray = 100
+target_shape = (10,10)
+numBits = 64
 @cicada.communicator.NNGCommunicator.run(world_size=3)
 def main(communicator):
     testVal =numpy.array([x for x in range(numinarray)])# 2**64 - 59 -7
@@ -31,9 +33,16 @@ def main(communicator):
     protocol = cicada.additive.AdditiveProtocol(communicator)
     generator = numpy.random.default_rng()
 
-    bit_share, secret_share = protocol.random_bitwise_secret(generator=generator, bits=20, shape=testVal.shape)
+    bit_share, secret_share = protocol.random_bitwise_secret(generator=generator, bits=numBits, shape=testVal.shape)
+    _, testval_share = protocol.random_bitwise_secret(generator=generator, bits=numBits, shape=testVal.shape)
+    bit_share.storage.reshape(target_shape+(-1,))
+    secret_share.storage.reshape(target_shape)
+    testval_share.storage.reshape(target_shape)
+
+    testVal = protocol.reveal(testval_share)
+    testValDec = protocol.encoder.decode(protocol.reveal(testval_share))
     print(type(testVal), type(bit_share), type(bit_share.storage))
-    secret = protocol.reveal(secret_share)
+    secret = protocol.encoder.decode(protocol.reveal(secret_share))
     secret_bits = protocol.reveal(bit_share)
     #log.info(f'{[0]+[int(x) for x in bin(testVal)[2:]]}\n{secret_bits}')
     lt = protocol._public_bitwise_less_than_vectorized(lhspub=testVal, rhs=bit_share)
@@ -49,18 +58,20 @@ def main(communicator):
             comp_str.append(' ##### ERROR ##### ')
 
 
-    log.info(f"Player {communicator.rank} secret: {[str(testVal[i])+comp_str[i]+str(secret[i]) for i in range(numinarray)]}")
+    log.info(f"Player {communicator.rank} secret: {[str(testValDec[i])+comp_str[i]+str(secret[i]) for i in range(numinarray)]}")
     test_result = []
+    testValDec.reshape(numinarray)
+    secret.reshape(numinarray)
     for i in range(numinarray):
         try:
-            if testVal[i] < secret[i] and revealed_lt[i]:
+            if testValDec[i] < secret[i] and revealed_lt[i]:
                 test_result.append(True)
-            elif testVal[i] >= secret[i] and not revealed_lt[i]:
+            elif testValDec[i] >= secret[i] and not revealed_lt[i]:
                 test_result.append(True)
             else:
                 test_result.append(False)
         except:
-            print(i, testVal[i] , secret[i] , revealed_lt[i])
+            print(i, testValDec[i] , secret[i] , revealed_lt[i])
     print(all(test_result))
 
 

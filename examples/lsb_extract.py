@@ -28,11 +28,11 @@ def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     protocol = cicada.additive.AdditiveProtocol(communicator)
 
-    encoded_secret = numpy.array(18446744073709551541, dtype=protocol.encoder.dtype)
+    encoded_secret = numpy.array([[1,2],[3,4]], dtype=protocol.encoder.dtype)
     expected_lsb = encoded_secret % 2
 
     secret_share = protocol.share(src=0, secret=encoded_secret, shape=encoded_secret.shape)
-    lsb_share = protocol.lsb(secret_share)
+    lsb_share = protocol._lsb_vectorized(secret_share)
     lsb = protocol.reveal(lsb_share)
 
     log.info(f"Player {communicator.rank} expected LSB: {expected_lsb} revealed LSB: {lsb}")

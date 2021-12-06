@@ -565,20 +565,25 @@ class AdditiveProtocol(object):
             bits of `operand`.
         """
         one = numpy.array(1, dtype=self.encoder.dtype)
-        tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=operand.storage.shape)
-        maskedlop = self.add(lhs=operand, rhs=tmp)
+        lop = AdditiveArrayShare(storage = operand.storage.flatten())
+        tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=lop.storage.shape)
+        maskedlop = self.add(lhs=lop, rhs=tmp)
         c = self.reveal(maskedlop)
         # gotta sort the next function call first
-        comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
-        if c%2:
-            c0xr0 = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[-1], dtype=self.encoder.dtype)))
-        else:
-            c0xr0 = AdditiveArrayShare(storage=numpy.array(tmpBW.storage[-1], dtype=self.encoder.dtype))
+        comp_result = self._public_bitwise_less_than_vectorized(lhspub=c, rhs=tmpBW)
+        c = (c % 2)
+        c0xr0 = numpy.empty(c.shape, dtype = self.encoder.dtype) 
+        for i, lc in enumerate(c):
+            if lc:
+                c0xr0[i] = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self.encoder.dtype))).storage
+            else:
+                c0xr0[i] = tmpBW.storage[i][-1]
+        c0xr0 = AdditiveArrayShare(storage = c0xr0)
         result = self.untruncated_multiply(lhs=comp_result, rhs=c0xr0)
-        result = AdditiveArrayShare(storage=self.encoder.untruncated_multiply(lhs=numpy.array(2, dtype=object), rhs=result.storage))
+        result = AdditiveArrayShare(storage=self.encoder.untruncated_multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
         result = self.subtract(lhs=c0xr0, rhs=result)
         result = self.add(lhs=comp_result, rhs=result)
-        return result
+        return AdditiveArrayShare(storage = result.storage.reshape(operand.storage.shape))
 
     def _max(self, lhs, rhs):
         """Return the elementwise maximum of two secret shared arrays.
@@ -866,7 +871,6 @@ class AdditiveProtocol(object):
             result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
         return result
 
-#TODO sort this first - highest priority
     def _public_bitwise_less_than_vectorized(self,*, lhspub, rhs):
         """Comparison Operator
 
@@ -879,6 +883,10 @@ class AdditiveProtocol(object):
             the bitwidth of each value in rhs (deduced from its shape) is taken to be the 
             bitwidth of interest for the comparison if the values in lhspub require more bits 
             for their representation, the computation will be incorrect
+
+        note: this method is private as it does not consider the semantic mapping of meaning 
+        onto the field. The practical result of this is that every negative value will register as 
+        greater than every positive value due to the encoding.
 
 
         Returns
@@ -901,7 +909,6 @@ class AdditiveProtocol(object):
         flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
         results=[]
         for j in range(len(flatlhsbits)):
-        ##################################
             xord = []
             preord = []
             msbdiff=[]
