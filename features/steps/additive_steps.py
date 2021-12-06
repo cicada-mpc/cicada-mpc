@@ -33,7 +33,7 @@ def step_impl(context, count):
     @cicada.communicator.NNGCommunicator.run(world_size=context.players)
     def operation(communicator):
         protocol = cicada.additive.AdditiveProtocol(communicator)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=())
+        share = protocol.share(src=0, secret=protocol.real.encode(numpy.array(5)), shape=())
         return int(share.storage)
 
     logging.info("a")
@@ -54,7 +54,7 @@ def step_impl(context, count):
     @cicada.communicator.NNGCommunicator.run(world_size=context.players)
     def operation(communicator, count):
         protocol = cicada.additive.AdditiveProtocol(communicator)
-        shares = [protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=()) for i in range(count)]
+        shares = [protocol.share(src=0, secret=protocol.real.encode(numpy.array(5)), shape=()) for i in range(count)]
         return numpy.array([int(share.storage) for share in shares], dtype=numpy.object)
 
     context.shares = numpy.column_stack(operation(count))
@@ -77,8 +77,8 @@ def step_impl(context, player, text):
     def operation(communicator, player, text):
         protocol = cicada.additive.AdditiveProtocol(communicator)
         cicada.interactive.input = unittest.mock.MagicMock(return_value=text)
-        share = cicada.interactive.secret_input(protocol=protocol, encoder=protocol.encoder, src=player)
-        return protocol.encoder.decode(protocol.reveal(share))
+        share = cicada.interactive.secret_input(protocol=protocol, encoder=protocol.real, src=player)
+        return protocol.real.decode(protocol.reveal(share))
 
     context.result = operation(player, text)
 
@@ -100,10 +100,10 @@ def step_impl(context, player):
     @cicada.communicator.NNGCommunicator.run(world_size=context.players)
     def operation(communicator, secret, player, local):
         protocol = cicada.additive.AdditiveProtocol(communicator)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
+        share = protocol.share(src=0, secret=protocol.real.encode(secret), shape=secret.shape)
         if communicator.rank == player:
-            protocol.encoder.inplace_add(share.storage, protocol.encoder.encode(local))
-        return protocol.encoder.decode(protocol.reveal(share))
+            protocol.real.inplace_add(share.storage, protocol.real.encode(local))
+        return protocol.real.decode(protocol.reveal(share))
 
     context.result = operation(context.secret, player, context.local)
 
@@ -115,10 +115,10 @@ def step_impl(context, player):
     @cicada.communicator.NNGCommunicator.run(world_size=context.players)
     def operation(communicator, secret, player, local):
         protocol = cicada.additive.AdditiveProtocol(communicator)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
+        share = protocol.share(src=0, secret=protocol.real.encode(secret), shape=secret.shape)
         if communicator.rank == player:
-            protocol.encoder.inplace_subtract(share.storage, protocol.encoder.encode(local))
-        return protocol.encoder.decode(protocol.reveal(share))
+            protocol.real.inplace_subtract(share.storage, protocol.real.encode(local))
+        return protocol.real.decode(protocol.reveal(share))
 
     context.result = operation(context.secret, player, context.local)
 
@@ -140,12 +140,12 @@ def step_impl(context):
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
-        a = protocol.encoder.encode(numpy.array(a))
-        b = protocol.encoder.encode(numpy.array(b))
+        a = protocol.real.encode(numpy.array(a))
+        b = protocol.real.encode(numpy.array(b))
         b = protocol.share(src=0, secret=b, shape=b.shape)
         c = protocol.public_private_add(a, b)
 
-        return protocol.encoder.decode(protocol.reveal(c))
+        return protocol.real.decode(protocol.reveal(c))
     context.binary_operation = operation
 
 
@@ -155,13 +155,13 @@ def step_impl(context):
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
-        a = protocol.encoder.encode(numpy.array(a))
+        a = protocol.real.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
+        b = protocol.real.encode(numpy.array(b))
         b = protocol.share(src=1, secret=b, shape=b.shape)
         c = protocol.add(a, b)
 
-        return protocol.encoder.decode(protocol.reveal(c))
+        return protocol.real.decode(protocol.reveal(c))
     context.binary_operation = operation
 
 
@@ -171,13 +171,13 @@ def step_impl(context):
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
-        a = protocol.encoder.encode(numpy.array(a))
+        a = protocol.real.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
+        b = protocol.real.encode(numpy.array(b))
         b = protocol.share(src=1, secret=b, shape=b.shape)
         c = protocol.untruncated_multiply(a, b)
 
-        return protocol.encoder.decode(protocol.reveal(c))
+        return protocol.real.decode(protocol.reveal(c))
     context.binary_operation = operation
 
 
@@ -187,9 +187,9 @@ def step_impl(context):
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
-        a = numpy.array(a, dtype=protocol.encoder.dtype)
+        a = numpy.array(a, dtype=protocol.real.dtype)
         a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = numpy.array(b, dtype=protocol.encoder.dtype)
+        b = numpy.array(b, dtype=protocol.real.dtype)
         b = protocol.share(src=1, secret=b, shape=b.shape)
         c = protocol.logical_xor(a, b)
         return protocol.reveal(c)
@@ -202,9 +202,9 @@ def step_impl(context):
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
-        a = numpy.array(a, dtype=protocol.encoder.dtype)
+        a = numpy.array(a, dtype=protocol.real.dtype)
         a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = numpy.array(b, dtype=protocol.encoder.dtype)
+        b = numpy.array(b, dtype=protocol.real.dtype)
         b = protocol.share(src=1, secret=b, shape=b.shape)
         c = protocol.logical_or(a, b)
         return protocol.reveal(c)
@@ -218,12 +218,12 @@ def step_impl(context):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
         a = numpy.array(a)
-        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
+        a_share = protocol.share(src=0, secret=protocol.real.encode(a), shape=a.shape)
         b = numpy.array(b)
-        b_share = protocol.share(src=1, secret=protocol.encoder.encode(b), shape=b.shape)
+        b_share = protocol.share(src=1, secret=protocol.real.encode(b), shape=b.shape)
         c_share = protocol._max(a_share, b_share)
 
-        return protocol.encoder.decode(protocol.reveal(c_share))
+        return protocol.real.decode(protocol.reveal(c_share))
     context.binary_operation = operation
 
 
@@ -234,12 +234,12 @@ def step_impl(context):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
         a = numpy.array(a)
-        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
+        a_share = protocol.share(src=0, secret=protocol.real.encode(a), shape=a.shape)
         b = numpy.array(b)
-        b_share = protocol.share(src=1, secret=protocol.encoder.encode(b), shape=b.shape)
+        b_share = protocol.share(src=1, secret=protocol.real.encode(b), shape=b.shape)
         c_share = protocol._min(a_share, b_share)
 
-        return protocol.encoder.decode(protocol.reveal(c_share))
+        return protocol.real.decode(protocol.reveal(c_share))
     context.binary_operation = operation
 
 
@@ -249,13 +249,13 @@ def step_impl(context):
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
-        a = protocol.encoder.encode(numpy.array(a))
+        a = protocol.real.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
+        b = protocol.real.encode(numpy.array(b))
         b = protocol.share(src=1, secret=b, shape=b.shape)
         c = protocol.untruncated_multiply(a, b)
         c = protocol.truncate(c)
-        return protocol.encoder.decode(protocol.reveal(c))
+        return protocol.real.decode(protocol.reveal(c))
     context.binary_operation = operation
 
 
@@ -286,9 +286,9 @@ def step_impl(context):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
         a = numpy.array(a)
-        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
+        a_share = protocol.share(src=0, secret=protocol.real.encode(a), shape=a.shape)
         b_share = protocol.floor(a_share)
-        return protocol.encoder.decode(protocol.reveal(b_share))
+        return protocol.real.decode(protocol.reveal(b_share))
     context.unary_operation = operation
 
 
@@ -310,8 +310,8 @@ def step_impl(context, player, count):
     @cicada.communicator.NNGCommunicator.run(world_size=context.players)
     def operation(communicator, secret):
         protocol = cicada.additive.AdditiveProtocol(communicator)
-        share = protocol.share(src=player, secret=protocol.encoder.encode(numpy.array(secret)), shape=())
-        return protocol.encoder.decode(protocol.reveal(share))
+        share = protocol.share(src=player, secret=protocol.real.encode(numpy.array(secret)), shape=())
+        return protocol.real.decode(protocol.reveal(share))
 
     for index in range(count):
         secret = numpy.array(numpy.random.uniform(-100000, 100000))
