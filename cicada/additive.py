@@ -22,6 +22,7 @@ from math import ceil
 import numpy
 
 from cicada.communicator.interface import Communicator
+from cicada.encoder.fixedfield import FixedFieldArray
 import cicada.encoder
 
 class AdditiveArrayShare(object):
@@ -42,7 +43,7 @@ class AdditiveArrayShare(object):
 
 
     def __getitem__(self, index):
-        return AdditiveArrayShare(numpy.array(self.storage[index], dtype=self.storage.dtype))
+        return AdditiveArrayShare(self.storage[index])
 
 
     @property
@@ -1062,6 +1063,7 @@ class AdditiveProtocol(object):
         secret = None
         for recipient in dst:
             received_shares = self.communicator.gather(value=share.storage, dst=recipient)
+            print(received_shares)
 
             # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
@@ -1321,7 +1323,7 @@ class AdditiveProtocol(object):
         for other_x, other_y in zip(X, Y):
             result += x * other_y + other_x * y
 
-        return AdditiveArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
+        return AdditiveArrayShare(FixedFieldArray(result % self.encoder.modulus, modulus=self.encoder.modulus, precision=self.encoder.precision))
 
 
     def untruncated_private_divide(self, lhs, rhs):
@@ -1378,7 +1380,8 @@ class AdditiveProtocol(object):
         divisor = self.encoder.encode(numpy.array(1 / rhs))
         quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
         return quotient
-    
+
+
     def zigmoid(self, operand):
         """Return the elementwise result of applying the so-called zigmoid funtion to a secret shared array.
         Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much 
