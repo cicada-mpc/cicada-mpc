@@ -34,9 +34,9 @@ class FieldArray(numpy.ndarray):
             other = numpy.asarray(other)
 
         if other.ndim == 0:
-            other = numpy.asarray(int(array) % self._modulus, dtype=object)
+            other = numpy.asarray(int(other) % modulus, dtype=object)
         else:
-            other = numpy.asarray([int(x) for x in numpy.nditer(other, flags=["refs_ok"])], dtype=object).reshape(other.shape)
+            other = numpy.asarray([int(x) for x in numpy.nditer(other, flags=["refs_ok"])], dtype=object).reshape(other.shape) % modulus
 
         self = other.view(cls)
         self.modulus = modulus
@@ -76,7 +76,7 @@ class Field(object):
 
         self._fieldbits = modulus.bit_length()
         self._modulus = modulus
-        self._maxvalue = modulus // 2
+        self._maxpositive = modulus // 2
 
 
     def __eq__(self, other):
@@ -193,8 +193,8 @@ class Field(object):
 
 
     @property
-    def maxvalue(self):
-        return self._maxvalue
+    def maxpositive(self):
+        return self._maxpositive
 
 
 

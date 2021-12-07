@@ -47,6 +47,21 @@ def step_impl(context, precision):
     context.encoders.append(cicada.encoder.FixedFieldEncoder(precision=precision))
 
 
+@given(u'a BinaryFieldEncoder mod {modulus}')
+def step_impl(context, modulus):
+    modulus = eval(modulus)
+    if "encoders" not in context:
+        context.encoders = []
+    context.encoders.append(cicada.encoder.BinaryFieldEncoder(modulus=modulus))
+
+
+@given(u'a BinaryFieldEncoder')
+def step_impl(context):
+    if "encoders" not in context:
+        context.encoders = []
+    context.encoders.append(cicada.encoder.BinaryFieldEncoder())
+
+
 @given(u'a FixedFieldEncoder')
 def step_impl(context):
     if "encoders" not in context:
@@ -128,59 +143,5 @@ def step_impl(context, x, y):
     decoded = encoder.decode(encoded)
 
     numpy.testing.assert_almost_equal(decoded, y, decimal=4)
-
-
-@when(u'matrix {A} and vector {x} are encoded and multiplied without truncation, the decoded result should match {y}')
-def step_impl(context, A, x, y):
-    encoder = context.encoders[-1]
-    A = encoder.encode(numpy.array(eval(A)))
-    x = encoder.encode(numpy.array(eval(x)))
-    y = numpy.array(eval(y))
-
-    result = encoder.untruncated_matvec(A,x)
-    assert_is_fixed_field_representation(result)
-    decoded = encoder.decode(result)
-    if not numpy.allclose(decoded, y, rtol=0, atol=0.001):
-       raise ValueError("result mismatch")
-
-
-@when(u'matrix {A} and vector {x} are encoded and multiplied, the decoded result should match {y}')
-def step_impl(context, A, x, y):
-    encoder = context.encoders[-1]
-    A = encoder.encode(numpy.array(eval(A)))
-    x = encoder.encode(numpy.array(eval(x)))
-    y = numpy.array(eval(y))
-
-    result = encoder.matvec(A, x)
-    assert_is_fixed_field_representation(result)
-    decoded = encoder.decode(result)
-    test.assert_true(numpy.allclose(decoded, y, rtol=0, atol=0.001))
-
-
-@when(u'{b} is subtracted from {a} the result should match {c}')
-def step_impl(context, a, b, c):
-    encoder = context.encoders[-1]
-    a = encoder.encode(numpy.array(eval(a)))
-    b = encoder.encode(numpy.array(eval(b)))
-    c = numpy.array(eval(c))
-
-    result = encoder.subtract(a, b)
-    assert_is_fixed_field_representation(result)
-    decoded = encoder.decode(result)
-    numpy.testing.assert_almost_equal(decoded, c, decimal=4)
-
-
-
-@when(u'{a} is negated the result should match {b}')
-def step_impl(context, a, b):
-    encoder = context.encoders[-1]
-    a = encoder.encode(numpy.array(eval(a)))
-    b = numpy.array(eval(b))
-
-    result = encoder.negative(a)
-    assert_is_fixed_field_representation(result)
-    decoded = encoder.decode(result)
-    numpy.testing.assert_almost_equal(decoded, b, decimal=4)
-
 
 

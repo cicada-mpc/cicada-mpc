@@ -111,12 +111,12 @@ class FixedFieldEncoder(object):
 
         if not isinstance(array, FixedFieldArray):
             raise ValueError(f"{label} must be an instance of FixedFieldArray, got {type(array)} instead.") # pragma: no cover
-        if array.modulus != self._modulus:
+        if array.modulus != self._field.modulus:
             raise ValueError(f"{label} modulus must be {self._modulus}, got {array.modulus} instead.") # pragma: no cover
         if array.precision != self._precision:
             raise ValueError(f"{label} precision must be {self._precision}, got {array.precision} instead.") # pragma: no cover
 
-        return numpy.where(array > self._posbound, -(self._modulus - array) / self._scale, array / self._scale).astype(numpy.float64)
+        return numpy.where(array > self._field.maxpositive, -(self._field.modulus - array) / self._scale, array / self._scale).astype(numpy.float64)
 
 
     def encode(self, array):
@@ -140,11 +140,11 @@ class FixedFieldEncoder(object):
         if not isinstance(array, numpy.ndarray):
             array = numpy.asarray(array)
 
-        if not all([abs(int(int(x)*self._scale)) < self._field.maxvalue for x in numpy.nditer(array, ["refs_ok"])]):
+        if not all([abs(int(int(x)*self._scale)) < self._field.maxpositive for x in numpy.nditer(array, ["refs_ok"])]):
             raise ValueError("Value to be encoded is too large for representation in the field.") # pragma: no cover
 
         if array.ndim == 0:
-            result = FixedFieldArray(int(array * self._scale) % self._modulus, modulus=self._field.modulus, precision=self._precision)
+            result = FixedFieldArray(int(array * self._scale) % self._field.modulus, modulus=self._field.modulus, precision=self._precision)
         else:
             result = FixedFieldArray([int(x) for x in numpy.nditer(array * self._scale, ["refs_ok"])], modulus=self._field.modulus, precision=self._precision).reshape(array.shape)
 
@@ -180,8 +180,7 @@ class FixedFieldEncoder(object):
         values = []
         for index in range(int(numpy.prod(size))):
             values.append(int.from_bytes(generator.bytes(self.fieldbytes), 'big') % self._modulus)
-        result = FixedFieldArray(values, modulus=self._modulus, precision=self._precision).reshape(size)
-        return result
+        return FixedFieldArray(values, modulus=self._modulus, precision=self._precision).reshape(size)
 
 
     def zeros(self, shape):
@@ -197,8 +196,7 @@ class FixedFieldEncoder(object):
         array: :class:`numpy.ndarray`
             Encoded array of zeros with shape `shape`.
         """
-        result = FixedFieldArray(numpy.zeros(shape), modulus=self._modulus, precision=self._precision)
-        return result
+        return FixedFieldArray(numpy.zeros(shape), modulus=self._field.modulus, precision=self._precision)
 
 
     def zeros_like(self, other):
@@ -214,7 +212,6 @@ class FixedFieldEncoder(object):
         array: :class:`numpy.ndarray`
             Encoded array of zeros with the same shape as `other`.
         """
-        result = FixedFieldArray(numpy.zeros(other.shape), modulus=self._modulus, precision=self._precision)
-        return result
+        return FixedFieldArray(numpy.zeros(other.shape), modulus=self._field.modulus, precision=self._precision)
 
 

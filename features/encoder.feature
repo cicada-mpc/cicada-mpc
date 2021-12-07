@@ -9,7 +9,9 @@ Feature: Encoders
         | lhs                       | rhs                                              | result   |
         | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder                         | equal    |
         | 16 bit FixedFieldEncoder  | 13 bit FixedFieldEncoder                         | unequal  |
-        | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder mod 123456789           | unequal  |
+        | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder mod 251                 | unequal  |
+        | BinaryFieldEncoder         | BinaryFieldEncoder                              | equal    |
+        | BinaryFieldEncoder         | BinaryFieldEncoder mod 251                      | unequal  |
 
 
     Scenario Outline: Encoded Array Shape
@@ -112,41 +114,5 @@ Feature: Encoders
         | FixedFieldEncoder        | 3                  | 0                  |
         | FixedFieldEncoder        | [3, 4]             | [0, 0]             |
         | FixedFieldEncoder        | [[3,4,5],[5,6,7]]  | [[0, 0, 0],[0, 0, 0]] |
-
-
-    Scenario Outline: Subtraction
-        Given a <encoder>
-        When <b> is subtracted from <a> the result should match <c>
-
-        Examples:
-        | encoder            | a         | b         | c        |
-        | FixedFieldEncoder  | 1         | 1         | 0        |
-        | FixedFieldEncoder  | 1         | 3         | -2       |
-        | FixedFieldEncoder  | 1.2       | 3.5       | -2.3     |
-        | FixedFieldEncoder  | 1.2       | 0         | 1.2      |
-        | FixedFieldEncoder  | 0         | 1.2       | -1.2     |
-
-
-    Scenario Outline: Negation
-        Given a <encoder>
-        When <a> is negated the result should match <b>
-
-        Examples:
-        | encoder            | a         | b         |
-        | FixedFieldEncoder  | 0         | 0         |
-        | FixedFieldEncoder  | 3         | -3        |
-        | FixedFieldEncoder  | 3.5       | -3.5      |
-        | FixedFieldEncoder  | -3        | 3         |
-        | FixedFieldEncoder  | -3.2      | 3.2       |
-
-
-    Scenario Outline: Untruncated Matrix Vector Multiplication
-        Given a <encoder>
-        When matrix <A> and vector <x> are encoded and multiplied without truncation, the decoded result should match <y>
-
-        Examples:
-        | encoder           | A                           | x                           | y                 |
-        | FixedFieldEncoder | [[1,2,3],[4,5,6],[0,0,0]]   | [1,1,1]                     | [393216,983040,0] |
-        | FixedFieldEncoder | [0, 1, 2, 3, 4, 5, 6, 7, 8] | [0, 1, 2, 3, 4, 5, 6, 7, 8] | 13369344          |
 
 
