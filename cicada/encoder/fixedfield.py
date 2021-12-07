@@ -14,28 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Functionality for encoding and manipulating real values using integer fields.
+"""Functionality for encoding real values using integer fields.
 """
 
-from math import log2, ceil
 import numbers
 
 import numpy
 
+import cicada.math
 
-class FixedFieldArray(numpy.ndarray):
+class FixedFieldArray(cicada.math.FieldArray):
     def __new__(cls, other, *, modulus, precision):
-        if not isinstance(modulus, numbers.Integral):
-            raise ValueError(f"Expected integer modulus, got {type(modulus)} instead.") # pragma: no cover
-        if modulus < 0:
-            raise ValueError(f"Expected non-negative modulus, got {modulus} instead.") # pragma: no cover
+        self = super().__new__(cls, other, modulus=modulus)
+
         if not isinstance(precision, numbers.Integral):
             raise ValueError(f"Expected integer precision, got {type(precision)} instead.") # pragma: no cover
         if precision < 0:
             raise ValueError(f"Expected non-negative precision, got {precision} instead.") # pragma: no cover
 
-        self = numpy.asarray(other, dtype=numpy.dtype(numpy.object)).view(cls)
-        self.modulus = modulus
         self.precision = precision
         return self
 
@@ -49,13 +45,12 @@ class FixedFieldArray(numpy.ndarray):
 
     def __reduce__(self):
         fn, fn_state, state = super(FixedFieldArray, self).__reduce__()
-        return fn, fn_state, state + (self.modulus, self.precision)
+        return fn, fn_state, state + (self.precision,)
 
 
     def __setstate__(self, state):
-        self.modulus = state[-2]
         self.precision = state[-1]
-        super(FixedFieldArray, self).__setstate__(state[:-2])
+        super(FixedFieldArray, self).__setstate__(state[:-1])
 
 
 class FixedFieldEncoder(object):
@@ -77,67 +72,23 @@ class FixedFieldEncoder(object):
         to 16.
     """
     def __init__(self, modulus=18446744073709551557, precision=16):
-        if not isinstance(modulus, numbers.Integral):
-            raise ValueError(f"Expected integer modulus, got {type(modulus)} instead.") # pragma: no cover
-        if modulus < 0:
-            raise ValueError(f"Expected non-negative modulus, got {modulus} instead.") # pragma: no cover
+        self._field = cicada.math.Field(modulus=modulus)
+
         if not isinstance(precision, numbers.Integral):
             raise ValueError(f"Expected integer precision, got {type(precision)} instead.") # pragma: no cover
         if precision < 0:
             raise ValueError(f"Expected non-negative precision, got {precision} instead.") # pragma: no cover
 
-        self._dtype = numpy.dtype(numpy.object)
-        self._decoded_type = numpy.float64
         self._precision = precision
         self._scale = int(2**self._precision)
-        self._modulus = modulus
-        self._posbound = (modulus)//2
-        self._fieldbits = modulus.bit_length()
 
 
     def __eq__(self, other):
-        return isinstance(other, FixedFieldEncoder) and self._precision == other._precision and self._modulus == other._modulus
+        return isinstance(other, FixedFieldEncoder) and self._field == other._field and self._precision == other._precision
 
 
     def __repr__(self):
-        return f"cicada.encoder.FixedFieldEncoder(modulus={self._modulus}, precision={self._precision})" # pragma: no cover
-
-
-    def _assert_compatible(self, array, label):
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"{label} must be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
-#        if not isinstance(array, FixedFieldArray):
-#            raise ValueError(f"{label} must be an instance of FixedFieldArray, got {type(array)} instead.") # pragma: no cover
-#        if array.modulus != self._modulus:
-#            raise ValueError(f"{label} modulus must be {self._modulus}, got {array.modulus} instead.") # pragma: no cover
-#        if array.precision != self._precision:
-#            raise ValueError(f"{label} precision must be {self._precision}, got {array.precision} instead.") # pragma: no cover
-
-
-    def add(self, lhs, rhs):
-        """Add two encoded arrays.
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            First operand.
-        rhs: :class:`numpy.ndarray`, required
-            Second operand.
-        Returns
-        -------
-        sum: :class:`numpy.ndarray`
-            The sum of the two operands.
-        """
-        self._assert_compatible(lhs, "lhs")
-        self._assert_compatible(rhs, "rhs")
-
-        # We make an explicit copy and use in-place operators to avoid overflow
-        # and/or unwanted conversion from a numpy scalar to a Python int.
-        result = lhs.copy()
-        result += rhs
-        result %= self._modulus
-        self._assert_compatible(result, "result")
-        return result
+        return f"cicada.encoder.FixedFieldEncoder(field={self._field!r}, precision={self._precision})" # pragma: no cover
 
 
     def decode(self, array):
@@ -158,14 +109,14 @@ class FixedFieldEncoder(object):
         if array is None:
             return array
 
-        self._assert_compatible(array, "array")
+        if not isinstance(array, FixedFieldArray):
+            raise ValueError(f"{label} must be an instance of FixedFieldArray, got {type(array)} instead.") # pragma: no cover
+        if array.modulus != self._modulus:
+            raise ValueError(f"{label} modulus must be {self._modulus}, got {array.modulus} instead.") # pragma: no cover
+        if array.precision != self._precision:
+            raise ValueError(f"{label} precision must be {self._precision}, got {array.precision} instead.") # pragma: no cover
+
         return numpy.where(array > self._posbound, -(self._modulus - array) / self._scale, array / self._scale).astype(numpy.float64)
-
-
-    @property
-    def dtype(self):
-        """Return the :class:`numpy.dtype` used for arrays encoded with this encoder."""
-        return self._dtype
 
 
     def encode(self, array):
@@ -187,97 +138,22 @@ class FixedFieldEncoder(object):
             return array
 
         if not isinstance(array, numpy.ndarray):
-            raise ValueError("Value to be encoded must be an instance of numpy.ndarray.") # pragma: no cover
-        if not all([abs(int(int(x)*self._scale)) < self._posbound for x in numpy.nditer(array, ['refs_ok'])]):
+            array = numpy.asarray(array)
+
+        if not all([abs(int(int(x)*self._scale)) < self._field.maxvalue for x in numpy.nditer(array, ["refs_ok"])]):
             raise ValueError("Value to be encoded is too large for representation in the field.") # pragma: no cover
 
         if array.ndim == 0:
-            result = FixedFieldArray(int(array * self._scale) % self._modulus, modulus=self._modulus, precision=self._precision)
+            result = FixedFieldArray(int(array * self._scale) % self._modulus, modulus=self._field.modulus, precision=self._precision)
         else:
-            result = FixedFieldArray([int(x) for x in numpy.nditer(array * self._scale)], modulus=self._modulus, precision=self._precision).reshape(array.shape)
+            result = FixedFieldArray([int(x) for x in numpy.nditer(array * self._scale, ["refs_ok"])], modulus=self._field.modulus, precision=self._precision).reshape(array.shape)
 
-        self._assert_compatible(result, "result")
         return result
 
 
-    def encode_binary(self, array):
-        if array is None:
-            return array
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError("Value to be encoded must be an instance of numpy.ndarray.") # pragma: no cover
-        return array.astype(self.dtype)
-
-
     @property
-    def fieldbits(self):
-        """Return the number of bits required to store field values."""
-        return self._fieldbits
-
-
-    @property
-    def fieldbytes(self):
-        """Return the number of bytes required to store field values."""
-        return ceil(self._fieldbits / 8)
-
-
-    def inplace_add(self, lhs, rhs):
-        """In-place addition of an encoded array.
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            First operand.
-
-        rhs: :class:`numpy.ndarray`, required
-            Second operand.  This value will be added in-place to `lhs`.
-        """
-        self._assert_compatible(lhs, "lhs")
-        self._assert_compatible(rhs, "rhs")
-        lhs += rhs
-        lhs %= self._modulus
-
-
-    def inplace_subtract(self, lhs, rhs):
-        """In-place subtraction of an encoded array.
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            First operand.
-
-        rhs: :class:`numpy.ndarray`, required
-            Second operand.  This value will be subtracted in-place from `lhs`.
-        """
-        self._assert_compatible(lhs, "lhs")
-        self._assert_compatible(rhs, "rhs")
-        lhs -= rhs
-        lhs %= self._modulus
-
-
-    @property
-    def modulus(self):
-        """Return the field size (modulus)."""
-        return self._modulus
-
-
-    def negative(self, array):
-        """Element-wise numerical negative.
-
-        Parameters
-        ----------
-        array: :class:`numpy.ndarray`, required
-            The array to negate.
-
-        Returns
-        -------
-        negated: :class:`numpy.ndarray`
-            Array with the same shape as `array`, containing the negated
-            elements.
-        """
-        self._assert_compatible(array, "array")
-        result = FixedFieldArray((0 - array) % self._modulus, modulus=self._modulus, precision=self._precision)
-        self._assert_compatible(result, "result")
-        return result
+    def field(self):
+        return self._field
 
 
     @property
@@ -286,29 +162,8 @@ class FixedFieldEncoder(object):
         return self._precision
 
 
-    def subtract(self, lhs, rhs):
-        """ Subtraction of two encoded arrays.
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            First operand.
-        rhs: :class:`numpy.ndarray`, required
-            Second operand.
-        Returns
-        -------
-        dif: :class:`numpy.ndarray`
-            The difference of the two operands.
-        """
-        self._assert_compatible(lhs, "lhs")
-        self._assert_compatible(rhs, "rhs")
-        result = FixedFieldArray((lhs - rhs) % self._modulus, modulus=self._modulus, precision=self._precision)
-        self._assert_compatible(result, "result")
-        return result
-
-
     def uniform(self, *, size, generator):
-        """Return a random encoded array, uniformly distributed over the ring.
+        """Return a random encoded array, uniformly distributed over the field.
 
         Parameters
         ----------
@@ -326,76 +181,6 @@ class FixedFieldEncoder(object):
         for index in range(int(numpy.prod(size))):
             values.append(int.from_bytes(generator.bytes(self.fieldbytes), 'big') % self._modulus)
         result = FixedFieldArray(values, modulus=self._modulus, precision=self._precision).reshape(size)
-        self._assert_compatible(result, "result")
-        return result
-
-
-    def untruncated_matvec(self, A, x):
-        """Return a matrix-vector product, without truncation.
-
-        The results are shifted to the left by :attr:`precision` bits,
-        which we refer to as `untruncated` values.  To recover the actual
-        values, the results should be shifted to the right by :attr:`precision`
-        bits.
-
-        Note
-        ----
-        Shifting untruncated shares of secret shared values will produce
-        nonsense results!  See
-        :meth:`cicada.additive.AdditiveProtocol.truncate` for a way to truncate
-        untruncated secret shared values.
-
-        Parameters
-        ----------
-        A: :class:`numpy.ndarray`, required
-           Encoded :math:`M \\times N` matrix.
-        x: :class:`numpy.ndarray`, required
-           Encoded size :math:`N` vector.
-
-        Returns
-        -------
-        y: :class:`numpy.ndarray`
-           Encoded, untruncated size :math:`M` vector.
-        """
-        self._assert_compatible(A, "A")
-        self._assert_compatible(x, "x")
-        result = FixedFieldArray(numpy.dot(A, x), modulus=self._modulus, precision=self._precision)
-        self._assert_compatible(result, "result")
-        return result
-
-
-    def untruncated_multiply(self, lhs, rhs):
-        """Multiply two arrays element-wise, without truncation.
-
-        The results are shifted to the left by :attr:`precision` bits,
-        which we refer to as `untruncated` values.  To recover the actual
-        values, the results should be shifted to the right by :attr:`precision`
-        bits.
-
-        Note
-        ----
-        Shifting untruncated shares of secret shared values will produce
-        nonsense results!  See
-        :meth:`cicada.additive.AdditiveProtocol.truncate` for a way to truncate
-        untruncated secret shared values.
-
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            First operand.
-        rhs: :class:`numpy.ndarray`, required
-            Second operand.
-
-        Returns
-        -------
-        product: :class:`numpy.ndarray`
-            Encoded, untruncated elementwise product of `lhs` and `rhs`.
-        """
-        self._assert_compatible(lhs, "lhs")
-        self._assert_compatible(rhs, "rhs")
-        result = FixedFieldArray((lhs * rhs) % self._modulus, modulus=self._modulus, precision=self._precision)
-        self._assert_compatible(result, "result")
         return result
 
 
@@ -413,7 +198,6 @@ class FixedFieldEncoder(object):
             Encoded array of zeros with shape `shape`.
         """
         result = FixedFieldArray(numpy.zeros(shape), modulus=self._modulus, precision=self._precision)
-        self._assert_compatible(result, "result")
         return result
 
 
@@ -431,7 +215,6 @@ class FixedFieldEncoder(object):
             Encoded array of zeros with the same shape as `other`.
         """
         result = FixedFieldArray(numpy.zeros(other.shape), modulus=self._modulus, precision=self._precision)
-        self._assert_compatible(result, "result")
         return result
 
 

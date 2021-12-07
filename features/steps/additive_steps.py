@@ -36,15 +36,10 @@ def step_impl(context, count):
         share = protocol.share(src=0, secret=protocol.real.encode(numpy.array(5)), shape=())
         return int(share.storage)
 
-    logging.info("a")
     context.shares = []
-    logging.info("b")
     for i in range(count):
-        logging.info("c")
         context.shares.append(operation())
-        logging.info("c")
     context.shares = numpy.array(context.shares, dtype=numpy.object)
-    logging.info("e")
 
 
 @when(u'secret sharing the same value {count} times in one session')
@@ -187,10 +182,10 @@ def step_impl(context):
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
-        a = numpy.array(a, dtype=protocol.real.dtype)
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = numpy.array(b, dtype=protocol.real.dtype)
-        b = protocol.share(src=1, secret=b, shape=b.shape)
+        a = numpy.array(a)
+        a = protocol.share(src=0, secret=protocol.binary.encode(a), shape=a.shape)
+        b = numpy.array(b)
+        b = protocol.share(src=1, secret=protocol.binary.encode(b), shape=b.shape)
         c = protocol.logical_xor(a, b)
         return protocol.reveal(c)
     context.binary_operation = operation
@@ -202,10 +197,10 @@ def step_impl(context):
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
-        a = numpy.array(a, dtype=protocol.real.dtype)
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = numpy.array(b, dtype=protocol.real.dtype)
-        b = protocol.share(src=1, secret=b, shape=b.shape)
+        a = numpy.array(a)
+        a = protocol.share(src=0, secret=protocol.binary.encode(a), shape=a.shape)
+        b = numpy.array(b)
+        b = protocol.share(src=1, secret=protocol.binary.encode(b), shape=b.shape)
         c = protocol.logical_or(a, b)
         return protocol.reveal(c)
     context.binary_operation = operation

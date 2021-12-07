@@ -21,42 +21,21 @@ import numbers
 
 import numpy
 
+import cicada.math
 
-class BinaryFieldArray(numpy.ndarray):
+
+class BinaryFieldArray(cicada.math.FieldArray):
     def __new__(cls, other, *, modulus):
-        if not isinstance(modulus, numbers.Integral):
-            raise ValueError(f"Expected integer modulus, got {type(modulus)} instead.") # pragma: no cover
-        if modulus < 0:
-            raise ValueError(f"Expected non-negative modulus, got {modulus} instead.") # pragma: no cover
-
-        self = numpy.asarray(other, dtype=numpy.dtype(numpy.object)).view(cls)
-        self.modulus = modulus
+        self = super().__new__(cls, other, modulus=modulus)
         return self
-
-
-    def __array_finalize__(self, other):
-        if other is None:
-            return
-        self.modulus = getattr(other, "modulus", None)
-
-
-    def __reduce__(self):
-        fn, fn_state, state = super(FixedFieldArray, self).__reduce__()
-        return fn, fn_state, state + (self.modulus,)
-
-
-    def __setstate__(self, state):
-        self.modulus = state[-1]
-        super(FixedFieldArray, self).__setstate__(state[:-1])
 
 
 class BinaryFieldEncoder(object):
     """Encodes binary values as non-negative integers in a field.
 
     Encoded values are :class:`BinaryFieldArray` instances containing Python
-    integers.
-    For a prime constant modulus, values greater than (modulus+1)/2 are
-    interpreted to be negative.  Encoded values are decoded as 64-bit
+    integers.  For a prime constant modulus, values greater than (modulus+1)/2
+    are interpreted to be negative.  Encoded values are decoded as 64-bit
     integer arrays.
 
     Parameters
@@ -66,27 +45,15 @@ class BinaryFieldEncoder(object):
         less than 2^64 (i.e. 2**64-59).
     """
     def __init__(self, modulus=18446744073709551557):
-        if not isinstance(modulus, numbers.Integral):
-            raise ValueError(f"Expected integer modulus, got {type(modulus)} instead.") # pragma: no cover
-        if modulus < 2:
-            raise ValueError(f"Expected modulus > 1, got {modulus} instead.") # pragma: no cover
-
-        self._modulus = modulus
+        self._field = cicada.math.Field(modulus=modulus)
 
 
     def __eq__(self, other):
-        return isinstance(other, BinaryFieldEncoder) and self._modulus == other._modulus
+        return isinstance(other, BinaryFieldEncoder) and self._field == other._field
 
 
     def __repr__(self):
-        return f"cicada.encoder.BinaryFieldEncoder(modulus={self._modulus})" # pragma: no cover
-
-
-    def _assert_compatible(self, array, label):
-        if not isinstance(array, BinaryFieldArray):
-            raise ValueError(f"{label} must be an instance of BinaryFieldArray, got {type(array)} instead.") # pragma: no cover
-        if array.modulus != self._modulus:
-            raise ValueError(f"{label} modulus must be {self._modulus}, got {array.modulus} instead.") # pragma: no cover
+        return f"BinaryFieldEncoder(field={self._field!r})" # pragma: no cover
 
 
     def decode(self, array):
@@ -107,7 +74,13 @@ class BinaryFieldEncoder(object):
         if array is None:
             return array
 
-        self._assert_compatible(array, "array")
+        if not isinstance(array, BinaryFieldArray):
+            raise ValueError(f"Expected BinaryFieldArray, got {type(array)} instead.") # pragma: no cover
+        if array.modulus != self._field.modulus:
+            raise ValueError(f"Expected modulus {self._field.modulus}, got {array.modulus} instead.") # pragma: no cover
+        if not numpy.all(numpy.isin(array, [0, 1])):
+            raise ValueError("Values to be decoded must be 0 or 1.") # pragma: no cover
+
         return array.astype(numpy.int64)
 
 
@@ -116,7 +89,7 @@ class BinaryFieldEncoder(object):
 
         Parameters
         ----------
-        array: :class:`numpy.ndarray` or :any:`None`, required
+        array: array-like object, or :any:`None`, required
             The array to convert.
 
         Returns
@@ -130,17 +103,16 @@ class BinaryFieldEncoder(object):
             return array
 
         if not isinstance(array, numpy.ndarray):
-            raise ValueError("Value to be encoded must be an instance of numpy.ndarray.") # pragma: no cover
+            array = numpy.asarray(array, dtype=numpy.int64)
 
         if not numpy.all(numpy.isin(array, [0, 1])):
             raise ValueError("Values to be encoded must be 0 or 1.") # pragma: no cover
 
-        if array.ndim == 0:
-            result = BinaryFieldArray(int(array) % self._modulus, modulus=self._modulus)
-        else:
-            result = BinaryFieldArray([int(x) for x in numpy.nditer(array)], modulus=self._modulus).reshape(array.shape)
+        return BinaryFieldArray(array, modulus=self._field.modulus)
 
-        self._assert_compatible(result, "result")
-        return result
+
+    @property
+    def field(self):
+        return self._field
 
 

@@ -1069,7 +1069,6 @@ class AdditiveProtocol(object):
         secret = None
         for recipient in dst:
             received_shares = self.communicator.gather(value=share.storage, dst=recipient)
-            print(received_shares)
 
             # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
@@ -1111,8 +1110,6 @@ class AdditiveProtocol(object):
         if self.communicator.rank == src:
             if not isinstance(secret, numpy.ndarray):
                 raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
-            if secret.dtype != self.real.dtype:
-                raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
             if secret.shape != shape:
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
 
