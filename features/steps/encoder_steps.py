@@ -20,7 +20,8 @@ import test
 from behave import *
 import numpy
 
-import cicada.encoder
+from cicada.encoder import BinaryFieldEncoder, FixedFieldEncoder
+from cicada.math import Field
 
 
 def assert_is_fixed_field_representation(array):
@@ -30,43 +31,39 @@ def assert_is_fixed_field_representation(array):
         test.assert_is_instance(value, int)
 
 
-@given(u'a {precision} bit FixedFieldEncoder mod {modulus}')
-def step_impl(context, precision, modulus):
-    precision = eval(precision)
-    modulus = eval(modulus)
+def encoders(context):
     if "encoders" not in context:
         context.encoders = []
-    context.encoders.append(cicada.encoder.FixedFieldEncoder(precision=precision, modulus=modulus))
-
-
-@given(u'a {precision} bit FixedFieldEncoder')
-def step_impl(context, precision):
-    precision = eval(precision)
-    if "encoders" not in context:
-        context.encoders = []
-    context.encoders.append(cicada.encoder.FixedFieldEncoder(precision=precision))
+    return context.encoders
 
 
 @given(u'a BinaryFieldEncoder mod {modulus}')
 def step_impl(context, modulus):
     modulus = eval(modulus)
-    if "encoders" not in context:
-        context.encoders = []
-    context.encoders.append(cicada.encoder.BinaryFieldEncoder(modulus=modulus))
+    encoders(context).append(BinaryFieldEncoder(field=Field(modulus)))
 
 
 @given(u'a BinaryFieldEncoder')
 def step_impl(context):
-    if "encoders" not in context:
-        context.encoders = []
-    context.encoders.append(cicada.encoder.BinaryFieldEncoder())
+    encoders(context).append(BinaryFieldEncoder(field=Field()))
+
+
+@given(u'a {precision} bit FixedFieldEncoder mod {modulus}')
+def step_impl(context, precision, modulus):
+    precision = eval(precision)
+    modulus = eval(modulus)
+    encoders(context).append(FixedFieldEncoder(field=Field(modulus), precision=precision))
+
+
+@given(u'a {precision} bit FixedFieldEncoder')
+def step_impl(context, precision):
+    precision = eval(precision)
+    encoders(context).append(FixedFieldEncoder(field=Field(), precision=precision))
 
 
 @given(u'a FixedFieldEncoder')
 def step_impl(context):
-    if "encoders" not in context:
-        context.encoders = []
-    context.encoders.append(cicada.encoder.FixedFieldEncoder())
+    encoders(context).append(FixedFieldEncoder(field=Field()))
 
 
 @then(u'the encoders should compare equal')

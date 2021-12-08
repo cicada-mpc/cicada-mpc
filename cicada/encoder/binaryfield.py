@@ -40,12 +40,13 @@ class BinaryFieldEncoder(object):
 
     Parameters
     ----------
-    modulus: :class:`int`, optional
-        Field size for storing encoded values.  Defaults to the largest prime
-        less than 2^64 (i.e. 2**64-59).
+    field: :class:`~.FieldArray`, required
+        Field for storing encoded values.
     """
-    def __init__(self, modulus=18446744073709551557):
-        self._field = cicada.math.Field(modulus=modulus)
+    def __init__(self, field):
+        if not isinstance(field, cicada.math.Field):
+            raise ValueError(f"Expected cicada.math.Field, received {type(field)} instead.")
+        self._field = field
 
 
     def __eq__(self, other):

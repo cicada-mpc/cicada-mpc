@@ -6,12 +6,13 @@ Feature: Encoders
         Then the encoders should compare <result>
 
         Examples:
-        | lhs                       | rhs                                              | result   |
-        | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder                         | equal    |
-        | 16 bit FixedFieldEncoder  | 13 bit FixedFieldEncoder                         | unequal  |
-        | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder mod 251                 | unequal  |
-        | BinaryFieldEncoder         | BinaryFieldEncoder                              | equal    |
-        | BinaryFieldEncoder         | BinaryFieldEncoder mod 251                      | unequal  |
+        | lhs                       | rhs                               | result   |
+        | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder          | equal    |
+        | 16 bit FixedFieldEncoder  | 13 bit FixedFieldEncoder          | unequal  |
+        | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder mod 251  | unequal  |
+        | BinaryFieldEncoder        | BinaryFieldEncoder                | equal    |
+        | BinaryFieldEncoder        | BinaryFieldEncoder mod 251        | unequal  |
+        | BinaryFieldEncoder        | FixedFieldEncoder                 | unequal  |
 
 
     Scenario Outline: Encoded Array Shape

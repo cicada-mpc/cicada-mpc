@@ -68,21 +68,21 @@ class FixedFieldEncoder(object):
 
     Parameters
     ----------
-    modulus: :class:`int`, optional
-        Field size for storing encoded values.  Defaults to the largest prime
-        less than 2^64 (i.e. 2**64-59).
+    field: :class:`~.Field`, optional
+        Field for storing encoded values.
     precision: :class:`int`, optional
         The number of bits reserved to store fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, modulus=18446744073709551557, precision=16):
-        self._field = cicada.math.Field(modulus=modulus)
-
+    def __init__(self, field, precision=16):
+        if not isinstance(field, cicada.math.Field):
+            raise ValueError(f"Expected cicada.math.field, got {type(field)} instead.") # pragma: no cover
         if not isinstance(precision, numbers.Integral):
             raise ValueError(f"Expected integer precision, got {type(precision)} instead.") # pragma: no cover
         if precision < 0:
             raise ValueError(f"Expected non-negative precision, got {precision} instead.") # pragma: no cover
 
+        self._field = field
         self._precision = precision
         self._scale = int(2**self._precision)
 
