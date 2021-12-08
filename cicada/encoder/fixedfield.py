@@ -17,28 +17,32 @@
 """Functionality for encoding real values using integer fields.
 """
 
+import logging
 import numbers
 
 import numpy
 
 import cicada.math
 
-class FixedFieldArray(cicada.math.FieldArray):
-    def __new__(cls, other, *, modulus, precision):
-        self = super().__new__(cls, other, modulus=modulus)
+log = logging.getLogger(__name__)
 
+class FixedFieldArray(cicada.math.FieldArray):
+    def __new__(cls, other, *, modulus=None, precision=None):
+        if isinstance(other, FixedFieldArray):
+            precision = other.precision
+        elif precision is None:
+            raise ValueError("Array precision must be specified.") # pragma: no cover
         if not isinstance(precision, numbers.Integral):
             raise ValueError(f"Expected integer precision, got {type(precision)} instead.") # pragma: no cover
         if precision < 0:
             raise ValueError(f"Expected non-negative precision, got {precision} instead.") # pragma: no cover
 
+        self = super().__new__(cls, other, modulus=modulus) # Calls __array_finalize__() with `other`
         self.precision = precision
         return self
 
 
     def __array_finalize__(self, other):
-        if other is None:
-            return
         self.modulus = getattr(other, "modulus", None)
         self.precision = getattr(other, "precision", None)
 
@@ -110,11 +114,11 @@ class FixedFieldEncoder(object):
             return array
 
         if not isinstance(array, FixedFieldArray):
-            raise ValueError(f"{label} must be an instance of FixedFieldArray, got {type(array)} instead.") # pragma: no cover
+            raise ValueError(f"Expected an instance of FixedFieldArray, got {type(array)} instead.") # pragma: no cover
         if array.modulus != self._field.modulus:
-            raise ValueError(f"{label} modulus must be {self._modulus}, got {array.modulus} instead.") # pragma: no cover
+            raise ValueError(f"Expected array modulus {self._modulus}, got {array.modulus} instead.") # pragma: no cover
         if array.precision != self._precision:
-            raise ValueError(f"{label} precision must be {self._precision}, got {array.precision} instead.") # pragma: no cover
+            raise ValueError(f"Expected array precision {self._precision}, got {array.precision} instead.") # pragma: no cover
 
         return numpy.where(array > self._field.maxpositive, -(self._field.modulus - array) / self._scale, array / self._scale).astype(numpy.float64)
 
@@ -174,13 +178,10 @@ class FixedFieldEncoder(object):
 
         Returns
         -------
-        random: :class:`numpy.ndarray`
+        random: :class:`FixedFieldArray`
             Encoded array containing uniform random values with shape `size`.
         """
-        values = []
-        for index in range(int(numpy.prod(size))):
-            values.append(int.from_bytes(generator.bytes(self.fieldbytes), 'big') % self._modulus)
-        return FixedFieldArray(values, modulus=self._modulus, precision=self._precision).reshape(size)
+        return FixedFieldArray(self._field.uniform(size=size, generator=generator), modulus=self._field.modulus, precision=self._precision)
 
 
     def zeros(self, shape):
@@ -193,7 +194,7 @@ class FixedFieldEncoder(object):
 
         Returns
         -------
-        array: :class:`numpy.ndarray`
+        array: :class:`FixedFieldArray`
             Encoded array of zeros with shape `shape`.
         """
         return FixedFieldArray(numpy.zeros(shape), modulus=self._field.modulus, precision=self._precision)
@@ -209,7 +210,7 @@ class FixedFieldEncoder(object):
 
         Returns
         -------
-        array: :class:`numpy.ndarray`
+        array: :class:`FixedFieldArray`
             Encoded array of zeros with the same shape as `other`.
         """
         return FixedFieldArray(numpy.zeros(other.shape), modulus=self._field.modulus, precision=self._precision)

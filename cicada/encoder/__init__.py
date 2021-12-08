@@ -16,6 +16,6 @@
 
 """Functionality for encoding arrays with alternate representations."""
 
-from cicada.encoder.binaryfield import BinaryFieldEncoder
-from cicada.encoder.fixedfield import FixedFieldEncoder
+from cicada.encoder.binaryfield import BinaryFieldArray, BinaryFieldEncoder
+from cicada.encoder.fixedfield import FixedFieldArray, FixedFieldEncoder
 

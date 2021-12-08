@@ -24,6 +24,7 @@ import numpy
 from cicada.communicator.interface import Communicator
 from cicada.encoder.fixedfield import FixedFieldArray
 import cicada.encoder
+import cicada.math
 
 class AdditiveArrayShare(object):
     """Stores the local share of an additive-shared secret array.
@@ -138,6 +139,7 @@ class AdditiveProtocol(object):
         self._g1 = numpy.random.default_rng(seed=prev_seed)
 
         self._communicator = communicator
+        self._field = cicada.math.Field(modulus=modulus)
         self._real = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
         self._binary = cicada.encoder.BinaryFieldEncoder(modulus=modulus)
 
@@ -1114,15 +1116,15 @@ class AdditiveProtocol(object):
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
 
         # Generate a pseudo-random zero sharing ...
-        przs = self.real.uniform(size=shape, generator=self._g0)
-        self.real.inplace_subtract(przs, self.real.uniform(size=shape, generator=self._g1))
+        przs = self._field.uniform(size=shape, generator=self._g0)
+        self._field.inplace_subtract(przs, self._field.uniform(size=shape, generator=self._g1))
 
         # Add the private secret to the PRZS
         if self.communicator.rank == src:
-            self.real.inplace_add(przs, secret)
+            self._field.inplace_add(przs, secret)
 
         # Package the result.
-        return AdditiveArrayShare(przs)
+        return AdditiveArrayShare(FixedFieldArray(przs, self._real.modulus, self._real.precision))
 
 
     def subtract(self, lhs, rhs):

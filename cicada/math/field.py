@@ -17,35 +17,40 @@
 """Functionality for manipulating integer fields.
 """
 
-from math import ceil
+import logging
+import math
 import numbers
 
 import numpy
 
 
+log = logging.getLogger(__name__)
+
+
 class FieldArray(numpy.ndarray):
-    def __new__(cls, other, *, modulus):
+    def __new__(cls, other, *, modulus=None):
+        if isinstance(other, FieldArray):
+            modulus = other.modulus
+        elif modulus is None:
+            raise ValueError("Field modulus must be specified.") # pragma: no cover
         if not isinstance(modulus, numbers.Integral):
             raise ValueError(f"Expected integer modulus, got {type(modulus)} instead.") # pragma: no cover
-        if modulus < 0:
-            raise ValueError(f"Expected non-negative modulus, got {modulus} instead.") # pragma: no cover
+        if modulus < 1:
+            raise ValueError(f"Expected positive modulus, got {modulus} instead.") # pragma: no cover
 
         if not isinstance(other, numpy.ndarray):
-            other = numpy.asarray(other)
-
+            other = numpy.array(other, dtype=object)
         if other.ndim == 0:
-            other = numpy.asarray(int(other) % modulus, dtype=object)
+            other = numpy.array(int(other) % modulus, dtype=object)
         else:
-            other = numpy.asarray([int(x) for x in numpy.nditer(other, flags=["refs_ok"])], dtype=object).reshape(other.shape) % modulus
+            other = numpy.array([int(x) % modulus for x in numpy.nditer(other, flags=["refs_ok"])], dtype=object).reshape(other.shape)
 
-        self = other.view(cls)
+        self = other.view(cls) # Calls __array_finalize__() with `other`
         self.modulus = modulus
         return self
 
 
     def __array_finalize__(self, other):
-        if other is None:
-            return
         self.modulus = getattr(other, "modulus", None)
 
 
@@ -124,6 +129,38 @@ class Field(object):
         return result
 
 
+    def dot(self, A, x):
+        """Return a matrix-vector product, without truncation.
+
+        The results are shifted to the left by :attr:`precision` bits,
+        which we refer to as `untruncated` values.  To recover the actual
+        values, the results should be shifted to the right by :attr:`precision`
+        bits.
+
+        Note
+        ----
+        Shifting untruncated shares of secret shared values will produce
+        nonsense results!  See
+        :meth:`cicada.additive.AdditiveProtocol.truncate` for a way to truncate
+        untruncated secret shared values.
+
+        Parameters
+        ----------
+        A: :class:`FieldArray`, required
+           Encoded :math:`M \\times N` matrix.
+        x: :class:`FieldArray`, required
+           Encoded size :math:`N` vector.
+
+        Returns
+        -------
+        y: :class:`FieldArray`
+           Encoded, untruncated size :math:`M` vector.
+        """
+        self._assert_compatible(A, "A")
+        self._assert_compatible(x, "x")
+        return FieldArray(numpy.dot(A, x) % self._modulus, modulus=self._modulus)
+
+
     @property
     def fieldbits(self):
         """Return the number of bits required to store field values."""
@@ -133,7 +170,7 @@ class Field(object):
     @property
     def fieldbytes(self):
         """Return the number of bytes required to store field values."""
-        return ceil(self._fieldbits / 8)
+        return math.ceil(self._fieldbits / 8)
 
 
     def inplace_add(self, lhs, rhs):
@@ -197,6 +234,24 @@ class Field(object):
         return self._maxpositive
 
 
+    def multiply(self, lhs, rhs):
+        """Multiply two field arrays element-wise.
+
+        Parameters
+        ----------
+        lhs: :class:`FieldArray`, required
+            First operand.
+        rhs: :class:`FieldArray`, required
+            Second operand.
+
+        Returns
+        -------
+        product: :class:`FieldArray`
+            Elementwise product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return FieldArray((lhs * rhs) % self._modulus, modulus=self._modulus)
+
 
     def subtract(self, lhs, rhs):
         """ Subtraction of two encoded arrays.
@@ -212,8 +267,7 @@ class Field(object):
         dif: :class:`FieldArray`
             The difference of the two operands.
         """
-        self._assert_compatible(lhs, "lhs")
-        self._assert_compatible(rhs, "rhs")
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return FieldArray((lhs - rhs) % self._modulus, modulus=self._modulus)
 
 
@@ -234,73 +288,8 @@ class Field(object):
         """
         values = []
         for index in range(int(numpy.prod(size))):
-            values.append(int.from_bytes(generator.bytes(self.fieldbytes), 'big') % self._modulus)
+            values.append(int.from_bytes(generator.bytes(self.fieldbytes), "big") % self._modulus)
         return FieldArray(values, modulus=self._modulus).reshape(size)
-
-
-    def untruncated_matvec(self, A, x):
-        """Return a matrix-vector product, without truncation.
-
-        The results are shifted to the left by :attr:`precision` bits,
-        which we refer to as `untruncated` values.  To recover the actual
-        values, the results should be shifted to the right by :attr:`precision`
-        bits.
-
-        Note
-        ----
-        Shifting untruncated shares of secret shared values will produce
-        nonsense results!  See
-        :meth:`cicada.additive.AdditiveProtocol.truncate` for a way to truncate
-        untruncated secret shared values.
-
-        Parameters
-        ----------
-        A: :class:`FieldArray`, required
-           Encoded :math:`M \\times N` matrix.
-        x: :class:`FieldArray`, required
-           Encoded size :math:`N` vector.
-
-        Returns
-        -------
-        y: :class:`FieldArray`
-           Encoded, untruncated size :math:`M` vector.
-        """
-        self._assert_compatible(A, "A")
-        self._assert_compatible(x, "x")
-        return FieldArray(numpy.dot(A, x), modulus=self._modulus)
-
-
-    def untruncated_multiply(self, lhs, rhs):
-        """Multiply two arrays element-wise, without truncation.
-
-        The results are shifted to the left by :attr:`precision` bits,
-        which we refer to as `untruncated` values.  To recover the actual
-        values, the results should be shifted to the right by :attr:`precision`
-        bits.
-
-        Note
-        ----
-        Shifting untruncated shares of secret shared values will produce
-        nonsense results!  See
-        :meth:`cicada.additive.AdditiveProtocol.truncate` for a way to truncate
-        untruncated secret shared values.
-
-
-        Parameters
-        ----------
-        lhs: :class:`FieldArray`, required
-            First operand.
-        rhs: :class:`FieldArray`, required
-            Second operand.
-
-        Returns
-        -------
-        product: :class:`FieldArray`
-            Encoded, untruncated elementwise product of `lhs` and `rhs`.
-        """
-        self._assert_compatible(lhs, "lhs")
-        self._assert_compatible(rhs, "rhs")
-        return FieldArray((lhs * rhs) % self._modulus, modulus=self._modulus)
 
 
     def zeros(self, shape):
