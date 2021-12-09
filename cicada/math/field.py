@@ -89,7 +89,7 @@ class Field(object):
 
 
     def __repr__(self):
-        return f"Field(modulus={self._modulus})" # pragma: no cover
+        return f"{self.__module__}.{self.__class__.__name__}(modulus={self._modulus})" # pragma: no cover
 
 
     def _assert_compatible(self, array, label):

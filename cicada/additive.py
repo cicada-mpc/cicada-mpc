@@ -140,8 +140,8 @@ class AdditiveProtocol(object):
 
         self._communicator = communicator
         self._field = cicada.math.Field(modulus=modulus)
-        self._real = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
-        self._binary = cicada.encoder.BinaryFieldEncoder(modulus=modulus)
+        self._binary = cicada.encoder.BinaryFieldEncoder(field=self._field)
+        self._real = cicada.encoder.FixedFieldEncoder(field=self._field, precision=precision)
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -1110,8 +1110,8 @@ class AdditiveProtocol(object):
             shape = (shape,)
 
         if self.communicator.rank == src:
-            if not isinstance(secret, numpy.ndarray):
-                raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
+            if not isinstance(secret, cicada.math.FieldArray):
+                raise ValueError(f"secret must be a FieldArray or subclass, got {type(secret)} instead.") # pragma: no cover
             if secret.shape != shape:
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
 
@@ -1123,7 +1123,10 @@ class AdditiveProtocol(object):
         if self.communicator.rank == src:
             self._field.inplace_add(przs, secret)
 
-        # Package the result.
+        # Package the result.  `secret` could be BinaryFieldArray or
+        # FixedFieldArray, our result should be the same type.
+        logging.info(f"{type(przs)} {przs} {type(secret)} {secret.__class__}")
+        result = przs.view(secret.__class__)
         return AdditiveArrayShare(FixedFieldArray(przs, self._real.modulus, self._real.precision))
 
 

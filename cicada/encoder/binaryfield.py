@@ -25,7 +25,7 @@ import cicada.math
 
 
 class BinaryFieldArray(cicada.math.FieldArray):
-    def __new__(cls, other, *, modulus):
+    def __new__(cls, other, *, modulus=None):
         self = super().__new__(cls, other, modulus=modulus)
         return self
 
@@ -40,10 +40,12 @@ class BinaryFieldEncoder(object):
 
     Parameters
     ----------
-    field: :class:`~.FieldArray`, required
+    field: :class:`~.FieldArray`, optional
         Field for storing encoded values.
     """
-    def __init__(self, field):
+    def __init__(self, field=None):
+        if field is None:
+            field = cicada.math.Field()
         if not isinstance(field, cicada.math.Field):
             raise ValueError(f"Expected cicada.math.Field, received {type(field)} instead.")
         self._field = field
@@ -54,7 +56,7 @@ class BinaryFieldEncoder(object):
 
 
     def __repr__(self):
-        return f"BinaryFieldEncoder(field={self._field!r})" # pragma: no cover
+        return f"{self.__module__}.{self.__class__.__name__}(field={self._field!r})" # pragma: no cover
 
 
     def decode(self, array):

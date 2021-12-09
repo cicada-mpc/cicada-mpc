@@ -74,7 +74,9 @@ class FixedFieldEncoder(object):
         The number of bits reserved to store fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, field, precision=16):
+    def __init__(self, field=None, precision=16):
+        if field is None:
+            field = cicada.math.Field()
         if not isinstance(field, cicada.math.Field):
             raise ValueError(f"Expected cicada.math.field, got {type(field)} instead.") # pragma: no cover
         if not isinstance(precision, numbers.Integral):
@@ -92,7 +94,7 @@ class FixedFieldEncoder(object):
 
 
     def __repr__(self):
-        return f"cicada.encoder.FixedFieldEncoder(field={self._field!r}, precision={self._precision})" # pragma: no cover
+        return f"{self.__module__}.{self.__class__.__name__}(field={self._field!r}, precision={self._precision})" # pragma: no cover
 
 
     def decode(self, array):
