@@ -301,10 +301,10 @@ class AdditiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         bits = self.encoder.precision
-        shift_left = numpy.array(2 ** bits, dtype=self.encoder.dtype)
+        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self.encoder.dtype)
         truncd = self.truncate(operand)
 
-        return AdditiveArrayShare(self.encoder.untruncated_multiply(truncd.storage, shift_left))
+        return self.add(AdditiveArrayShare(self.encoder.untruncated_multiply(self.less_than_zero(operand).storage,shift_left)), AdditiveArrayShare(self.encoder.untruncated_multiply(truncd.storage, shift_left)))
 
 
     def less(self, lhs, rhs):
