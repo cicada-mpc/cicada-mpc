@@ -207,6 +207,35 @@ class AdditiveProtocol(object):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return AdditiveArrayShare(self.encoder.add(lhs.storage, rhs.storage))
 
+
+    def additive_inverse(self, operand):
+        """Return an elementwise additive inverse of a shared array 
+        in the context of the underlying finite field. Explicitly, this 
+        function returns a same shape array which, when added 
+        elementwise with operand, will return a same shape array comprised
+        entirely of zeros (the additive identity).
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+        This function does not take into account any field-external symantics.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be additively inverted.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret additive inverse of operand on an elementwise basis.
+        """
+        self._assert_unary_compatible(operand, "operand")
+
+        return self.public_private_subtract(numpy.full(operand.storage.shape, self.encoder.modulus, dtype=self.encoder.dtype), operand)
+
+
     def bit_decompose(self, operand):
         """Decompose operand into shares of its bitwise representation.
 
@@ -301,10 +330,16 @@ class AdditiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         bits = self.encoder.precision
+        z = self.share(numpy.full(operand.storage.shape, 0, dtype=self.encoder.dtype), src=1, shape=operand.storage.shape)
         shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self.encoder.dtype)
         truncd = self.truncate(operand)
-
-        return self.add(AdditiveArrayShare(self.encoder.untruncated_multiply(self.less_than_zero(operand).storage,shift_left)), AdditiveArrayShare(self.encoder.untruncated_multiply(truncd.storage, shift_left)))
+        result = AdditiveArrayShare(self.encoder.untruncated_multiply(truncd.storage, shift_left))
+        diff = self.subtract(operand, result)
+        diffp1 = self.public_private_add(self.encoder.encode(numpy.full(diff.storage.shape, 1)), diff)
+        diffm1 = self.additive_inverse(self.public_private_subtract(self.encoder.encode(numpy.full(diff.storage.shape, 1)), diff))
+        diffp1_big = self.less_than_zero(diffp1)
+        diffm1_big = self.logical_and(self.logical_not(self.less_than_zero(diffm1)), logical_not(equal(z, diffm1)))
+        return result 
 
 
     def less(self, lhs, rhs):
@@ -373,18 +408,15 @@ class AdditiveProtocol(object):
         """
         self._assert_unary_compatible(operand, "operand")
         two = numpy.array(2, dtype=self.encoder.dtype)
-        result = []
-        for loopop in operand.storage.flat:
-            loopop = AdditiveArrayShare(numpy.array(loopop, dtype=self.encoder.dtype))
-            twoloopop = AdditiveArrayShare(self.encoder.untruncated_multiply(two, loopop.storage))
-            result.append(self._lsb(operand=twoloopop))
-        return AdditiveArrayShare(numpy.array([x.storage for x in result], dtype=self.encoder.dtype).reshape(operand.storage.shape))#, order="C"))
+        twoop = AdditiveArrayShare(self.encoder.untruncated_multiply(two, operand.storage))
+        return self._lsb(operand=twoop)
 
 
-    def less_than_zero_vectorized(self, operand):
-        """Return an elementwise less-than comparison between operand elements and zero.
+    def logical_and(self, lhs, rhs):
+        """Return an elementwise logical AND of two secret shared arrays.
 
-        The result is the secret shared elementwise comparison `operand` < `0`.
+        The operands *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical AND of `lhs` and `rhs`.
         When revealed, the result will contain the values `0` or `1`, which do
         not need to be decoded.
 
@@ -395,18 +427,20 @@ class AdditiveProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
-            Secret shared value to be compared.
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to be AND'ed.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to be AND'ed.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared result of computing `operand` < `0` elementwise.
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise logical AND of `lhs` and `rhs`.
         """
-        self._assert_unary_compatible(operand, "operand")
-        two = numpy.array(2, dtype=self.encoder.dtype)
-        twoop = AdditiveArrayShare(self.encoder.untruncated_multiply(two, operand.storage))
-        return self._lsb(operand=twoop)
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+
+        product = self.untruncated_multiply(lhs, rhs)
+        return product
 
 
     def logical_not(self, operand):
