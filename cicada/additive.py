@@ -330,16 +330,39 @@ class AdditiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         bits = self.encoder.precision
-        z = self.share(numpy.full(operand.storage.shape, 0, dtype=self.encoder.dtype), src=1, shape=operand.storage.shape)
+        z = self.share(secret=numpy.full(operand.storage.shape, 0, dtype=self.encoder.dtype), src=1, shape=operand.storage.shape)
         shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self.encoder.dtype)
         truncd = self.truncate(operand)
         result = AdditiveArrayShare(self.encoder.untruncated_multiply(truncd.storage, shift_left))
-        diff = self.subtract(operand, result)
-        diffp1 = self.public_private_add(self.encoder.encode(numpy.full(diff.storage.shape, 1)), diff)
-        diffm1 = self.additive_inverse(self.public_private_subtract(self.encoder.encode(numpy.full(diff.storage.shape, 1)), diff))
-        diffp1_big = self.less_than_zero(diffp1)
-        diffm1_big = self.logical_and(self.logical_not(self.less_than_zero(diffm1)), logical_not(equal(z, diffm1)))
+        #diff = self.subtract(operand, result)
+        #diffp1 = self.public_private_add(self.encoder.encode(numpy.full(diff.storage.shape, 1)), diff)
+        #diffm1 = self.additive_inverse(self.public_private_subtract(self.encoder.encode(numpy.full(diff.storage.shape, 1)), diff))
+        #diffp1_big = self.less_than_zero(diffp1)
+        #diffm1_big = self.logical_and(self.logical_not(self.less_than_zero(diffm1)), logical_not(equal(z, diffm1)))
         return result 
+
+    def floor_mod(self, operand):
+        """Remove the `bits` least significant bits from each element in a secret shared array 
+            then shift back left so that only the original integer part of 'operand' remains.
+
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the shared integer part of operand.
+        """
+        if not isinstance(operand, AdditiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+
+        bits = self.encoder.precision
+        modulus = numpy.full(operand.storage.shape, 1)
+        remainder = self.private_public_mod(operand, modulus)
+        return remainder
 
 
     def less(self, lhs, rhs):
@@ -685,7 +708,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
-    def mod(self, lhs, rhs):
+    def mod(self, lhs, rhspub):
         """Return an elementwise result of applying moduli contained in rhspub to lhs 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
@@ -703,9 +726,7 @@ class AdditiveProtocol(object):
             Secret shared array to act as the dend.
         rhspub: :class:`numpy.ndarray`, required
             Public value to act as divisor, it is assumed to not
-            be encoded, but we optionally provide an argument to 
-            handle the case in which it is
-
+            be encoded 
         Returns
         -------
         value: :class:`AdditiveArrayShare`
@@ -755,7 +776,7 @@ class AdditiveProtocol(object):
             rhs_enc = rhspub
         quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
         quotient = self.truncate(quotient)
-        quotient = self.floor(quotient)
+        #quotient = self.floor(quotient)
         val2subtract = self.truncate(AdditiveArrayShare(self.encoder.untruncated_multiply(rhs_enc, quotient.storage)))
         remainder = self.subtract(lhs, val2subtract) 
         return remainder 
