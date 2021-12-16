@@ -235,6 +235,38 @@ class AdditiveProtocol(object):
 
         return self.public_private_subtract(numpy.full(operand.storage.shape, self.encoder.modulus, dtype=self.encoder.dtype), operand)
 
+    def bit_compose(self, operand):
+        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in big-endian order.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Shared secret to be truncated.
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the bit decomposed secret.
+        """
+        if not isinstance(operand, AdditiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        list_o_bits = []
+        two_inv = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        for element in operand.storage.flat: # Iterates in "C" order.
+            loopop = AdditiveArrayShare(numpy.array(element, dtype=self.encoder.dtype))
+            elebits = []
+            for i in range(self.encoder.fieldbits):
+                elebits.append(self._lsb(loopop))
+                loopop = self.subtract(loopop, elebits[-1])
+                loopop = AdditiveArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
+            list_o_bits.append(elebits[::-1])
+        return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(self.encoder.fieldbits,)))
 
     def bit_decompose(self, operand):
         """Decompose operand into shares of its bitwise representation.
@@ -367,6 +399,41 @@ class AdditiveProtocol(object):
         print(self.reveal(quotient))
         return AdditiveArrayShare(self.encoder.untruncated_multiply(quotient.storage, modulus))
 
+    def floor_bit_dec(self, operand):
+        """Remove the `bits` least significant bits from each element in a secret shared array 
+            then shift back left so that only the original integer part of 'operand' remains.
+
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the shared integer part of operand.
+        """
+        if not isinstance(operand, AdditiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        abs_op = self.absolute(operand)
+        bits = self.encoder.precision
+        modulus = numpy.full(abs_op.storage.shape, 2**bits, dtype=self.encoder.dtype)
+        opdecd = self.bit_decompose(abs_op)
+        lsbs = AdditiveArrayShare(opdecd.storage[bits:])
+        print(f'{self.reveal(lsbs)},\t{self.encoder.decode(self.reveal(abs_op))}, \t{bits}\n')
+        shift = numpy.power(2, numpy.arange(bits, dtype=self.encoder.dtype)[::-1])
+        shifted = self.encoder.untruncated_multiply(shift, lsbs.storage)
+        lsbs_composed = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
+        lsbs_inv = self.additive_inverse(lsbs_composed)
+        print(f'lsbs: {self.encoder.decode(self.reveal(lsbs_composed))}')
+        mask = numpy.zeros(opdecd.storage.shape, dtype=self.encoder.dtype)
+        print(mask)
+        two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
+        ltz = self.less_than_zero(operand)  
+        print(f'shape check: {lsbs_composed.storage.shape} {two_lsbs.storage.shape} {ltz.storage.shape}')
+        sel_2_lsbs = self.untruncated_multiply(two_lsbs, ltz) 
+        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
