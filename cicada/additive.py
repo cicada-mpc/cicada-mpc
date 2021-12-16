@@ -360,9 +360,12 @@ class AdditiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         bits = self.encoder.precision
-        modulus = numpy.full(operand.storage.shape, 1)
-        remainder = self.private_public_mod(operand, modulus)
-        return remainder
+        modulus = numpy.full(operand.storage.shape, 2**bits, dtype=self.encoder.dtype)
+        #remainder = self.private_public_mod(operand, modulus, True)
+        quotient = self.untruncated_private_public_divide(operand, modulus)
+        quotient = self.truncate(quotient)
+        print(self.reveal(quotient))
+        return AdditiveArrayShare(self.encoder.untruncated_multiply(quotient.storage, modulus))
 
 
     def less(self, lhs, rhs):
