@@ -366,38 +366,8 @@ class AdditiveProtocol(object):
         shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self.encoder.dtype)
         truncd = self.truncate(operand)
         result = AdditiveArrayShare(self.encoder.untruncated_multiply(truncd.storage, shift_left))
-        #diff = self.subtract(operand, result)
-        #diffp1 = self.public_private_add(self.encoder.encode(numpy.full(diff.storage.shape, 1)), diff)
-        #diffm1 = self.additive_inverse(self.public_private_subtract(self.encoder.encode(numpy.full(diff.storage.shape, 1)), diff))
-        #diffp1_big = self.less_than_zero(diffp1)
-        #diffm1_big = self.logical_and(self.logical_not(self.less_than_zero(diffm1)), logical_not(equal(z, diffm1)))
         return result 
 
-    def floor_mod(self, operand):
-        """Remove the `bits` least significant bits from each element in a secret shared array 
-            then shift back left so that only the original integer part of 'operand' remains.
-
-
-        Parameters
-        ----------
-        operand: :class:`AdditiveArrayShare`, required
-            Shared secret to which floor should be applied.
-
-        Returns
-        -------
-        array: :class:`AdditiveArrayShare`
-            Share of the shared integer part of operand.
-        """
-        if not isinstance(operand, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-
-        bits = self.encoder.precision
-        modulus = numpy.full(operand.storage.shape, 2**bits, dtype=self.encoder.dtype)
-        #remainder = self.private_public_mod(operand, modulus, True)
-        quotient = self.untruncated_private_public_divide(operand, modulus)
-        quotient = self.truncate(quotient)
-        print(self.reveal(quotient))
-        return AdditiveArrayShare(self.encoder.untruncated_multiply(quotient.storage, modulus))
 
     def floor_bit_dec(self, operand):
         """Remove the `bits` least significant bits from each element in a secret shared array 
@@ -417,21 +387,17 @@ class AdditiveProtocol(object):
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         abs_op = self.absolute(operand)
-        bits = self.encoder.precision
-        modulus = numpy.full(abs_op.storage.shape, 2**bits, dtype=self.encoder.dtype)
+        frac_bits = self.encoder.precision
+        field_bits = self.encoder.fieldbits
         opdecd = self.bit_decompose(abs_op)
-        lsbs = AdditiveArrayShare(opdecd.storage[bits:])
-        #print(f'{self.reveal(lsbs)},\t{self.encoder.decode(self.reveal(abs_op))}, \t{bits}\n')
-        shift = numpy.power(2, numpy.arange(bits, dtype=self.encoder.dtype)[::-1])
+        lsbs = AdditiveArrayShare(opdecd.storage[field_bits-frac_bits:])
+        shift = numpy.power(2, numpy.arange(frac_bits, dtype=self.encoder.dtype)[::-1])
         shifted = self.encoder.untruncated_multiply(shift, lsbs.storage)
         lsbs_composed = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
         lsbs_inv = self.additive_inverse(lsbs_composed)
-        #print(f'lsbs: {self.encoder.decode(self.reveal(lsbs_composed))}')
         mask = numpy.zeros(opdecd.storage.shape, dtype=self.encoder.dtype)
-        #print(mask)
         two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
         ltz = self.less_than_zero(operand)  
-        #print(f'shape check: {lsbs_composed.storage.shape} {two_lsbs.storage.shape} {ltz.storage.shape}')
         sel_2_lsbs = self.untruncated_multiply(two_lsbs, ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
 
