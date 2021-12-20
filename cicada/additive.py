@@ -318,11 +318,6 @@ class AdditiveProtocol(object):
         """Return an elementwise probabilistic equality comparison between secret shared arrays.
 
         The result is the secret shared elementwise comparison `lhs` == `rhs`.
-        When revealed, the result will contain the values `0` or `1`, which do
-        not need to be decoded.
-
-        Note
-        ----
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
 
@@ -344,32 +339,6 @@ class AdditiveProtocol(object):
 
 
     def floor(self, operand):
-        """Remove the `bits` least significant bits from each element in a secret shared array 
-            then shift back left so that only the original integer part of 'operand' remains.
-
-
-        Parameters
-        ----------
-        operand: :class:`AdditiveArrayShare`, required
-            Shared secret to which floor should be applied.
-
-        Returns
-        -------
-        array: :class:`AdditiveArrayShare`
-            Share of the shared integer part of operand.
-        """
-        if not isinstance(operand, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-
-        bits = self.encoder.precision
-        z = self.share(secret=numpy.full(operand.storage.shape, 0, dtype=self.encoder.dtype), src=1, shape=operand.storage.shape)
-        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self.encoder.dtype)
-        truncd = self.truncate(operand)
-        result = AdditiveArrayShare(self.encoder.untruncated_multiply(truncd.storage, shift_left))
-        return result 
-
-
-    def floor_bit_dec(self, operand):
         """Remove the `bits` least significant bits from each element in a secret shared array 
             then shift back left so that only the original integer part of 'operand' remains.
 
@@ -697,8 +666,6 @@ class AdditiveProtocol(object):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         diff = self.subtract(lhs, rhs)
         abs_diff = self.absolute(diff)
-        diff_rev = self.reveal(diff)
-        abs_diff_rev = self.reveal(abs_diff)
         min_share = self.subtract(self.add(lhs, rhs), abs_diff)
         shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         min_share.storage = self.encoder.untruncated_multiply(min_share.storage, shift_right)
