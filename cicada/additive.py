@@ -634,7 +634,7 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         max_share = self.add(self.add(lhs, rhs), self.absolute(self.subtract(lhs, rhs)))
-        shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        shift_right = numpy.full(lhs.storage.shape, pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
         return max_share
 
@@ -667,7 +667,7 @@ class AdditiveProtocol(object):
         diff = self.subtract(lhs, rhs)
         abs_diff = self.absolute(diff)
         min_share = self.subtract(self.add(lhs, rhs), abs_diff)
-        shift_right = numpy.array(pow(2 ** 1, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        shift_right = numpy.full(lhs.storage.shape, pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         min_share.storage = self.encoder.untruncated_multiply(min_share.storage, shift_right)
 
         return min_share
