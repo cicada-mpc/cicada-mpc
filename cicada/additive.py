@@ -268,7 +268,7 @@ class AdditiveProtocol(object):
             list_o_bits.append(elebits[::-1])
         return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(self.encoder.fieldbits,)))
 
-    def bit_decompose(self, operand):
+    def bit_decompose(self, operand, num_bits=None):
         """Decompose operand into shares of its bitwise representation.
 
         Note
@@ -289,17 +289,19 @@ class AdditiveProtocol(object):
         """
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        if num_bits is None:
+            num_bits = self.encoder.fieldbits
         list_o_bits = []
         two_inv = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         for element in operand.storage.flat: # Iterates in "C" order.
             loopop = AdditiveArrayShare(numpy.array(element, dtype=self.encoder.dtype))
             elebits = []
-            for i in range(self.encoder.fieldbits):
+            for i in range(num_bits):
                 elebits.append(self._lsb(loopop))
                 loopop = self.subtract(loopop, elebits[-1])
                 loopop = AdditiveArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
             list_o_bits.append(elebits[::-1])
-        return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(self.encoder.fieldbits,)))
+        return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
 
 
     @property
@@ -358,17 +360,16 @@ class AdditiveProtocol(object):
         abs_op = self.absolute(operand)
         frac_bits = self.encoder.precision
         field_bits = self.encoder.fieldbits
-        opdecd = self.bit_decompose(abs_op)
-        lsbs = AdditiveArrayShare(opdecd.storage[field_bits-frac_bits:])
+        lsbs = self.bit_decompose(abs_op, self.encoder.precision)
         shift = numpy.power(2, numpy.arange(frac_bits, dtype=self.encoder.dtype)[::-1])
         shifted = self.encoder.untruncated_multiply(shift, lsbs.storage)
         lsbs_composed = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
         lsbs_inv = self.additive_inverse(lsbs_composed)
-        mask = numpy.zeros(opdecd.storage.shape, dtype=self.encoder.dtype)
         two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
         ltz = self.less_than_zero(operand)  
         sel_2_lsbs = self.untruncated_multiply(two_lsbs, ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
+
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
