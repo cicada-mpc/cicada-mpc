@@ -608,7 +608,7 @@ class AdditiveProtocol(object):
         result = self.add(lhs=comp_result, rhs=result)
         return AdditiveArrayShare(storage = result.storage.reshape(operand.storage.shape))
 
-    def _max(self, lhs, rhs):
+    def max(self, lhs, rhs):
         """Return the elementwise maximum of two secret shared arrays.
 
         The result is the secret shared elementwise maximum of the operands.
@@ -639,7 +639,7 @@ class AdditiveProtocol(object):
         return max_share
 
 
-    def _min(self, lhs, rhs):
+    def min(self, lhs, rhs):
         """Return the elementwise minimum of two secret shared arrays.
 
         The result is the secret shared elementwise minimum of the operands.
