@@ -337,7 +337,7 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         diff = self.subtract(lhs, rhs)
-        return self.logical_not(self.exp_field(diff, self.encoder.modulus-1))
+        return self.logical_not(self.private_public_power(diff, self.encoder.modulus-1))
 
 
     def floor(self, operand):
