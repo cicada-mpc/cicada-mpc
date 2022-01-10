@@ -614,7 +614,9 @@ class AdditiveProtocol(object):
 
         The result is the secret shared elementwise maximum of the operands.
         If revealed, the result will need to be decoded to obtain the actual
-        maximum values.
+        maximum values. Note: the field element ( if in the 'negative' range 
+        of the field consider only its magnitude ) should be less than
+        a quarter of the modulus for this method to be accurate in general.
 
         Note
         ----
@@ -645,7 +647,9 @@ class AdditiveProtocol(object):
 
         The result is the secret shared elementwise minimum of the operands.
         If revealed, the result will need to be decoded to obtain the actual
-        minimum values.
+        minimum values. Note: the field element ( if in the 'negative' range 
+        of the field consider only its magnitude ) should be less than
+        a quarter of the modulus for this method to be accurate in general.
 
         Note
         ----
