@@ -279,6 +279,8 @@ class NNGCommunicator(Communicator):
         self._receiving_thread = threading.Thread(name="Incoming", target=self._receive_messages, daemon=True)
         self._receiving_thread.start()
 
+        self._freed = False
+
         log.info(f"Comm {self.name!r} player {self._rank} communicator ready.")
 
 
@@ -490,6 +492,11 @@ class NNGCommunicator(Communicator):
 
 
     def free(self):
+        # Calling free() multiple times is a no-op.
+        if self._freed:
+            return
+        self._freed = True
+
         # Stop sending.
         self._outgoing.put(NNGCommunicator._Done())
         self._outgoing_thread.join()
