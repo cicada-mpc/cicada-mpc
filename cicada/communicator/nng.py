@@ -53,6 +53,15 @@ def nng_timeout(value):
     return -1 if value is None else int(float(value) * 1000.0)
 
 
+class Timer(object):
+    def __init__(self):
+        self._start = time.time()
+
+
+    def elapsed(self):
+        return time.time() - self._start
+
+
 class Failed(Exception):
     """Used to indicate that a player process raised an exception."""
     def __init__(self, exception, traceback):
@@ -172,56 +181,42 @@ class NNGCommunicator(Communicator):
             raise ValueError(f"link_addr {link_addr} and host_addr {host_addr} must match for rank 0.") # pragma: no cover
 
         # Setup the player's receiving socket.
-        self._receiver = pynng.Pair1(listen=host_addr, polyamorous=True, recv_timeout=nng_timeout(1))
+        self._receiver = pynng.Rep0(listen=host_addr, recv_timeout=nng_timeout(setup_timeout))
         log.info(f"Player {rank} rendezvous with {link_addr} from {host_addr}.")
 
+        # Rank 0 waits for every player to send their address.
         if rank == 0:
             remaining_ranks = set(range(1, world_size))
             addresses = [(rank, host_addr)]
 
-            # Collect addresses until every player has been accounted for.
-            start_time = time.time()
-            while remaining_ranks:
-                if setup_timeout is not None and time.time() - start_time > setup_timeout:
-                    raise Timeout(f"Player {rank} timeout waiting for rendezvous.")
-
-                try:
-                    other_rank, other_host_addr, other_token = pickle.loads(self._receiver.recv())
-                except Exception as e:
-                    continue
+            for index in range(1, world_size):
+                other_rank, other_host_addr, other_token = pickle.loads(self._receiver.recv())
+                self._receiver.send(b"ok")
 
                 if other_token != token:
                     raise RuntimeError(f"Player {rank} expected token {token}, received {other_token} from player {other_rank}.")
-
-                if other_rank in remaining_ranks:
-                    remaining_ranks.remove(other_rank)
-                    addresses.append((other_rank, other_host_addr))
+                addresses.append((other_rank, other_host_addr))
 
             # Setup sockets for sending to the other players.
             addresses = [address for rank, address in sorted(addresses)]
-            self._players = [pynng.Pair1(dial=address, polyamorous=True) for address in addresses]
+            self._players = [pynng.Req0(dial=address) for address in addresses]
 
             # Send addresses back to the other players.
             for player in self._players[1:]:
                 player.send(pickle.dumps(addresses))
+                player.recv()
 
+        # All players send their address to rank 0.
         if rank != 0:
-            start_time = time.time()
-            with pynng.Pair1(dial=link_addr, polyamorous=True, send_timeout=nng_timeout(1)) as link:
-                # Send our address to the link address until we get a response.
-                while True:
-                    if setup_timeout is not None and time.time() - start_time > setup_timeout:
-                        raise Timeout(f"Player {rank} timeout waiting for rendezvous.")
+            with pynng.Req0(dial=link_addr) as link:
+                link.send(pickle.dumps((rank, host_addr, token)))
+                link.recv()
 
-                    try:
-                        link.send(pickle.dumps((rank, host_addr, token)))
-                        addresses = pickle.loads(self._receiver.recv())
-                        break
-                    except Exception as e:
-                        pass
+            addresses = pickle.loads(self._receiver.recv())
+            self._receiver.send(b"ok")
 
             # Setup sockets for sending to the other players.
-            self._players = [pynng.Pair1(dial=address, polyamorous=True) for address in addresses]
+            self._players = [pynng.Req0(dial=address) for address in addresses]
 
         # We don't want a timeout for the receiving socket.
         self._receiver.recv_timeout = nng_timeout(None)
@@ -283,7 +278,6 @@ class NNGCommunicator(Communicator):
 
         log.info(f"Comm {self.name!r} player {self._rank} communicator ready.")
 
-
     def _queue_messages(self):
         # Place incoming messages in the correct queue.
         while True:
@@ -333,6 +327,7 @@ class NNGCommunicator(Communicator):
             try:
                 # Wait for a message to arrive from the pynng socket.
                 raw_message = self._receiver.recv(block=True)
+                self._receiver.send(b"ok")
 
                 # Update statistics.
                 self._stats["bytes"]["received"]["total"] += len(raw_message)
@@ -406,6 +401,7 @@ class NNGCommunicator(Communicator):
                 player = self._players[dst]
                 player.send_timeout = timeout
                 player.send(raw_message)
+                player.recv()
                 self._stats["bytes"]["sent"]["total"] += len(raw_message)
                 self._stats["messages"]["sent"]["total"] += 1
             except pynng.exceptions.Timeout:
