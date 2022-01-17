@@ -6,6 +6,24 @@ Feature: Communication
         Then the players should exit the barrier at roughly the same time
 
 
+    Scenario Outline: Reliability
+        Given <players> players
+        When player <src> scatters messages to the other players <count> times
+        Then player <src> should have sent exactly <sent> messages
+        And every player other than <src> should receive exactly <received> messages
+
+        Examples:
+        | players | src       | count   | sent    | received |
+        | 2       | 0         | 100     | 100     | 100      |
+        | 3       | 0         | 100     | 200     | 100      |
+        | 2       | 0         | 1000    | 1000    | 1000     |
+        | 3       | 0         | 1000    | 2000    | 1000     |
+        | 2       | 0         | 10000   | 10000   | 10000    |
+        | 3       | 0         | 10000   | 20000   | 10000    |
+        | 2       | 0         | 100000  | 100000  | 100000   |
+        | 3       | 0         | 100000  | 200000  | 100000   |
+
+
     Scenario Outline: Broadcast
         Given <players> players
         When player <src> broadcasts <value>

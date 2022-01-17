@@ -19,6 +19,7 @@ import time
 
 from behave import *
 import numpy.testing
+import test
 
 import cicada.communicator
 
@@ -90,6 +91,22 @@ def step_impl(context, dst, values):
     context.result = operation(values, dst)
 
 
+@when(u'player {src} scatters messages to the other players {count} times')
+def step_impl(context, src, count):
+    src = eval(src)
+    count = eval(count)
+
+    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    def operation(communicator, src, count):
+        others = set(range(communicator.world_size)) - set([src])
+        for i in range(count):
+            result = communicator.scatterv(src=src, values=others, dst=others)
+        communicator.free()
+        return communicator.stats
+
+    context.stats = operation(src, count)
+
+
 @when(u'player {} scatters {} to {}')
 def step_impl(context, src, values, dst):
     src = eval(src)
@@ -134,5 +151,21 @@ def step_impl(context, src, value, dst):
             numpy.testing.assert_almost_equal(value, result, decimal=4)
 
     context.result = operation(src, value, dst)
+
+
+@then(u'player {src} should have sent exactly {sent} messages')
+def step_impl(context, src, sent):
+    src = eval(src)
+    sent = eval(sent)
+    test.assert_equal(context.stats[src]["messages"]["sent"]["total"], sent)
+
+
+@then(u'every player other than {src} should receive exactly {received} messages')
+def step_impl(context, src, received):
+    src = eval(src)
+    received = eval(received)
+    for index, player in enumerate(context.stats):
+        if index != src:
+            test.assert_equal(player["messages"]["received"]["total"], received)
 
 
