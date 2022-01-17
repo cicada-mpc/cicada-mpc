@@ -208,7 +208,7 @@ class NNGCommunicator(Communicator):
 
         # All players send their address to rank 0.
         if rank != 0:
-            with pynng.Req0(dial=link_addr) as link:
+            with pynng.Req0(dial=link_addr, send_timeout=nng_timeout(setup_timeout)) as link:
                 link.send(pickle.dumps((rank, host_addr, token)))
                 link.recv()
 
