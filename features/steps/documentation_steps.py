@@ -14,12 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import glob
 import os
 import pkgutil
-import subprocess
 import sys
 
 from behave import *
+
+import nbformat
+
 
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 docs_dir = os.path.join(root_dir, "docs")
@@ -64,5 +67,25 @@ def step_impl(context):
     for reference in context.references:
         if reference not in modules:
             raise AssertionError("No matching module found for %s." % reference)
+
+
+@given(u'all documentation notebooks')
+def step_impl(context):
+    context.notebooks = [path for path in glob.glob("docs/**/*.ipynb", recursive=True) if "_build" not in path]
+
+
+@then(u'every notebook code cell should have been executed.')
+def step_impl(context):
+    unexecuted_notebooks = set()
+
+    for path in context.notebooks:
+        notebook = nbformat.read(path, as_version=4)
+        for cell in notebook.cells:
+            if cell.cell_type == "code":
+                if not cell["execution_count"]:
+                    unexecuted_notebooks.add(path)
+
+    if unexecuted_notebooks:
+        raise AssertionError(f"Some notebooks contain unexecuted cells: {', '.join(sorted(unexecuted_notebooks))}")
 
 

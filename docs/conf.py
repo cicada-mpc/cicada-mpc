@@ -80,7 +80,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- nbsphinx options --------------------------------------------------------
 
-nbsphinx_execute = "never" if "READTHEDOCS" in os.environ else "always"
+nbsphinx_execute = "never"
 
 nbsphinx_thumbnails = {
     "user-guide/absolute": "_static/absolute.png",
