@@ -250,9 +250,6 @@ class NNGCommunicator(Communicator):
                 },
         }
 
-        # Setup queue for outgoing messages.
-        self._outgoing = queue.Queue()
-
         # Setup queues for incoming messages.
         self._incoming = queue.Queue()
         self._receive_queues = {}
@@ -261,10 +258,6 @@ class NNGCommunicator(Communicator):
                 self._receive_queues[tag] = {}
                 for rank in self.ranks:
                     self._receive_queues[tag][rank] = queue.Queue()
-
-        # Start sending outgoing messages.
-        self._outgoing_thread = threading.Thread(name="Outgoing", target=self._send_messages, daemon=True)
-        self._outgoing_thread.start()
 
         # Start queueing incoming messages.
         self._queueing_thread = threading.Thread(name="Queueing", target=self._queue_messages, daemon=True)
@@ -386,30 +379,6 @@ class NNGCommunicator(Communicator):
             raise Revoked(f"Comm {self.name!r} player {self.rank} revoked.")
 
 
-    def _send_messages(self):
-        while True:
-            # Wait for the next outgoing message.
-            message = self._outgoing.get(block=True, timeout=None)
-
-            # If the communicator has been freed, exit the thread.
-            if isinstance(message, NNGCommunicator._Done):
-                return
-
-            try:
-                dst, timeout, message = message
-                raw_message = pickle.dumps(message)
-                player = self._players[dst]
-                player.send_timeout = timeout
-                player.send(raw_message)
-                player.recv()
-                self._stats["bytes"]["sent"]["total"] += len(raw_message)
-                self._stats["messages"]["sent"]["total"] += 1
-            except pynng.exceptions.Timeout:
-                log.error(f"Comm {self.name!r} player {self.rank} tag {message.tag!r} to receiver {dst} timed-out after {self._timeout}s.")
-            except Exception as e:
-                log.error(f"Comm {self.name!r} player {self.rank} exception: {e}")
-
-
     def _send(self, *, tag, payload, dst):
         if tag not in self._tags:
             raise ValueError(f"Unknown tag: {tag}") # pragma: no cover
@@ -427,7 +396,18 @@ class NNGCommunicator(Communicator):
             self._incoming.put(message, block=True, timeout=None)
         # Otherwise, send the message to the appropriate socket.
         else:
-            self._outgoing.put((dst, nng_timeout(self._timeout), message), block=True, timeout=None)
+            try:
+                raw_message = pickle.dumps(message)
+                player = self._players[dst]
+                player.send_timeout = nng_timeout(self._timeout)
+                player.send(raw_message)
+                player.recv()
+                self._stats["bytes"]["sent"]["total"] += len(raw_message)
+                self._stats["messages"]["sent"]["total"] += 1
+            except pynng.exceptions.Timeout:
+                log.error(f"Comm {self.name!r} player {self.rank} tag {message.tag!r} to receiver {dst} timed-out after {self._timeout}s.")
+            except Exception as e:
+                log.error(f"Comm {self.name!r} player {self.rank} exception: {e}")
 
 
     def all_gather(self, value):
@@ -492,10 +472,6 @@ class NNGCommunicator(Communicator):
         if self._freed:
             return
         self._freed = True
-
-        # Stop sending.
-        self._outgoing.put(NNGCommunicator._Done())
-        self._outgoing_thread.join()
 
         # Stop receiving.
         self._receiver.close()
