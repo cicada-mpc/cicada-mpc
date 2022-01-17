@@ -368,7 +368,8 @@ class AdditiveProtocol(object):
         lsbs_inv = self.additive_inverse(lsbs_composed)
         two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
         ltz = self.less_than_zero(operand)  
-        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, one), ltz) 
+        sel_2_lsbs = self.untruncated_multiply(two_lsbs, ltz) 
+        #sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, one), ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
 
 
