@@ -357,6 +357,7 @@ class AdditiveProtocol(object):
         """
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype), shape=operand.storage.shape)
         abs_op = self.absolute(operand)
         frac_bits = self.encoder.precision
         field_bits = self.encoder.fieldbits
@@ -367,7 +368,7 @@ class AdditiveProtocol(object):
         lsbs_inv = self.additive_inverse(lsbs_composed)
         two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
         ltz = self.less_than_zero(operand)  
-        sel_2_lsbs = self.untruncated_multiply(two_lsbs, ltz) 
+        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, one), ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
 
 
