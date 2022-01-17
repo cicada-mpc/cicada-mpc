@@ -29,7 +29,7 @@ jobs:
 #      uses: lhotari/action-upterm@v1
     - name: Run tests
       run: |
-        coverage run --source cicada -m behave
+        coverage run --source cicada -m behave --tags=~wip
         coverage combine
         coverage report
     - name: Upload coverage to Coveralls
