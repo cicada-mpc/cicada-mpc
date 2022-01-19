@@ -36,6 +36,7 @@ setup(
         "netifaces",
         "numpy",
         "pynetstring",
+        "pynng",
         "shamir",
     ],
     maintainer="Timothy M. Shead",
