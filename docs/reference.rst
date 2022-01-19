@@ -16,6 +16,7 @@ API Reference
     cicada.communicator.rst
     cicada.communicator.interface.rst
     cicada.communicator.nng.rst
+    cicada.communicator.socket.rst
     cicada.encoder.rst
     cicada.encoder.fixedfield.rst
     cicada.interactive.rst
