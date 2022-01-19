@@ -23,7 +23,7 @@ import cicada.communicator
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.NNGCommunicator.run(world_size=3)
+@cicada.communicator.SocketCommunicator.run(world_size=3)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     protocol = cicada.additive.AdditiveProtocol(communicator)
@@ -34,6 +34,7 @@ def main(communicator):
     share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=())
     log.info(f"Player {communicator.rank} share: {share}")
 
+    log.info(f"Player {communicator.rank} adding 2.3 to local share.", src=2)
     if communicator.rank == 2:
         protocol.encoder.inplace_add(share.storage, protocol.encoder.encode(numpy.array(2.3)))
     log.info(f"Player {communicator.rank} modified share: {share}")

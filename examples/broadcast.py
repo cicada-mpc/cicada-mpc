@@ -30,8 +30,5 @@ def main(communicator):
     result = communicator.broadcast(src=0, value=value)
     log.info(f"Player {communicator.rank} received broadcast value: {result}")
 
-    communicator.free()
-    communicator.log_stats()
-
 main()
 

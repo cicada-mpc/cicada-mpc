@@ -21,7 +21,7 @@ import numpy
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.NNGCommunicator.run(world_size=3)
+@cicada.communicator.SocketCommunicator.run(world_size=3)
 def main(communicator):
     if communicator.rank == 0:
         logging.info(f"Player {communicator.rank} did nothing.")
