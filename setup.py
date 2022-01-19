@@ -35,7 +35,7 @@ setup(
     install_requires=[
         "netifaces",
         "numpy",
-        "pynng",
+        "pynetstring",
         "shamir",
     ],
     maintainer="Timothy M. Shead",

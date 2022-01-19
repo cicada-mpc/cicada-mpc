@@ -18,7 +18,6 @@
 """
 
 import collections
-import concurrent.futures
 import contextlib
 import functools
 import hashlib
@@ -34,10 +33,10 @@ import socket
 import threading
 import time
 import traceback
+from urllib.parse import urlparse, urlunparse
 
-import boltons.socketutils
-import boltons.urlutils
 import numpy
+import pynetstring
 
 from .interface import Communicator
 import cicada
@@ -149,8 +148,8 @@ class SocketCommunicator(Communicator):
         if host_addr is None:
             host_addr = os.environ["HOST_ADDR"]
 
-        link_addr = boltons.urlutils.URL(link_addr)
-        host_addr = boltons.urlutils.URL(host_addr)
+        link_addr = urlparse(link_addr)
+        host_addr = urlparse(host_addr)
 
         # Enforce preconditions.
         if not isinstance(world_size, int):
@@ -168,7 +167,7 @@ class SocketCommunicator(Communicator):
         if rank == 0 and link_addr != host_addr:
             raise ValueError(f"link_addr {link_addr} and host_addr {host_addr} must match for rank 0.") # pragma: no cover
 
-        log.info(f"Player {rank} rendezvous with {link_addr} from {host_addr}.")
+        log.info(f"Player {rank} rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
 
         # Set aside storage for connections to the other players.
         self._players = {}
@@ -177,13 +176,12 @@ class SocketCommunicator(Communicator):
             # Gather addresses from the other players.
             addresses = {rank: host_addr}
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
-                connection.bind((link_addr.host, link_addr.port))
+                connection.bind((link_addr.hostname, link_addr.port))
                 connection.listen(world_size)
 
                 for index in range(world_size-1):
                     player, address = connection.accept()
-                    player = boltons.socketutils.NetstringSocket(player)
-                    other_rank, other_addr, other_token = pickle.loads(player.read_ns())
+                    other_rank, other_addr, other_token = pickle.loads(pynetstring.decode(player.recv(4096))[0])
                     if other_token != token:
                         raise RuntimeError(f"Player 0 expected token {token}, received {other_token} from player {other_rank}.")
                     addresses[other_rank] = other_addr
@@ -191,19 +189,18 @@ class SocketCommunicator(Communicator):
 
             # Send addresses to the other players.
             for player in self._players.values():
-                player.write_ns(pickle.dumps(addresses))
+                player.sendall(pynetstring.encode(pickle.dumps(addresses)))
 
         else:
             while True:
                 try:
                     # Send our address to the root player.
                     root = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    root.connect((link_addr.host, link_addr.port))
-                    root = boltons.socketutils.NetstringSocket(root)
-                    root.write_ns(pickle.dumps((rank, host_addr, token)))
+                    root.connect((link_addr.hostname, link_addr.port))
+                    root.sendall(pynetstring.encode(pickle.dumps((rank, host_addr, token))))
 
                     # Get the list of all addresses from the root player.
-                    addresses = pickle.loads(root.read_ns())
+                    addresses = pickle.loads(pynetstring.decode(root.recv(4096))[0])
                     self._players[0] = root
                     break
                 except Exception as e:
@@ -213,12 +210,11 @@ class SocketCommunicator(Communicator):
         for listener in range(1, world_size-1):
             if rank == listener:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
-                    connection.bind((host_addr.host, host_addr.port))
+                    connection.bind((host_addr.hostname, host_addr.port))
                     connection.listen(world_size)
                     for index in range(listener+1, world_size):
                         player, address = connection.accept()
-                        player = boltons.socketutils.NetstringSocket(player)
-                        other_rank = pickle.loads(player.read_ns())
+                        other_rank = pickle.loads(pynetstring.decode(player.recv(4096))[0])
                         self._players[other_rank] = player
 
             if rank > listener:
@@ -226,9 +222,8 @@ class SocketCommunicator(Communicator):
                     try:
                         # Send our address to the listening player.
                         player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        player.connect((addresses[listener].host, addresses[listener].port))
-                        player = boltons.socketutils.NetstringSocket(player)
-                        player.write_ns(pickle.dumps(rank))
+                        player.connect((addresses[listener].hostname, addresses[listener].port))
+                        player.sendall(pynetstring.encode(pickle.dumps(rank)))
                         self._players[listener] = player
                         break
                     except Exception as e:
@@ -283,9 +278,9 @@ class SocketCommunicator(Communicator):
         self._incoming_thread.start()
 
         for rank, player in self._players.items():
-            host, port = player.bsock.getsockname()
-            otherhost, otherport = player.bsock.getpeername()
-            log.info(f"Comm {self.name!r} player {self._rank} tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
+            host, port = player.getsockname()
+            otherhost, otherport = player.getpeername()
+            log.debug(f"Comm {self.name!r} player {self._rank} tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
 
         log.info(f"Comm {self.name!r} player {self._rank} communicator ready.")
 
@@ -335,29 +330,30 @@ class SocketCommunicator(Communicator):
 
     def _receive_messages(self):
         # Parse and queue incoming messages as they arrive.
+        decoder = pynetstring.Decoder()
         while not self._freed:
             try:
                 # Wait for a message to arrive from the other players.
                 log.debug(f"Comm {self.name!r} player {self.rank} selecting {', '.join([str(player.fileno()) for player in self._players.values()])}.")
                 ready, _, _ = select.select(self._players.values(), [], [], 0.1)
                 for player in ready:
-                    raw_message = player.read_ns()
+                    raw_messages = decoder.feed(player.recv(4096))
+                    for raw_message in raw_messages:
+                        # Update statistics.
+                        self._stats["bytes"]["received"]["total"] += len(raw_message)
+                        self._stats["messages"]["received"]["total"] += 1
 
-                    # Update statistics.
-                    self._stats["bytes"]["received"]["total"] += len(raw_message)
-                    self._stats["messages"]["received"]["total"] += 1
+                        # Ignore unparsable messages.
+                        try:
+                            message = pickle.loads(raw_message)
+                        except Exception as e: # pragma: no cover
+                            log.error(f"Comm {self.name!r} player {self.rank} ignoring unparsable message: {e}")
+                            continue
 
-                    # Ignore unparsable messages.
-                    try:
-                        message = pickle.loads(raw_message)
-                    except Exception as e: # pragma: no cover
-                        log.error(f"Comm {self.name!r} player {self.rank} ignoring unparsable message: {e}")
-                        continue
+                        log.debug(f"Comm {self.name!r} player {self.rank} received message {message}")
 
-                    log.debug(f"Comm {self.name!r} player {self.rank} received message {message}")
-
-                    # Insert the message into the incoming queue.
-                    self._incoming.put(message, block=True, timeout=None)
+                        # Insert the message into the incoming queue.
+                        self._incoming.put(message, block=True, timeout=None)
             except Exception as e:
                 log.debug(f"Comm {self.name!r} player {self.rank} receive exception: {e}")
 
@@ -424,7 +420,7 @@ class SocketCommunicator(Communicator):
             try:
                 raw_message = pickle.dumps(message)
                 player = self._players[dst]
-                player.write_ns(raw_message)
+                player.sendall(pynetstring.encode(raw_message))
                 self._stats["bytes"]["sent"]["total"] += len(raw_message)
                 self._stats["messages"]["sent"]["total"] += 1
 #            except pynng.exceptions.Timeout:
@@ -505,7 +501,7 @@ class SocketCommunicator(Communicator):
 
         # Close connections to the other players.
         for player in self._players.values():
-            player.bsock.sock.close()
+            player.close()
         self._players = None
 
         log.info(f"Comm {self.name!r} player {self.rank} communicator freed.")
