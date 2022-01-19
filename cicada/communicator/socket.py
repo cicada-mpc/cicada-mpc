@@ -22,7 +22,6 @@ import concurrent.futures
 import contextlib
 import functools
 import hashlib
-import itertools
 import logging
 import math
 import multiprocessing
@@ -135,12 +134,6 @@ class SocketCommunicator(Communicator):
         "split",
         "split-prepare",
         ]
-
-    class _Done(object):
-        """Sentinel message used to shut-down the queueing thread."""
-        pass
-
-
 
 
     def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, token=0, timeout=5, setup_timeout=5):
@@ -270,6 +263,8 @@ class SocketCommunicator(Communicator):
                 },
         }
 
+        self._freed = False
+
         # Setup queues for incoming messages.
         self._incoming = queue.Queue()
         self._receive_queues = {}
@@ -287,19 +282,16 @@ class SocketCommunicator(Communicator):
         self._incoming_thread = threading.Thread(name="Incoming", target=self._receive_messages, daemon=True)
         self._incoming_thread.start()
 
-        self._freed = False
-
         log.info(f"Comm {self.name!r} player {self._rank} communicator ready.")
 
     def _queue_messages(self):
         # Place incoming messages in the correct queue.
-        while True:
+        while not self._freed:
             # Wait for the next incoming message.
-            message = self._incoming.get(block=True, timeout=None)
-
-            # If the communicator has been freed, exit the thread.
-            if isinstance(message, SocketCommunicator._Done):
-                return
+            try:
+                message = self._incoming.get(block=True, timeout=0.1)
+            except queue.Empty:
+                continue
 
             # Drop messages with missing attributes or unexpected values.
             try:
@@ -333,13 +325,15 @@ class SocketCommunicator(Communicator):
             # Insert the message into the correct queue.
             self._receive_queues[message.tag][message.sender].put(message, block=True, timeout=None)
 
+        log.debug(f"Comm {self.name!r} player {self.rank} queueing thread closed.")
+
 
     def _receive_messages(self):
         # Parse and queue incoming messages as they arrive.
-        while True:
+        while not self._freed:
             try:
                 # Wait for a message to arrive from the other players.
-                ready, _, _ = select.select(self._players.values(), [], [])
+                ready, _, _ = select.select(self._players.values(), [], [], 0.1)
                 for player in ready:
                     raw_message = player.read_ns()
 
@@ -354,14 +348,15 @@ class SocketCommunicator(Communicator):
                         log.error(f"Comm {self.name!r} player {self.rank} ignoring unparsable message: {e}")
                         continue
 
+                    log.debug(f"Comm {self.name!r} player {self.rank} received message {message}")
+
                     # Insert the message into the incoming queue.
                     self._incoming.put(message, block=True, timeout=None)
-#            except:
-#                # The communicator has been freed, so exit the thread.
-#                log.debug(f"Comm {self.name!r} player {self.rank} receiving socket closed.")
-#                break
             except Exception as e:
                 log.debug(f"Comm {self.name!r} player {self.rank} receive exception: {e}")
+
+        # The communicator has been freed, so exit the thread.
+        log.debug(f"Comm {self.name!r} player {self.rank} receive thread closed.")
 
 
 
@@ -423,7 +418,6 @@ class SocketCommunicator(Communicator):
             try:
                 raw_message = pickle.dumps(message)
                 player = self._players[dst]
-                #player.send_timeout = nng_timeout(self._timeout)
                 player.write_ns(raw_message)
                 self._stats["bytes"]["sent"]["total"] += len(raw_message)
                 self._stats["messages"]["sent"]["total"] += 1
@@ -494,15 +488,13 @@ class SocketCommunicator(Communicator):
         # Calling free() multiple times is a no-op.
         if self._freed:
             return
+
         self._freed = True
 
-        # Stop receiving.
-        # The following blocks intermittently when doing CI with Github
-        # actions, for reasons I don't understand.
-        #self._incoming_thread.join()
+        # Stop receiving incoming messages.
+        self._incoming_thread.join()
 
-        # Stop handling incoming messages.
-        self._incoming.put(SocketCommunicator._Done())
+        # Stop queueing incoming messages.
         self._queueing_thread.join()
 
         # Close connections to the other players.
