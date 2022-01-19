@@ -31,7 +31,7 @@ def step_impl(context, players):
 
 @when(u'the players enter a barrier at different times')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator):
         time.sleep(communicator.rank * 0.1)
         enter = time.time()
@@ -57,7 +57,7 @@ def step_impl(context, src, value):
     src = eval(src)
     value = numpy.array(eval(value))
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, src, value):
         if communicator.rank != src:
             value = None
@@ -72,19 +72,19 @@ def step_impl(context, src, values, dst):
     values = eval(values)
     dst = eval(dst)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator):
         return communicator.gatherv(src=src, value=values[communicator.rank], dst=dst)
 
     context.result = operation()
 
 
-@when(u'player {} gathers {}')
+@when(u'player {dst} gathers {values}')
 def step_impl(context, dst, values):
     dst = eval(dst)
     values = [value for value in numpy.array(eval(values))]
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, values, dst):
         return communicator.gather(value=values[communicator.rank], dst=dst)
 
@@ -96,7 +96,7 @@ def step_impl(context, src, count):
     src = eval(src)
     count = eval(count)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, src, count):
         others = set(range(communicator.world_size)) - set([src])
         for i in range(count):
@@ -113,7 +113,7 @@ def step_impl(context, src, values, dst):
     values = [numpy.array(value) for value in eval(values)]
     dst = eval(dst)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, src, values, dst):
         if communicator.rank != src:
             values = None
@@ -127,7 +127,7 @@ def step_impl(context, src, values):
     src = eval(src)
     values = [value for value in numpy.array(eval(values))]
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, src, values):
         if communicator.rank != src:
             values = None
@@ -142,7 +142,7 @@ def step_impl(context, src, value, dst):
     value = numpy.array(eval(value))
     dst = eval(dst)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, src, value, dst):
         if communicator.rank == src:
             communicator.send(value=value, dst=dst)

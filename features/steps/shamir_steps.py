@@ -32,7 +32,7 @@ def step_impl(context, k):
 def step_impl(context, count):
     count = eval(count)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         share = protocol.share(src=0, k=context.k, secret=numpy.array(5))
@@ -48,7 +48,7 @@ def step_impl(context, count):
 def step_impl(context, count):
     count = eval(count)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, count):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         shares = [protocol.share(src=0, k=context.k, secret=numpy.array(5))._storage for i in range(count)]
@@ -65,7 +65,7 @@ def step_impl(context, player, secret, recipients, senders, destinations):
     senders = eval(senders)
     destinations = eval(destinations)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         share = protocol.share(src=player, k=context.k, secret=secret)

@@ -30,28 +30,23 @@ import test
 def step_impl(context, count):
     count = eval(count)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator):
         protocol = cicada.additive.AdditiveProtocol(communicator)
         share = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=())
         return int(share.storage)
 
-    logging.info("a")
     context.shares = []
-    logging.info("b")
     for i in range(count):
-        logging.info("c")
         context.shares.append(operation())
-        logging.info("c")
     context.shares = numpy.array(context.shares, dtype=numpy.object)
-    logging.info("e")
 
 
 @when(u'secret sharing the same value {count} times in one session')
 def step_impl(context, count):
     count = eval(count)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, count):
         protocol = cicada.additive.AdditiveProtocol(communicator)
         shares = [protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=()) for i in range(count)]
@@ -73,7 +68,7 @@ def step_impl(context, player, text):
     player = eval(player)
     text = eval(text)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, player, text):
         protocol = cicada.additive.AdditiveProtocol(communicator)
         cicada.interactive.input = unittest.mock.MagicMock(return_value=text)
@@ -97,7 +92,7 @@ def step_impl(context, local):
 def step_impl(context, player):
     player = eval(player)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, secret, player, local):
         protocol = cicada.additive.AdditiveProtocol(communicator)
         share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
@@ -112,7 +107,7 @@ def step_impl(context, player):
 def step_impl(context, player):
     player = eval(player)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, secret, player, local):
         protocol = cicada.additive.AdditiveProtocol(communicator)
         share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
@@ -136,7 +131,7 @@ def step_impl(context, result):
 
 @given(u'binary operation public-private addition')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
@@ -151,7 +146,7 @@ def step_impl(context):
 
 @given(u'binary operation private-private addition')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
@@ -167,7 +162,7 @@ def step_impl(context):
 
 @given(u'binary operation private-private untruncated multiplication')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
@@ -175,15 +170,17 @@ def step_impl(context):
         a = protocol.share(src=0, secret=a, shape=a.shape)
         b = protocol.encoder.encode(numpy.array(b))
         b = protocol.share(src=1, secret=b, shape=b.shape)
+        logging.debug(f"Comm {communicator.name!r} player {communicator.rank} untruncated_multiply")
         c = protocol.untruncated_multiply(a, b)
 
+        logging.debug(f"Comm {communicator.name!r} player {communicator.rank} reveal")
         return protocol.encoder.decode(protocol.reveal(c))
     context.binary_operation = operation
 
 
 @given(u'binary operation private-private xor')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
@@ -198,7 +195,7 @@ def step_impl(context):
 
 @given(u'binary operation private-private or')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
@@ -213,7 +210,7 @@ def step_impl(context):
 
 @given(u'binary operation max')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
@@ -229,7 +226,7 @@ def step_impl(context):
 
 @given(u'binary operation min')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
@@ -245,7 +242,7 @@ def step_impl(context):
 
 @given(u'binary operation private-private multiplication')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, a, b):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
@@ -281,7 +278,7 @@ def step_impl(context, count):
 
 @given(u'unary operation floor')
 def step_impl(context):
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, a):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
@@ -307,7 +304,7 @@ def step_impl(context, player, count):
     player = eval(player)
     count = eval(count)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, secret):
         protocol = cicada.additive.AdditiveProtocol(communicator)
         share = protocol.share(src=player, secret=protocol.encoder.encode(numpy.array(secret)), shape=())
@@ -315,7 +312,6 @@ def step_impl(context, player, count):
 
     for index in range(count):
         secret = numpy.array(numpy.random.uniform(-100000, 100000))
-        logging.info(f"Secret: {secret}")
         results = operation(secret)
         for result in results:
             numpy.testing.assert_almost_equal(secret, result, decimal=4)
@@ -326,7 +322,7 @@ def step_impl(context, bits, src, seed):
     src = eval(src)
     seed = eval(seed)
 
-    @cicada.communicator.NNGCommunicator.run(world_size=context.players)
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, bits, src, seed):
         protocol = cicada.additive.AdditiveProtocol(communicator)
         generator = numpy.random.default_rng(seed + communicator.rank)
