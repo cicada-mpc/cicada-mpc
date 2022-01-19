@@ -100,17 +100,17 @@ class SocketCommunicator(Communicator):
         The number of players that will be members of this communicator.
         Defaults to the value of the WORLD_SIZE environment variable.
     link_addr: string, optional
-        Address of the root (rank 0) player.  This address must be
-        publically accessible to all of the other players.  Defaults to the
-        value of the LINK_ADDR environment variable.
+        URL address of the root (rank 0) player.  The URL scheme *must* be
+        `tcp`, and the address must be reachable by all of the other players.
+        Defaults to the value of the LINK_ADDR environment variable.
     rank: integer, optional
         The rank of the local player, in the range [0, world_size).  Defaults
         to the value of the RANK environment variable.
     host_addr: string, optional
-        Address of the local player.  This address must be publically
-        accessible to all of the other players.  Defaults to the value of the
-        HOST_ADDR environment variable.  Note that this value is ignored
-        by the root player.
+        URL address of the local player.  The URL scheme *must* be `tcp` and
+        the address must be reachable by all of the other players.  Defaults to
+        the value of the HOST_ADDR environment variable.  Note that this value
+        is ignored by the root player.
     timeout: number or `None`
         Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
     setup_timeout: number or `None`
