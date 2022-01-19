@@ -22,5 +22,5 @@ with additional API and semantics for reliability and error recovery.
 
 from .interface import Communicator
 from .nng import NNGCommunicator
-
+from .socket import SocketCommunicator
 
