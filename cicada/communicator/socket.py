@@ -168,7 +168,7 @@ class SocketCommunicator(Communicator):
         if rank == 0 and link_addr != host_addr:
             raise ValueError(f"link_addr {link_addr} and host_addr {host_addr} must match for rank 0.") # pragma: no cover
 
-        log.info(f"Player {rank} will rendezvous with {link_addr} from {host_addr}.")
+        log.info(f"Player {rank} rendezvous with {link_addr} from {host_addr}.")
 
         # Set aside storage for connections to the other players.
         self._players = {}
@@ -177,7 +177,7 @@ class SocketCommunicator(Communicator):
             # Gather addresses from the other players.
             addresses = {rank: host_addr}
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
-                connection.bind((host_addr.host, host_addr.port))
+                connection.bind((link_addr.host, link_addr.port))
                 connection.listen(world_size)
 
                 for index in range(world_size-1):
@@ -209,7 +209,7 @@ class SocketCommunicator(Communicator):
                 except Exception as e:
                     time.sleep(0.1)
 
-        # Make connections among players.
+        # Make connections with the remaining players.
         for listener in range(1, world_size-1):
             if rank == listener:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
@@ -282,6 +282,11 @@ class SocketCommunicator(Communicator):
         self._incoming_thread = threading.Thread(name="Incoming", target=self._receive_messages, daemon=True)
         self._incoming_thread.start()
 
+        for rank, player in self._players.items():
+            host, port = player.bsock.getsockname()
+            otherhost, otherport = player.bsock.getpeername()
+            log.info(f"Comm {self.name!r} player {self._rank} tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
+
         log.info(f"Comm {self.name!r} player {self._rank} communicator ready.")
 
     def _queue_messages(self):
@@ -333,6 +338,7 @@ class SocketCommunicator(Communicator):
         while not self._freed:
             try:
                 # Wait for a message to arrive from the other players.
+                log.debug(f"Comm {self.name!r} player {self.rank} selecting {', '.join([str(player.fileno()) for player in self._players.values()])}.")
                 ready, _, _ = select.select(self._players.values(), [], [], 0.1)
                 for player in ready:
                     raw_message = player.read_ns()
