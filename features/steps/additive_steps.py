@@ -20,11 +20,24 @@ import unittest.mock
 from behave import *
 import numpy
 
-import cicada.communicator
 import cicada.additive
+import cicada.communicator
 import cicada.interactive
 
 import test
+
+
+@then(u'it should be possible to setup an additive protocol object {count} times')
+def step_impl(context, count):
+    count = eval(count)
+
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
+    def operation(communicator):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+    for i in range(count):
+        operation()
+
 
 @when(u'secret sharing the same value for {count} sessions')
 def step_impl(context, count):

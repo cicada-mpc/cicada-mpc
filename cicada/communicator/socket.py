@@ -59,6 +59,19 @@ class Failed(Exception):
         return f"Failed(exception={self.exception!r})" # pragma: no cover
 
 
+class LoggerAdapter(logging.LoggerAdapter):
+    def __init__(self, logger, name, rank):
+        super().__init__(logger, extra={"name": name, "rank": rank})
+
+    def process(self, msg, kwargs):
+        return f"Comm {self.extra['name']!r} player {self.extra['rank']} {msg}", kwargs
+
+
+class Revoked(Exception):
+    """Raised calling an operation after the communicator has been revoked."""
+    pass
+
+
 class Terminated(Exception):
     """Used to indicate that a player process terminated unexpectedly without output."""
     def __init__(self, exitcode):
@@ -68,14 +81,19 @@ class Terminated(Exception):
         return f"Terminated(exitcode={self.exitcode!r})" # pragma: no cover
 
 
-class Revoked(Exception):
-    """Raised calling an operation after the communicator has been revoked."""
-    pass
-
-
 class Timeout(Exception):
-    """Raised when a blocking operation has timed-out."""
+    """Raised when an operation has timed-out."""
     pass
+
+
+class Timer(object):
+    """Timer class used to keep track of elapsed time."""
+    def __init__(self):
+        self._start = time.time()
+
+    @property
+    def elapsed(self):
+        return time.time() - self._start
 
 
 class TryAgain(Exception):
@@ -175,85 +193,166 @@ class SocketCommunicator(Communicator):
         self._host_addr = host_addr
         self._timeout = timeout
         self._revoked = False
+        self._log = LoggerAdapter(log, name, rank)
 
         # Set aside storage for connections to the other players.
         self._players = {}
 
         # Rendezvous with the other players.
-        log.info(f"Comm {self._name!r} player {self._rank} rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
+        self._log.info(f"rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
+
+        ###########################################################################
+        # Phase 1: every player creates a listening socket for making connections.
+
+        while True:
+            try:
+                connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                connection.bind((host_addr.hostname, host_addr.port))
+                connection.listen(world_size)
+                self._log.info(f"listening for connections.")
+                break
+            except Exception as e:
+                self._log.info(f"exception creating listening socket: {e}")
+                time.sleep(0.1)
+
+        ###########################################################################
+        # Phase 2: every player (except root) makes a connection to root.
+
+        if rank != 0:
+            while True:
+                try:
+                    self._players[0] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    self._players[0].connect((link_addr.hostname, link_addr.port))
+                    break
+                except Exception as e:
+                    self._log.info(f"exception connecting to player 0: {e}")
+                    time.sleep(0.1)
+
+        ###########################################################################
+        # Phase 3: every player sends their listening address to root.
+
+        if rank != 0:
+            while True:
+                try:
+                    self._players[0].sendall(pynetstring.encode(pickle.dumps((rank, host_addr, token))))
+                    break
+                except Exception as e:
+                    self._log.info(f"exception sending address to player 0: {e}")
+                    time.sleep(0.1)
+
+        ###########################################################################
+        # Phase 4: root gathers addresses from every player.
 
         if rank == 0:
             # Gather an address from every player.
             addresses = {rank: host_addr}
+            while len(addresses) < world_size:
+                other_player, _ = connection.accept()
+                other_rank, other_addr, other_token = pickle.loads(receive_one_netstring(name, rank, other_player))
+                self._players[other_rank] = other_player
+                addresses[other_rank] = other_addr
+                self._log.info(f"received address from player {other_rank}.")
 
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
-                connection.bind((link_addr.hostname, link_addr.port))
-                connection.listen(world_size)
+#                if other_token != token:
+#                    raise RuntimeError(f"Comm {self._name!r} player {self._rank} expected token {token}, received {other_token} from player {other_rank}.")
 
-                for index in range(world_size-1):
-                    player, address = connection.accept()
-                    other_rank, other_addr, other_token = pickle.loads(receive_netstring(rank, player))
-                    if other_token != token:
-                        raise RuntimeError(f"Comm{self._name!r} player {self._rank} expected token {token}, received {other_token} from player {other_rank}.")
-                    addresses[other_rank] = other_addr
-                    self._players[other_rank] = player
+        ###########################################################################
+        # Phase 5: root broadcasts the set of all addresses to every player.
 
-            # Broadcast the complete set of addresses.
+        if rank == 0:
             for player in self._players.values():
                 player.sendall(pynetstring.encode(pickle.dumps(addresses)))
 
-        elif rank != 0:
+        ###########################################################################
+        # Phase 6: Every player receives the set of all addresses from root.
+
+        if rank != 0:
             while True:
                 try:
-                    # Send our address to the root player.
-                    root = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    root.connect((link_addr.hostname, link_addr.port))
-                    root.sendall(pynetstring.encode(pickle.dumps((rank, host_addr, token))))
-
-                    # Get the list of all addresses from the root player.
-                    addresses = pickle.loads(receive_netstring(rank, root))
-                    self._players[0] = root
+                    addresses = pickle.loads(receive_one_netstring(name, rank, self._players[0]))
+                    self._log.info(f"received addresses from player 0.")
                     break
                 except Exception as e:
-                    log.info(f"Comm {self._name!r} player {self._rank} exception connecting to player 0: {e}")
-                    time.sleep(0.5)
+                    self._log.info(f"exception getting addresses from player 0: {e}")
+                    time.sleep(0.1)
+
+        ###########################################################################
+        # Phase 7: players make remaining connections with one another.
 
         for listener in range(1, world_size-1):
             if rank == listener:
                 # Listen for connections from the other players.
                 while len(self._players) < world_size - 1: # we don't make a connection with ourself.
                     try:
-                        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
-                            connection.bind((host_addr.hostname, host_addr.port))
-                            connection.listen(world_size)
-                            log.info(f"Comm {self._name!r} player {self._rank} listening for connections.")
-                            for index in range(listener+1, world_size):
-                                player, address = connection.accept()
-                                other_rank = pickle.loads(receive_netstring(rank, player))
-                                self._players[other_rank] = player
+                        player, address = connection.accept()
+                        other_rank = pickle.loads(receive_one_netstring(name, rank, player))
+                        self._players[other_rank] = player
 
-                                # Send an acknowledgement.
-                                player.sendall(pynetstring.encode(pickle.dumps("ack")))
+                        # Send an acknowledgement.
+                        player.sendall(pynetstring.encode(pickle.dumps("ack")))
                     except Exception as e:
-                        log.info(f"Comm {self._name!r} player {self._rank} exception listening for other players: {e}")
-                        time.sleep(0.5)
+                        self._log.info(f"exception listening for other players: {e}")
+                        time.sleep(0.1)
 
             elif rank > listener:
                 while True:
                     try:
-                        # Send our address to the listening player.
+                        # Send our rank to the listening player.
                         player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         player.connect((addresses[listener].hostname, addresses[listener].port))
                         player.sendall(pynetstring.encode(pickle.dumps(rank)))
 
                         # Wait for an acknowledgement from the listening player.
-                        ack = pickle.loads(receive_netstring(rank, player))
+                        ack = pickle.loads(receive_one_netstring(name, rank, player))
 
                         self._players[listener] = player
                         break
                     except Exception as e:
-                        log.info(f"Comm {self._name!r} player {self._rank} exception connecting to player {listener}: {e}")
+                        self._log.info(f"exception connecting to player {listener}: {e}")
                         time.sleep(0.5)
+
+        ###########################################################################
+        # Phase 8: every player sends a sync message to root.
+
+        if rank != 0:
+            while True:
+                try:
+                    self._players[0].sendall(pynetstring.encode(pickle.dumps("sync")))
+                    break
+                except Exception as e:
+                    self._log.info(f"exception sending sync to player 0: {e}")
+                    time.sleep(0.1)
+
+        ###########################################################################
+        # Phase 9: root waits for sync messages from every player.
+
+        if rank == 0:
+            # Gather an address from every player.
+            for _, player in sorted(self._players.items()):
+                sync = pickle.loads(receive_one_netstring(name, rank, player))
+
+        ###########################################################################
+        # Phase 10: root sends an ack to every player.
+
+        if rank == 0:
+            for player in self._players.values():
+                player.sendall(pynetstring.encode(pickle.dumps("ack")))
+
+        ###########################################################################
+        # Phase 11: Every player receives their ack from root.
+
+        if rank != 0:
+            while True:
+                try:
+                    ack = pickle.loads(receive_one_netstring(name, rank, self._players[0]))
+                    self._log.info(f"received ack from player 0.")
+                    break
+                except Exception as e:
+                    self._log.info(f"exception getting ack from player 0: {e}")
+                    time.sleep(0.1)
+
+        ###########################################################################
+        # Phase 12: the mesh has been initialized, get ready for normal operation.
 
         self._send_serial = 0
 
@@ -299,9 +398,9 @@ class SocketCommunicator(Communicator):
 #        for rank, player in sorted(self._players.items()):
 #            host, port = player.getsockname()
 #            otherhost, otherport = player.getpeername()
-#            log.info(f"Comm {self.name!r} player {self._rank} tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
+#            self._log.info(f"tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
 
-        log.info(f"Comm {self.name!r} player {self._rank} communicator ready.")
+        self._log.info(f"communicator ready.")
 
     def _queue_messages(self):
         # Place incoming messages in the correct queue.
@@ -327,24 +426,24 @@ class SocketCommunicator(Communicator):
                 if message.sender not in self.ranks:
                     raise RuntimeError(f"Unexpected sender: {message.sender}") # pragma: no cover
             except Exception as e: # pragma: no cover
-                log.error(f"Comm {self.name!r} player {self.rank} dropping unexpected message: {e}")
+                self._log.error(f"dropping unexpected message: {message} exception: {e}")
                 continue
 
             # Log queued messages.
-            if log.isEnabledFor(logging.DEBUG):
-                log.debug(f"Comm {self.name!r} player {self.rank} <-- player {message.sender} {message.tag}#{message.serial:04}")
+            if self._log.isEnabledFor(logging.DEBUG):
+                self._log.debug(f"<-- player {message.sender} {message.tag}#{message.serial:04}")
 
             # Revoke messages don't get queued because they receive special handling.
             if message.tag == "revoke":
                 if not self._revoked:
                     self._revoked = True
-                    log.info(f"Comm {self.name!r} player {self.rank} revoked by player {message.sender}")
+                    self._log.info(f"revoked by player {message.sender}")
                 continue
 
             # Insert the message into the correct queue.
             self._receive_queues[message.tag][message.sender].put(message, block=True, timeout=None)
 
-        log.info(f"Comm {self.name!r} player {self.rank} queueing thread closed.")
+        self._log.info(f"queueing thread closed.")
 
 
     def _receive_messages(self):
@@ -365,18 +464,18 @@ class SocketCommunicator(Communicator):
                         try:
                             message = pickle.loads(raw_message)
                         except Exception as e: # pragma: no cover
-                            log.error(f"Comm {self.name!r} player {self.rank} ignoring unparsable message: {e}")
+                            self._log.error(f"ignoring unparsable message: {e}")
                             continue
 
-                        log.debug(f"Comm {self.name!r} player {self.rank} received {message}")
+                        self._log.debug(f"received {message}")
 
                         # Insert the message into the incoming queue.
                         self._incoming.put(message, block=True, timeout=None)
             except Exception as e:
-                log.error(f"Comm {self.name!r} player {self.rank} receive exception: {e}")
+                self._log.error(f"receive exception: {e}")
 
         # The communicator has been freed, so exit the thread.
-        log.info(f"Comm {self.name!r} player {self.rank} receive thread closed.")
+        self._log.info(f"receive thread closed.")
 
 
 
@@ -427,8 +526,8 @@ class SocketCommunicator(Communicator):
         message = Message(self._send_serial, tag, self._rank, payload)
         self._send_serial += 1
 
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug(f"Comm {self.name!r} player {self.rank} --> player {dst} {message.tag}#{message.serial:04}") # pragma: no cover
+        if self._log.isEnabledFor(logging.DEBUG):
+            self._log.debug(f"--> player {dst} {message.tag}#{message.serial:04}") # pragma: no cover
 
         # As a special-case, route messages sent to ourself directly to the incoming queue.
         if dst == self.rank:
@@ -442,13 +541,13 @@ class SocketCommunicator(Communicator):
                 self._stats["bytes"]["sent"]["total"] += len(raw_message)
                 self._stats["messages"]["sent"]["total"] += 1
 #            except pynng.exceptions.Timeout:
-#                log.error(f"Comm {self.name!r} player {self.rank} tag {message.tag!r} to receiver {dst} timed-out after {self._timeout}s.")
+#                self._log.error(f"tag {message.tag!r} to receiver {dst} timed-out after {self._timeout}s.")
             except Exception as e:
-                log.error(f"Comm {self.name!r} player {self.rank} send exception: {e}")
+                self._log.error(f"send exception: {e}")
 
 
     def all_gather(self, value):
-        log.debug(f"Comm {self.name!r} player {self.rank} all_gather()")
+        self._log.debug(f"all_gather()")
 
         self._require_unrevoked()
         value = self._require_value(value)
@@ -468,7 +567,7 @@ class SocketCommunicator(Communicator):
         every player entered the barrier.  If an exception is raised then there
         are no guarantees about whether every player entered.
         """
-        log.debug(f"Comm {self.name!r} player {self.rank} barrier()")
+        self._log.debug(f"barrier()")
 
         self._require_unrevoked()
 
@@ -488,7 +587,7 @@ class SocketCommunicator(Communicator):
 
 
     def broadcast(self, *, src, value):
-        log.debug(f"Comm {self.name!r} player {self.rank} broadcast(src={src})")
+        self._log.debug(f"broadcast(src={src})")
 
         self._require_unrevoked()
         src = self._require_rank(src)
@@ -522,11 +621,11 @@ class SocketCommunicator(Communicator):
             player.close()
         self._players = None
 
-        log.info(f"Comm {self.name!r} player {self.rank} communicator freed.")
+        self._log.info(f"communicator freed.")
 
 
     def gather(self, *, value, dst):
-        log.debug(f"Comm {self.name!r} player {self.rank} gather(dst={dst})")
+        self._log.debug(f"gather(dst={dst})")
 
         self._require_unrevoked()
         value = self._require_value(value)
@@ -546,7 +645,7 @@ class SocketCommunicator(Communicator):
 
 
     def gatherv(self, *, src, value, dst):
-        log.debug(f"Comm {self.name!r} player {self.rank} gatherv(src={src}, dst={dst})")
+        self._log.debug(f"gatherv(src={src}, dst={dst})")
 
         self._require_unrevoked()
         src = self._require_rank_list(src)
@@ -568,7 +667,7 @@ class SocketCommunicator(Communicator):
 
 
     def irecv(self, *, src):
-        log.debug(f"Comm {self.name!r} player {self.rank} irecv(src={src})")
+        self._log.debug(f"irecv(src={src})")
 
         self._require_unrevoked()
         src = self._require_rank(src)
@@ -601,7 +700,7 @@ class SocketCommunicator(Communicator):
 
 
     def isend(self, *, value, dst):
-        log.debug(f"Comm {self.name!r} player {self.rank} isend(dst={dst})")
+        self._log.debug(f"isend(dst={dst})")
 
         self._require_unrevoked()
         value = self._require_value(value)
@@ -628,7 +727,7 @@ class SocketCommunicator(Communicator):
         bytes_sent = self._stats["bytes"]["sent"]["total"]
         bytes_received = self._stats["bytes"]["received"]["total"]
 
-        log.info(f"Comm {self.name!r} player {self._rank} sent {messages_sent} messages / {bytes_sent} bytes, received {messages_received} messages / {bytes_received} bytes.")
+        self._log.info(f"sent {messages_sent} messages / {bytes_sent} bytes, received {messages_received} messages / {bytes_received} bytes.")
 
 
     @property
@@ -648,7 +747,7 @@ class SocketCommunicator(Communicator):
 
 
     def recv(self, *, src):
-        log.debug(f"Comm {self.name!r} player {self.rank} recv(src={src})")
+        self._log.debug(f"recv(src={src})")
 
         self._require_unrevoked()
         src = self._require_rank(src)
@@ -666,7 +765,7 @@ class SocketCommunicator(Communicator):
         called by any player that detects a communication failure, to initiate
         a recovery phase.
         """
-        log.debug(f"Comm {self.name!r} player {self.rank} revoke()")
+        self._log.debug(f"revoke()")
 
         # Notify all players that the communicator is revoked.
         for rank in self.ranks:
@@ -676,7 +775,7 @@ class SocketCommunicator(Communicator):
                 # We handle this here instead of propagating it to the
                 # application layer because we expect some recipients to be
                 # missing, else there'd be no reason to call revoke().
-                log.error(f"Comm {self.name!r} player {self.rank} timeout revoking player {rank}.")
+                self._log.error(f"timeout revoking player {rank}.")
 
 
     @staticmethod
@@ -782,7 +881,7 @@ class SocketCommunicator(Communicator):
 
 
     def scatter(self, *, src, values):
-        log.debug(f"Comm {self.name!r} player {self.rank} scatter(src={src})")
+        self._log.debug(f"scatter(src={src})")
 
         self._require_unrevoked()
         src = self._require_rank(src)
@@ -802,7 +901,7 @@ class SocketCommunicator(Communicator):
 
 
     def scatterv(self, *, src, values, dst):
-        log.debug(f"Comm {self.name!r} player {self.rank} scatterv(src={src}, dst={dst})")
+        self._log.debug(f"scatterv(src={src}, dst={dst})")
 
         self._require_unrevoked()
         src = self._require_rank(src)
@@ -827,7 +926,7 @@ class SocketCommunicator(Communicator):
 
 
     def send(self, *, value, dst):
-        log.debug(f"Comm {self.name!r} player {self.rank} send(dst={dst})")
+        self._log.debug(f"send(dst={dst})")
 
         self._require_unrevoked()
         value = self._require_value(value)
@@ -846,7 +945,7 @@ class SocketCommunicator(Communicator):
         instead.  In that case it is up to the application to decide how to
         proceed.
         """
-        log.debug(f"Comm {self.name!r} player {self.rank} shrink()")
+        self._log.debug(f"shrink()")
 
         # Set a default timeout of 2 seconds.
         if timeout is None:
@@ -871,14 +970,14 @@ class SocketCommunicator(Communicator):
                     message = self._receive(tag="shrink-enter", sender=rank, block=False)
                     remaining_ranks.add(rank)
                 except Exception as e:
-                    log.debug(f"Comm {self.name!r} player {self.rank} exception {e}")
+                    self._log.debug(f"exception {e}")
             if time.time() - start > timeout:
                 break
             time.sleep(0.1)
 
         # Sort the remaining ranks; the lowest rank will become rank 0 in the new communicator.
         remaining_ranks = sorted(list(remaining_ranks))
-        #log.info(f"Comm {self.name!r} player {self.rank} remaining players: {remaining_ranks}")
+        #self._log.info(f"remaining players: {remaining_ranks}")
 
         # Generate a token based on a hash of the remaining ranks that we can
         # use to ensure that every player is in agreement on who's remaining.
@@ -927,7 +1026,7 @@ class SocketCommunicator(Communicator):
         -------
         communicator: a new :class:`SocketCommunicator` instance, or `None`
         """
-        log.debug(f"Comm {self.name!r} player {self.rank} split(group={group})")
+        self._log.debug(f"split(group={group})")
 
         self._require_unrevoked()
 
@@ -1016,7 +1115,7 @@ class SocketCommunicator(Communicator):
         return self._world_size
 
 
-def receive_netstring(rank, socket):
+def receive_one_netstring(name, rank, socket):
     """Reads from a socket, returning exactly one netstring-encoded message.
 
     This function will block until a single netstring-encoded message can be
@@ -1045,6 +1144,6 @@ def receive_netstring(rank, socket):
     while not decoded:
         decoded = decoder.feed(socket.recv(4096))
     if len(decoded) != 1:
-        raise RuntimeError(f"Player {rank} expected exactly one message, but received {len(decoded)}: {decoded}.")
+        raise RuntimeError(f"Comm {name!r} player {rank} expected exactly one message, but received {len(decoded)}: {decoded}.")
     return decoded[0]
 

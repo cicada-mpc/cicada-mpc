@@ -1,5 +1,17 @@
 Feature: Additive Protocol
 
+    Scenario Outline: Startup Reliability
+        Given <players> players
+        Then it should be possible to setup an additive protocol object <count> times
+
+        Examples:
+        | players | count   |
+        | 2       | 100     |
+        | 3       | 100     |
+        | 4       | 100     |
+        | 10      | 100     |
+
+
     Scenario: Inter-session Repetition
         Given 3 players
         When secret sharing the same value for 10 sessions

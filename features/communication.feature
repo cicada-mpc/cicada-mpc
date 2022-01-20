@@ -12,13 +12,9 @@ Feature: Communication
 
         Examples:
         | players | count   |
+        | 2       | 100     |
         | 3       | 100     |
         | 4       | 100     |
-        | 5       | 100     |
-        | 6       | 100     |
-        | 7       | 100     |
-        | 8       | 100     |
-        | 9       | 100     |
         | 10      | 100     |
 
 
