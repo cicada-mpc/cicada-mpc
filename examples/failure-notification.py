@@ -23,7 +23,7 @@ import cicada.communicator.nng
 logging.basicConfig(level=logging.INFO)
 
 
-@cicada.communicator.NNGCommunicator.run(world_size=3)
+@cicada.communicator.SocketCommunicator.run(world_size=3)
 def main(communicator):
     # Example of a normal return value.
     if communicator.rank == 0:

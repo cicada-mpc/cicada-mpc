@@ -750,11 +750,11 @@ class SocketCommunicator(Communicator):
                 # Log the results for each player.
                 for rank, result in enumerate(output):
                     if isinstance(result, Failed):
-                        log.error(f"Player {rank} failed: {result.exception!r}")
+                        log.info(f"Player {rank} failed: {result.exception!r}")
                     elif isinstance(result, Exception):
-                        log.error(f"Player {rank} failed: {result!r}")
+                        log.info(f"Player {rank} failed: {result!r}")
                     else:
-                        log.info(f"Player {rank} returned: {result}")
+                        log.info(f"Player {rank} return: {result}")
 
                 # Print a traceback for players that failed.
                 for rank, result in enumerate(output):
