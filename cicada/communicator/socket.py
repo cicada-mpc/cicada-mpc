@@ -181,7 +181,7 @@ class SocketCommunicator(Communicator):
 
                 for index in range(world_size-1):
                     player, address = connection.accept()
-                    other_rank, other_addr, other_token = pickle.loads(decode_one(rank, player))
+                    other_rank, other_addr, other_token = pickle.loads(receive_netstring(rank, player))
                     if other_token != token:
                         raise RuntimeError(f"Player 0 expected token {token}, received {other_token} from player {other_rank}.")
                     addresses[other_rank] = other_addr
@@ -200,7 +200,7 @@ class SocketCommunicator(Communicator):
                     root.sendall(pynetstring.encode(pickle.dumps((rank, host_addr, token))))
 
                     # Get the list of all addresses from the root player.
-                    addresses = pickle.loads(decode_one(rank, root))
+                    addresses = pickle.loads(receive_netstring(rank, root))
                     self._players[0] = root
                     break
                 except Exception as e:
@@ -214,7 +214,7 @@ class SocketCommunicator(Communicator):
                     connection.listen(world_size)
                     for index in range(listener+1, world_size):
                         player, address = connection.accept()
-                        other_rank = pickle.loads(decode_one(rank, player))
+                        other_rank = pickle.loads(receive_netstring(rank, player))
                         self._players[other_rank] = player
 
                         # Send an acknowledgement.
@@ -229,7 +229,7 @@ class SocketCommunicator(Communicator):
                         player.sendall(pynetstring.encode(pickle.dumps(rank)))
 
                         # Wait for an acknowledgement from the listening player.
-                        ack = pickle.loads(decode_one(rank, player))
+                        ack = pickle.loads(receive_netstring(rank, player))
 
                         self._players[listener] = player
                         break
@@ -914,17 +914,16 @@ class SocketCommunicator(Communicator):
 
         Returns
         -------
-        communicator: a new :class:`Communicator` instance, or `None`
+        communicator: a new :class:`SocketCommunicator` instance, or `None`
         """
         log.debug(f"Comm {self.name!r} player {self.rank} split(group={group})")
 
         self._require_unrevoked()
 
         # Generate a new address.
-        protocol, addr = self._host_addr.split("//")
-        addr, port = addr.split(":")
-        port = cicada.bind.random_port(addr)
-        host_addr = f"{protocol}//{addr}:{port}"
+        host = self._host_addr.hostname
+        port = cicada.bind.random_port(host)
+        host_addr = f"tcp://{host}:{port}"
 
         # Send group membership and new address to rank 0.
         my_group = group
@@ -1006,7 +1005,30 @@ class SocketCommunicator(Communicator):
         return self._world_size
 
 
-def decode_one(rank, socket):
+def receive_netstring(rank, socket):
+    """Reads from a socket, returning exactly one netstring-encoded message.
+
+    This function will block until a single netstring-encoded message can be
+    read from the given socket.  Your protocol must ensure that only one
+    message will ever be read.
+
+    Parameters
+    ----------
+    rank: :class:`int`, required
+        Rank of the player receiving the message.
+
+    socket: :class:`socket.socket`, required
+        Socket to read from.
+
+    Raises
+    ------
+    :class:`RuntimeError`
+        if more than one message is read from the socket.
+
+    Returns
+    -------
+    message: :class:`bytes`
+    """
     decoder = pynetstring.Decoder()
     decoded = []
     while not decoded:
