@@ -167,14 +167,25 @@ class SocketCommunicator(Communicator):
         if rank == 0 and link_addr != host_addr:
             raise ValueError(f"link_addr {link_addr} and host_addr {host_addr} must match for rank 0.") # pragma: no cover
 
-        log.info(f"Comm {name!r} player {rank} rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
+        # Setup internal state.
+        self._name = name
+        self._world_size = world_size
+        self._link_addr = link_addr
+        self._rank = rank
+        self._host_addr = host_addr
+        self._timeout = timeout
+        self._revoked = False
 
         # Set aside storage for connections to the other players.
         self._players = {}
 
+        # Rendezvous with the other players.
+        log.info(f"Comm {self._name!r} player {self._rank} rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
+
         if rank == 0:
-            # Gather addresses from the other players.
+            # Gather an address from every player.
             addresses = {rank: host_addr}
+
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
                 connection.bind((link_addr.hostname, link_addr.port))
                 connection.listen(world_size)
@@ -183,15 +194,15 @@ class SocketCommunicator(Communicator):
                     player, address = connection.accept()
                     other_rank, other_addr, other_token = pickle.loads(receive_netstring(rank, player))
                     if other_token != token:
-                        raise RuntimeError(f"Player 0 expected token {token}, received {other_token} from player {other_rank}.")
+                        raise RuntimeError(f"Comm{self._name!r} player {self._rank} expected token {token}, received {other_token} from player {other_rank}.")
                     addresses[other_rank] = other_addr
                     self._players[other_rank] = player
 
-            # Send addresses to the other players.
+            # Broadcast the complete set of addresses.
             for player in self._players.values():
                 player.sendall(pynetstring.encode(pickle.dumps(addresses)))
 
-        else:
+        elif rank != 0:
             while True:
                 try:
                     # Send our address to the root player.
@@ -204,24 +215,30 @@ class SocketCommunicator(Communicator):
                     self._players[0] = root
                     break
                 except Exception as e:
-                    log.error(f"Comm {name!r} player {rank} exception connecting to player 0: {e}")
-                    time.sleep(0.1)
+                    log.info(f"Comm {self._name!r} player {self._rank} exception connecting to player 0: {e}")
+                    time.sleep(0.5)
 
-        # Make connections with the remaining players.
         for listener in range(1, world_size-1):
             if rank == listener:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
-                    connection.bind((host_addr.hostname, host_addr.port))
-                    connection.listen(world_size)
-                    for index in range(listener+1, world_size):
-                        player, address = connection.accept()
-                        other_rank = pickle.loads(receive_netstring(rank, player))
-                        self._players[other_rank] = player
+                # Listen for connections from the other players.
+                while len(self._players) < world_size - 1: # we don't make a connection with ourself.
+                    try:
+                        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
+                            connection.bind((host_addr.hostname, host_addr.port))
+                            connection.listen(world_size)
+                            log.info(f"Comm {self._name!r} player {self._rank} listening for connections.")
+                            for index in range(listener+1, world_size):
+                                player, address = connection.accept()
+                                other_rank = pickle.loads(receive_netstring(rank, player))
+                                self._players[other_rank] = player
 
-                        # Send an acknowledgement.
-                        player.sendall(pynetstring.encode(pickle.dumps("ack")))
+                                # Send an acknowledgement.
+                                player.sendall(pynetstring.encode(pickle.dumps("ack")))
+                    except Exception as e:
+                        log.info(f"Comm {self._name!r} player {self._rank} exception listening for other players: {e}")
+                        time.sleep(0.5)
 
-            if rank > listener:
+            elif rank > listener:
                 while True:
                     try:
                         # Send our address to the listening player.
@@ -235,16 +252,8 @@ class SocketCommunicator(Communicator):
                         self._players[listener] = player
                         break
                     except Exception as e:
-                        log.error(f"Comm {name!r} player {rank} exception connecting to player {listener}: {e}")
-                        time.sleep(0.1)
-
-        self._name = name
-        self._world_size = world_size
-        self._link_addr = link_addr
-        self._rank = rank
-        self._host_addr = host_addr
-        self._timeout = timeout
-        self._revoked = False
+                        log.info(f"Comm {self._name!r} player {self._rank} exception connecting to player {listener}: {e}")
+                        time.sleep(0.5)
 
         self._send_serial = 0
 
@@ -286,6 +295,7 @@ class SocketCommunicator(Communicator):
         self._incoming_thread = threading.Thread(name="Incoming", target=self._receive_messages, daemon=True)
         self._incoming_thread.start()
 
+        # Log information about our peers.
         for rank, player in sorted(self._players.items()):
             host, port = player.getsockname()
             otherhost, otherport = player.getpeername()
