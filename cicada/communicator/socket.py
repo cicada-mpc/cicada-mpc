@@ -1045,6 +1045,6 @@ def receive_netstring(rank, socket):
     while not decoded:
         decoded = decoder.feed(socket.recv(4096))
     if len(decoded) != 1:
-        raise RuntimeError(f"Player {rank} expected exactly one message, but received {len(decoded)}.")
+        raise RuntimeError(f"Player {rank} expected exactly one message, but received {len(decoded)}: {decoded}.")
     return decoded[0]
 
