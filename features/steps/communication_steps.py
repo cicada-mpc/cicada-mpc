@@ -169,3 +169,14 @@ def step_impl(context, src, received):
             test.assert_equal(player["messages"]["received"]["total"], received)
 
 
+@then(u'it should be possible to start and stop a communicator {count} times')
+def step_impl(context, count):
+    count = eval(count)
+
+    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
+    def operation(communicator):
+        pass
+
+    for i in range(count):
+        operation()
+

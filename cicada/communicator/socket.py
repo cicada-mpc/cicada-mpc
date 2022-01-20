@@ -288,7 +288,7 @@ class SocketCommunicator(Communicator):
         for rank, player in self._players.items():
             host, port = player.getsockname()
             otherhost, otherport = player.getpeername()
-            log.debug(f"Comm {self.name!r} player {self._rank} tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
+            log.info(f"Comm {self.name!r} player {self._rank} tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
 
         log.info(f"Comm {self.name!r} player {self._rank} communicator ready.")
 
@@ -333,7 +333,7 @@ class SocketCommunicator(Communicator):
             # Insert the message into the correct queue.
             self._receive_queues[message.tag][message.sender].put(message, block=True, timeout=None)
 
-        log.debug(f"Comm {self.name!r} player {self.rank} queueing thread closed.")
+        log.info(f"Comm {self.name!r} player {self.rank} queueing thread closed.")
 
 
     def _receive_messages(self):
@@ -362,10 +362,10 @@ class SocketCommunicator(Communicator):
                         # Insert the message into the incoming queue.
                         self._incoming.put(message, block=True, timeout=None)
             except Exception as e:
-                log.debug(f"Comm {self.name!r} player {self.rank} receive exception: {e}")
+                log.error(f"Comm {self.name!r} player {self.rank} receive exception: {e}")
 
         # The communicator has been freed, so exit the thread.
-        log.debug(f"Comm {self.name!r} player {self.rank} receive thread closed.")
+        log.info(f"Comm {self.name!r} player {self.rank} receive thread closed.")
 
 
 
