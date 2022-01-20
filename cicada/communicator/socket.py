@@ -167,7 +167,7 @@ class SocketCommunicator(Communicator):
         if rank == 0 and link_addr != host_addr:
             raise ValueError(f"link_addr {link_addr} and host_addr {host_addr} must match for rank 0.") # pragma: no cover
 
-        log.info(f"Comm {self.name!r} player {rank} rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
+        log.info(f"Comm {name!r} player {rank} rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
 
         # Set aside storage for connections to the other players.
         self._players = {}
@@ -204,7 +204,7 @@ class SocketCommunicator(Communicator):
                     self._players[0] = root
                     break
                 except Exception as e:
-                    log.error(f"Comm {self.name!r} player {rank} exception connecting to root: {e}")
+                    log.error(f"Comm {name!r} player {rank} exception connecting to player 0: {e}")
                     time.sleep(0.1)
 
         # Make connections with the remaining players.
@@ -235,7 +235,7 @@ class SocketCommunicator(Communicator):
                         self._players[listener] = player
                         break
                     except Exception as e:
-                        log.error(f"Player {rank} exception connecting to player {listener}: {e}")
+                        log.error(f"Comm {name!r} player {rank} exception connecting to player {listener}: {e}")
                         time.sleep(0.1)
 
         self._name = name
