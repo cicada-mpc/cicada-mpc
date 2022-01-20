@@ -234,7 +234,7 @@ class SocketCommunicator(Communicator):
                         self._players[listener] = player
                         break
                     except Exception as e:
-                        log.error(f"Player {rank} exception connecting to {listener}: {e}")
+                        #log.error(f"Player {rank} exception connecting to {listener}: {e}")
                         time.sleep(0.1)
 
         self._name = name

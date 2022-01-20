@@ -32,7 +32,7 @@ arguments = parser.parse_args()
 
 lam = 1.0 / arguments.mtbf
 
-@cicada.communicator.NNGCommunicator.run(world_size=arguments.players)
+@cicada.communicator.SocketCommunicator.run(world_size=arguments.players)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     generator = numpy.random.default_rng()
@@ -54,6 +54,7 @@ def main(communicator):
             log.info(f"Player {communicator.rank} received: {tensor}")
             log.info("-" * 20, src=0)
         except Exception as e:
+            logging.error(f"Player {communicator.rank} exception: {e}.")
             communicator.log_stats()
             return
 

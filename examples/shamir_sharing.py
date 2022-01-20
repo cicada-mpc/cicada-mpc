@@ -24,7 +24,7 @@ import cicada.shamir
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.NNGCommunicator.run(world_size=5)
+@cicada.communicator.SocketCommunicator.run(world_size=5)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     shamir = cicada.shamir.ShamirProtocol(communicator)

@@ -24,7 +24,7 @@ import cicada.interactive
 
 logging.basicConfig(level=logging.INFO)
 
-with cicada.communicator.NNGCommunicator(timeout=300) as communicator:
+with cicada.communicator.SocketCommunicator(timeout=300) as communicator:
     log = cicada.Logger(logging.getLogger(), communicator)
     protocol = cicada.additive.AdditiveProtocol(communicator)
 
