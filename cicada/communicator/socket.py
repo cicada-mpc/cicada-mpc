@@ -181,7 +181,7 @@ class SocketCommunicator(Communicator):
 
                 for index in range(world_size-1):
                     player, address = connection.accept()
-                    other_rank, other_addr, other_token = pickle.loads(pynetstring.decode(player.recv(4096))[0])
+                    other_rank, other_addr, other_token = pickle.loads(decode_one(rank, player))
                     if other_token != token:
                         raise RuntimeError(f"Player 0 expected token {token}, received {other_token} from player {other_rank}.")
                     addresses[other_rank] = other_addr
@@ -200,7 +200,7 @@ class SocketCommunicator(Communicator):
                     root.sendall(pynetstring.encode(pickle.dumps((rank, host_addr, token))))
 
                     # Get the list of all addresses from the root player.
-                    addresses = pickle.loads(pynetstring.decode(root.recv(4096))[0])
+                    addresses = pickle.loads(decode_one(rank, root))
                     self._players[0] = root
                     break
                 except Exception as e:
@@ -214,8 +214,11 @@ class SocketCommunicator(Communicator):
                     connection.listen(world_size)
                     for index in range(listener+1, world_size):
                         player, address = connection.accept()
-                        other_rank = pickle.loads(pynetstring.decode(player.recv(4096))[0])
+                        other_rank = pickle.loads(decode_one(rank, player))
                         self._players[other_rank] = player
+
+                        # Send an acknowledgement.
+                        player.sendall(pynetstring.encode(pickle.dumps("ack")))
 
             if rank > listener:
                 while True:
@@ -224,9 +227,14 @@ class SocketCommunicator(Communicator):
                         player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         player.connect((addresses[listener].hostname, addresses[listener].port))
                         player.sendall(pynetstring.encode(pickle.dumps(rank)))
+
+                        # Wait for an acknowledgement from the listening player.
+                        ack = pickle.loads(decode_one(rank, player))
+
                         self._players[listener] = player
                         break
                     except Exception as e:
+                        log.error(f"Player {rank} exception connecting to {listener}: {e}")
                         time.sleep(0.1)
 
         self._name = name
@@ -311,7 +319,7 @@ class SocketCommunicator(Communicator):
                 log.error(f"Comm {self.name!r} player {self.rank} dropping unexpected message: {e}")
                 continue
 
-            # Log received messages.
+            # Log queued messages.
             if log.isEnabledFor(logging.DEBUG):
                 log.debug(f"Comm {self.name!r} player {self.rank} <-- player {message.sender} {message.tag}#{message.serial:04}")
 
@@ -334,7 +342,6 @@ class SocketCommunicator(Communicator):
         while not self._freed:
             try:
                 # Wait for a message to arrive from the other players.
-                log.debug(f"Comm {self.name!r} player {self.rank} selecting {', '.join([str(player.fileno()) for player in self._players.values()])}.")
                 ready, _, _ = select.select(self._players.values(), [], [], 0.1)
                 for player in ready:
                     raw_messages = decoder.feed(player.recv(4096))
@@ -350,7 +357,7 @@ class SocketCommunicator(Communicator):
                             log.error(f"Comm {self.name!r} player {self.rank} ignoring unparsable message: {e}")
                             continue
 
-                        log.debug(f"Comm {self.name!r} player {self.rank} received message {message}")
+                        log.debug(f"Comm {self.name!r} player {self.rank} received {message}")
 
                         # Insert the message into the incoming queue.
                         self._incoming.put(message, block=True, timeout=None)
@@ -998,4 +1005,13 @@ class SocketCommunicator(Communicator):
     def world_size(self):
         return self._world_size
 
+
+def decode_one(rank, socket):
+    decoder = pynetstring.Decoder()
+    decoded = []
+    while not decoded:
+        decoded = decoder.feed(socket.recv(4096))
+    if len(decoded) != 1:
+        raise RuntimeError(f"Player {rank} expected exactly one message, but received {len(decoded)}.")
+    return decoded[0]
 
