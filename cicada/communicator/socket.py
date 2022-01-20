@@ -296,10 +296,10 @@ class SocketCommunicator(Communicator):
         self._incoming_thread.start()
 
         # Log information about our peers.
-        for rank, player in sorted(self._players.items()):
-            host, port = player.getsockname()
-            otherhost, otherport = player.getpeername()
-            log.info(f"Comm {self.name!r} player {self._rank} tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
+#        for rank, player in sorted(self._players.items()):
+#            host, port = player.getsockname()
+#            otherhost, otherport = player.getpeername()
+#            log.info(f"Comm {self.name!r} player {self._rank} tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
 
         log.info(f"Comm {self.name!r} player {self._rank} communicator ready.")
 
