@@ -67,6 +67,44 @@ class LoggerAdapter(logging.LoggerAdapter):
         return f"Comm {self.extra['name']!r} player {self.extra['rank']} {msg}", kwargs
 
 
+class NetstringSocket(object):
+    """Message-oriented socket that uses the Netstrings protocol."""
+    def __init__(self, sock):
+        self._socket = sock
+        self._decoder = pynetstring.Decoder()
+        self._decoded = []
+
+    def close(self):
+        self._socket.close()
+
+    def feed(self):
+        """Read data from the underlying socket, decoding whatever is available."""
+        self._decoded += self._decoder.feed(self._socket.recv(4096))
+
+    def fileno(self):
+        """Return the file descriptor for the underlying socket.
+
+        This allows :class:`NetstringSocket` to be used with :func:`select.select`.
+        """
+        return self._socket.fileno()
+
+    def received(self):
+        """Return every message that has been received, if any."""
+        result = self._decoded
+        self._decoded = []
+        return result
+
+    def receive_one(self):
+        """Block until at least one message has been received."""
+        while not self._decoded:
+            self._decoded = self._decoder.feed(self._socket.recv(4096))
+        return self._decoded.pop(0)
+
+    def send(self, msg):
+        """Send a message."""
+        self._socket.sendall(pynetstring.encode(msg))
+
+
 class Revoked(Exception):
     """Raised calling an operation after the communicator has been revoked."""
     pass
@@ -197,11 +235,14 @@ class SocketCommunicator(Communicator):
         # Set aside storage for connections to the other players.
         self._players = {}
 
+        # Setup storage for unprocessed messages that have been read from a socket.
+        self._unprocessed = []
+
         # Rendezvous with the other players.
         self._log.info(f"rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
 
         ###########################################################################
-        # Phase 1: every player creates a listening socket for making connections.
+        # Phase 1: every player creates a socket to listen for connections.
 
         while True:
             try:
@@ -220,8 +261,10 @@ class SocketCommunicator(Communicator):
         if rank != 0:
             while True:
                 try:
-                    self._players[0] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    self._players[0].connect((link_addr.hostname, link_addr.port))
+                    other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    other_player.connect((link_addr.hostname, link_addr.port))
+                    other_player = NetstringSocket(other_player)
+                    self._players[0] = other_player
                     break
                 except Exception as e:
                     self._log.info(f"exception connecting to player 0: {e}")
@@ -233,7 +276,7 @@ class SocketCommunicator(Communicator):
         if rank != 0:
             while True:
                 try:
-                    self._players[0].sendall(pynetstring.encode(pickle.dumps((rank, host_addr, token))))
+                    self._players[0].send(pickle.dumps((rank, host_addr, token)))
                     break
                 except Exception as e:
                     self._log.info(f"exception sending address to player 0: {e}")
@@ -247,7 +290,8 @@ class SocketCommunicator(Communicator):
             addresses = {rank: host_addr}
             while len(addresses) < world_size:
                 other_player, _ = connection.accept()
-                other_rank, other_addr, other_token = pickle.loads(receive_one_netstring(name, rank, other_player))
+                other_player = NetstringSocket(other_player)
+                other_rank, other_addr, other_token = pickle.loads(other_player.receive_one())
                 self._players[other_rank] = other_player
                 addresses[other_rank] = other_addr
                 self._log.info(f"received address from player {other_rank}.")
@@ -260,7 +304,7 @@ class SocketCommunicator(Communicator):
 
         if rank == 0:
             for player in self._players.values():
-                player.sendall(pynetstring.encode(pickle.dumps(addresses)))
+                player.send(pickle.dumps(addresses))
 
         ###########################################################################
         # Phase 6: Every player receives the set of all addresses from root.
@@ -268,7 +312,7 @@ class SocketCommunicator(Communicator):
         if rank != 0:
             while True:
                 try:
-                    addresses = pickle.loads(receive_one_netstring(name, rank, self._players[0]))
+                    addresses = pickle.loads(self._players[0].receive_one())
                     self._log.info(f"received addresses from player 0.")
                     break
                 except Exception as e:
@@ -283,12 +327,11 @@ class SocketCommunicator(Communicator):
                 # Listen for connections from the other players.
                 while len(self._players) < world_size - 1: # we don't make a connection with ourself.
                     try:
-                        player, address = connection.accept()
-                        other_rank = pickle.loads(receive_one_netstring(name, rank, player))
-                        self._players[other_rank] = player
-
-                        # Send an acknowledgement.
-                        player.sendall(pynetstring.encode(pickle.dumps("ack")))
+                        other_player, _ = connection.accept()
+                        other_player = NetstringSocket(other_player)
+                        other_rank = pickle.loads(other_player.receive_one())
+                        self._players[other_rank] = other_player
+                        self._players[other_rank].send("ack")
                     except Exception as e:
                         self._log.info(f"exception listening for other players: {e}")
                         time.sleep(0.1)
@@ -296,59 +339,58 @@ class SocketCommunicator(Communicator):
             elif rank > listener:
                 while True:
                     try:
-                        # Send our rank to the listening player.
-                        player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        player.connect((addresses[listener].hostname, addresses[listener].port))
-                        player.sendall(pynetstring.encode(pickle.dumps(rank)))
+                        # Send our rank to the listening player and listen for an ack.
+                        other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        other_player.connect((addresses[listener].hostname, addresses[listener].port))
+                        other_player = NetstringSocket(other_player)
+                        self._players[listener] = other_player
 
-                        # Wait for an acknowledgement from the listening player.
-                        ack = pickle.loads(receive_one_netstring(name, rank, player))
-
-                        self._players[listener] = player
+                        self._players[listener].send(pickle.dumps(rank))
+                        ack = self._players[listener].receive_one()
                         break
                     except Exception as e:
                         self._log.info(f"exception connecting to player {listener}: {e}")
                         time.sleep(0.5)
 
-        ###########################################################################
-        # Phase 8: every player sends a sync message to root.
-
-        if rank != 0:
-            while True:
-                try:
-                    self._players[0].sendall(pynetstring.encode("sync"))
-                    break
-                except Exception as e:
-                    self._log.info(f"exception sending sync to player 0: {e}")
-                    time.sleep(0.1)
-
-        ###########################################################################
-        # Phase 9: root waits for sync messages from every player.
-
-        if rank == 0:
-            # Gather an address from every player.
-            for player in self._players.values():
-                sync = receive_one_netstring(name, rank, player)
-
-        ###########################################################################
-        # Phase 10: root sends an ack to every player.
-
-        if rank == 0:
-            for player in self._players.values():
-                player.sendall(pynetstring.encode("ack"))
-
-        ###########################################################################
-        # Phase 11: Every player receives their ack from root.
-
-        if rank != 0:
-            while True:
-                try:
-                    ack = receive_one_netstring(name, rank, self._players[0])
-                    self._log.info(f"received ack from player 0.")
-                    break
-                except Exception as e:
-                    self._log.info(f"exception getting ack from player 0: {e}")
-                    time.sleep(0.1)
+#        ###########################################################################
+#        # Phase 8: every player sends a sync message to root.
+#
+#        if rank != 0:
+#            while True:
+#                try:
+#                    self._players[0].send("sync")
+#                    break
+#                except Exception as e:
+#                    self._log.info(f"exception sending sync to player 0: {e}")
+#                    time.sleep(0.1)
+#
+#        ###########################################################################
+#        # Phase 9: root waits for sync messages from every player.
+#
+#        if rank == 0:
+#            # Gather an address from every player.
+#            for player in self._players.values():
+#                sync = player.recv()
+#
+#        ###########################################################################
+#        # Phase 10: root sends an ack to every player.
+#
+#        if rank == 0:
+#            for player in self._players.values():
+#                player.send("ack")
+#
+#        ###########################################################################
+#        # Phase 11: Every player receives their ack from root.
+#
+#        if rank != 0:
+#            while True:
+#                try:
+#                    ack = self._players[0].recv()
+#                    self._log.info(f"received ack from player 0.")
+#                    break
+#                except Exception as e:
+#                    self._log.info(f"exception getting ack from player 0: {e}")
+#                    time.sleep(0.1)
 
         ###########################################################################
         # Phase 12: the mesh has been initialized, get ready for normal operation.
@@ -447,14 +489,19 @@ class SocketCommunicator(Communicator):
 
     def _receive_messages(self):
         # Parse and queue incoming messages as they arrive.
-        decoder = pynetstring.Decoder()
         while not self._freed:
             try:
-                # Wait for a message to arrive from the other players.
-                ready, _, _ = select.select(self._players.values(), [], [], 0.1)
+                # Wait for data to arrive from the other players.
+                ready, _, _ = select.select(self._players.values(), [], [], 0.01)
                 for player in ready:
-                    raw_messages = decoder.feed(player.recv(4096))
-                    for raw_message in raw_messages:
+                    player.feed()
+
+                # Process any messages that were received. Note that
+                # we iterate over every player, not just the ones that
+                # were selected above, because there might be a few
+                # messages left from the startup process.
+                for player in self._players.values():
+                    for raw_message in player.received():
                         # Update statistics.
                         self._stats["bytes"]["received"]["total"] += len(raw_message)
                         self._stats["messages"]["received"]["total"] += 1
@@ -536,7 +583,7 @@ class SocketCommunicator(Communicator):
             try:
                 raw_message = pickle.dumps(message)
                 player = self._players[dst]
-                player.sendall(pynetstring.encode(raw_message))
+                player.send(raw_message)
                 self._stats["bytes"]["sent"]["total"] += len(raw_message)
                 self._stats["messages"]["sent"]["total"] += 1
 #            except pynng.exceptions.Timeout:
@@ -1113,36 +1160,4 @@ class SocketCommunicator(Communicator):
     def world_size(self):
         return self._world_size
 
-
-def receive_one_netstring(name, rank, socket):
-    """Reads from a socket, returning exactly one netstring-encoded message.
-
-    This function will block until a single netstring-encoded message can be
-    read from the given socket.  Your protocol must ensure that only one
-    message will ever be read.
-
-    Parameters
-    ----------
-    rank: :class:`int`, required
-        Rank of the player receiving the message.
-
-    socket: :class:`socket.socket`, required
-        Socket to read from.
-
-    Raises
-    ------
-    :class:`RuntimeError`
-        if more than one message is read from the socket.
-
-    Returns
-    -------
-    message: :class:`bytes`
-    """
-    decoder = pynetstring.Decoder()
-    decoded = []
-    while not decoded:
-        decoded = decoder.feed(socket.recv(4096))
-    if len(decoded) != 1:
-        raise RuntimeError(f"Comm {name!r} player {rank} expected exactly one message, but received {len(decoded)}: {decoded}.")
-    return decoded[0]
 
