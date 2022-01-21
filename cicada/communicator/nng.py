@@ -53,15 +53,6 @@ def nng_timeout(value):
     return -1 if value is None else int(float(value) * 1000.0)
 
 
-class Timer(object):
-    def __init__(self):
-        self._start = time.time()
-
-
-    def elapsed(self):
-        return time.time() - self._start
-
-
 class Failed(Exception):
     """Used to indicate that a player process raised an exception."""
     def __init__(self, exception, traceback):
