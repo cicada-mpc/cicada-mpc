@@ -82,13 +82,21 @@ class NetstringSocket(object):
         self._socket = sock
         self._decoder = pynetstring.Decoder()
         self._decoded = []
+        self._sent_bytes = 0
+        self._sent_messages = 0
+        self._received_bytes = 0
+        self._received_messages = 0
 
     def close(self):
         self._socket.close()
 
     def feed(self):
         """Read data from the underlying socket, decoding whatever is available."""
-        self._decoded += self._decoder.feed(self._socket.recv(4096))
+        raw = self._socket.recv(4096)
+        decoded = self._decoder.feed(raw)
+        self._received_bytes += len(raw)
+        self._received_messages += len(decoded)
+        self._decoded += decoded
 
     def fileno(self):
         """Return the file descriptor for the underlying socket.
@@ -106,12 +114,22 @@ class NetstringSocket(object):
     def receive_one(self):
         """Block until at least one message has been received."""
         while not self._decoded:
-            self._decoded = self._decoder.feed(self._socket.recv(4096))
+            self.feed()
         return self._decoded.pop(0)
 
     def send(self, msg):
         """Send a message."""
-        self._socket.sendall(pynetstring.encode(msg))
+        raw = pynetstring.encode(msg)
+        self._socket.sendall(raw)
+        self._sent_bytes += len(raw)
+        self._sent_messages += 1
+
+    @property
+    def stats(self):
+        return {
+            "sent": {"bytes": self._sent_bytes, "messages": self._sent_messages},
+            "received": {"bytes": self._received_bytes, "messages": self._received_messages},
+            }
 
 
 class Revoked(Exception):
@@ -388,26 +406,6 @@ class SocketCommunicator(Communicator):
         # Phase 8: The mesh has been initialized, get ready for normal operation.
 
         self._send_serial = 0
-
-        self._stats = {
-             "bytes": {
-                 "sent": {
-                     "total": 0,
-                 },
-                 "received": {
-                     "total": 0,
-                 },
-             },
-            "messages": {
-                "sent": {
-                    "total": 0,
-                },
-                "received": {
-                    "total": 0,
-                    },
-                },
-        }
-
         self._freed = False
 
         # Setup queues for incoming messages.
@@ -494,10 +492,6 @@ class SocketCommunicator(Communicator):
                 # messages left from the startup process.
                 for player in self._players.values():
                     for raw_message in player.received():
-                        # Update statistics.
-                        self._stats["bytes"]["received"]["total"] += len(raw_message)
-                        self._stats["messages"]["received"]["total"] += 1
-
                         # Ignore unparsable messages.
                         try:
                             message = pickle.loads(raw_message)
@@ -576,8 +570,6 @@ class SocketCommunicator(Communicator):
                 raw_message = pickle.dumps(message)
                 player = self._players[dst]
                 player.send(raw_message)
-                self._stats["bytes"]["sent"]["total"] += len(raw_message)
-                self._stats["messages"]["sent"]["total"] += 1
 #            except pynng.exceptions.Timeout:
 #                self._log.error(f"tag {message.tag!r} to receiver {dst} timed-out after {self._timeout}s.")
             except Exception as e:
@@ -657,7 +649,6 @@ class SocketCommunicator(Communicator):
         # Close connections to the other players.
         for player in self._players.values():
             player.close()
-        self._players = None
 
         self._log.info(f"communicator freed.")
 
@@ -756,16 +747,6 @@ class SocketCommunicator(Communicator):
                 pass
 
         return Result()
-
-
-    def log_stats(self):
-        """Log statistics about the number and size of messages handled by this communicator."""
-        messages_sent = self._stats["messages"]["sent"]["total"]
-        messages_received = self._stats["messages"]["received"]["total"]
-        bytes_sent = self._stats["bytes"]["sent"]["total"]
-        bytes_received = self._stats["bytes"]["received"]["total"]
-
-        self._log.info(f"sent {messages_sent} messages / {bytes_sent} bytes, received {messages_received} messages / {bytes_received} bytes.")
 
 
     @property
@@ -1109,7 +1090,18 @@ class SocketCommunicator(Communicator):
     @property
     def stats(self):
         """Nested dict containing communication statistics for logging / debugging."""
-        return self._stats
+        totals = {
+            "sent": {"bytes": 0, "messages": 0},
+            "received": {"bytes": 0, "messages": 0},
+        }
+        for player in self._players.values():
+            stats = player.stats
+            totals["sent"]["bytes"] += stats["sent"]["bytes"]
+            totals["sent"]["messages"] += stats["sent"]["messages"]
+            totals["received"]["bytes"] += stats["received"]["bytes"]
+            totals["received"]["messages"] += stats["received"]["messages"]
+        return totals
+
 
     @property
     def timeout(self):

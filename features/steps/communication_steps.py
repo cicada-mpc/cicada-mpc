@@ -157,7 +157,7 @@ def step_impl(context, src, value, dst):
 def step_impl(context, src, sent):
     src = eval(src)
     sent = eval(sent)
-    test.assert_equal(context.stats[src]["messages"]["sent"]["total"], sent)
+    test.assert_equal(context.stats[src]["sent"]["messages"], sent)
 
 
 @then(u'every player other than {src} should receive exactly {received} messages')
@@ -166,7 +166,7 @@ def step_impl(context, src, received):
     received = eval(received)
     for index, player in enumerate(context.stats):
         if index != src:
-            test.assert_equal(player["messages"]["received"]["total"], received)
+            test.assert_equal(player["received"]["messages"], received)
 
 
 @then(u'it should be possible to start and stop a communicator {count} times')
