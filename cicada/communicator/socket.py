@@ -200,8 +200,9 @@ class SocketCommunicator(Communicator):
     host_addr: string, optional
         URL address of the local player.  The URL scheme *must* be `tcp` and
         the address must be reachable by all of the other players.  Defaults to
-        the value of the HOST_ADDR environment variable.  Note that this value
-        is ignored by the root player.
+        the address of host_socket if supplied, or the value of the HOST_ADDR
+        environment variable.  Note that this value is ignored by the root
+        player.
     host_socket: :class:`socket.socket`, optional
         Callers may optionally provide an existing socket for use by the
         communicator.  The provided socket *must* be created using `AF_INET`
@@ -242,7 +243,11 @@ class SocketCommunicator(Communicator):
         if link_addr is None:
             link_addr = os.environ["LINK_ADDR"]
         if host_addr is None:
-            host_addr = os.environ["HOST_ADDR"]
+            if host_socket is not None:
+                hostname, port = host_socket.getsockname()
+                host_addr = f"tcp://{hostname}:{port}"
+            else:
+                host_addr = os.environ["HOST_ADDR"]
 
         link_addr = urlparse(link_addr)
         host_addr = urlparse(host_addr)
@@ -262,6 +267,20 @@ class SocketCommunicator(Communicator):
             raise ValueError("host_addr scheme must be tcp.") # pragma: no cover
         if rank == 0 and link_addr != host_addr:
             raise ValueError(f"link_addr {link_addr} and host_addr {host_addr} must match for rank 0.") # pragma: no cover
+        if not isinstance(host_socket, (socket.socket, type(None))):
+            raise ValueError(f"host_socket must be an instance of socket.socket or None.")
+        if host_socket is not None and host_socket.family != socket.AF_INET:
+            raise ValueError(f"host_socket must use AF_INET.")
+        if host_socket is not None and host_socket.type != socket.SOCK_STREAM:
+            raise ValueError(f"host_socket must use SOCK_STREAM.")
+        if host_socket is not None and host_socket.getsockname()[0] != host_addr.hostname:
+            raise ValueError(f"host_socket hostname must match host_addr.")
+        if host_socket is not None and host_socket.getsockname()[1] != host_addr.port:
+            raise ValueError(f"host_socket port must match host_addr.")
+        if not isinstance(timeout, (numbers.Number, type(None))):
+            raise ValueError(f"timeout must be a number or None.")
+        if not isinstance(setup_timeout, (numbers.Number, type(None))):
+            raise ValueError(f"setup_timeout must be a number or None.")
 
         # Setup internal state.
         self._name = name
@@ -291,7 +310,7 @@ class SocketCommunicator(Communicator):
 
                 try:
                     host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    host_socket.bind((host_addr.hostname, host_addr.port))
+                    host_socket.bind((host_addr.hostname, host_addr.port or 0))
                     break
                 except Exception as e:
                     self._log.info(f"exception creating host socket: {e}")
@@ -432,11 +451,11 @@ class SocketCommunicator(Communicator):
         self._incoming_thread = threading.Thread(name="Incoming", target=self._receive_messages, daemon=True)
         self._incoming_thread.start()
 
-        # Log information about our peers.
+#        # Log information about our peers.
 #        for rank, player in sorted(self._players.items()):
 #            host, port = player.getsockname()
 #            otherhost, otherport = player.getpeername()
-#            self._log.info(f"tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
+#            self._log.debug(f"tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
 
         self._log.info(f"communicator ready.")
 
