@@ -134,13 +134,21 @@ class Timeout(Exception):
 
 
 class Timer(object):
-    """Timer class used to keep track of elapsed time."""
-    def __init__(self):
+    """Tracks elapsed time."""
+    def __init__(self, threshold):
         self._start = time.time()
+        self._threshold = threshold
 
     @property
     def elapsed(self):
         return time.time() - self._start
+
+
+    @property
+    def expired(self):
+        if self._threshold and (self.elapsed > self._threshold):
+            return True
+        return False
 
 
 class TryAgain(Exception):
@@ -244,16 +252,19 @@ class SocketCommunicator(Communicator):
         # Set aside storage for connections to the other players.
         self._players = {}
 
-        # Setup storage for unprocessed messages that have been read from a socket.
-        self._unprocessed = []
+        # Track elapsed time during setup.
+        timer = Timer(threshold=setup_timeout)
 
         # Rendezvous with the other players.
         self._log.info(f"rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
 
         ###########################################################################
-        # Phase 1: every player creates a socket to listen for connections.
+        # Phase 1: Every player creates a socket to listen for connections.
 
         while True:
+            if timer.expired:
+                raise Timeout(f"Comm {name!r} player {rank} timeout creating listening socket.")
+
             try:
                 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 connection.bind((host_addr.hostname, host_addr.port))
@@ -265,10 +276,13 @@ class SocketCommunicator(Communicator):
                 time.sleep(0.1)
 
         ###########################################################################
-        # Phase 2: every player (except root) makes a connection to root.
+        # Phase 2: Every player (except root) makes a connection to root.
 
         if rank != 0:
             while True:
+                if timer.expired:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player 0.")
+
                 try:
                     other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     other_player.connect((link_addr.hostname, link_addr.port))
@@ -280,10 +294,13 @@ class SocketCommunicator(Communicator):
                     time.sleep(0.1)
 
         ###########################################################################
-        # Phase 3: every player sends their listening address to root.
+        # Phase 3: Every player sends their listening address to root.
 
         if rank != 0:
             while True:
+                if timer.expired:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout sending address to player 0.")
+
                 try:
                     self._players[0].send(pickle.dumps((rank, host_addr, token)))
                     break
@@ -292,7 +309,7 @@ class SocketCommunicator(Communicator):
                     time.sleep(0.1)
 
         ###########################################################################
-        # Phase 4: root gathers addresses from every player.
+        # Phase 4: Root gathers addresses from every player.
 
         if rank == 0:
             # Gather an address from every player.
@@ -309,7 +326,7 @@ class SocketCommunicator(Communicator):
 #                    raise RuntimeError(f"Comm {self._name!r} player {self._rank} expected token {token}, received {other_token} from player {other_rank}.")
 
         ###########################################################################
-        # Phase 5: root broadcasts the set of all addresses to every player.
+        # Phase 5: Root broadcasts the set of all addresses to every player.
 
         if rank == 0:
             for player in self._players.values():
@@ -320,6 +337,9 @@ class SocketCommunicator(Communicator):
 
         if rank != 0:
             while True:
+                if timer.expired:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout waiting for addresses from player 0.")
+
                 try:
                     addresses = pickle.loads(self._players[0].receive_one())
                     self._log.info(f"received addresses from player 0.")
@@ -329,7 +349,7 @@ class SocketCommunicator(Communicator):
                     time.sleep(0.1)
 
         ###########################################################################
-        # Phase 7: players setup connections with one another.
+        # Phase 7: Players setup connections with one another.
 
         for listener in range(1, world_size-1):
             if rank == listener:
@@ -347,6 +367,9 @@ class SocketCommunicator(Communicator):
 
             elif rank > listener:
                 while True:
+                    if timer.expired:
+                        raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
+
                     try:
                         # Send our rank to the listening player and listen for an ack.
                         other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -361,48 +384,8 @@ class SocketCommunicator(Communicator):
                         self._log.info(f"exception connecting to player {listener}: {e}")
                         time.sleep(0.5)
 
-#        ###########################################################################
-#        # Phase 8: every player sends a sync message to root.
-#
-#        if rank != 0:
-#            while True:
-#                try:
-#                    self._players[0].send("sync")
-#                    break
-#                except Exception as e:
-#                    self._log.info(f"exception sending sync to player 0: {e}")
-#                    time.sleep(0.1)
-#
-#        ###########################################################################
-#        # Phase 9: root waits for sync messages from every player.
-#
-#        if rank == 0:
-#            # Gather an address from every player.
-#            for player in self._players.values():
-#                sync = player.recv()
-#
-#        ###########################################################################
-#        # Phase 10: root sends an ack to every player.
-#
-#        if rank == 0:
-#            for player in self._players.values():
-#                player.send("ack")
-#
-#        ###########################################################################
-#        # Phase 11: Every player receives their ack from root.
-#
-#        if rank != 0:
-#            while True:
-#                try:
-#                    ack = self._players[0].recv()
-#                    self._log.info(f"received ack from player 0.")
-#                    break
-#                except Exception as e:
-#                    self._log.info(f"exception getting ack from player 0: {e}")
-#                    time.sleep(0.1)
-
         ###########################################################################
-        # Phase 12: the mesh has been initialized, get ready for normal operation.
+        # Phase 8: The mesh has been initialized, get ready for normal operation.
 
         self._send_serial = 0
 
