@@ -60,6 +60,15 @@ class Failed(Exception):
 
 
 class LoggerAdapter(logging.LoggerAdapter):
+    """Wraps a Python logger for consistent formatting of communicator log entries.
+
+    logger: :class:`logging.Logger`, required
+        Python logger to wrap.
+    name: class:`str`, required
+        Communicator name.
+    rank: class:`int`, required
+        Communicator rank
+    """
     def __init__(self, logger, name, rank):
         super().__init__(logger, extra={"name": name, "rank": rank})
 
