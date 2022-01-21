@@ -202,6 +202,11 @@ class SocketCommunicator(Communicator):
         the address must be reachable by all of the other players.  Defaults to
         the value of the HOST_ADDR environment variable.  Note that this value
         is ignored by the root player.
+    host_socket: :class:`socket.socket`, optional
+        Callers may optionally provide an existing socket for use by the
+        communicator.  The provided socket *must* be created using `AF_INET`
+        and `SOCK_STREAM`, and be bound to the same address and port specified
+        by `host_addr`.
     timeout: number or `None`
         Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
     setup_timeout: number or `None`
@@ -226,7 +231,7 @@ class SocketCommunicator(Communicator):
         ]
 
 
-    def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, token=0, timeout=5, setup_timeout=5):
+    def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
         # Setup defaults.
         if name is None:
             name = "world"
@@ -277,21 +282,23 @@ class SocketCommunicator(Communicator):
         self._log.info(f"rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
 
         ###########################################################################
-        # Phase 1: Every player creates a socket to listen for connections.
+        # Phase 1: Every player sets-up a socket to listen for connections.
 
-        while True:
-            if timer.expired:
-                raise Timeout(f"Comm {name!r} player {rank} timeout creating listening socket.")
+        if host_socket is None:
+            while True:
+                if timer.expired:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout creating host socket.")
 
-            try:
-                connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                connection.bind((host_addr.hostname, host_addr.port))
-                connection.listen(world_size)
-                self._log.info(f"listening for connections.")
-                break
-            except Exception as e:
-                self._log.info(f"exception creating listening socket: {e}")
-                time.sleep(0.1)
+                try:
+                    host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    host_socket.bind((host_addr.hostname, host_addr.port))
+                    break
+                except Exception as e:
+                    self._log.info(f"exception creating host socket: {e}")
+                    time.sleep(0.1)
+
+        host_socket.listen(world_size)
+        self._log.info(f"listening for connections.")
 
         ###########################################################################
         # Phase 2: Every player (except root) makes a connection to root.
@@ -333,7 +340,7 @@ class SocketCommunicator(Communicator):
             # Gather an address from every player.
             addresses = {rank: host_addr}
             while len(addresses) < world_size:
-                other_player, _ = connection.accept()
+                other_player, _ = host_socket.accept()
                 other_player = NetstringSocket(other_player)
                 other_rank, other_addr, other_token = pickle.loads(other_player.receive_one())
                 self._players[other_rank] = other_player
@@ -374,7 +381,7 @@ class SocketCommunicator(Communicator):
                 # Listen for connections from the other players.
                 while len(self._players) < world_size - 1: # we don't make a connection with ourself.
                     try:
-                        other_player, _ = connection.accept()
+                        other_player, _ = host_socket.accept()
                         other_player = NetstringSocket(other_player)
                         other_rank = pickle.loads(other_player.receive_one())
                         self._players[other_rank] = other_player
