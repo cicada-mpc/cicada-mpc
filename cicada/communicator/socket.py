@@ -188,7 +188,6 @@ class SocketCommunicator(Communicator):
         # Setup internal state.
         self._name = name
         self._world_size = world_size
-        self._link_addr = link_addr
         self._rank = rank
         self._host_addr = host_addr
         self._timeout = timeout
@@ -277,7 +276,7 @@ class SocketCommunicator(Communicator):
                     time.sleep(0.1)
 
         ###########################################################################
-        # Phase 7: players make remaining connections with one another.
+        # Phase 7: players setup connections with one another.
 
         for listener in range(1, world_size-1):
             if rank == listener:
@@ -317,7 +316,7 @@ class SocketCommunicator(Communicator):
         if rank != 0:
             while True:
                 try:
-                    self._players[0].sendall(pynetstring.encode(pickle.dumps("sync")))
+                    self._players[0].sendall(pynetstring.encode("sync"))
                     break
                 except Exception as e:
                     self._log.info(f"exception sending sync to player 0: {e}")
@@ -328,15 +327,15 @@ class SocketCommunicator(Communicator):
 
         if rank == 0:
             # Gather an address from every player.
-            for _, player in sorted(self._players.items()):
-                sync = pickle.loads(receive_one_netstring(name, rank, player))
+            for player in self._players.values():
+                sync = receive_one_netstring(name, rank, player)
 
         ###########################################################################
         # Phase 10: root sends an ack to every player.
 
         if rank == 0:
             for player in self._players.values():
-                player.sendall(pynetstring.encode(pickle.dumps("ack")))
+                player.sendall(pynetstring.encode("ack"))
 
         ###########################################################################
         # Phase 11: Every player receives their ack from root.
@@ -344,7 +343,7 @@ class SocketCommunicator(Communicator):
         if rank != 0:
             while True:
                 try:
-                    ack = pickle.loads(receive_one_netstring(name, rank, self._players[0]))
+                    ack = receive_one_netstring(name, rank, self._players[0])
                     self._log.info(f"received ack from player 0.")
                     break
                 except Exception as e:
