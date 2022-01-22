@@ -294,3 +294,26 @@ Feature: Additive Protocol
         | 3       | floor     | -2.1          | 10    | [[-3] * 3] * 10      |
         | 3       | floor     | [1.2, -3.4]   | 10    | [[[1, -4]] * 3] * 10 |
 
+
+    @wip
+    Scenario Outline: Equality
+        Given <players> players
+        And binary operation private-private equality
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players  | a                 | b                | count | result                        |
+        | 2        | 2                 | 2                | 10    | [[1] * 2] * 10                |
+        | 2        | 2                 | 3                | 10    | [[0] * 2] * 10                |
+        | 2        | 2                 | 2.1              | 10    | [[0] * 2] * 10                |
+        | 2        | 2.1               | 2.1              | 10    | [[1] * 2] * 10                |
+        | 2        | -2                | -2               | 10    | [[1] * 2] * 10                |
+        | 2        | -2                | -3               | 10    | [[0] * 2] * 10                |
+        | 2        | -2                | -2.1             | 10    | [[0] * 2] * 10                |
+        | 2        | -2.1              | -2.1             | 10    | [[1] * 2] * 10                |
+        | 2        | -2                | 2                | 10    | [[0] * 2] * 10                |
+        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | 10    | [[[1,0,1,1]] * 2] * 10        |
+
+

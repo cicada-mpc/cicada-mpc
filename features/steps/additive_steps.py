@@ -256,6 +256,20 @@ def step_impl(context):
     context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
 
 
+@given(u'binary operation private-private equality')
+def step_impl(context):
+    def operation(communicator, a, b):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+        a = protocol.encoder.encode(numpy.array(a))
+        a = protocol.share(src=0, secret=a, shape=a.shape)
+        b = protocol.encoder.encode(numpy.array(b))
+        b = protocol.share(src=1, secret=b, shape=b.shape)
+        c = protocol.equal(a, b)
+        return protocol.reveal(c)
+    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+
+
 @given(u'operands {a} and {b}')
 def step_impl(context, a, b):
     context.a = eval(a)
@@ -332,4 +346,5 @@ def step_impl(context, bits, src, seed):
     result = SocketCommunicator.run(operation, world_size=context.players, args=(bits, src, seed))
     for bits, secret in result:
         test.assert_equal(secret, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
+
 
