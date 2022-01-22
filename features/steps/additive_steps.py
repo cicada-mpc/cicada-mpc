@@ -270,6 +270,19 @@ def step_impl(context):
     context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
 
 
+@given(u'binary operation private-public modulus')
+def step_impl(context):
+    def operation(communicator, a, b):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+        a = protocol.encoder.encode(numpy.array(a))
+        a = protocol.share(src=0, secret=a, shape=a.shape)
+        b = numpy.array(b)
+        c = protocol.private_public_mod(a, b)
+        return protocol.encoder.decode(protocol.reveal(c))
+    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+
+
 @given(u'operands {a} and {b}')
 def step_impl(context, a, b):
     context.a = eval(a)

@@ -317,3 +317,25 @@ Feature: Additive Protocol
         | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | 10    | [[[1,0,1,1]] * 2] * 10        |
 
 
+    @wip
+    Scenario Outline: Modulus
+        Given <players> players
+        And binary operation private-public modulus
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players  | a                 | b                | count | result                          |
+        | 3        | 144409            | 117              | 10    | [[144409 % 117] * 2] * 10       |
+        | 3        | 144409            | 118              | 10    | [[144409 % 118] * 2] * 10       |
+        | 3        | 144409            | 119              | 10    | [[144409 % 119] * 2] * 10       |
+        | 3        | 144409            | 120              | 10    | [[144409 % 120] * 2] * 10       |
+        | 3        | 144409            | 121              | 10    | [[144409 % 121] * 2] * 10       |
+        | 3        | 144409            | 122              | 10    | [[144409 % 122] * 2] * 10       |
+        | 3        | 144409            | 123              | 10    | [[144409 % 123] * 2] * 10       |
+        | 3        | 144409            | 124              | 10    | [[144409 % 124] * 2] * 10       |
+        | 3        | 144409            | 125              | 10    | [[144409 % 125] * 2] * 10       |
+        | 3        | 144409            | 126              | 10    | [[144409 % 126] * 2] * 10       |
+
+
