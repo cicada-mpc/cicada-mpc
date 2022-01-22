@@ -327,11 +327,11 @@ class SocketCommunicator(Communicator):
                     host_socket.bind((host_addr.hostname, host_addr.port or 0))
                     break
                 except Exception as e:
-                    self._log.info(f"exception creating host socket: {e}")
+                    self._log.warning(f"exception creating host socket: {e}")
                     time.sleep(0.1)
 
         host_socket.listen(world_size)
-        self._log.info(f"listening for connections.")
+        self._log.debug(f"listening for connections.")
 
         ###########################################################################
         # Phase 2: Every player (except root) makes a connection to root.
@@ -348,7 +348,7 @@ class SocketCommunicator(Communicator):
                     self._players[0] = other_player
                     break
                 except Exception as e:
-                    self._log.info(f"exception connecting to player 0: {e}")
+                    self._log.warning(f"exception connecting to player 0: {e}")
                     time.sleep(0.1)
 
         ###########################################################################
@@ -363,7 +363,7 @@ class SocketCommunicator(Communicator):
                     self._players[0].send(pickle.dumps((rank, host_addr, token)))
                     break
                 except Exception as e:
-                    self._log.info(f"exception sending address to player 0: {e}")
+                    self._log.warning(f"exception sending address to player 0: {e}")
                     time.sleep(0.1)
 
         ###########################################################################
@@ -378,7 +378,7 @@ class SocketCommunicator(Communicator):
                 other_rank, other_addr, other_token = pickle.loads(other_player.receive_one())
                 self._players[other_rank] = other_player
                 addresses[other_rank] = other_addr
-                self._log.info(f"received address from player {other_rank}.")
+                self._log.debug(f"received address from player {other_rank}.")
 
 #                if other_token != token:
 #                    raise RuntimeError(f"Comm {self._name!r} player {self._rank} expected token {token}, received {other_token} from player {other_rank}.")
@@ -400,10 +400,10 @@ class SocketCommunicator(Communicator):
 
                 try:
                     addresses = pickle.loads(self._players[0].receive_one())
-                    self._log.info(f"received addresses from player 0.")
+                    self._log.debug(f"received addresses from player 0.")
                     break
                 except Exception as e:
-                    self._log.info(f"exception getting addresses from player 0: {e}")
+                    self._log.warning(f"exception getting addresses from player 0: {e}")
                     time.sleep(0.1)
 
         ###########################################################################
@@ -420,7 +420,7 @@ class SocketCommunicator(Communicator):
                         self._players[other_rank] = other_player
                         self._players[other_rank].send("ack")
                     except Exception as e:
-                        self._log.info(f"exception listening for other players: {e}")
+                        self._log.warning(f"exception listening for other players: {e}")
                         time.sleep(0.1)
 
             elif rank > listener:
@@ -439,7 +439,7 @@ class SocketCommunicator(Communicator):
                         ack = self._players[listener].receive_one()
                         break
                     except Exception as e:
-                        self._log.info(f"exception connecting to player {listener}: {e}")
+                        self._log.warning(f"exception connecting to player {listener}: {e}")
                         time.sleep(0.5)
 
         ###########################################################################
@@ -514,7 +514,7 @@ class SocketCommunicator(Communicator):
             # Insert the message into the correct queue.
             self._receive_queues[message.tag][message.sender].put(message, block=True, timeout=None)
 
-        self._log.info(f"queueing thread closed.")
+        self._log.debug(f"queueing thread closed.")
 
 
     def _receive_messages(self):
@@ -547,7 +547,7 @@ class SocketCommunicator(Communicator):
                 self._log.error(f"receive exception: {e}")
 
         # The communicator has been freed, so exit the thread.
-        self._log.info(f"receive thread closed.")
+        self._log.debug(f"receive thread closed.")
 
 
 
@@ -884,9 +884,7 @@ class SocketCommunicator(Communicator):
                 for index in range(world_size):
                     link_addr_queue.put(host_addr)
 
-            print(f"Process {rank} waiting for link_addr")
             link_addr = link_addr_queue.get()
-            print(f"Process {rank} received {link_addr}")
 
             # Run the work function.
             try:
