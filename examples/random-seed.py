@@ -23,7 +23,6 @@ import cicada.communicator
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.SocketCommunicator.run(world_size=3)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
 
@@ -51,5 +50,6 @@ def main(communicator):
     log.info(f"Player {communicator.rank} share: {share}")
 
     log.info("")
-main()
+
+cicada.communicator.SocketCommunicator.run(main, world_size=3)
 

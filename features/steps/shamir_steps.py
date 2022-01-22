@@ -32,7 +32,6 @@ def step_impl(context, k):
 def step_impl(context, count):
     count = eval(count)
 
-    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         share = protocol.share(src=0, k=context.k, secret=numpy.array(5))
@@ -40,7 +39,7 @@ def step_impl(context, count):
 
     context.shares = []
     for i in range(count):
-        context.shares.append(operation())
+        context.shares.append(cicada.communicator.SocketCommunicator.run(operation, world_size=context.players))
     context.shares = numpy.array(context.shares)
 
 
@@ -48,13 +47,12 @@ def step_impl(context, count):
 def step_impl(context, count):
     count = eval(count)
 
-    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator, count):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         shares = [protocol.share(src=0, k=context.k, secret=numpy.array(5))._storage for i in range(count)]
         return shares
 
-    context.shares = numpy.column_stack(operation(count))
+    context.shares = numpy.column_stack(cicada.communicator.SocketCommunicator.run(operation, world_size=context.players, args=(count,)))
 
 
 @when(u'player {player} shamir shares {secret} with {recipients} and {senders} reveal their shares to {destinations}')
@@ -65,12 +63,11 @@ def step_impl(context, player, secret, recipients, senders, destinations):
     senders = eval(senders)
     destinations = eval(destinations)
 
-    @cicada.communicator.SocketCommunicator.run(world_size=context.players)
     def operation(communicator):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         share = protocol.share(src=player, k=context.k, secret=secret)
         return protocol.reveal(src=senders, share=share, dst=destinations)
 
-    context.result = operation()
+    context.result = cicada.communicator.SocketCommunicator.run(operation, world_size=context.players)
 
 

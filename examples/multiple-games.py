@@ -26,7 +26,6 @@ logging.basicConfig(level=logging.INFO)
 
 Game = collections.namedtuple("Game", ["communicator", "log", "generator"])
 
-@cicada.communicator.SocketCommunicator.run(world_size=4)
 def main(communicator):
     # Setup multiple games with separate communicators.
     games = []
@@ -52,5 +51,5 @@ def main(communicator):
     for game in games:
         game.communicator.free()
 
-main()
+cicada.communicator.SocketCommunicator.run(main, world_size=4)
 

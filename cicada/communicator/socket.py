@@ -33,7 +33,7 @@ import socket
 import threading
 import time
 import traceback
-from urllib.parse import urlparse, urlunparse
+import urllib.parse
 
 import numpy
 import pynetstring
@@ -233,40 +233,53 @@ class SocketCommunicator(Communicator):
 
 
     def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
-        # Setup defaults.
+        # Enforce preconditions
         if name is None:
             name = "world"
+        if not isinstance(name, str):
+            raise ValueError("name must be a string, got {name} instead.")
+
         if world_size is None:
             world_size = int(os.environ["WORLD_SIZE"])
+        if not isinstance(world_size, int):
+            raise ValueError("world_size must be an integer, got {world_size} instead.") # pragma: no cover
+        if not world_size > 0:
+            raise ValueError("world_size must be an integer greater than zero, got {world_size} instead.") # pragma: no cover
+
         if rank is None:
             rank = int(os.environ["RANK"])
+        if not isinstance(rank, int):
+            raise ValueError("rank must be an integer, got {rank} instead.") # pragma: no cover
+        if not (0 <= rank and rank < world_size):
+            raise ValueError(f"rank must be in the range [0, {world_size}), got {rank} instead.") # pragma: no cover
+
         if link_addr is None:
             link_addr = os.environ["LINK_ADDR"]
-        if host_addr is None:
-            if host_socket is not None:
-                hostname, port = host_socket.getsockname()
-                host_addr = f"tcp://{hostname}:{port}"
-            else:
-                host_addr = os.environ["HOST_ADDR"]
-
-        link_addr = urlparse(link_addr)
-        host_addr = urlparse(host_addr)
-
-        # Enforce preconditions.
-        if not isinstance(world_size, int):
-            raise ValueError("world_size must be an integer.") # pragma: no cover
-        if not world_size > 0:
-            raise ValueError("world_size must be an integer greater than zero.") # pragma: no cover
-        if not isinstance(rank, int):
-            raise ValueError("rank must be an integer.") # pragma: no cover
-        if not (0 <= rank and rank < world_size):
-            raise ValueError(f"rank must be in the range [0, {world_size}).") # pragma: no cover
+        link_addr = urllib.parse.urlparse(link_addr)
         if link_addr.scheme != "tcp":
-            raise ValueError("link_addr scheme must be tcp.") # pragma: no cover
+            raise ValueError("link_addr scheme must be tcp, got {link_addr.scheme} instead.") # pragma: no cover
+        if link_addr.hostname is None:
+            raise ValueError("link_addr hostname must be specified.")
+        if link_addr.port is None:
+            raise ValueError("link_addr port must be specified.")
+
+        if host_addr is not None and host_socket is not None:
+            raise ValueError("Specify host_addr or host_socket, but not both.")
+        if host_addr is None and host_socket is not None:
+            hostname, port = host_socket.getsockname()
+            host_addr = f"tcp://{hostname}:{port}"
+        if host_addr is None and host_socket is None:
+            host_addr = os.environ["HOST_ADDR"]
+        host_addr = urllib.parse.urlparse(host_addr)
         if host_addr.scheme != "tcp":
-            raise ValueError("host_addr scheme must be tcp.") # pragma: no cover
-        if rank == 0 and link_addr != host_addr:
-            raise ValueError(f"link_addr {link_addr} and host_addr {host_addr} must match for rank 0.") # pragma: no cover
+            raise ValueError("host_addr scheme must be tcp, got {host_addr.scheme} instead.") # pragma: no cover
+        if host_addr.hostname is None:
+            raise ValueError("host_addr hostname must be specified.")
+        if host_addr.port is None:
+            raise ValueError("host_addr port must be specified.")
+        if rank == 0 and host_addr != link_addr:
+            raise ValueError(f"Player 0 link_addr {link_addr} and host_addr {host_addr} must match.") # pragma: no cover
+
         if not isinstance(host_socket, (socket.socket, type(None))):
             raise ValueError(f"host_socket must be an instance of socket.socket or None.")
         if host_socket is not None and host_socket.family != socket.AF_INET:
@@ -277,10 +290,11 @@ class SocketCommunicator(Communicator):
             raise ValueError(f"host_socket hostname must match host_addr.")
         if host_socket is not None and host_socket.getsockname()[1] != host_addr.port:
             raise ValueError(f"host_socket port must match host_addr.")
+
         if not isinstance(timeout, (numbers.Number, type(None))):
-            raise ValueError(f"timeout must be a number or None.")
+            raise ValueError(f"timeout must be a number or None, got {timeout} instead.")
         if not isinstance(setup_timeout, (numbers.Number, type(None))):
-            raise ValueError(f"setup_timeout must be a number or None.")
+            raise ValueError(f"setup_timeout must be a number or None, got {setup_timeout} instead.")
 
         # Setup internal state.
         self._name = name
@@ -298,7 +312,7 @@ class SocketCommunicator(Communicator):
         timer = Timer(threshold=setup_timeout)
 
         # Rendezvous with the other players.
-        self._log.info(f"rendezvous with {urlunparse(link_addr)} from {urlunparse(host_addr)}.")
+        self._log.info(f"rendezvous with {link_addr.geturl()} from {host_addr.geturl()}.")
 
         ###########################################################################
         # Phase 1: Every player sets-up a socket to listen for connections.
@@ -824,12 +838,12 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(world_size):
-        """Decorator for functions that should be run in parallel using sub-processes on the local host.
+    def run(fn, *, world_size, args=(), kwargs={}):
+        """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
 
-        The decorated function *must* accept a communicator as its first
+        The given function *must* accept a communicator as its first
         argument.  Additional positional and keyword arguments may follow the
         communicator.
 
@@ -838,8 +852,14 @@ class SocketCommunicator(Communicator):
 
         Parameters
         ----------
-        world_size: integer, required
+        fn: callable object, required
+            The function to execute in parallel.
+        world_size: :class:`int`, required
             The number of players to run the decorated function.
+        args: :class:`tuple`, optional
+            Positional arguments to pass to `fn` when it is executed.
+        kwargs: :class:`dict`, optional
+            Keyword arguments to pass to `fn` when it is executed.
 
         Returns
         -------
@@ -852,77 +872,88 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, world_size, link_addr, rank, host_addr, queue, func, args, kwargs):
-            log = logging.getLogger(__name__)
-            communicator = SocketCommunicator(world_size=world_size, link_addr=link_addr, rank=rank, host_addr=host_addr)
+        def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs):
+            # Create a socket with a randomly-assigned port number.
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            host_socket.bind(("127.0.0.1", 0))
+            host, port = host_socket.getsockname()
+            host_addr = f"tcp://{host}:{port}"
+
+            # Send address information to our peers.
+            if rank == 0:
+                for index in range(world_size):
+                    link_addr_queue.put(host_addr)
+
+            print(f"Process {rank} waiting for link_addr")
+            link_addr = link_addr_queue.get()
+            print(f"Process {rank} received {link_addr}")
+
+            # Run the work function.
             try:
-                result = func(communicator, *args, **kwargs)
+                communicator = SocketCommunicator(world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket)
+                result = fn(communicator, *args, **kwargs)
                 communicator.free()
             except Exception as e: # pragma: no cover
                 result = Failed(e, traceback.format_exc())
-            queue.put((rank, result))
 
+            # Return results to the parent process.
+            result_queue.put((rank, result))
 
-        def decorator(func):
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                addresses = []
-                for rank in range(world_size):
-                    addr = cicada.bind.loopback_ip()
-                    port = cicada.bind.random_port(addr)
-                    addresses.append(f"tcp://{addr}:{port}")
+        # Setup the multiprocessing context.
+        context = multiprocessing.get_context(method="fork") # I don't remember why we preferred fork().
 
-                context = multiprocessing.get_context(method="fork")
+        # Create queues for IPC.
+        link_addr_queue = context.Queue()
+        result_queue = context.Queue()
 
-                queue = context.Queue()
+        # Create per-player processes.
+        processes = []
+        for rank in range(world_size):
+            processes.append(context.Process(
+                target=launch,
+                kwargs=dict(link_addr_queue=link_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs),
+                ))
 
-                # Start per-player processes.
-                processes = []
-                for rank in range(world_size):
-                    processes.append(context.Process(target=launch, kwargs=dict(world_size=world_size, link_addr=addresses[0], rank=rank, host_addr=addresses[rank], queue=queue, func=func, args=args, kwargs=kwargs)))
-                for process in processes:
-                    process.daemon = True
-                    process.start()
+        # Start per-player processes.
+        for process in processes:
+            process.daemon = True
+            process.start()
 
-                # Wait until every process terminates.
-                for process in processes:
-                    process.join()
+        # Wait until every process terminates.
+        for process in processes:
+            process.join()
 
-                # Collect a result for every process, but don't block in case
-                # there are missing results.
-                results = []
-                for process in processes:
-                    try:
-                        results.append(queue.get(block=False))
-                    except:
-                        break
+        # Collect a result for every process, but don't block in case
+        # there are missing results.
+        results = []
+        for process in processes:
+            try:
+                results.append(result_queue.get(block=False))
+            except:
+                break
 
-                # Return the output of each rank, in rank order, with a sentinel object for missing outputs.
-                output = [Terminated(process.exitcode) for process in processes]
-                for rank, result in results:
-                    output[rank] = result
+        # Return the output of each rank, in rank order, with a sentinel object for missing outputs.
+        output = [Terminated(process.exitcode) for process in processes]
+        for rank, result in results:
+            output[rank] = result
 
-                # Log the results for each player.
-                for rank, result in enumerate(output):
-                    if isinstance(result, Failed):
-                        log.info(f"Player {rank} failed: {result.exception!r}")
-                    elif isinstance(result, Exception):
-                        log.info(f"Player {rank} failed: {result!r}")
-                    else:
-                        log.info(f"Player {rank} return: {result}")
+        # Log the results for each player.
+        for rank, result in enumerate(output):
+            if isinstance(result, Failed):
+                log.info(f"Player {rank} failed: {result.exception!r}")
+            elif isinstance(result, Exception):
+                log.info(f"Player {rank} failed: {result!r}")
+            else:
+                log.info(f"Player {rank} return: {result}")
 
-                # Print a traceback for players that failed.
-                for rank, result in enumerate(output):
-                    if isinstance(result, Failed):
-                        log.error("*" * 80)
-                        log.error(f"Player {rank} traceback:")
-                        log.error(result.traceback)
+        # Print a traceback for players that failed.
+        for rank, result in enumerate(output):
+            if isinstance(result, Failed):
+                log.error("*" * 80)
+                log.error(f"Player {rank} traceback:")
+                log.error(result.traceback)
 
-                return output
-
-
-            return wrapper
-        return decorator
+        return output
 
 
     def scatter(self, *, src, values):

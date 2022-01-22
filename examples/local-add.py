@@ -23,7 +23,6 @@ import cicada.communicator
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.SocketCommunicator.run(world_size=3)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     protocol = cicada.additive.AdditiveProtocol(communicator)
@@ -42,5 +41,5 @@ def main(communicator):
     revealed = protocol.encoder.decode(protocol.reveal(share))
     log.info(f"Player {communicator.rank} revealed: {revealed}")
 
-main()
+cicada.communicator.SocketCommunicator.run(main, world_size=3)
 

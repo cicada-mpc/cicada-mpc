@@ -24,7 +24,6 @@ import cicada.shamir
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.SocketCommunicator.run(world_size=5)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     shamir = cicada.shamir.ShamirProtocol(communicator)
@@ -42,5 +41,5 @@ def main(communicator):
     revealed = encoder.decode(shamir.reveal(share, src=[2, 3, 4], dst=[1]))
     log.info(f"Player {communicator.rank} revealed: {revealed}")
 
-main()
+cicada.communicator.SocketCommunicator.run(main, world_size=5)
 

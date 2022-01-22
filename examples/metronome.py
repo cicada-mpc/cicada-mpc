@@ -32,7 +32,6 @@ arguments = parser.parse_args()
 
 lam = 1.0 / arguments.mtbf
 
-@cicada.communicator.SocketCommunicator.run(world_size=arguments.players)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     generator = numpy.random.default_rng()
@@ -45,7 +44,6 @@ def main(communicator):
         failures = generator.poisson(lam)
         if failures:
             logging.warning(f"Player {communicator.rank} failing.")
-            communicator.log_stats()
             return
 
         try:
@@ -55,11 +53,10 @@ def main(communicator):
             log.info("-" * 20, src=0)
         except Exception as e:
             logging.error(f"Player {communicator.rank} exception: {e}.")
-            communicator.log_stats()
             return
 
         if communicator.rank == 0:
             time.sleep(1)
 
-main()
+cicada.communicator.SocketCommunicator.run(main, world_size=arguments.players)
 
