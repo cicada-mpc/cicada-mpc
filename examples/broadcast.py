@@ -29,5 +29,5 @@ def main(communicator):
     result = communicator.broadcast(src=0, value=value)
     log.info(f"Player {communicator.rank} received broadcast value: {result}")
 
-cicada.communicator.SocketCommunicator.run(main, world_size=4)
+cicada.communicator.SocketCommunicator.run(world_size=4, fn=main)
 

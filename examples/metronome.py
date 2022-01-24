@@ -58,5 +58,5 @@ def main(communicator):
         if communicator.rank == 0:
             time.sleep(1)
 
-cicada.communicator.SocketCommunicator.run(main, world_size=arguments.players)
+cicada.communicator.SocketCommunicator.run(world_size=arguments.players, fn=main)
 

@@ -838,7 +838,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(fn, *, world_size, args=(), kwargs={}):
+    def run(*, world_size, fn, args=(), kwargs={}):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -852,10 +852,10 @@ class SocketCommunicator(Communicator):
 
         Parameters
         ----------
+        world_size: :class:`int`, required
+            The number of players that will run the function.
         fn: callable object, required
             The function to execute in parallel.
-        world_size: :class:`int`, required
-            The number of players to run the decorated function.
         args: :class:`tuple`, optional
             Positional arguments to pass to `fn` when it is executed.
         kwargs: :class:`dict`, optional
@@ -864,7 +864,7 @@ class SocketCommunicator(Communicator):
         Returns
         -------
         results: list
-            The return value from the decorated function for each player, in
+            The return value from the function for each player, in
             rank order.  If a player process terminates unexpectedly, the
             result will be an instance of :class:`Terminated`, which can be
             used to access the process exit code.  If the player process raises

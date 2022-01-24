@@ -51,5 +51,5 @@ def main(communicator):
     for game in games:
         game.communicator.free()
 
-cicada.communicator.SocketCommunicator.run(main, world_size=4)
+cicada.communicator.SocketCommunicator.run(world_size=4, fn=main)
 

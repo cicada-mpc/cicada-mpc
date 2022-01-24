@@ -34,5 +34,5 @@ def main(communicator):
     if communicator.rank == 2:
         os.kill(os.getpid(), signal.SIGKILL)
 
-cicada.communicator.SocketCommunicator.run(main, world_size=3)
+cicada.communicator.SocketCommunicator.run(world_size=3, fn=main)
 

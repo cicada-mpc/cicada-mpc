@@ -45,5 +45,5 @@ def main(communicator):
     additive_share_0 = shamir.reveal(shamir_share)
     log.info(f"Player {communicator.rank} additive share 0: {additive_share_0}")
 
-cicada.communicator.SocketCommunicator.run(main, world_size=5)
+cicada.communicator.SocketCommunicator.run(world_size=5, fn=main)
 

@@ -36,7 +36,7 @@ def step_impl(context, count):
         protocol = cicada.additive.AdditiveProtocol(communicator)
 
     for i in range(count):
-        SocketCommunicator.run(operation, world_size=context.players)
+        SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
 @when(u'secret sharing the same value for {count} sessions')
@@ -50,7 +50,7 @@ def step_impl(context, count):
 
     context.shares = []
     for i in range(count):
-        context.shares.append(SocketCommunicator.run(operation, world_size=context.players))
+        context.shares.append(SocketCommunicator.run(world_size=context.players, fn=operation))
     context.shares = numpy.array(context.shares, dtype=numpy.object)
 
 
@@ -63,7 +63,7 @@ def step_impl(context, count):
         shares = [protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=()) for i in range(count)]
         return numpy.array([int(share.storage) for share in shares], dtype=numpy.object)
 
-    context.shares = numpy.column_stack(SocketCommunicator.run(operation, world_size=context.players, args=(count,)))
+    context.shares = numpy.column_stack(SocketCommunicator.run(world_size=context.players, fn=operation, args=(count,)))
 
 
 @then(u'the shares should never be repeated')
@@ -85,7 +85,7 @@ def step_impl(context, player, text):
         share = cicada.interactive.secret_input(protocol=protocol, encoder=protocol.encoder, src=player)
         return protocol.encoder.decode(protocol.reveal(share))
 
-    context.result = SocketCommunicator.run(operation, world_size=context.players, args=(player, text))
+    context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player, text))
 
 
 @given(u'secret value {}')
@@ -109,7 +109,7 @@ def step_impl(context, player):
             protocol.encoder.inplace_add(share.storage, protocol.encoder.encode(local))
         return protocol.encoder.decode(protocol.reveal(share))
 
-    context.result = SocketCommunicator.run(operation, world_size=context.players, args=(context.secret, player, context.local))
+    context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
 
 @when(u'player {} performs local in-place subtraction on the shared secret')
@@ -123,7 +123,7 @@ def step_impl(context, player):
             protocol.encoder.inplace_subtract(share.storage, protocol.encoder.encode(local))
         return protocol.encoder.decode(protocol.reveal(share))
 
-    context.result = SocketCommunicator.run(operation, world_size=context.players, args=(context.secret, player, context.local))
+    context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
 
 @then(u'the group should return {}')
@@ -148,7 +148,7 @@ def step_impl(context):
         c = protocol.public_private_add(a, b)
 
         return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'binary operation private-private addition')
@@ -163,7 +163,7 @@ def step_impl(context):
         c = protocol.add(a, b)
 
         return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'binary operation private-private untruncated multiplication')
@@ -180,7 +180,7 @@ def step_impl(context):
 
         logging.debug(f"Comm {communicator.name!r} player {communicator.rank} reveal")
         return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'binary operation private-private xor')
@@ -194,7 +194,7 @@ def step_impl(context):
         b = protocol.share(src=1, secret=b, shape=b.shape)
         c = protocol.logical_xor(a, b)
         return protocol.reveal(c)
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'binary operation private-private or')
@@ -208,7 +208,7 @@ def step_impl(context):
         b = protocol.share(src=1, secret=b, shape=b.shape)
         c = protocol.logical_or(a, b)
         return protocol.reveal(c)
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'binary operation max')
@@ -223,7 +223,7 @@ def step_impl(context):
         c_share = protocol.max(a_share, b_share)
 
         return protocol.encoder.decode(protocol.reveal(c_share))
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'binary operation min')
@@ -238,7 +238,7 @@ def step_impl(context):
         c_share = protocol.min(a_share, b_share)
 
         return protocol.encoder.decode(protocol.reveal(c_share))
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'binary operation private-private multiplication')
@@ -253,7 +253,7 @@ def step_impl(context):
         c = protocol.untruncated_multiply(a, b)
         c = protocol.truncate(c)
         return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'binary operation private-private equality')
@@ -267,7 +267,7 @@ def step_impl(context):
         b = protocol.share(src=1, secret=b, shape=b.shape)
         c = protocol.equal(a, b)
         return protocol.reveal(c)
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'binary operation private-public modulus')
@@ -280,7 +280,7 @@ def step_impl(context):
         b = numpy.array(b)
         c = protocol.private_public_mod(a, b)
         return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @given(u'operands {a} and {b}')
@@ -312,7 +312,7 @@ def step_impl(context):
         a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
         b_share = protocol.floor(a_share)
         return protocol.encoder.decode(protocol.reveal(b_share))
-    context.unary_operation = functools.partial(SocketCommunicator.run, operation, world_size=context.players)
+    context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
 @when(u'the unary operation is executed {count} times')
@@ -337,7 +337,7 @@ def step_impl(context, player, count):
 
     for index in range(count):
         secret = numpy.array(numpy.random.uniform(-100000, 100000))
-        results = SocketCommunicator.run(operation, world_size=context.players, args=(secret,))
+        results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(secret,))
         for result in results:
             numpy.testing.assert_almost_equal(secret, result, decimal=4)
 
@@ -356,7 +356,7 @@ def step_impl(context, bits, src, seed):
         secret = protocol.reveal(secret_share)
         return bits, secret
 
-    result = SocketCommunicator.run(operation, world_size=context.players, args=(bits, src, seed))
+    result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(bits, src, seed))
     for bits, secret in result:
         test.assert_equal(secret, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
 

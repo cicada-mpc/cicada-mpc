@@ -41,5 +41,5 @@ def main(communicator):
     revealed = protocol.encoder.decode(protocol.reveal(share))
     log.info(f"Player {communicator.rank} revealed: {revealed}")
 
-cicada.communicator.SocketCommunicator.run(main, world_size=3)
+cicada.communicator.SocketCommunicator.run(world_size=3, fn=main)
 

@@ -51,5 +51,5 @@ def main(communicator):
 
     log.info("")
 
-cicada.communicator.SocketCommunicator.run(main, world_size=3)
+cicada.communicator.SocketCommunicator.run(world_size=3, fn=main)
 
