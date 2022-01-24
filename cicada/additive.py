@@ -256,17 +256,16 @@ class AdditiveProtocol(object):
         """
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        list_o_bits = []
-        two_inv = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        for element in operand.storage.flat: # Iterates in "C" order.
-            loopop = AdditiveArrayShare(numpy.array(element, dtype=self.encoder.dtype))
-            elebits = []
-            for i in range(self.encoder.fieldbits):
-                elebits.append(self._lsb(loopop))
-                loopop = self.subtract(loopop, elebits[-1])
-                loopop = AdditiveArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
-            list_o_bits.append(elebits[::-1])
-        return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(self.encoder.fieldbits,)))
+        outer_shape = operand.storage.shape[:-1]
+        last_dimension = operand.storage.shape[-1]
+        idx = numpy.ndindex(outer_shape)
+        composed = []
+        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self.encoder.dtype)[::-1])
+        for x in idx:
+            shifted = self.encoder.untruncated_multiply(operand.storage[x], shift)
+            val_share = numpy.sum(shifted) % self.encoder.modulus
+            composed.append(val_share)
+        return AdditiveArrayShare(numpy.array([x for x in composed], dtype=self.encoder.dtype).reshape(outer_shape))
 
     def bit_decompose(self, operand, num_bits=None):
         """Decompose operand into shares of its bitwise representation.
@@ -358,20 +357,20 @@ class AdditiveProtocol(object):
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype), shape=operand.storage.shape)
+        shift_op = numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype)
+        pl2 = numpy.full(operand.storage.shape, self.encoder.modulus-1, dtype=self.encoder.dtype)
+
         abs_op = self.absolute(operand)
         frac_bits = self.encoder.precision
         field_bits = self.encoder.fieldbits
         lsbs = self.bit_decompose(abs_op, self.encoder.precision)
-        shift = numpy.power(2, numpy.arange(frac_bits, dtype=self.encoder.dtype)[::-1])
-        shifted = self.encoder.untruncated_multiply(shift, lsbs.storage)
-        lsbs_composed = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
+        lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.additive_inverse(lsbs_composed)
         two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
         ltz = self.less_than_zero(operand)  
-        sel_2_lsbs = self.untruncated_multiply(two_lsbs, ltz) 
-        #sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, one), ltz) 
-        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
-
+        ones2sub = AdditiveArrayShare(self.encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
+        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
+        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
@@ -841,18 +840,21 @@ class AdditiveProtocol(object):
         """
         if not isinstance(lhs, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-
-        rhsbits = [int(x) for x in bin(rhspub)[2:]][::-1]
-        tmp = AdditiveArrayShare(lhs.storage)
-        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, numpy.array(1), dtype=self.encoder.dtype),shape=lhs.storage.shape)
-        limit = len(rhsbits)-1
-        for i, bit in enumerate(rhsbits):
-            if bit:
-                ans = self.untruncated_multiply(ans, tmp)
-            if i < limit:
-                tmp = self.untruncated_multiply(tmp,tmp)
-        return ans
-
+        if isinstance(rhspub, int):
+            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
+        ans = []
+        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
+            rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
+            tmp = AdditiveArrayShare(lhse)
+            it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self.encoder.dtype),shape=lhse.shape)
+            limit = len(rhsbits)-1
+            for i, bit in enumerate(rhsbits):
+                if bit:
+                    it_ans = self.untruncated_multiply(it_ans, tmp)
+                if i < limit:
+                    tmp = self.untruncated_multiply(tmp,tmp)
+            ans.append(it_ans)
+        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
         """Comparison Operator
