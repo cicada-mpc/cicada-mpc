@@ -443,10 +443,10 @@ class SocketCommunicator(Communicator):
                         time.sleep(0.5)
 
         ###########################################################################
-        # Phase 8: The mesh has been initialized, get ready for normal operation.
+        # Phase 8: The mesh has been initialized, setup normal operation.
 
         self._send_serial = 0
-        self._freed = False
+        self._running = True
 
         # Setup queues for incoming messages.
         self._incoming = queue.Queue()
@@ -475,7 +475,7 @@ class SocketCommunicator(Communicator):
 
     def _queue_messages(self):
         # Place incoming messages in the correct queue.
-        while not self._freed:
+        while self._running:
             # Wait for the next incoming message.
             try:
                 message = self._incoming.get(block=True, timeout=0.1)
@@ -519,7 +519,7 @@ class SocketCommunicator(Communicator):
 
     def _receive_messages(self):
         # Parse and queue incoming messages as they arrive.
-        while not self._freed:
+        while self._running:
             try:
                 # Wait for data to arrive from the other players.
                 ready, _, _ = select.select(self._players.values(), [], [], 0.01)
@@ -675,10 +675,10 @@ class SocketCommunicator(Communicator):
 
     def free(self):
         # Calling free() multiple times is a no-op.
-        if self._freed:
+        if not self._running:
             return
 
-        self._freed = True
+        self._running = False
 
         # Stop receiving incoming messages.
         self._incoming_thread.join()
