@@ -273,7 +273,6 @@ Feature: Additive Protocol
         | 5       | private-private multiplication | [5, 3.5]   | [2, 4]  | 10    | [[[10, 14]] * 5] * 10       |
 
 
-    @wip
     Scenario Outline: Floor
         Given <players> players
         And unary operation <operation>
