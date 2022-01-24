@@ -30,6 +30,11 @@ def step_impl(context, players):
 	context.players = eval(players)
 
 
+@given(u'cicada.communicator.SocketCommunicator')
+def step_impl(context):
+    context.communicator_cls = cicada.communicator.SocketCommunicator
+
+
 @when(u'the players enter a barrier at different times')
 def step_impl(context):
     def operation(communicator):
@@ -40,7 +45,7 @@ def step_impl(context):
 
         return enter, exit
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
+    context.result = context.communicator_cls.run(world_size=context.players, fn=operation)
 
 
 @then(u'the players should exit the barrier at roughly the same time')
@@ -61,7 +66,7 @@ def step_impl(context, src, value):
             value = None
         return communicator.broadcast(src=src, value=value)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value))
+    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, value))
 
 
 @when(u'player {dst} gathers {values} from {src}')
@@ -73,7 +78,7 @@ def step_impl(context, src, values, dst):
     def operation(communicator):
         return communicator.gatherv(src=src, value=values[communicator.rank], dst=dst)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
+    context.result = context.communicator_cls.run(world_size=context.players, fn=operation)
 
 
 @when(u'player {dst} gathers {values}')
@@ -84,7 +89,7 @@ def step_impl(context, dst, values):
     def operation(communicator, values, dst):
         return communicator.gather(value=values[communicator.rank], dst=dst)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(values, dst))
+    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(values, dst))
 
 
 @when(u'player {src} scatters messages to the other players {count} times')
@@ -99,7 +104,7 @@ def step_impl(context, src, count):
         communicator.free()
         return communicator.stats
 
-    context.stats = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, count))
+    context.stats = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, count))
 
 
 @when(u'player {} scatters {} to {}')
@@ -113,7 +118,7 @@ def step_impl(context, src, values, dst):
             values = None
         return communicator.scatterv(src=src, values=values, dst=dst)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values, dst))
+    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, values, dst))
 
 
 @when(u'player {} scatters {}')
@@ -126,7 +131,7 @@ def step_impl(context, src, values):
             values = None
         return communicator.scatter(src=src, values=values)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values))
+    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, values))
 
 
 @then(u'player {} can send {} to player {}')
@@ -142,7 +147,7 @@ def step_impl(context, src, value, dst):
             result = communicator.recv(src=src)
             numpy.testing.assert_almost_equal(value, result, decimal=4)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst))
+    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, value, dst))
 
 
 @then(u'player {src} should have sent exactly {sent} messages')
@@ -169,5 +174,5 @@ def step_impl(context, count):
         pass
 
     for i in range(count):
-        cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
+        context.communicator_cls.run(world_size=context.players, fn=operation)
 
