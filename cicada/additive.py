@@ -1149,40 +1149,6 @@ class AdditiveProtocol(object):
 
         return secret
 
-    def round(self, operand):
-        """Remove the `bits` least significant bits from each element in a secret shared array 
-            then shift back left so that only the original integer part of 'operand' remains.
-
-
-        Parameters
-        ----------
-        operand: :class:`AdditiveArrayShare`, required
-            Shared secret to which floor should be applied.
-
-        Returns
-        -------
-        array: :class:`AdditiveArrayShare`
-            Share of the shared integer part of operand.
-        """
-        if not isinstance(operand, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype), shape=operand.storage.shape)
-        shift_op = numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype)
-        pl2 = numpy.full(operand.storage.shape, self.encoder.modulus-1, dtype=self.encoder.dtype)
-
-        abs_op = self.absolute(operand)
-        frac_bits = self.encoder.precision
-        field_bits = self.encoder.fieldbits
-        lsbs = self.bit_decompose(abs_op, self.encoder.precision)
-        lsbs_composed = self.bit_compose(lsbs)
-        lsbs_inv = self.additive_inverse(lsbs_composed)
-        two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
-        ltz = self.less_than_zero(operand)  
-        nltz = self.logical_not(ltz)  
-        ones2sub = AdditiveArrayShare(self.encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
-        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
-        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
-
     def share(self, *, src, secret, shape):
         """Convert a private array to an additive secret share.
 
