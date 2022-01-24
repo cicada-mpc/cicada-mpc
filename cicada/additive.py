@@ -717,40 +717,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
-    def mod(self, lhs, rhspub):
-        """Return an elementwise result of applying moduli contained in rhspub to lhs 
-        in the context of the underlying finite field. Explicitly, this 
-        function returns a same shape array which contains an approximation
-        of the division remainder in which lhs is the secret shared dividend and 
-        rhspub is a private known divisor. 
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Secret shared array to act as the dend.
-        rhspub: :class:`numpy.ndarray`, required
-            Public value to act as divisor, it is assumed to not
-            be encoded 
-        Returns
-        -------
-        value: :class:`AdditiveArrayShare`
-            The secret approximate result of lhs/rhspub on an elementwise basis.
-        """
-        self._assert_unary_compatible(lhs, "lhs")
-        quotient = self.untruncated_private_divide(lhs, rhs)
-        quotient = self.truncate(quotient)
-        quotient = self.floor(quotient)
-        val2subtract = self.truncate(self.untruncated_multiply(quotient, rhs))
-        remainder = self.subtract(lhs, val2subtract) 
-        return self.truncate(remainder)
-
-
-    def private_public_mod(self, lhs, rhspub, *, enc=False):
+    def _private_public_mod(self, lhs, rhspub, *, enc=False):
         """Return an elementwise result of applying moduli contained in rhspub to lhs 
         in the context of the underlying finite field. Explicitly, this 
         function returns a same shape array which contains an approximation
