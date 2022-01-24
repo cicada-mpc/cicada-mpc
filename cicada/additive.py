@@ -336,7 +336,7 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         diff = self.subtract(lhs, rhs)
-        return self.logical_not(self.private_public_power(diff, self.encoder.modulus-1))
+        return self.logical_not(self.private_public_power_field(diff, self.encoder.modulus-1))
 
 
     def floor(self, operand):
@@ -809,18 +809,28 @@ class AdditiveProtocol(object):
         if not isinstance(lhs, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
-        rhsbits = [int(x) for x in bin(rhspub)[2:]][::-1]
-        tmp = AdditiveArrayShare(lhs.storage)
-        ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
-        limit = len(rhsbits)-1
-        for i, bit in enumerate(rhsbits):
-            if bit:
-                ans = self.untruncated_multiply(ans, tmp)
-                ans = self.truncate(ans)
-            if i < limit:
-                tmp = self.untruncated_multiply(tmp,tmp)
-                tmp = self.truncate(tmp)
-        return ans
+        if isinstance(rhspub, int):
+            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
+        ans=[]
+        print(f'rhspub: {rhspub}')
+        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
+            print(f'rhse: {rhse}')
+            try:
+                rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
+            except:
+                print(f'error: {rhse}')
+            tmp = AdditiveArrayShare(lhse)
+            it_ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
+            limit = len(rhsbits)-1
+            for i, bit in enumerate(rhsbits):
+                if bit:
+                    it_ans = self.untruncated_multiply(it_ans, tmp)
+                    it_ans = self.truncate(it_ans)
+                if i < limit:
+                    tmp = self.untruncated_multiply(tmp,tmp)
+                    tmp = self.truncate(tmp)
+            ans.append(it_ans)
+        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
 
 
     def private_public_power_field(self, lhs, rhspub):
