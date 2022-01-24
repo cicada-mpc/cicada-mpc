@@ -108,6 +108,21 @@ Feature: Communication
         | 3       | 2    | 0       | -55.5   |
 
 
+    Scenario Outline: Split
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When the players split into groups <groups>
+        Then the resulting communicators should have <world_size> players
+        And the resulting communicator names should match <groups>
+
+        Examples:
+        | players | groups                            | world_size       |
+        | 2       | ["a", "b"]                        | [1, 1]           |
+        | 3       | ["a", "b", "a"]                   | [2, 1, 2]        |
+        | 4       | ["red", "red", "red", "blue"]     | [3, 3, 3, 1]     |
+        | 4       | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
+
+
     Scenario Outline: Startup Reliability
         Given <players> players
         And cicada.communicator.SocketCommunicator

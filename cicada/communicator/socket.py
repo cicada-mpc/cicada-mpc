@@ -1080,11 +1080,10 @@ class SocketCommunicator(Communicator):
     def split(self, *, group):
         """Partition players into groups, and create new communicators for each.
 
-        Each player supplies a group identifier - which can be any hashable
-        Python type (string, integer, etc) - and a new communicator is created
-        for each distinct group, with those players as members.  If a player
-        supplies `None`, they will not be a part of any group, and this
-        method will return `None`.
+        Each player supplies a group identifier - which can be any :class:`str`
+        - and a new communicator is created for each distinct group, with those
+        players as members.  If a player supplies `None`, they will not be a
+        part of any group, and this method will return `None`.
 
         .. note::
             This is a collective operation that *must* be called by every member
@@ -1104,43 +1103,54 @@ class SocketCommunicator(Communicator):
 
         self._require_unrevoked()
 
-        # Create a new socket with a randomly-assigned port number.
-        host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        host_socket.bind((self._host_addr.hostname, 0))
-        host, port = host_socket.getsockname()
-        host_addr = f"tcp://{host}:{port}"
+        if not isinstance(group, (str, type(None))):
+            raise ValueError(f"group must be a string, got {group} instead.")
 
-        # Send group membership and our new address to rank 0.
-        my_group = group
-        my_host_addr = host_addr
+        # Create a new socket with a randomly-assigned port number.
+        if group is not None:
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            host_socket.bind((self._host_addr.hostname, 0))
+            host, port = host_socket.getsockname()
+
+            my_group = group
+            my_host_addr = f"tcp://{host}:{port}"
+        else:
+            my_group = None
+            my_host_addr = None
+
+        # Send groups and addresses to rank 0.
         self._send(tag="split-prepare", payload=(my_group, my_host_addr), dst=0)
 
+        # Collect group membership information from all players and compute new communicator parameters.
         if self.rank == 0:
-            # Collect group membership information and new addresses from all players.
             messages = [self._receive(tag="split-prepare", sender=rank, block=True) for rank in self.ranks]
-            groups = [message.payload[0] for message in messages]
-            host_addrs = [message.payload[1] for message in messages]
+            new_groups = [message.payload[0] for message in messages]
+            new_host_addrs = [message.payload[1] for message in messages]
 
-            # Identify world_size and link_addr for each group.
-            world_sizes = collections.Counter()
-            link_addrs = {}
+            new_world_sizes = collections.Counter()
             new_ranks = []
-            for group, host_addr in zip(groups, host_addrs):
-                new_ranks.append(world_sizes[group])
-                world_sizes[group] += 1
-                if group not in link_addrs:
-                    link_addrs[group] = host_addr
+            for new_group in new_groups:
+                new_ranks.append(new_world_sizes[new_group])
+                new_world_sizes[new_group] += 1
 
-            # Send world_size and link_addr to all players.
-            for rank, group, new_rank in zip(self.ranks, groups, new_ranks):
-                self._send(tag="split", payload=(world_sizes[group], link_addrs[group], new_rank), dst=rank)
+            new_world_sizes = [new_world_sizes[new_group] for new_group in new_groups]
+
+            new_link_addrs = {}
+            for new_group, new_host_addr in zip(new_groups, new_host_addrs):
+                if new_group not in new_link_addrs:
+                    new_link_addrs[new_group] = new_host_addr
+            new_link_addrs = [new_link_addrs[new_group] for new_group in new_groups]
+
+        # Send group, world_size, rank, and link_addr to all players.
+        if self.rank == 0:
+            for dst, (new_group, new_world_size, new_rank, new_link_addr) in enumerate(zip(new_groups, new_world_sizes, new_ranks, new_link_addrs)):
+                self._send(tag="split", payload=(new_group, new_world_size, new_rank, new_link_addr), dst=dst)
 
         # Collect group information.
-        world_size, link_addr, new_rank = self._receive(tag="split", sender=0, block=True).payload
-
+        new_group, new_world_size, new_rank, new_link_addr = self._receive(tag="split", sender=0, block=True).payload
         # Return a new communicator.
-        if my_group is not None:
-            return SocketCommunicator(name=my_group, world_size=world_size, rank=new_rank, link_addr=link_addr, host_socket=host_socket)
+        if new_group is not None:
+            return SocketCommunicator(name=new_group, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_socket=host_socket)
 
         return None
 

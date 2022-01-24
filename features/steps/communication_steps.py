@@ -176,3 +176,30 @@ def step_impl(context, count):
     for i in range(count):
         context.communicator_cls.run(world_size=context.players, fn=operation)
 
+
+@when(u'the players split into groups {groups}')
+def step_impl(context, groups):
+    groups = eval(groups)
+
+    def operation(communicator, groups):
+        newcomm = communicator.split(group=groups[communicator.rank])
+        if newcomm is not None:
+            return newcomm.name, newcomm.world_size
+        else:
+            return None, None
+
+    results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(groups,))
+    context.names, context.world_sizes = zip(*results)
+
+
+@then(u'the resulting communicators should have {world_size} players')
+def step_impl(context, world_size):
+    world_size = eval(world_size)
+    test.assert_equal(list(context.world_sizes), list(world_size))
+
+
+@then(u'the resulting communicator names should match {names}')
+def step_impl(context, names):
+    names = eval(names)
+    test.assert_equal(list(context.names), list(names))
+
