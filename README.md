@@ -1,6 +1,14 @@
 # CICADA
 
-This work provides an API for secure multi-party computation with unique features including integration with multiple networking technologies, and support for failure detection and recovery.  The title is a nod to <b>C</b>ooperat<b>I</b>ve <b>C</b>omputing for <b>A</b>utonomous <b>DA</b>ta centers.  Unlike existing work intended for large datacenters and static infrastructure, CICADA is distinguished by a need to address two key challenges:
+Welcome to Cicada … a set of tools for working with fault-tolerant secure multiparty computation. Notable Cicada features include:
 
-* Works with low powered systems with lower reliability in communication.
-* Resilience to unreliable communication links and participant failures.
+* Written in Python for simplicity and ease of use.
+* Communication inspired by the widely used MPI standard.
+* Supports fault tolerance at the application level.
+* Highly refined API.
+
+Sound interesting? See the [Tutorial](https://cicada-mpc.readthedocs.io/en/latest/tutorial.html) to get started!
+
+[![Regression tests](https://github.com/cicada-mpc/cicada-mpc/actions/workflows/regression-tests.yml/badge.svg)](https://github.com/cicada-mpc/cicada-mpc/actions/workflows/regression-tests.yml)
+
+[![Coverage Status](https://coveralls.io/repos/github/cicada-mpc/cicada-mpc/badge.svg?branch=main)](https://coveralls.io/github/cicada-mpc/cicada-mpc?branch=main)
