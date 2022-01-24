@@ -15,6 +15,10 @@
 # limitations under the License.
 
 """Functionality for communicating using NNG, see https://pynng.readthedocs.io.
+
+.. deprecated:: 0.2.0
+   Use :mod:`cicada.communicator.socket` instead.
+
 """
 
 import collections
@@ -32,6 +36,7 @@ import queue
 import threading
 import time
 import traceback
+import warnings
 
 import numpy
 import pynng
@@ -51,15 +56,6 @@ Wrapper class for messages sent between processes.
 def nng_timeout(value):
     """Convert a timeout in seconds to an NNG timeout."""
     return -1 if value is None else int(float(value) * 1000.0)
-
-
-class Timer(object):
-    def __init__(self):
-        self._start = time.time()
-
-
-    def elapsed(self):
-        return time.time() - self._start
 
 
 class Failed(Exception):
@@ -98,6 +94,9 @@ class TryAgain(Exception):
 
 class NNGCommunicator(Communicator):
     """Cicada communicator that uses pynng (https://pynng.readthedocs.io) as the transport layer.
+
+    .. deprecated:: 0.2.0
+       Use :class:`cicada.communicator.socket.SocketCommunicator` instead.
 
     Note
     ----
@@ -152,6 +151,7 @@ class NNGCommunicator(Communicator):
         pass
 
     def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, token=0, timeout=5, setup_timeout=5):
+        warnings.warn("cicada.communicator.nng.NNGCommunicator is deprecated, use cicada.communicator.socket.SocketCommunicator instead.", cicada.DeprecationWarning, stacklevel=2)
         # Setup defaults.
         if name is None:
             name = "world"

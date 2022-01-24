@@ -6,7 +6,19 @@ Feature: Communication
         Then the players should exit the barrier at roughly the same time
 
 
-    Scenario Outline: Reliability
+    Scenario Outline: Startup Reliability
+        Given <players> players
+        Then it should be possible to start and stop a communicator <count> times
+
+        Examples:
+        | players | count   |
+        | 2       | 100     |
+        | 3       | 100     |
+        | 4       | 100     |
+        | 10      | 100     |
+
+
+    Scenario Outline: Message Reliability
         Given <players> players
         When player <src> scatters messages to the other players <count> times
         Then player <src> should have sent exactly <sent> messages
@@ -14,14 +26,14 @@ Feature: Communication
 
         Examples:
         | players | src       | count   | sent    | received |
-        | 2       | 0         | 100     | 100     | 100      |
-        | 3       | 0         | 100     | 200     | 100      |
-        | 2       | 0         | 1000    | 1000    | 1000     |
-        | 3       | 0         | 1000    | 2000    | 1000     |
-        | 2       | 0         | 10000   | 10000   | 10000    |
-        | 3       | 0         | 10000   | 20000   | 10000    |
-        | 2       | 0         | 100000  | 100000  | 100000   |
-        | 3       | 0         | 100000  | 200000  | 100000   |
+        | 2       | 0         | 100     | 101     | 101      |
+        | 3       | 0         | 100     | 202     | 102      |
+        | 2       | 0         | 1000    | 1001    | 1001     |
+        | 3       | 0         | 1000    | 2002    | 1002     |
+        | 2       | 0         | 10000   | 10001   | 10001    |
+        | 3       | 0         | 10000   | 20002   | 10002    |
+        | 2       | 0         | 100000  | 100001  | 100001   |
+        | 3       | 0         | 100000  | 200002  | 100002   |
 
 
     Scenario Outline: Broadcast

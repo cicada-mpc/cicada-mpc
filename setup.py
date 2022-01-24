@@ -35,6 +35,7 @@ setup(
     install_requires=[
         "netifaces",
         "numpy",
+        "pynetstring",
         "pynng",
         "shamir",
     ],

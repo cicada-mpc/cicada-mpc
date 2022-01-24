@@ -24,7 +24,6 @@ import cicada.shamir
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.NNGCommunicator.run(world_size=5)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     additive = cicada.additive.AdditiveProtocol(communicator)
@@ -46,5 +45,5 @@ def main(communicator):
     additive_share_0 = shamir.reveal(shamir_share)
     log.info(f"Player {communicator.rank} additive share 0: {additive_share_0}")
 
-main()
+cicada.communicator.SocketCommunicator.run(world_size=5, fn=main)
 

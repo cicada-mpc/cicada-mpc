@@ -21,3 +21,7 @@ __version__ = "0.2.0-dev"
 
 from cicada.logging import Logger
 
+class DeprecationWarning(Warning):
+    """Used with :func:`warnings.warn` to mark deprecated API."""
+    pass
+

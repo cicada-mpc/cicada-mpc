@@ -1445,14 +1445,23 @@ class AdditiveProtocol(object):
         divisor = self.encoder.encode(numpy.array(1 / rhs))
         quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
         return quotient
-    
+
     def zigmoid(self, operand):
-        """Return the elementwise result of applying the so-called zigmoid funtion to a secret shared array.
-        Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much 
-        more efficient to sompute in an SMC context.
-                   { 0      if x < -0.5
-        zigmoid(x)={ x+0.5  if -0.5<= x <=0.5
-                   { 1      if x > 0.5
+        r"""Compute the elementwise zigmoid function of a secret value.
+
+        Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much
+        more efficient to compute in an MPC context:
+
+        .. math::
+
+            zigmoid(x) = \left\{
+            \begin{array}\\
+                0 & if\ x<-0.5 \\
+                x+0.5 & if\ -0.5\leq x \leq 0.5 \\
+                1 & if x>0.5
+            \end{array}
+            \right.
+
         Note
         ----
         This is a collective operation that *must* be called

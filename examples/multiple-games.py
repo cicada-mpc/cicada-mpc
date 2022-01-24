@@ -26,7 +26,6 @@ logging.basicConfig(level=logging.INFO)
 
 Game = collections.namedtuple("Game", ["communicator", "log", "generator"])
 
-@cicada.communicator.NNGCommunicator.run(world_size=4)
 def main(communicator):
     # Setup multiple games with separate communicators.
     games = []
@@ -44,10 +43,7 @@ def main(communicator):
     # Run games in round-robin fashion.
     for i in range(2):
         for game in games:
-            if game.communicator.rank == 0:
-                value = game.generator.uniform()
-            else:
-                value = None
+            value = f"{game.communicator.name} message {i}" if game.communicator.rank == 0 else None
             value = game.communicator.broadcast(src=0, value=value)
             game.log.info(f"{game.communicator.name} player {game.communicator.rank} received broadcast value: {value}")
 
@@ -55,5 +51,5 @@ def main(communicator):
     for game in games:
         game.communicator.free()
 
-main()
+cicada.communicator.SocketCommunicator.run(world_size=4, fn=main)
 

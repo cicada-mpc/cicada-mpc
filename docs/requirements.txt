@@ -2,6 +2,7 @@ ipython
 netifaces
 nbsphinx
 numpy
+pynetstring
 pynng
 shamir
 sphinx >= 3.5

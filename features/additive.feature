@@ -1,5 +1,17 @@
 Feature: Additive Protocol
 
+    Scenario Outline: Startup Reliability
+        Given <players> players
+        Then it should be possible to setup an additive protocol object <count> times
+
+        Examples:
+        | players | count   |
+        | 2       | 100     |
+        | 3       | 100     |
+        | 4       | 100     |
+        | 10      | 100     |
+
+
     Scenario: Inter-session Repetition
         Given 3 players
         When secret sharing the same value for 10 sessions
@@ -281,4 +293,49 @@ Feature: Additive Protocol
         | 3       | floor     | -2            | 10    | [[-2] * 3] * 10      |
         | 3       | floor     | -2.1          | 10    | [[-3] * 3] * 10      |
         | 3       | floor     | [1.2, -3.4]   | 10    | [[[1, -4]] * 3] * 10 |
+
+
+    @wip
+    Scenario Outline: Equality
+        Given <players> players
+        And binary operation private-private equality
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players  | a                 | b                | count | result                        |
+        | 2        | 2                 | 2                | 10    | [[1] * 2] * 10                |
+        | 2        | 2                 | 3                | 10    | [[0] * 2] * 10                |
+        | 2        | 2                 | 2.1              | 10    | [[0] * 2] * 10                |
+        | 2        | 2.1               | 2.1              | 10    | [[1] * 2] * 10                |
+        | 2        | -2                | -2               | 10    | [[1] * 2] * 10                |
+        | 2        | -2                | -3               | 10    | [[0] * 2] * 10                |
+        | 2        | -2                | -2.1             | 10    | [[0] * 2] * 10                |
+        | 2        | -2.1              | -2.1             | 10    | [[1] * 2] * 10                |
+        | 2        | -2                | 2                | 10    | [[0] * 2] * 10                |
+        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | 10    | [[[1,0,1,1]] * 2] * 10        |
+
+
+    @wip
+    Scenario Outline: Modulus
+        Given <players> players
+        And binary operation private-public modulus
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players  | a                 | b                | count | result                          |
+        | 3        | 144409            | 117              | 10    | [[144409 % 117] * 2] * 10       |
+        | 3        | 144409            | 118              | 10    | [[144409 % 118] * 2] * 10       |
+        | 3        | 144409            | 119              | 10    | [[144409 % 119] * 2] * 10       |
+        | 3        | 144409            | 120              | 10    | [[144409 % 120] * 2] * 10       |
+        | 3        | 144409            | 121              | 10    | [[144409 % 121] * 2] * 10       |
+        | 3        | 144409            | 122              | 10    | [[144409 % 122] * 2] * 10       |
+        | 3        | 144409            | 123              | 10    | [[144409 % 123] * 2] * 10       |
+        | 3        | 144409            | 124              | 10    | [[144409 % 124] * 2] * 10       |
+        | 3        | 144409            | 125              | 10    | [[144409 % 125] * 2] * 10       |
+        | 3        | 144409            | 126              | 10    | [[144409 % 126] * 2] * 10       |
+
 
