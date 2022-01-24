@@ -1104,12 +1104,13 @@ class SocketCommunicator(Communicator):
 
         self._require_unrevoked()
 
-        # Generate a new address.
-        host = self._host_addr.hostname
-        port = cicada.bind.random_port(host)
+        # Create a new socket with a randomly-assigned port number.
+        host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        host_socket.bind((self._host_addr.hostname, 0))
+        host, port = host_socket.getsockname()
         host_addr = f"tcp://{host}:{port}"
 
-        # Send group membership and new address to rank 0.
+        # Send group membership and our new address to rank 0.
         my_group = group
         my_host_addr = host_addr
         self._send(tag="split-prepare", payload=(my_group, my_host_addr), dst=0)
@@ -1139,7 +1140,9 @@ class SocketCommunicator(Communicator):
 
         # Return a new communicator.
         if my_group is not None:
-            return SocketCommunicator(name=my_group, world_size=world_size, rank=new_rank, link_addr=link_addr, host_addr=my_host_addr)
+            return SocketCommunicator(name=my_group, world_size=world_size, rank=new_rank, link_addr=link_addr, host_socket=host_socket)
+
+        return None
 
 
     @property
