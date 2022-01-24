@@ -785,9 +785,10 @@ class AdditiveProtocol(object):
             rhs_enc = rhspub
         quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
         quotient = self.truncate(quotient)
-        #quotient = self.floor(quotient)
+        quotient = self.floor(quotient)
         val2subtract = self.truncate(AdditiveArrayShare(self.encoder.untruncated_multiply(rhs_enc, quotient.storage)))
         remainder = self.subtract(lhs, val2subtract) 
+        print(f'div: {divisor} rhs_enc: {rhs_enc}, q: {self.encoder.decode(self.reveal(quotient))}')
         return remainder 
 
 
@@ -1147,7 +1148,6 @@ class AdditiveProtocol(object):
                     self.encoder.inplace_add(secret, received_share)
 
         return secret
-
 
     def share(self, *, src, secret, shape):
         """Convert a private array to an additive secret share.
