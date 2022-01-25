@@ -244,7 +244,7 @@ class Communicator(metaclass=ABCMeta):
         ranks: sequence of :class:`int`
             The set of all ranks managed by this communicator.
         """
-        return range(self.world_size)
+        return list(range(self.world_size))
 
 
     @abstractmethod
