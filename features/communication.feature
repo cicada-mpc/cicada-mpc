@@ -111,12 +111,12 @@ Feature: Communication
     Scenario Outline: Split
         Given <players> players
         And cicada.communicator.SocketCommunicator
-        When the players split into groups <groups>
+        When the players split based on names <names>
         Then the resulting communicators should have <world_size> players
-        And the resulting communicator names should match <groups>
+        And the resulting communicator names should match <names>
 
         Examples:
-        | players | groups                            | world_size       |
+        | players | names                             | world_size       |
         | 2       | ["a", "b"]                        | [1, 1]           |
         | 3       | ["a", "b", "a"]                   | [2, 1, 2]        |
         | 4       | ["red", "red", "red", "blue"]     | [3, 3, 3, 1]     |

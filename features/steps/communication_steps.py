@@ -177,18 +177,18 @@ def step_impl(context, count):
         context.communicator_cls.run(world_size=context.players, fn=operation)
 
 
-@when(u'the players split into groups {groups}')
-def step_impl(context, groups):
-    groups = eval(groups)
+@when(u'the players split based on names {names}')
+def step_impl(context, names):
+    names = eval(names)
 
     def operation(communicator, groups):
-        newcomm = communicator.split(group=groups[communicator.rank])
+        newcomm = communicator.split(name=groups[communicator.rank])
         if newcomm is not None:
             return newcomm.name, newcomm.world_size
         else:
             return None, None
 
-    results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(groups,))
+    results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(names,))
     context.names, context.world_sizes = zip(*results)
 
 
