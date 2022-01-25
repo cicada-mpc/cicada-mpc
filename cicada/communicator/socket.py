@@ -302,6 +302,7 @@ class SocketCommunicator(Communicator):
         self._rank = rank
         self._host_addr = host_addr
         self._timeout = timeout
+        self._setup_timeout = setup_timeout
         self._revoked = False
         self._log = LoggerAdapter(log, name, rank)
 
@@ -1150,7 +1151,7 @@ class SocketCommunicator(Communicator):
         new_group, new_world_size, new_rank, new_link_addr = self._receive(tag="split", sender=0, block=True).payload
         # Return a new communicator.
         if new_group is not None:
-            return SocketCommunicator(name=new_group, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_socket=host_socket)
+            return SocketCommunicator(name=new_group, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_socket=host_socket, timeout=self._timeout, setup_timeout=self._setup_timeout)
 
         return None
 
