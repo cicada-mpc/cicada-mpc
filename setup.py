@@ -37,7 +37,6 @@ setup(
         "netifaces",
         "numpy",
         "pynetstring",
-        "pynng",
         "shamir",
     ],
     long_description="""Cicada is a flexible toolkit for working with fault-tolerant secure multiparty computation.  See the Cicada documentation at http://cicada-mpc.readthedocs.io, and the Cicada sources at http://github.com/cicada-mpc/cicada-mpc.""",
