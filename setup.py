@@ -20,7 +20,7 @@ import re
 setup(
     name="cicada-mpc",
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
         "Intended Audience :: Information Technology",
@@ -29,9 +29,10 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Communications",
         "Topic :: Scientific/Engineering",
+        "Topic :: Security :: Cryptography",
         "Topic :: Utilities",
     ],
-    description="Support for fault tolerant secure multiparty computation.",
+    description="Flexible toolkit for fault tolerant secure multiparty computation.",
     install_requires=[
         "netifaces",
         "numpy",
@@ -39,6 +40,7 @@ setup(
         "pynng",
         "shamir",
     ],
+    long_description="""Cicada is a flexible toolkit for working with fault-tolerant secure multiparty computation.  See the Cicada documentation at http://cicada-mpc.readthedocs.io, and the Cicada sources at http://github.com/cicada-mpc/cicada-mpc.""",
     maintainer="Timothy M. Shead",
     maintainer_email="tshead@sandia.gov",
     packages=find_packages(),
