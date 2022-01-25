@@ -237,7 +237,7 @@ class SocketCommunicator(Communicator):
         if name is None:
             name = "world"
         if not isinstance(name, str):
-            raise ValueError("name must be a string, got {name} instead.")
+            raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
 
         if world_size is None:
             world_size = int(os.environ["WORLD_SIZE"])
@@ -259,12 +259,12 @@ class SocketCommunicator(Communicator):
         if link_addr.scheme != "tcp":
             raise ValueError("link_addr scheme must be tcp, got {link_addr.scheme} instead.") # pragma: no cover
         if link_addr.hostname is None:
-            raise ValueError("link_addr hostname must be specified.")
+            raise ValueError("link_addr hostname must be specified.") # pragma: no cover
         if link_addr.port is None:
-            raise ValueError("link_addr port must be specified.")
+            raise ValueError("link_addr port must be specified.") # pragma: no cover
 
         if host_addr is not None and host_socket is not None:
-            raise ValueError("Specify host_addr or host_socket, but not both.")
+            raise ValueError("Specify host_addr or host_socket, but not both.") # pragma: no cover
         if host_addr is None and host_socket is not None:
             hostname, port = host_socket.getsockname()
             host_addr = f"tcp://{hostname}:{port}"
@@ -274,27 +274,27 @@ class SocketCommunicator(Communicator):
         if host_addr.scheme != "tcp":
             raise ValueError("host_addr scheme must be tcp, got {host_addr.scheme} instead.") # pragma: no cover
         if host_addr.hostname is None:
-            raise ValueError("host_addr hostname must be specified.")
+            raise ValueError("host_addr hostname must be specified.") # pragma: no cover
         if host_addr.port is None:
-            raise ValueError("host_addr port must be specified.")
+            raise ValueError("host_addr port must be specified.") # pragma: no cover
         if rank == 0 and host_addr != link_addr:
             raise ValueError(f"Player 0 link_addr {link_addr} and host_addr {host_addr} must match.") # pragma: no cover
 
         if not isinstance(host_socket, (socket.socket, type(None))):
-            raise ValueError(f"host_socket must be an instance of socket.socket or None.")
+            raise ValueError(f"host_socket must be an instance of socket.socket or None.") # pragma: no cover
         if host_socket is not None and host_socket.family != socket.AF_INET:
-            raise ValueError(f"host_socket must use AF_INET.")
+            raise ValueError(f"host_socket must use AF_INET.") # pragma: no cover
         if host_socket is not None and host_socket.type != socket.SOCK_STREAM:
-            raise ValueError(f"host_socket must use SOCK_STREAM.")
+            raise ValueError(f"host_socket must use SOCK_STREAM.") # pragma: no cover
         if host_socket is not None and host_socket.getsockname()[0] != host_addr.hostname:
-            raise ValueError(f"host_socket hostname must match host_addr.")
+            raise ValueError(f"host_socket hostname must match host_addr.") # pragma: no cover
         if host_socket is not None and host_socket.getsockname()[1] != host_addr.port:
-            raise ValueError(f"host_socket port must match host_addr.")
+            raise ValueError(f"host_socket port must match host_addr.") # pragma: no cover
 
         if not isinstance(timeout, (numbers.Number, type(None))):
-            raise ValueError(f"timeout must be a number or None, got {timeout} instead.")
+            raise ValueError(f"timeout must be a number or None, got {timeout} instead.") # pragma: no cover
         if not isinstance(setup_timeout, (numbers.Number, type(None))):
-            raise ValueError(f"setup_timeout must be a number or None, got {setup_timeout} instead.")
+            raise ValueError(f"setup_timeout must be a number or None, got {setup_timeout} instead.") # pragma: no cover
 
         # Setup internal state.
         self._name = name
@@ -1105,7 +1105,7 @@ class SocketCommunicator(Communicator):
         self._require_unrevoked()
 
         if not isinstance(group, (str, type(None))):
-            raise ValueError(f"group must be a string, got {group} instead.")
+            raise ValueError(f"group must be a string, got {group} instead.") # pragma: no cover
 
         # Create a new socket with a randomly-assigned port number.
         if group is not None:
