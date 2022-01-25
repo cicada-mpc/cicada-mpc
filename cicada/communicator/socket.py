@@ -88,6 +88,7 @@ class NetstringSocket(object):
         self._received_messages = 0
 
     def close(self):
+        """Close the underlying socket."""
         self._socket.close()
 
     def feed(self):
@@ -126,6 +127,10 @@ class NetstringSocket(object):
 
     @property
     def stats(self):
+        """Return a :class:`dict` containing statistics.
+
+        Returns the number of bytes and messages that have been sent and received.
+        """
         return {
             "sent": {"bytes": self._sent_bytes, "messages": self._sent_messages},
             "received": {"bytes": self._received_bytes, "messages": self._received_messages},
@@ -152,18 +157,26 @@ class Timeout(Exception):
 
 
 class Timer(object):
-    """Tracks elapsed time."""
+    """Tracks elapsed time.
+
+    Parameters
+    ----------
+    threshold: number, required
+        The maximum of number of elapsed seconds before this timer will be expired.
+    """
     def __init__(self, threshold):
         self._start = time.time()
         self._threshold = threshold
 
     @property
     def elapsed(self):
+        """Return the number of seconds since the :class:`Timer` was created."""
         return time.time() - self._start
 
 
     @property
     def expired(self):
+        """Returns :any:`True` if the elapsed time has exceeded a threshold."""
         if self._threshold and (self.elapsed > self._threshold):
             return True
         return False
