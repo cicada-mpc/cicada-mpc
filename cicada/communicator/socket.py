@@ -814,6 +814,26 @@ class SocketCommunicator(Communicator):
         return self._name
 
 
+    @contextlib.contextmanager
+    def override(self, *, timeout):
+        """Temporarily change the timeout value.
+
+        Parameters
+        ----------
+        timeout: number or `None`
+            The timeout for subsequent send / receive operations, in seconds, or `None` to disable timeouts completely.
+
+        Returns
+        -------
+        A context manager object that will restore the original timeout value when exited.
+        """
+        original_timeout, self._timeout = self._timeout, timeout
+        try:
+            yield original_timeout
+        finally:
+            self._timeout = original_timeout
+
+
     @property
     def rank(self):
         return self._rank
@@ -852,7 +872,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, args=(), kwargs={}):
+    def run(*, world_size, fn, args=(), kwargs={}, timeout=5, setup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -874,6 +894,10 @@ class SocketCommunicator(Communicator):
             Positional arguments to pass to `fn` when it is executed.
         kwargs: :class:`dict`, optional
             Keyword arguments to pass to `fn` when it is executed.
+        timeout: number or `None`
+            Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
+        setup_timeout: number or `None`
+            Maximum time allowed to setup the communicator in seconds, or `None` to disable timeouts during setup.
 
         Returns
         -------
@@ -886,7 +910,7 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs):
+        def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, setup_timeout):
             # Create a socket with a randomly-assigned port number.
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             host_socket.bind(("127.0.0.1", 0))
@@ -902,7 +926,7 @@ class SocketCommunicator(Communicator):
 
             # Run the work function.
             try:
-                communicator = SocketCommunicator(world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket)
+                communicator = SocketCommunicator(world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket, timeout=timeout, setup_timeout=setup_timeout)
                 result = fn(communicator, *args, **kwargs)
                 communicator.free()
             except Exception as e: # pragma: no cover
@@ -923,7 +947,7 @@ class SocketCommunicator(Communicator):
         for rank in range(world_size):
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(link_addr_queue=link_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs),
+                kwargs=dict(link_addr_queue=link_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, setup_timeout=setup_timeout),
                 ))
 
         # Start per-player processes.
@@ -1200,26 +1224,6 @@ class SocketCommunicator(Communicator):
     @timeout.setter
     def timeout(self, timeout):
         self._timeout = timeout
-
-
-    @contextlib.contextmanager
-    def override(self, *, timeout):
-        """Temporarily change send / receive timeout value.
-
-        Parameters
-        ----------
-        timeout: number or `None`
-            The timeout for subsequent send / receive operations, in seconds, or `None` to disable timeouts completely.
-
-        Returns
-        -------
-        A context manager object that will restore the original timeout value when exited.
-        """
-        original_timeout, self._timeout = self._timeout, timeout
-        try:
-            yield original_timeout
-        finally:
-            self._timeout = original_timeout
 
 
     @property
