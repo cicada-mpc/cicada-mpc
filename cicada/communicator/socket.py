@@ -112,7 +112,6 @@ class NetstringSocket(object):
         self._messages = []
         return result
 
-
     def next_message(self, *, timeout):
         """Return the next available message, if any."""
         if not self._messages:
@@ -120,12 +119,6 @@ class NetstringSocket(object):
             if ready:
                 self.feed()
         return self._messages.pop(0) if self._messages else None
-
-    def receive_one(self):
-        """Block until at least one message has been received."""
-        while not self._messages:
-            self.feed()
-        return self._messages.pop(0)
 
     def send(self, msg):
         """Send a message."""
@@ -463,17 +456,42 @@ class SocketCommunicator(Communicator):
 
         for listener in range(1, world_size-1):
             if rank == listener:
-                # Listen for connections from the other players.
-                while len(self._players) < world_size - 1: # we don't make a connection with ourself.
+                # Accept connections from higher-rank players.
+                other_players = []
+                while not timer.expired:
+                    if len(other_players) == world_size - rank - 1: # We don't connect to ourself.
+                        break
+
                     try:
-                        other_player, _ = host_socket.accept()
-                        other_player = NetstringSocket(other_player)
-                        other_rank = pickle.loads(other_player.receive_one())
-                        self._players[other_rank] = other_player
-                        self._players[other_rank].send("ack") # Is this really necessary?
+                        ready = select.select([host_socket], [], [], 0.1)
+                        if ready:
+                            other_player, _ = host_socket.accept()
+                            other_player = NetstringSocket(other_player)
+                            other_players.append(other_player)
+                            self._log.debug(f"accepted connection from player.")
                     except Exception as e:
                         self._log.warning(f"exception listening for other players: {e}")
                         time.sleep(0.1)
+
+                # Collect ranks from the other players.
+                for other_player in other_players:
+                    while not timer.expired:
+                        try:
+                            raw_message = other_player.next_message(timeout=0.1)
+                            if raw_message is not None:
+                                other_rank = pickle.loads(raw_message)
+                                self._players[other_rank] = other_player
+                                self._log.debug(f"received rank from player {other_rank}.")
+                                break
+                        except Exception as e:
+                            self._log.warning(f"exception receiving player rank.")
+                            time.sleep(0.1)
+                    else:
+                        raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player rank.")
+
+                # Send acks to the other players.
+                for other_player in other_players:
+                    other_player.send("ack") # Is this really necessary?
 
             elif rank > listener:
                 # Make a connection to the listener.
