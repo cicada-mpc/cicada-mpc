@@ -161,9 +161,10 @@ def step_impl(context, src, sent):
 def step_impl(context, src, received):
     src = eval(src)
     received = eval(received)
-    for index, player in enumerate(context.stats):
-        if index != src:
-            test.assert_equal(player["received"]["messages"], received)
+
+    stats = [player for index, player in enumerate(context.stats) if index != src]
+    for player, expected in zip(stats, received):
+        test.assert_equal(player["received"]["messages"], expected)
 
 
 @then(u'it should be possible to start and stop a communicator {count} times')

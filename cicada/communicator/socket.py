@@ -489,9 +489,9 @@ class SocketCommunicator(Communicator):
                     else:
                         raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player rank.")
 
-                # Send acks to the other players.
-                for other_player in other_players:
-                    other_player.send("ack") # Is this really necessary?
+#                # Send acks to the other players.
+#                for other_player in other_players:
+#                    other_player.send("ack") # Is this really necessary?
 
             elif rank > listener:
                 # Make a connection to the listener.
@@ -519,17 +519,17 @@ class SocketCommunicator(Communicator):
                 else:
                     raise Timeout(f"Comm {name!r} player {rank} timeout sending rank to player {listener}.")
 
-                # Wait for an ack from the listener.  Is this really necessary?
-                while not timer.expired:
-                    try:
-                        raw_message = self._players[listener].next_message(timeout=0.1)
-                        if raw_message is not None:
-                            break
-                    except Exception as e:
-                        self._log.warning(f"exception receiving ack from player {listener}: {e}")
-                        time.sleep(0.5)
-                else:
-                    raise Timeout(f"Comm {name!r} player {rank} timeout receiving ack from player {listener}.")
+#                # Wait for an ack from the listener.  Is this really necessary?
+#                while not timer.expired:
+#                    try:
+#                        raw_message = self._players[listener].next_message(timeout=0.1)
+#                        if raw_message is not None:
+#                            break
+#                    except Exception as e:
+#                        self._log.warning(f"exception receiving ack from player {listener}: {e}")
+#                        time.sleep(0.5)
+#                else:
+#                    raise Timeout(f"Comm {name!r} player {rank} timeout receiving ack from player {listener}.")
 
         ###########################################################################
         # Phase 8: The mesh has been initialized, begin normal operation.
