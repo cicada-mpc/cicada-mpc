@@ -624,8 +624,6 @@ class SocketCommunicator(Communicator):
                 raw_message = pickle.dumps(message)
                 player = self._players[dst]
                 player.send(raw_message)
-#            except pynng.exceptions.Timeout:
-#                self._log.error(f"tag {message.tag!r} to receiver {dst} timed-out after {self._timeout}s.")
             except Exception as e:
                 self._log.error(f"send exception: {e}")
 
