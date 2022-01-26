@@ -112,6 +112,15 @@ class NetstringSocket(object):
         self._messages = []
         return result
 
+
+    def next_message(self, *, timeout):
+        """Return the next available message, if any."""
+        if not self._messages:
+            ready, _, _ = select.select([self], [], [], timeout)
+            if ready:
+                self.feed()
+        return self._messages.pop(0) if self._messages else None
+
     def receive_one(self):
         """Block until at least one message has been received."""
         while not self._messages:
@@ -411,9 +420,11 @@ class SocketCommunicator(Communicator):
         if rank != 0:
             while not timer.expired:
                 try:
-                    addresses = pickle.loads(self._players[0].receive_one())
-                    self._log.debug(f"received addresses from player 0.")
-                    break
+                    raw_message = self._players[0].next_message(timeout=0.1)
+                    if raw_message is not None:
+                        addresses = pickle.loads(raw_message)
+                        self._log.debug(f"received addresses from player 0.")
+                        break
                 except Exception as e:
                     self._log.warning(f"exception getting addresses from player 0: {e}")
                     time.sleep(0.1)
@@ -432,28 +443,48 @@ class SocketCommunicator(Communicator):
                         other_player = NetstringSocket(other_player)
                         other_rank = pickle.loads(other_player.receive_one())
                         self._players[other_rank] = other_player
-                        self._players[other_rank].send("ack")
+                        self._players[other_rank].send("ack") # Is this really necessary?
                     except Exception as e:
                         self._log.warning(f"exception listening for other players: {e}")
                         time.sleep(0.1)
 
             elif rank > listener:
+                # Make a connection to the listener.
                 while not timer.expired:
                     try:
-                        # Send our rank to the listening player and listen for an ack.
                         other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         other_player.connect((addresses[listener].hostname, addresses[listener].port))
                         other_player = NetstringSocket(other_player)
                         self._players[listener] = other_player
-
-                        self._players[listener].send(pickle.dumps(rank))
-                        ack = self._players[listener].receive_one()
                         break
                     except Exception as e:
                         self._log.warning(f"exception connecting to player {listener}: {e}")
                         time.sleep(0.5)
                 else:
                     raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
+
+                # Send our rank to the listener.
+                while not timer.expired:
+                    try:
+                        self._players[listener].send(pickle.dumps(rank))
+                        break
+                    except Exception as e:
+                        self._log.warning(f"exception sending rank to player {listener}: {e}")
+                        time.sleep(0.5)
+                else:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout sending rank to player {listener}.")
+
+                # Wait for an ack from the listener.  Is this really necessary?
+                while not timer.expired:
+                    try:
+                        raw_message = self._players[listener].next_message(timeout=0.1)
+                        if raw_message is not None:
+                            break
+                    except Exception as e:
+                        self._log.warning(f"exception receiving ack from player {listener}: {e}")
+                        time.sleep(0.5)
+                else:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout receiving ack from player {listener}.")
 
         ###########################################################################
         # Phase 8: The mesh has been initialized, setup normal operation.
