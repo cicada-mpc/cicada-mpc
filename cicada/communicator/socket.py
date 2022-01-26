@@ -336,10 +336,7 @@ class SocketCommunicator(Communicator):
         # Phase 1: Every player sets-up a socket to listen for connections.
 
         if host_socket is None:
-            while True:
-                if timer.expired:
-                    raise Timeout(f"Comm {name!r} player {rank} timeout creating host socket.")
-
+            while not timer.expired:
                 try:
                     host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     host_socket.bind((host_addr.hostname, host_addr.port or 0))
@@ -347,6 +344,8 @@ class SocketCommunicator(Communicator):
                 except Exception as e:
                     self._log.warning(f"exception creating host socket: {e}")
                     time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout creating host socket.")
 
         host_socket.listen(world_size)
         self._log.debug(f"listening for connections.")
@@ -355,10 +354,7 @@ class SocketCommunicator(Communicator):
         # Phase 2: Every player (except root) makes a connection to root.
 
         if rank != 0:
-            while True:
-                if timer.expired:
-                    raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player 0.")
-
+            while not timer.expired:
                 try:
                     other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     other_player.connect((link_addr.hostname, link_addr.port))
@@ -368,21 +364,22 @@ class SocketCommunicator(Communicator):
                 except Exception as e:
                     self._log.warning(f"exception connecting to player 0: {e}")
                     time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player 0.")
 
         ###########################################################################
         # Phase 3: Every player sends their listening address to root.
 
         if rank != 0:
-            while True:
-                if timer.expired:
-                    raise Timeout(f"Comm {name!r} player {rank} timeout sending address to player 0.")
-
+            while not timer.expired:
                 try:
                     self._players[0].send(pickle.dumps((rank, host_addr, token)))
                     break
                 except Exception as e:
                     self._log.warning(f"exception sending address to player 0: {e}")
                     time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout sending address to player 0.")
 
         ###########################################################################
         # Phase 4: Root gathers addresses from every player.
@@ -412,10 +409,7 @@ class SocketCommunicator(Communicator):
         # Phase 6: Every player receives the set of all addresses from root.
 
         if rank != 0:
-            while True:
-                if timer.expired:
-                    raise Timeout(f"Comm {name!r} player {rank} timeout waiting for addresses from player 0.")
-
+            while not timer.expired:
                 try:
                     addresses = pickle.loads(self._players[0].receive_one())
                     self._log.debug(f"received addresses from player 0.")
@@ -423,6 +417,8 @@ class SocketCommunicator(Communicator):
                 except Exception as e:
                     self._log.warning(f"exception getting addresses from player 0: {e}")
                     time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout waiting for addresses from player 0.")
 
         ###########################################################################
         # Phase 7: Players setup connections with one another.
@@ -442,10 +438,7 @@ class SocketCommunicator(Communicator):
                         time.sleep(0.1)
 
             elif rank > listener:
-                while True:
-                    if timer.expired:
-                        raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
-
+                while not timer.expired:
                     try:
                         # Send our rank to the listening player and listen for an ack.
                         other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -459,6 +452,8 @@ class SocketCommunicator(Communicator):
                     except Exception as e:
                         self._log.warning(f"exception connecting to player {listener}: {e}")
                         time.sleep(0.5)
+                else:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
 
         ###########################################################################
         # Phase 8: The mesh has been initialized, setup normal operation.
