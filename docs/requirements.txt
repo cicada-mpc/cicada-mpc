@@ -3,7 +3,6 @@ netifaces
 nbsphinx
 numpy
 pynetstring
-pynng
 shamir
 sphinx >= 3.5
 sphinx-argparse
