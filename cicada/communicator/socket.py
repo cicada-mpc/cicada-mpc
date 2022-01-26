@@ -288,8 +288,12 @@ class SocketCommunicator(Communicator):
             raise ValueError("host_addr scheme must be tcp, got {host_addr.scheme} instead.") # pragma: no cover
         if host_addr.hostname is None:
             raise ValueError("host_addr hostname must be specified.") # pragma: no cover
-        if host_addr.port is None:
-            raise ValueError("host_addr port must be specified.") # pragma: no cover
+        # We allow the host port to be unspecified on players other than root,
+        # in which case we will choose one at random
+        if rank == 0:
+            if host_addr.port is None:
+                raise ValueError("Player 0 host_addr port must be specified.") # pragma: no cover
+
         if rank == 0 and host_addr != link_addr:
             raise ValueError(f"Player 0 link_addr {link_addr} and host_addr {host_addr} must match.") # pragma: no cover
 
@@ -326,7 +330,7 @@ class SocketCommunicator(Communicator):
         timer = Timer(threshold=setup_timeout)
 
         # Rendezvous with the other players.
-        self._log.info(f"rendezvous with {link_addr.geturl()} from {host_addr.geturl()}.")
+        self._log.info(f"rendezvous with {link_addr.geturl()} from {host_addr.geturl()}")
 
         ###########################################################################
         # Phase 1: Every player sets-up a socket to listen for connections.
