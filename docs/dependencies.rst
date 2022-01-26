@@ -13,9 +13,9 @@ Minimum Requirements
 To use Cicada you will need the following:
 
 * Python >= 3.7 - http://python.org
-* netifaces - network interface retrieval API - https://github.com/al45tair/netifaces
+* netifaces - Network interface retrieval API - https://github.com/al45tair/netifaces
 * numpy - The popular scientific computing framework - https://numpy.org
-* pynng - Python bindings for the nng messaging library - https://pynng.readthedocs.io
+* pynetstring - A module for encoding and decoding netstrings - https://github.com/rj79/pynetstring
 * shamir - Fast, secure, pure python implementation of Shamir's secret sharing algorithm - https://github.com/kurtbrose/shamir
 
 If you install Cicada using setup.py or pip, these dependencies will be
