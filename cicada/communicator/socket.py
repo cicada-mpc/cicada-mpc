@@ -81,7 +81,7 @@ class NetstringSocket(object):
     def __init__(self, sock):
         self._socket = sock
         self._decoder = pynetstring.Decoder()
-        self._decoded = []
+        self._messages = []
         self._sent_bytes = 0
         self._sent_messages = 0
         self._received_bytes = 0
@@ -94,10 +94,10 @@ class NetstringSocket(object):
     def feed(self):
         """Read data from the underlying socket, decoding whatever is available."""
         raw = self._socket.recv(4096)
-        decoded = self._decoder.feed(raw)
+        messages = self._decoder.feed(raw)
         self._received_bytes += len(raw)
-        self._received_messages += len(decoded)
-        self._decoded += decoded
+        self._received_messages += len(messages)
+        self._messages += messages
 
     def fileno(self):
         """Return the file descriptor for the underlying socket.
@@ -106,17 +106,17 @@ class NetstringSocket(object):
         """
         return self._socket.fileno()
 
-    def received(self):
+    def messages(self):
         """Return every message that has been received, if any."""
-        result = self._decoded
-        self._decoded = []
+        result = self._messages
+        self._messages = []
         return result
 
     def receive_one(self):
         """Block until at least one message has been received."""
-        while not self._decoded:
+        while not self._messages:
             self.feed()
-        return self._decoded.pop(0)
+        return self._messages.pop(0)
 
     def send(self, msg):
         """Send a message."""
@@ -549,7 +549,7 @@ class SocketCommunicator(Communicator):
                 # were selected above, because there might be a few
                 # messages left from the startup process.
                 for player in self._players.values():
-                    for raw_message in player.received():
+                    for raw_message in player.messages():
                         # Ignore unparsable messages.
                         try:
                             message = pickle.loads(raw_message)
