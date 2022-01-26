@@ -394,15 +394,42 @@ class SocketCommunicator(Communicator):
         # Phase 4: Root gathers addresses from every player.
 
         if rank == 0:
-            # Gather an address from every player.
+            # Accept a connection from every player.
+            other_players = []
+            while not timer.expired:
+                if len(other_players) == world_size - 1: # We don't connect to ourself.
+                    break
+
+                try:
+                    ready = select.select([host_socket], [], [], 0.1)
+                    if ready:
+                        other_player, _ = host_socket.accept()
+                        other_player = NetstringSocket(other_player)
+                        other_players.append(other_player)
+                        self._log.debug(f"accepted connection from player.")
+                except Exception as e:
+                    self._log.warning(f"exception waiting for connections from other players: {e}")
+                    time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player connections.")
+
+            # Collect an address from every player.
             addresses = {rank: host_addr}
-            while len(addresses) < world_size:
-                other_player, _ = host_socket.accept()
-                other_player = NetstringSocket(other_player)
-                other_rank, other_addr, other_token = pickle.loads(other_player.receive_one())
-                self._players[other_rank] = other_player
-                addresses[other_rank] = other_addr
-                self._log.debug(f"received address from player {other_rank}.")
+            for other_player in other_players:
+                while not timer.expired:
+                    try:
+                        raw_message = other_player.next_message(timeout=0.1)
+                        if raw_message is not None:
+                            other_rank, other_addr, other_token = pickle.loads(raw_message)
+                            self._players[other_rank] = other_player
+                            addresses[other_rank] = other_addr
+                            self._log.debug(f"received address from player {other_rank}.")
+                            break
+                    except Exception as e:
+                        self._log.warning(f"exception receiving player address.")
+                        time.sleep(0.1)
+                else:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player address.")
 
 #                if other_token != token:
 #                    raise RuntimeError(f"Comm {self._name!r} player {self._rank} expected token {token}, received {other_token} from player {other_rank}.")
@@ -487,7 +514,7 @@ class SocketCommunicator(Communicator):
                     raise Timeout(f"Comm {name!r} player {rank} timeout receiving ack from player {listener}.")
 
         ###########################################################################
-        # Phase 8: The mesh has been initialized, setup normal operation.
+        # Phase 8: The mesh has been initialized, begin normal operation.
 
         self._send_serial = 0
         self._running = True
