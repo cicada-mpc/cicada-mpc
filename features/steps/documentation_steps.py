@@ -21,6 +21,7 @@ import sys
 
 from behave import *
 
+import IPython
 import nbformat
 
 
@@ -89,3 +90,38 @@ def step_impl(context):
         raise AssertionError(f"Some notebooks contain unexecuted cells: {', '.join(sorted(unexecuted_notebooks))}")
 
 
+@then(u'every notebook runs without error')
+def step_impl(context):
+    for notebook in context.notebooks:
+        context.execute_steps(f"Then notebook {notebook} runs without error")
+
+
+@then(u'notebook {notebook} runs without error')
+def step_impl(context, notebook):
+    notebook = os.path.abspath(notebook)
+    notebook_dir = os.path.dirname(notebook)
+    working_dir = os.getcwd()
+
+    sys.path.append(notebook_dir)
+    os.chdir(notebook_dir)
+
+    exception = None
+    try:
+        with open(notebook) as stream:
+            notebook = nbformat.read(stream, as_version=4)
+
+        shell = IPython.core.interactiveshell.InteractiveShell.instance()
+        nblocals = dict()
+
+        for cell in notebook.cells:
+            if cell.cell_type == "code":
+                code = shell.input_transformer_manager.transform_cell(cell.source)
+                exec(code, nblocals)
+    except Exception as e:
+        exception = e
+
+    os.chdir(working_dir)
+    sys.path.remove(notebook_dir)
+
+    if exception is not None:
+        raise exception

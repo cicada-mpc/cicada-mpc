@@ -9,3 +9,8 @@ Feature: Documentation
     Scenario: Documentation notebooks
         Given all documentation notebooks
         Then every notebook code cell should have been executed.
+
+    Scenario: Documentation notebook testing
+        Given all documentation notebooks
+        Then every notebook runs without error
+
