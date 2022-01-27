@@ -221,4 +221,42 @@ def step_impl(context):
         if isinstance(result, (cicada.communicator.socket.Failed, cicada.communicator.socket.Terminated)):
             raise result
 
+@then(u'a SocketCommunicator created without a root player will timeout')
+def step_impl(context):
+    def operation(communicator):
+        if communicator.rank != 0:
+            newcomm = cicada.communicator.SocketCommunicator(
+                name="explicit",
+                world_size=communicator.world_size,
+                rank=communicator.rank,
+                host_addr="tcp://127.0.0.1:25000" if communicator.rank == 0 else "tcp://127.0.0.1",
+                link_addr="tcp://127.0.0.1:25000",
+                )
+
+    results = context.communicator_cls.run(world_size=context.players, fn=operation)
+    for result in results[:1]:
+        test.assert_equal(result, None)
+    for result in results[1:]:
+        test.assert_is_instance(result, cicada.communicator.socket.Failed)
+        test.assert_is_instance(result.exception, cicada.communicator.socket.Timeout)
+
+
+@then(u'a SocketCommunicator created without a regular player will timeout')
+def step_impl(context):
+    def operation(communicator):
+        if communicator.rank != communicator.world_size - 1:
+            newcomm = cicada.communicator.SocketCommunicator(
+                name="explicit",
+                world_size=communicator.world_size,
+                rank=communicator.rank,
+                host_addr="tcp://127.0.0.1:25000" if communicator.rank == 0 else "tcp://127.0.0.1",
+                link_addr="tcp://127.0.0.1:25000",
+                )
+
+    results = context.communicator_cls.run(world_size=context.players, fn=operation)
+    for result in results[:-1]:
+        test.assert_is_instance(result, cicada.communicator.socket.Failed)
+        test.assert_is_instance(result.exception, cicada.communicator.socket.Timeout)
+    for result in results[-1:]:
+        test.assert_equal(result, None)
 

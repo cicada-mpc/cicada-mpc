@@ -33,6 +33,30 @@ Feature: SocketCommunicator
         | 10      |
 
 
+    Scenario Outline: Explicit SocketCommunicator Startup Failure 1
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        Then a SocketCommunicator created without a root player will timeout
+
+        Examples:
+        | players |
+        | 2       |
+        | 3       |
+        | 10      |
+
+
+    Scenario Outline: Explicit SocketCommunicator Startup Failure 2
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        Then a SocketCommunicator created without a regular player will timeout
+
+        Examples:
+        | players |
+        | 2       |
+        | 3       |
+        | 10      |
+
+
     Scenario Outline: Gather
         Given <players> players
         And cicada.communicator.SocketCommunicator
