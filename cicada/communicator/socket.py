@@ -20,6 +20,7 @@
 import asyncio
 import collections
 import contextlib
+import functools
 import hashlib
 import logging
 import math
@@ -87,26 +88,6 @@ class NetstringSocket(object):
         self._received_bytes = 0
         self._received_messages = 0
 
-    async def amessage(self):
-        """Return one message, waiting if necessary."""
-        loop = asyncio.get_running_loop()
-
-        while not self._messages:
-            raw = await loop.sock_recv(self._socket, 4096)
-            messages = self._decoder.feed(raw)
-            self._received_bytes += len(raw)
-            self._received_messages += len(messages)
-            self._messages += messages
-
-        return self._messages.pop(0)
-
-    async def asend(self, msg):
-        """Send a message."""
-        raw = pynetstring.encode(msg)
-        await asyncio.get_running_loop().sock_sendall(self._socket, raw)
-        self._sent_bytes += len(raw)
-        self._sent_messages += 1
-
     def close(self):
         """Close the underlying socket."""
         self._socket.close()
@@ -146,9 +127,6 @@ class NetstringSocket(object):
         self._socket.sendall(raw)
         self._sent_bytes += len(raw)
         self._sent_messages += 1
-
-    def setblocking(self, blocking):
-        self._socket.setblocking(blocking)
 
     @property
     def stats(self):
@@ -271,10 +249,7 @@ class SocketCommunicator(Communicator):
 
 
     def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
-
-        coroutine = self._setup(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_addr=host_addr, host_socket=host_socket, token=token, timeout=timeout, setup_timeout=setup_timeout)
-        coroutine = asyncio.wait_for(coroutine, timeout=setup_timeout)
-        asyncio.run(coroutine)
+        asyncio.run(asyncio.wait_for(self._setup(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_addr=host_addr, host_socket=host_socket, token=token, timeout=timeout, setup_timeout=setup_timeout), timeout=setup_timeout))
 
 
     async def _setup(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
@@ -358,18 +333,27 @@ class SocketCommunicator(Communicator):
         # Set aside storage for connections to the other players.
         self._players = {}
 
+        # Track elapsed time during setup.
+        timer = Timer(threshold=setup_timeout)
+
         # Rendezvous with the other players.
         self._log.info(f"rendezvous with {link_addr.geturl()} from {host_addr.geturl()}")
 
         ###########################################################################
         # Phase 1: Every player sets-up a socket to listen for connections.
 
-        loop = asyncio.get_running_loop()
-
         if host_socket is None:
-            host_socket = socket.create_server((host_addr.hostname, host_addr.port or 0))
+            while not timer.expired:
+                try:
+                    host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    host_socket.bind((host_addr.hostname, host_addr.port or 0))
+                    break
+                except Exception as e:
+                    self._log.warning(f"exception creating host socket: {e}")
+                    time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout creating host socket.")
 
-        host_socket.setblocking(False)
         host_socket.listen(world_size)
         self._log.debug(f"listening for connections.")
 
@@ -377,33 +361,73 @@ class SocketCommunicator(Communicator):
         # Phase 2: Every player (except root) makes a connection to root.
 
         if rank != 0:
-            other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            other_player.setblocking(False)
-            await loop.sock_connect(other_player, ((link_addr.hostname, link_addr.port)))
-            other_player = NetstringSocket(other_player)
-            self._players[0] = other_player
+            while not timer.expired:
+                try:
+                    other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    other_player.connect((link_addr.hostname, link_addr.port))
+                    other_player = NetstringSocket(other_player)
+                    self._players[0] = other_player
+                    break
+                except Exception as e:
+                    self._log.warning(f"exception connecting to player 0: {e}")
+                    time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player 0.")
 
         ###########################################################################
         # Phase 3: Every player sends their listening address to root.
 
         if rank != 0:
-            await self._players[0].asend(pickle.dumps((rank, host_addr, token)))
+            while not timer.expired:
+                try:
+                    self._players[0].send(pickle.dumps((rank, host_addr, token)))
+                    break
+                except Exception as e:
+                    self._log.warning(f"exception sending address to player 0: {e}")
+                    time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout sending address to player 0.")
 
         ###########################################################################
         # Phase 4: Root gathers addresses from every player.
 
         if rank == 0:
-            addresses = {rank: host_addr}
-            while len(self._players) < world_size - 1: # We don't connect to ourself.
-                other_player, _ = await loop.sock_accept(host_socket)
-                other_player = NetstringSocket(other_player)
-                self._log.debug(f"accepted connection from player.")
+            # Accept a connection from every player.
+            other_players = []
+            while not timer.expired:
+                if len(other_players) == world_size - 1: # We don't connect to ourself.
+                    break
 
-                raw_message = await other_player.amessage()
-                other_rank, other_addr, other_token = pickle.loads(raw_message)
-                self._players[other_rank] = other_player
-                addresses[other_rank] = other_addr
-                self._log.debug(f"received address from player {other_rank}.")
+                try:
+                    ready = select.select([host_socket], [], [], 0.1)
+                    if ready:
+                        other_player, _ = host_socket.accept()
+                        other_player = NetstringSocket(other_player)
+                        other_players.append(other_player)
+                        self._log.debug(f"accepted connection from player.")
+                except Exception as e:
+                    self._log.warning(f"exception waiting for connections from other players: {e}")
+                    time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player connections.")
+
+            # Collect an address from every player.
+            addresses = {rank: host_addr}
+            for other_player in other_players:
+                while not timer.expired:
+                    try:
+                        raw_message = other_player.next_message(timeout=0.1)
+                        if raw_message is not None:
+                            other_rank, other_addr, other_token = pickle.loads(raw_message)
+                            self._players[other_rank] = other_player
+                            addresses[other_rank] = other_addr
+                            self._log.debug(f"received address from player {other_rank}.")
+                            break
+                    except Exception as e:
+                        self._log.warning(f"exception receiving player address.")
+                        time.sleep(0.1)
+                else:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player address.")
 
 #                if other_token != token:
 #                    raise RuntimeError(f"Comm {self._name!r} player {self._rank} expected token {token}, received {other_token} from player {other_rank}.")
@@ -413,48 +437,107 @@ class SocketCommunicator(Communicator):
 
         if rank == 0:
             for player in self._players.values():
-                await player.asend(pickle.dumps(addresses))
+                player.send(pickle.dumps(addresses))
 
         ###########################################################################
         # Phase 6: Every player receives the set of all addresses from root.
 
         if rank != 0:
-            raw_message = await self._players[0].amessage()
-            addresses = pickle.loads(raw_message)
-            self._log.debug(f"received addresses from player 0.")
+            while not timer.expired:
+                try:
+                    raw_message = self._players[0].next_message(timeout=0.1)
+                    if raw_message is not None:
+                        addresses = pickle.loads(raw_message)
+                        self._log.debug(f"received addresses from player 0.")
+                        break
+                except Exception as e:
+                    self._log.warning(f"exception getting addresses from player 0: {e}")
+                    time.sleep(0.1)
+            else:
+                raise Timeout(f"Comm {name!r} player {rank} timeout waiting for addresses from player 0.")
 
         ###########################################################################
         # Phase 7: Players setup connections with one another.
 
         for listener in range(1, world_size-1):
-            # Wait for higher-rank players to connect.
             if rank == listener:
-                while len(self._players) < world_size - 1: # We don't connect to ourself.
-                    other_player, _ = await loop.sock_accept(host_socket)
-                    other_player = NetstringSocket(other_player)
-                    self._log.debug(f"accepted connection from player.")
+                # Accept connections from higher-rank players.
+                other_players = []
+                while not timer.expired:
+                    if len(other_players) == world_size - rank - 1: # We don't connect to ourself.
+                        break
 
-                    raw_message = await other_player.amessage()
-                    other_rank = pickle.loads(raw_message)
-                    self._players[other_rank] = other_player
-                    self._log.debug(f"received rank from player {other_rank}.")
+                    try:
+                        ready = select.select([host_socket], [], [], 0.1)
+                        if ready:
+                            other_player, _ = host_socket.accept()
+                            other_player = NetstringSocket(other_player)
+                            other_players.append(other_player)
+                            self._log.debug(f"accepted connection from player.")
+                    except Exception as e:
+                        self._log.warning(f"exception listening for other players: {e}")
+                        time.sleep(0.1)
 
-            # Connect to lower-rank players.
+                # Collect ranks from the other players.
+                for other_player in other_players:
+                    while not timer.expired:
+                        try:
+                            raw_message = other_player.next_message(timeout=0.1)
+                            if raw_message is not None:
+                                other_rank = pickle.loads(raw_message)
+                                self._players[other_rank] = other_player
+                                self._log.debug(f"received rank from player {other_rank}.")
+                                break
+                        except Exception as e:
+                            self._log.warning(f"exception receiving player rank.")
+                            time.sleep(0.1)
+                    else:
+                        raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player rank.")
+
+#                # Send acks to the other players.
+#                for other_player in other_players:
+#                    other_player.send("ack") # Is this really necessary?
+
             elif rank > listener:
-                other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                other_player.setblocking(False)
-                await loop.sock_connect(other_player, ((addresses[listener].hostname, addresses[listener].port)))
-                other_player = NetstringSocket(other_player)
-                self._players[listener] = other_player
+                # Make a connection to the listener.
+                while not timer.expired:
+                    try:
+                        other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        other_player.connect((addresses[listener].hostname, addresses[listener].port))
+                        other_player = NetstringSocket(other_player)
+                        self._players[listener] = other_player
+                        break
+                    except Exception as e:
+                        self._log.warning(f"exception connecting to player {listener}: {e}")
+                        time.sleep(0.5)
+                else:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
 
-                await self._players[listener].asend(pickle.dumps(rank))
+                # Send our rank to the listener.
+                while not timer.expired:
+                    try:
+                        self._players[listener].send(pickle.dumps(rank))
+                        break
+                    except Exception as e:
+                        self._log.warning(f"exception sending rank to player {listener}: {e}")
+                        time.sleep(0.5)
+                else:
+                    raise Timeout(f"Comm {name!r} player {rank} timeout sending rank to player {listener}.")
+
+#                # Wait for an ack from the listener.  Is this really necessary?
+#                while not timer.expired:
+#                    try:
+#                        raw_message = self._players[listener].next_message(timeout=0.1)
+#                        if raw_message is not None:
+#                            break
+#                    except Exception as e:
+#                        self._log.warning(f"exception receiving ack from player {listener}: {e}")
+#                        time.sleep(0.5)
+#                else:
+#                    raise Timeout(f"Comm {name!r} player {rank} timeout receiving ack from player {listener}.")
 
         ###########################################################################
         # Phase 8: The mesh has been initialized, begin normal operation.
-
-        # Our receiving thread assumes blocking sockets.
-        for player in self._players.values():
-            player.setblocking(True)
 
         self._send_serial = 0
         self._running = True
