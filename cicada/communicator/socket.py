@@ -340,8 +340,7 @@ class SocketCommunicator(Communicator):
         if host_socket is None:
             while not timer.expired:
                 try:
-                    host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    host_socket.bind((host_addr.hostname, host_addr.port or 0))
+                    host_socket = socket.create_server((host_addr.hostname, host_addr.port or 0))
                     break
                 except Exception as e:
                     self._log.warning(f"exception creating host socket: {e}")
