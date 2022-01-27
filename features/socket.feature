@@ -1,4 +1,4 @@
-Feature: Communication
+Feature: SocketCommunicator
 
     Scenario: Barrier
         Given 3 players
