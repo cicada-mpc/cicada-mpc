@@ -17,7 +17,6 @@
 """Functionality for communicating using the builtin :mod:`socket` module.
 """
 
-import asyncio
 import collections
 import contextlib
 import functools
@@ -226,8 +225,8 @@ class SocketCommunicator(Communicator):
         by `host_addr`.
     timeout: number or `None`
         Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
-    setup_timeout: number or `None`
-        Maximum time allowed to setup the communicator in seconds, or `None` to disable timeouts during setup.
+    startup_timeout: number or `None`
+        Maximum time allowed to start the communicator in seconds, or `None` to disable timeouts during setup.
     """
 
     _tags = [
@@ -248,12 +247,7 @@ class SocketCommunicator(Communicator):
         ]
 
 
-    def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
-        asyncio.run(asyncio.wait_for(self._setup(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_addr=host_addr, host_socket=host_socket, token=token, timeout=timeout, setup_timeout=setup_timeout), timeout=setup_timeout))
-
-
-    async def _setup(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
-        # Enforce preconditions
+    def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, startup_timeout=5):
         if name is None:
             name = "world"
         if not isinstance(name, str):
@@ -317,8 +311,8 @@ class SocketCommunicator(Communicator):
 
         if not isinstance(timeout, (numbers.Number, type(None))):
             raise ValueError(f"timeout must be a number or None, got {timeout} instead.") # pragma: no cover
-        if not isinstance(setup_timeout, (numbers.Number, type(None))):
-            raise ValueError(f"setup_timeout must be a number or None, got {setup_timeout} instead.") # pragma: no cover
+        if not isinstance(startup_timeout, (numbers.Number, type(None))):
+            raise ValueError(f"startup_timeout must be a number or None, got {startup_timeout} instead.") # pragma: no cover
 
         # Setup internal state.
         self._name = name
@@ -326,15 +320,19 @@ class SocketCommunicator(Communicator):
         self._rank = rank
         self._host_addr = host_addr
         self._timeout = timeout
-        self._setup_timeout = setup_timeout
+        self._startup_timeout = startup_timeout
         self._revoked = False
         self._log = LoggerAdapter(log, name, rank)
 
+        self._startup(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_addr=host_addr, host_socket=host_socket, token=token, timeout=timeout, startup_timeout=startup_timeout)
+
+
+    def _startup(self, *, name, world_size, rank, link_addr, host_addr, host_socket, token, timeout, startup_timeout):
         # Set aside storage for connections to the other players.
         self._players = {}
 
         # Track elapsed time during setup.
-        timer = Timer(threshold=setup_timeout)
+        timer = Timer(threshold=startup_timeout)
 
         ###########################################################################
         # Phase 1: Every player sets-up a socket to listen for connections.
@@ -952,7 +950,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, args=(), kwargs={}, timeout=5, setup_timeout=5):
+    def run(*, world_size, fn, args=(), kwargs={}, timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -976,7 +974,7 @@ class SocketCommunicator(Communicator):
             Keyword arguments to pass to `fn` when it is executed.
         timeout: number or `None`
             Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
-        setup_timeout: number or `None`
+        startup_timeout: number or `None`
             Maximum time allowed to setup the communicator in seconds, or `None` to disable timeouts during setup.
 
         Returns
@@ -990,7 +988,7 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, setup_timeout):
+        def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, startup_timeout):
             # Create a socket with a randomly-assigned port number.
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             host_socket.bind(("127.0.0.1", 0))
@@ -1006,7 +1004,7 @@ class SocketCommunicator(Communicator):
 
             # Run the work function.
             try:
-                communicator = SocketCommunicator(world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket, timeout=timeout, setup_timeout=setup_timeout)
+                communicator = SocketCommunicator(world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket, timeout=timeout, startup_timeout=startup_timeout)
                 result = fn(communicator, *args, **kwargs)
                 communicator.free()
             except Exception as e: # pragma: no cover
@@ -1027,7 +1025,7 @@ class SocketCommunicator(Communicator):
         for rank in range(world_size):
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(link_addr_queue=link_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, setup_timeout=setup_timeout),
+                kwargs=dict(link_addr_queue=link_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
@@ -1269,7 +1267,7 @@ class SocketCommunicator(Communicator):
         new_name, new_world_size, new_rank, new_link_addr = self._receive(tag="split", sender=0, block=True).payload
         # Return a new communicator.
         if new_name is not None:
-            return SocketCommunicator(name=new_name, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_socket=host_socket, timeout=self._timeout, setup_timeout=self._setup_timeout)
+            return SocketCommunicator(name=new_name, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_socket=host_socket, timeout=self._timeout, startup_timeout=self._startup_timeout)
 
         return None
 
