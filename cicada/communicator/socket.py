@@ -17,6 +17,7 @@
 """Functionality for communicating using the builtin :mod:`socket` module.
 """
 
+import asyncio
 import collections
 import contextlib
 import functools
@@ -248,10 +249,10 @@ class SocketCommunicator(Communicator):
 
 
     def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
-        self._setup(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_addr=host_addr, host_socket=host_socket, token=token, timeout=timeout, setup_timeout=setup_timeout)
+        asyncio.run(asyncio.wait_for(self._setup(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_addr=host_addr, host_socket=host_socket, token=token, timeout=timeout, setup_timeout=setup_timeout), timeout=setup_timeout))
 
 
-    def _setup(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
+    async def _setup(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
         # Enforce preconditions
         if name is None:
             name = "world"
