@@ -204,3 +204,21 @@ def step_impl(context, names):
     names = eval(names)
     test.assert_equal(list(context.names), list(names))
 
+
+@then(u'the players can explicitly create a SocketCommunicator')
+def step_impl(context):
+    def operation(communicator):
+        newcomm = cicada.communicator.SocketCommunicator(
+            name="explicit",
+            world_size=communicator.world_size,
+            rank=communicator.rank,
+            host_addr="tcp://127.0.0.1:25000" if communicator.rank == 0 else "tcp://127.0.0.1",
+            link_addr="tcp://127.0.0.1:25000",
+            )
+
+    results = context.communicator_cls.run(world_size=context.players, fn=operation)
+    for result in results:
+        if isinstance(result, (cicada.communicator.socket.Failed, cicada.communicator.socket.Terminated)):
+            raise result
+
+

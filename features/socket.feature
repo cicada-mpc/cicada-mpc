@@ -20,6 +20,19 @@ Feature: SocketCommunicator
         | 3       | 1        | 4.02    | [4.02, 4.02, 4.02] |
 
 
+    @wip
+    Scenario Outline: Explicit SocketCommunicator
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        Then the players can explicitly create a SocketCommunicator
+
+        Examples:
+        | players |
+        | 2       |
+        | 3       |
+        | 10      |
+
+
     Scenario Outline: Gather
         Given <players> players
         And cicada.communicator.SocketCommunicator
