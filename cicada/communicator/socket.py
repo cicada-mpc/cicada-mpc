@@ -348,6 +348,7 @@ class SocketCommunicator(Communicator):
             else:
                 raise Timeout(f"Comm {name!r} player {rank} timeout creating host socket.")
 
+        host_socket.setblocking(False)
         host_socket.listen(world_size)
         self._log.debug(f"listening for connections.")
 
