@@ -2,7 +2,7 @@ name: Regression tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, asyncio ]
   pull_request:
     branches: [ main ]
 
