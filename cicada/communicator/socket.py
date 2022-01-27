@@ -336,9 +336,6 @@ class SocketCommunicator(Communicator):
         # Track elapsed time during setup.
         timer = Timer(threshold=setup_timeout)
 
-        # Rendezvous with the other players.
-        self._log.info(f"rendezvous with {link_addr.geturl()} from {host_addr.geturl()}")
-
         ###########################################################################
         # Phase 1: Every player sets-up a socket to listen for connections.
 
@@ -356,6 +353,11 @@ class SocketCommunicator(Communicator):
 
         host_socket.listen(world_size)
         self._log.debug(f"listening for connections.")
+
+        # Update host_addr to include the (possibly randomly-chosen) port.
+        host, port = host_socket.getsockname()
+        host_addr = urllib.parse.urlparse(f"tcp://{host}:{port}")
+        self._log.info(f"rendezvous with {link_addr.geturl()} from {host_addr.geturl()}")
 
         ###########################################################################
         # Phase 2: Every player (except root) makes a connection to root.
