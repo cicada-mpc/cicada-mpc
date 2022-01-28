@@ -469,7 +469,7 @@ class SocketCommunicator(Communicator):
                 raise TokenMismatch(f"Comm {self._name!r} player {self._rank} expected token {token!r}, received {other_token!r} from player {other_rank}.")
 
         ###########################################################################
-        # Phase 7: Players setup connections with one another.
+        # Phase 8: Players setup connections with one another.
 
         for listener in range(1, world_size-1):
             if rank == listener:
@@ -533,7 +533,7 @@ class SocketCommunicator(Communicator):
                     raise Timeout(f"Comm {name!r} player {rank} timeout sending rank to player {listener}.")
 
         ###########################################################################
-        # Phase 8: The mesh has been initialized, begin normal operation.
+        # Phase 9: The mesh has been initialized, begin normal operation.
 
         self._send_serial = 0
         self._running = True
@@ -554,12 +554,6 @@ class SocketCommunicator(Communicator):
         # Start receiving incoming messages.
         self._incoming_thread = threading.Thread(name="Incoming", target=self._receive_messages, daemon=True)
         self._incoming_thread.start()
-
-#        # Log information about our peers.
-#        for rank, player in sorted(self._players.items()):
-#            host, port = player.getsockname()
-#            otherhost, otherport = player.getpeername()
-#            self._log.debug(f"tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
 
         self._log.info(f"communicator ready.")
 
