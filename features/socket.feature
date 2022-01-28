@@ -156,6 +156,18 @@ Feature: SocketCommunicator
         | 3       | 2    | 0       | -55.5   |
 
 
+    Scenario Outline: Shrink Easy
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        Then shrinking the communicator will return the same players in the same rank order
+
+        Examples:
+        | players |
+        | 2       |
+        | 3       |
+        | 10      |
+
+
     Scenario Outline: Split
         Given <players> players
         And cicada.communicator.SocketCommunicator

@@ -462,7 +462,6 @@ class SocketCommunicator(Communicator):
         ###########################################################################
         # Phase 7: Every player verifies that all tokens match.
 
-        print(addresses)
         for other_rank, (other_address, other_token) in addresses.items():
             if other_token != token:
                 raise TokenMismatch(f"Comm {self._name!r} player {self._rank} expected token {token!r}, received {other_token!r} from player {other_rank}.")
@@ -1114,7 +1113,7 @@ class SocketCommunicator(Communicator):
         self._send(tag="send", payload=value, dst=dst)
 
 
-    def shrink(self, timeout=None, name=None):
+    def shrink(self, *, name):
         """Create a new communicator containing surviving players.
 
         This method should be called as part of a failure-recovery phase by as
@@ -1126,60 +1125,34 @@ class SocketCommunicator(Communicator):
         """
         self._log.debug(f"shrink()")
 
-        # Set a default timeout of 2 seconds.
-        if timeout is None:
-            timeout = 2
-
-        # Create a default name for the new communicator.
-        if name is None:
-            name = f"shrunk_{self.name}"
-
-        # Our goal is to identify which players still exist.
-        remaining_ranks = set()
-
-        # Notify players that we're alive.
-        for rank in self.ranks:
-            self._send(tag="shrink-enter", payload=None, dst=rank)
-
-        # Collect notifications from the other players during a window of time.
-        start = time.time()
-        while True:
-            for rank in self.ranks:
-                try:
-                    message = self._receive(tag="shrink-enter", sender=rank, block=False)
-                    remaining_ranks.add(rank)
-                except Exception as e:
-                    self._log.debug(f"exception {e}")
-            if time.time() - start > timeout:
-                break
-            time.sleep(0.1)
+        # By default, we assume that everyone is alive.
+        remaining_ranks = self.ranks
 
         # Sort the remaining ranks; the lowest rank will become rank 0 in the new communicator.
-        remaining_ranks = sorted(list(remaining_ranks))
-        #self._log.info(f"remaining players: {remaining_ranks}")
+        remaining_ranks = sorted(remaining_ranks)
 
         # Generate a token based on a hash of the remaining ranks that we can
         # use to ensure that every player is in agreement on who's remaining.
-        token = hashlib.sha3_256()
+        new_token = hashlib.sha3_256()
         for rank in remaining_ranks:
-            token.update(rank.to_bytes(math.ceil(rank.bit_length() / 8), byteorder="big"))
-        token = token.hexdigest()
+            new_token.update(f"rank-{rank}".encode("utf8"))
+        new_token = new_token.hexdigest()
 
         # Generate new connection information.
         new_world_size=len(remaining_ranks)
         new_rank = remaining_ranks.index(self.rank)
 
-        protocol, addr = self._host_addr.split("//")
-        addr, port = addr.split(":")
-        port = cicada.bind.random_port(addr)
-        new_host_addr = f"{protocol}//{addr}:{port}"
+        new_host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        new_host_socket.bind((self._host_addr.hostname, 0))
+        host, port = new_host_socket.getsockname()
+        new_host_addr = f"tcp://{host}:{port}"
 
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
                 self._send(tag="shrink-exit", payload=new_host_addr, dst=remaining_rank)
         new_link_addr = self._receive(tag="shrink-exit", sender=remaining_ranks[0], block=True).payload
 
-        return SocketCommunicator(name=name, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_addr=new_host_addr, token=token), remaining_ranks
+        return SocketCommunicator(name=name, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_socket=new_host_socket, token=new_token, timeout=self._timeout, startup_timeout=self._startup_timeout), remaining_ranks
 
 
     def split(self, *, name):

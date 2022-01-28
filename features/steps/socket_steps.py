@@ -279,3 +279,14 @@ def step_impl(context):
         test.assert_is_instance(result.exception, cicada.communicator.socket.TokenMismatch)
 
 
+@then(u'shrinking the communicator will return the same players in the same rank order')
+def step_impl(context):
+    def operation(communicator):
+        newcomm, newranks = communicator.shrink(name="split")
+        return(newranks)
+
+    results = context.communicator_cls.run(world_size=context.players, fn=operation)
+    for result in results:
+        test.assert_equal(result, list(range(context.players)))
+
+
