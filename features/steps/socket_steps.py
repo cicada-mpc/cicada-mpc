@@ -260,3 +260,22 @@ def step_impl(context):
     for result in results[-1:]:
         test.assert_equal(result, None)
 
+
+@then(u'a SocketCommunicator created with a mismatched token will fail')
+def step_impl(context):
+    def operation(communicator):
+        newcomm = cicada.communicator.SocketCommunicator(
+            name="explicit",
+            world_size=communicator.world_size,
+            rank=communicator.rank,
+            host_addr="tcp://127.0.0.1:25000" if communicator.rank == 0 else "tcp://127.0.0.1",
+            link_addr="tcp://127.0.0.1:25000",
+            token=f"Token-{communicator.rank}",
+            )
+
+    results = context.communicator_cls.run(world_size=context.players, fn=operation)
+    for result in results:
+        test.assert_is_instance(result, cicada.communicator.socket.Failed)
+        test.assert_is_instance(result.exception, cicada.communicator.socket.TokenMismatch)
+
+

@@ -184,6 +184,11 @@ class Timer(object):
         return False
 
 
+class TokenMismatch(Exception):
+    """Raised when players can't agree on a token for communicator creation."""
+    pass
+
+
 class TryAgain(Exception):
     """Raised when a non-blocking operation would block."""
     pass
@@ -412,7 +417,7 @@ class SocketCommunicator(Communicator):
                 raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player connections.")
 
             # Collect an address from every player.
-            addresses = {rank: host_addr}
+            addresses = {rank: (host_addr, token)}
             for other_player in other_players:
                 while not timer.expired:
                     try:
@@ -420,17 +425,16 @@ class SocketCommunicator(Communicator):
                         if raw_message is not None:
                             other_rank, other_addr, other_token = pickle.loads(raw_message)
                             self._players[other_rank] = other_player
-                            addresses[other_rank] = other_addr
+                            addresses[other_rank] = (other_addr, other_token)
                             self._log.debug(f"received address from player {other_rank}.")
                             break
+                    except TokenMismatch as e:
+                        raise e
                     except Exception as e:
-                        self._log.warning(f"exception receiving player address.")
+                        self._log.warning(f"exception receiving player address: {e}")
                         time.sleep(0.1)
                 else:
                     raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player address.")
-
-#                if other_token != token:
-#                    raise RuntimeError(f"Comm {self._name!r} player {self._rank} expected token {token}, received {other_token} from player {other_rank}.")
 
         ###########################################################################
         # Phase 5: Root broadcasts the set of all addresses to every player.
@@ -455,6 +459,14 @@ class SocketCommunicator(Communicator):
                     time.sleep(0.1)
             else:
                 raise Timeout(f"Comm {name!r} player {rank} timeout waiting for addresses from player 0.")
+
+        ###########################################################################
+        # Phase 7: Every player verifies that all tokens match.
+
+        print(addresses)
+        for other_rank, (other_address, other_token) in addresses.items():
+            if other_token != token:
+                raise TokenMismatch(f"Comm {self._name!r} player {self._rank} expected token {token!r}, received {other_token!r} from player {other_rank}.")
 
         ###########################################################################
         # Phase 7: Players setup connections with one another.
@@ -499,7 +511,7 @@ class SocketCommunicator(Communicator):
                 while not timer.expired:
                     try:
                         other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        other_player.connect((addresses[listener].hostname, addresses[listener].port))
+                        other_player.connect((addresses[listener][0].hostname, addresses[listener][0].port))
                         other_player = NetstringSocket(other_player)
                         self._players[listener] = other_player
                         break

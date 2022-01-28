@@ -56,6 +56,18 @@ Feature: SocketCommunicator
         | 10      |
 
 
+    Scenario Outline: Explicit SocketCommunicator Startup Failure Token
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        Then a SocketCommunicator created with a mismatched token will fail
+
+        Examples:
+        | players |
+        | 2       |
+        | 3       |
+        | 10      |
+
+
     Scenario Outline: Gather
         Given <players> players
         And cicada.communicator.SocketCommunicator
