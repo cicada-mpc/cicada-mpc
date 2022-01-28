@@ -19,7 +19,6 @@
 
 import collections
 import contextlib
-import functools
 import hashlib
 import logging
 import math
