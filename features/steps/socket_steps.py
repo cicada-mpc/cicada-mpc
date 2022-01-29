@@ -178,7 +178,7 @@ def step_impl(context, count):
         context.communicator_cls.run(world_size=context.players, fn=operation)
 
 
-@when(u'the players split based on names {names}')
+@when(u'the players split the communicator based on names {names}')
 def step_impl(context, names):
     names = eval(names)
 
@@ -193,33 +193,34 @@ def step_impl(context, names):
     context.names, context.world_sizes = zip(*results)
 
 
-@then(u'the resulting communicators should have {world_size} players')
+@then(u'the new communicators should each have {world_size} players')
 def step_impl(context, world_size):
     world_size = eval(world_size)
     test.assert_equal(list(context.world_sizes), list(world_size))
 
 
-@then(u'the resulting communicator names should match {names}')
+@then(u'the new communicator names should match {names}')
 def step_impl(context, names):
     names = eval(names)
     test.assert_equal(list(context.names), list(names))
 
 
-@then(u'the players can explicitly create a SocketCommunicator')
+@when(u'the players create a new communicator')
 def step_impl(context):
     def operation(communicator):
         newcomm = cicada.communicator.SocketCommunicator(
-            name="explicit",
+            name="new",
             world_size=communicator.world_size,
             rank=communicator.rank,
             host_addr="tcp://127.0.0.1:25000" if communicator.rank == 0 else "tcp://127.0.0.1",
             link_addr="tcp://127.0.0.1:25000",
             )
 
+        return newcomm.world_size
+
     results = context.communicator_cls.run(world_size=context.players, fn=operation)
-    for result in results:
-        if isinstance(result, (cicada.communicator.socket.Failed, cicada.communicator.socket.Terminated)):
-            raise result
+    context.world_sizes = results
+
 
 @then(u'a SocketCommunicator created without a root player will timeout')
 def step_impl(context):
@@ -261,7 +262,7 @@ def step_impl(context):
         test.assert_equal(result, None)
 
 
-@then(u'a SocketCommunicator created with a mismatched token will fail')
+@then(u'a SocketCommunicator created with mismatched tokens will fail')
 def step_impl(context):
     def operation(communicator):
         newcomm = cicada.communicator.SocketCommunicator(
@@ -279,7 +280,7 @@ def step_impl(context):
         test.assert_is_instance(result.exception, cicada.communicator.socket.TokenMismatch)
 
 
-@then(u'shrinking the communicator will return the same players in the same rank order')
+@then(u'shrinking the communicator under normal conditions will return the same players in the same rank order')
 def step_impl(context):
     def operation(communicator):
         newcomm, newranks = communicator.shrink(name="split")

@@ -20,19 +20,20 @@ Feature: SocketCommunicator
         | 3       | 1        | 4.02    | [4.02, 4.02, 4.02] |
 
 
-    Scenario Outline: Explicit SocketCommunicator
+    Scenario Outline: New Communicator
         Given <players> players
         And cicada.communicator.SocketCommunicator
-        Then the players can explicitly create a SocketCommunicator
+        When the players create a new communicator
+        Then the new communicators should each have <world_size> players
 
         Examples:
-        | players |
-        | 2       |
-        | 3       |
-        | 10      |
+        | players | world_size |
+        | 2       | [2] * 2    |
+        | 3       | [3] * 3    |
+        | 10      | [10] * 10  |
 
 
-    Scenario Outline: Explicit SocketCommunicator Startup Failure 1
+    Scenario Outline: New Communicator Failure 1
         Given <players> players
         And cicada.communicator.SocketCommunicator
         Then a SocketCommunicator created without a root player will timeout
@@ -44,7 +45,7 @@ Feature: SocketCommunicator
         | 10      |
 
 
-    Scenario Outline: Explicit SocketCommunicator Startup Failure 2
+    Scenario Outline: New Communicator Failure 2
         Given <players> players
         And cicada.communicator.SocketCommunicator
         Then a SocketCommunicator created without a regular player will timeout
@@ -56,10 +57,10 @@ Feature: SocketCommunicator
         | 10      |
 
 
-    Scenario Outline: Explicit SocketCommunicator Startup Failure Token
+    Scenario Outline: New Communicator Token Mismatch
         Given <players> players
         And cicada.communicator.SocketCommunicator
-        Then a SocketCommunicator created with a mismatched token will fail
+        Then a SocketCommunicator created with mismatched tokens will fail
 
         Examples:
         | players |
@@ -156,10 +157,11 @@ Feature: SocketCommunicator
         | 3       | 2    | 0       | -55.5   |
 
 
-    Scenario Outline: Shrink Easy
+    @wip
+    Scenario Outline: Shrink 1
         Given <players> players
         And cicada.communicator.SocketCommunicator
-        Then shrinking the communicator will return the same players in the same rank order
+        Then shrinking the communicator under normal conditions will return the same players in the same rank order
 
         Examples:
         | players |
@@ -168,12 +170,12 @@ Feature: SocketCommunicator
         | 10      |
 
 
-    Scenario Outline: Split
+    Scenario Outline: Split Communicator
         Given <players> players
         And cicada.communicator.SocketCommunicator
-        When the players split based on names <names>
-        Then the resulting communicators should have <world_size> players
-        And the resulting communicator names should match <names>
+        When the players split the communicator based on names <names>
+        Then the new communicators should each have <world_size> players
+        And the new communicator names should match <names>
 
         Examples:
         | players | names                             | world_size       |
