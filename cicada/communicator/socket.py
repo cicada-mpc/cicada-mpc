@@ -978,8 +978,7 @@ class SocketCommunicator(Communicator):
         """
         def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, startup_timeout):
             # Create a socket with a randomly-assigned port number.
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            host_socket.bind(("127.0.0.1", 0))
+            host_socket = socket.create_server((cicada.bind.loopback_ip(), 0))
             host, port = host_socket.getsockname()
             host_addr = f"tcp://{host}:{port}"
 
@@ -1142,8 +1141,7 @@ class SocketCommunicator(Communicator):
         new_world_size=len(remaining_ranks)
         new_rank = remaining_ranks.index(self.rank)
 
-        new_host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        new_host_socket.bind((self._host_addr.hostname, 0))
+        new_host_socket = socket.create_server((self._host_addr.hostname, 0))
         host, port = new_host_socket.getsockname()
         new_host_addr = f"tcp://{host}:{port}"
 
@@ -1187,8 +1185,7 @@ class SocketCommunicator(Communicator):
 
         # Create a new socket with a randomly-assigned port number.
         if name is not None:
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            host_socket.bind((self._host_addr.hostname, 0))
+            host_socket = socket.create_server((self._host_addr.hostname, 0))
             host, port = host_socket.getsockname()
 
             my_name = name
