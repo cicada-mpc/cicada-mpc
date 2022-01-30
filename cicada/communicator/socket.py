@@ -582,7 +582,7 @@ class SocketCommunicator(Communicator):
 
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
-                self._log.debug(f"<-- player {message.sender} {message.tag}#{message.serial:04}")
+                self._log.debug(f"<-- player {message.sender} {message.tag}#{message.serial:04}") # pragma: no cover
 
             # Revoke messages don't get queued because they receive special handling.
             if message.tag == "revoke":
@@ -623,7 +623,7 @@ class SocketCommunicator(Communicator):
 
                         # Insert the message into the incoming queue.
                         self._incoming.put(message, block=True, timeout=None)
-            except Exception as e:
+            except Exception as e: # pragma: no cover
                 self._log.error(f"receive exception: {e}")
 
         # The communicator has been freed, so exit the thread.
