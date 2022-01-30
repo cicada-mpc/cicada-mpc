@@ -1132,25 +1132,25 @@ class SocketCommunicator(Communicator):
 
         # Generate a token based on a hash of the remaining ranks that we can
         # use to ensure that every player is in agreement on who's remaining.
-        new_token = hashlib.sha3_256()
+        token = hashlib.sha3_256()
         for rank in remaining_ranks:
-            new_token.update(f"rank-{rank}".encode("utf8"))
-        new_token = new_token.hexdigest()
+            token.update(f"rank-{rank}".encode("utf8"))
+        token = token.hexdigest()
 
         # Generate new connection information.
-        new_world_size=len(remaining_ranks)
-        new_rank = remaining_ranks.index(self.rank)
+        world_size=len(remaining_ranks)
+        rank = remaining_ranks.index(self.rank)
 
-        new_host_socket = socket.create_server((self._host_addr.hostname, 0))
-        host, port = new_host_socket.getsockname()
-        new_host_addr = f"tcp://{host}:{port}"
+        host_socket = socket.create_server((self._host_addr.hostname, 0))
+        host, port = host_socket.getsockname()
+        host_addr = f"tcp://{host}:{port}"
 
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
-                self._send(tag="shrink-end", payload=new_host_addr, dst=remaining_rank)
-        new_link_addr = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
+                self._send(tag="shrink-end", payload=host_addr, dst=remaining_rank)
+        link_addr = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
 
-        return SocketCommunicator(name=name, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_socket=new_host_socket, token=new_token, timeout=self._timeout, startup_timeout=self._startup_timeout), remaining_ranks
+        return SocketCommunicator(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_socket=host_socket, token=token, timeout=self._timeout, startup_timeout=self._startup_timeout), remaining_ranks
 
 
     def split(self, *, name):
@@ -1187,46 +1187,43 @@ class SocketCommunicator(Communicator):
         if name is not None:
             host_socket = socket.create_server((self._host_addr.hostname, 0))
             host, port = host_socket.getsockname()
-
-            my_name = name
-            my_host_addr = f"tcp://{host}:{port}"
+            host_addr = f"tcp://{host}:{port}"
         else:
-            my_name = None
-            my_host_addr = None
+            host_addr = None
 
         # Send names and addresses to rank 0.
-        self._send(tag="split-begin", payload=(my_name, my_host_addr), dst=0)
+        self._send(tag="split-begin", payload=(name, host_addr), dst=0)
 
         # Collect name membership information from all players and compute new communicator parameters.
         if self.rank == 0:
             messages = [self._receive(tag="split-begin", sender=rank, block=True) for rank in self.ranks]
-            new_names = [message.payload[0] for message in messages]
-            new_host_addrs = [message.payload[1] for message in messages]
+            group_names = [message.payload[0] for message in messages]
+            group_host_addrs = [message.payload[1] for message in messages]
 
-            new_world_sizes = collections.Counter()
-            new_ranks = []
-            for new_name in new_names:
-                new_ranks.append(new_world_sizes[new_name])
-                new_world_sizes[new_name] += 1
+            group_world_sizes = collections.Counter()
+            group_ranks = []
+            for group_name in group_names:
+                group_ranks.append(group_world_sizes[group_name])
+                group_world_sizes[group_name] += 1
 
-            new_world_sizes = [new_world_sizes[new_name] for new_name in new_names]
+            group_world_sizes = [group_world_sizes[group_name] for group_name in group_names]
 
-            new_link_addrs = {}
-            for new_name, new_host_addr in zip(new_names, new_host_addrs):
-                if new_name not in new_link_addrs:
-                    new_link_addrs[new_name] = new_host_addr
-            new_link_addrs = [new_link_addrs[new_name] for new_name in new_names]
+            group_link_addrs = {}
+            for group_name, group_host_addr in zip(group_names, group_host_addrs):
+                if group_name not in group_link_addrs:
+                    group_link_addrs[group_name] = group_host_addr
+            group_link_addrs = [group_link_addrs[group_name] for group_name in group_names]
 
         # Send name, world_size, rank, and link_addr to all players.
         if self.rank == 0:
-            for dst, (new_name, new_world_size, new_rank, new_link_addr) in enumerate(zip(new_names, new_world_sizes, new_ranks, new_link_addrs)):
-                self._send(tag="split-end", payload=(new_name, new_world_size, new_rank, new_link_addr), dst=dst)
+            for dst, (group_name, group_world_size, group_rank, group_link_addr) in enumerate(zip(group_names, group_world_sizes, group_ranks, group_link_addrs)):
+                self._send(tag="split-end", payload=(group_name, group_world_size, group_rank, group_link_addr), dst=dst)
 
         # Collect name information.
-        new_name, new_world_size, new_rank, new_link_addr = self._receive(tag="split-end", sender=0, block=True).payload
+        group_name, group_world_size, group_rank, group_link_addr = self._receive(tag="split-end", sender=0, block=True).payload
         # Return a new communicator.
-        if new_name is not None:
-            return SocketCommunicator(name=new_name, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_socket=host_socket, timeout=self._timeout, startup_timeout=self._startup_timeout)
+        if group_name is not None:
+            return SocketCommunicator(name=group_name, world_size=group_world_size, rank=group_rank, link_addr=group_link_addr, host_socket=host_socket, timeout=self._timeout, startup_timeout=self._startup_timeout)
 
         return None
 
