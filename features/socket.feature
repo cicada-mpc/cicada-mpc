@@ -177,6 +177,10 @@ Feature: SocketCommunicator
         | 3       | range(3)    | "green"   | ["green"] * 3 | [3] * 3     |
         | 10      | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
 
+        @wip
+        Examples:
+        | players | group       | name      | names         | world_sizes |
+        | 3       | [0, 1]      | "green"   | ["green"] * 3 | [3] * 3     |
 
     Scenario Outline: Split Communicator
         Given <players> players
