@@ -20,55 +20,6 @@ Feature: SocketCommunicator
         | 3       | 1        | 4.02    | [4.02, 4.02, 4.02] |
 
 
-    Scenario Outline: New Communicator
-        Given <players> players
-        And cicada.communicator.SocketCommunicator
-        When the players create a new communicator
-        Then the new communicators should each have <world_size> players
-
-        Examples:
-        | players | world_size |
-        | 2       | [2] * 2    |
-        | 3       | [3] * 3    |
-        | 10      | [10] * 10  |
-
-
-    Scenario Outline: New Communicator Failure 1
-        Given <players> players
-        And cicada.communicator.SocketCommunicator
-        Then a SocketCommunicator created without a root player will timeout
-
-        Examples:
-        | players |
-        | 2       |
-        | 3       |
-        | 10      |
-
-
-    Scenario Outline: New Communicator Failure 2
-        Given <players> players
-        And cicada.communicator.SocketCommunicator
-        Then a SocketCommunicator created without a regular player will timeout
-
-        Examples:
-        | players |
-        | 2       |
-        | 3       |
-        | 10      |
-
-
-    Scenario Outline: New Communicator Token Mismatch
-        Given <players> players
-        And cicada.communicator.SocketCommunicator
-        Then a SocketCommunicator created with mismatched tokens will fail
-
-        Examples:
-        | players |
-        | 2       |
-        | 3       |
-        | 10      |
-
-
     Scenario Outline: Gather
         Given <players> players
         And cicada.communicator.SocketCommunicator
@@ -157,8 +108,63 @@ Feature: SocketCommunicator
         | 3       | 2    | 0       | -55.5   |
 
 
-    @wip
-    Scenario Outline: Shrink 1
+    Scenario Outline: Startup Reliability
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        Then it should be possible to start and stop a communicator <count> times
+
+        Examples:
+        | players | count   |
+        | 2       | 100     |
+        | 3       | 100     |
+        | 4       | 100     |
+        | 10      | 100     |
+
+
+    Scenario Outline: New Communicator
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When players <group> create a new communicator with world size <world_size> and name <name> and token <token>
+        Then the new communicator names should match <names>
+        Then the new communicator world sizes should match <world_sizes>
+
+        Examples:
+        | players | group           | world_size | name     | token           | names          | world_sizes |
+        | 2       | range(2)        | 2          | "red"    | 13              | ["red"] * 2    | [2] * 2     |
+        | 3       | range(3)        | 3          | "green"  | "token"         | ["green"] * 3  | [3] * 3     |
+        | 10      | range(10)       | 10         | "blue"   | "OurSecretClub" | ["blue"] * 10  | [10] * 10   |
+
+
+    Scenario Outline: New Communicator Missing Players
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When players <group> create a new communicator with world size <world_size> and name "foo" and token "bar"
+        Then players <group> should timeout
+
+        Examples:
+        | players | group          | world_size |
+        | 2       | [0]            | 2          |
+        | 2       | [1]            | 2          |
+        | 3       | [0, 1]         | 3          |
+        | 3       | [1, 2]         | 3          |
+        | 10      | range(0, 9)    | 10         |
+        | 10      | range(1, 10)   | 10         |
+
+
+    Scenario Outline: New Communicator Token Mismatch
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When players <group> create a new communicator with world size <world_size> and name "foo" and tokens <tokens>
+        Then players <group> should fail with TokenMismatch errors
+
+        Examples:
+        | players | group       | world_size | tokens                        |
+        | 2       | range(2)    | 2          | [3, "3"]                      |
+        | 3       | range(3)    | 3          | ["foo", "bar", "baz"]         |
+        | 10      | range(10)   | 10         | list(range(9)) + ["blah"]     |
+
+
+    Scenario Outline: Shrink Communicator
         Given <players> players
         And cicada.communicator.SocketCommunicator
         Then shrinking the communicator under normal conditions will return the same players in the same rank order
@@ -173,28 +179,15 @@ Feature: SocketCommunicator
     Scenario Outline: Split Communicator
         Given <players> players
         And cicada.communicator.SocketCommunicator
-        When the players split the communicator based on names <names>
-        Then the new communicators should each have <world_size> players
-        And the new communicator names should match <names>
+        When the players split the communicator with names <names>
+        Then the new communicator names should match <names>
+        Then the new communicator world sizes should match <world_sizes>
 
         Examples:
-        | players | names                             | world_size       |
+        | players | names                             | world_sizes      |
         | 2       | ["a", "b"]                        | [1, 1]           |
         | 3       | ["a", "b", "a"]                   | [2, 1, 2]        |
         | 4       | ["red", "red", "red", "blue"]     | [3, 3, 3, 1]     |
         | 4       | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
-
-
-    Scenario Outline: Startup Reliability
-        Given <players> players
-        And cicada.communicator.SocketCommunicator
-        Then it should be possible to start and stop a communicator <count> times
-
-        Examples:
-        | players | count   |
-        | 2       | 100     |
-        | 3       | 100     |
-        | 4       | 100     |
-        | 10      | 100     |
 
 
