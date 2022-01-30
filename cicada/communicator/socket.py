@@ -346,10 +346,10 @@ class SocketCommunicator(Communicator):
                 try:
                     host_socket = socket.create_server((host_addr.hostname, host_addr.port or 0))
                     break
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception creating host socket: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout creating host socket.")
 
         host_socket.setblocking(False)
@@ -372,10 +372,10 @@ class SocketCommunicator(Communicator):
                     other_player = NetstringSocket(other_player)
                     self._players[0] = other_player
                     break
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception connecting to player 0: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player 0.")
 
         ###########################################################################
@@ -386,10 +386,10 @@ class SocketCommunicator(Communicator):
                 try:
                     self._players[0].send(pickle.dumps((rank, host_addr, token)))
                     break
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception sending address to player 0: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout sending address to player 0.")
 
         ###########################################################################
@@ -427,8 +427,6 @@ class SocketCommunicator(Communicator):
                             addresses[other_rank] = (other_addr, other_token)
                             self._log.debug(f"received address from player {other_rank}.")
                             break
-                    except TokenMismatch as e:
-                        raise e
                     except Exception as e: # pragma: no cover
                         self._log.warning(f"exception receiving player address: {e}")
                         time.sleep(0.1)
@@ -930,7 +928,7 @@ class SocketCommunicator(Communicator):
         for rank in self.ranks:
             try:
                 self._send(tag="revoke", payload=None, dst=rank)
-            except Exception as e:
+            except Exception as e: # pragma: no cover
                 # We handle this here instead of propagating it to the
                 # application layer because we expect some recipients to be
                 # missing, else there'd be no reason to call revoke().
