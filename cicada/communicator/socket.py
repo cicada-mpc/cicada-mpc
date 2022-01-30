@@ -409,10 +409,10 @@ class SocketCommunicator(Communicator):
                         other_player = NetstringSocket(other_player)
                         other_players.append(other_player)
                         self._log.debug(f"accepted connection from player.")
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception waiting for connections from other players: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player connections.")
 
             # Collect an address from every player.
@@ -429,10 +429,10 @@ class SocketCommunicator(Communicator):
                             break
                     except TokenMismatch as e:
                         raise e
-                    except Exception as e:
+                    except Exception as e: # pragma: no cover
                         self._log.warning(f"exception receiving player address: {e}")
                         time.sleep(0.1)
-                else:
+                else: # pragma: no cover
                     raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player address.")
 
         ###########################################################################
@@ -453,10 +453,10 @@ class SocketCommunicator(Communicator):
                         addresses = pickle.loads(raw_message)
                         self._log.debug(f"received addresses from player 0.")
                         break
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception getting addresses from player 0: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout waiting for addresses from player 0.")
 
         ###########################################################################
@@ -484,7 +484,7 @@ class SocketCommunicator(Communicator):
                             other_player = NetstringSocket(other_player)
                             other_players.append(other_player)
                             self._log.debug(f"accepted connection from player.")
-                    except Exception as e:
+                    except Exception as e: # pragma: no cover
                         self._log.warning(f"exception listening for other players: {e}")
                         time.sleep(0.1)
 
@@ -498,10 +498,10 @@ class SocketCommunicator(Communicator):
                                 self._players[other_rank] = other_player
                                 self._log.debug(f"received rank from player {other_rank}.")
                                 break
-                        except Exception as e:
+                        except Exception as e: # pragma: no cover
                             self._log.warning(f"exception receiving player rank.")
                             time.sleep(0.1)
-                    else:
+                    else: # pragma: no cover
                         raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player rank.")
 
             elif rank > listener:
@@ -513,10 +513,10 @@ class SocketCommunicator(Communicator):
                         other_player = NetstringSocket(other_player)
                         self._players[listener] = other_player
                         break
-                    except Exception as e:
+                    except Exception as e: # pragma: no cover
                         self._log.warning(f"exception connecting to player {listener}: {e}")
                         time.sleep(0.5)
-                else:
+                else: # pragma: no cover
                     raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
 
                 # Send our rank to the listener.
@@ -524,10 +524,10 @@ class SocketCommunicator(Communicator):
                     try:
                         self._players[listener].send(pickle.dumps(rank))
                         break
-                    except Exception as e:
+                    except Exception as e: # pragma: no cover
                         self._log.warning(f"exception sending rank to player {listener}: {e}")
                         time.sleep(0.5)
-                else:
+                else: # pragma: no cover
                     raise Timeout(f"Comm {name!r} player {rank} timeout sending rank to player {listener}.")
 
         ###########################################################################
@@ -639,7 +639,7 @@ class SocketCommunicator(Communicator):
         except queue.Empty:
             if block:
                 raise Timeout(f"Tag {tag!r} from sender {sender} timed-out after {self._timeout}s")
-            else:
+            else: # pragma: no cover
                 raise TryAgain(f"Tag {tag!r} from sender {sender} try again.")
 
 
@@ -692,7 +692,7 @@ class SocketCommunicator(Communicator):
                 raw_message = pickle.dumps(message)
                 player = self._players[dst]
                 player.send(raw_message)
-            except Exception as e:
+            except Exception as e: # pragma: no cover
                 self._log.error(f"send exception: {e}")
 
 
