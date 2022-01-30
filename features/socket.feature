@@ -7,6 +7,18 @@ Feature: SocketCommunicator
         Then the players should exit the barrier at roughly the same time
 
 
+    Scenario Outline: AllGather
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When the players allgather <values>
+        Then the group should return <result>
+
+        Examples:
+        | players | values             | result             |
+        | 2       | [0, 1]             | [[0, 1]] * 2       |
+        | 3       | [1, 2, "c"]        | [[1, 2, "c"]] * 3  |
+
+
     Scenario Outline: Broadcast
         Given <players> players
         And cicada.communicator.SocketCommunicator

@@ -56,6 +56,16 @@ def step_impl(context):
     numpy.testing.assert_almost_equal(exit_delta, 0, decimal=2)
 
 
+@when(u'the players allgather {values}')
+def step_impl(context, values):
+    values = eval(values)
+
+    def operation(communicator, values):
+        return communicator.all_gather(value=values[communicator.rank])
+
+    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(values,))
+
+
 @when(u'player {} broadcasts {}')
 def step_impl(context, src, value):
     src = eval(src)
