@@ -291,3 +291,32 @@ def step_impl(context, group, name):
 
     context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(group, name))
 
+
+@when(u'player {player} revokes the communicator')
+def step_impl(context, player):
+    player = eval(player)
+    def operation(communicator, player):
+        while True:
+            try:
+                value = communicator.broadcast(src=0, value="foo")
+                if communicator.rank == player:
+                    communicator.revoke()
+            except cicada.communicator.socket.Timeout as e:
+                logging.error(f"Player {communicator.rank} exception: {e}")
+                continue
+            except Exception as e:
+                logging.error(f"Player {communicator.rank} exception: {e}")
+                raise e
+
+    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(player,))
+
+
+@then(u'players {players} should fail with Revoked errors')
+def step_impl(context, players):
+    players = eval(players)
+    for player in players:
+        result = context.results[player]
+        test.assert_is_instance(result, cicada.communicator.socket.Failed)
+        test.assert_is_instance(result.exception, cicada.communicator.socket.Revoked)
+
+

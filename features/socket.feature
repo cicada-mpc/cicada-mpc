@@ -67,6 +67,65 @@ Feature: SocketCommunicator
         | 3       | 0         | 100000  | 200002  | [100002, 100001]   |
 
 
+    Scenario Outline: New Communicator
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When players <group> create a new communicator with world size <world_size> and name <name> and token <token>
+        Then the new communicator names should match <names>
+        And the new communicator world sizes should match <world_sizes>
+
+        Examples:
+        | players | group           | world_size | name     | token           | names          | world_sizes |
+        | 2       | range(2)        | 2          | "red"    | 13              | ["red"] * 2    | [2] * 2     |
+        | 3       | range(3)        | 3          | "green"  | "token"         | ["green"] * 3  | [3] * 3     |
+        | 10      | range(10)       | 10         | "blue"   | "OurSecretClub" | ["blue"] * 10  | [10] * 10   |
+
+
+    Scenario Outline: New Communicator Missing Players
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When players <group> create a new communicator with world size <world_size> and name "foo" and token "bar"
+        Then players <group> should timeout
+
+        Examples:
+        | players | group          | world_size |
+        | 2       | [0]            | 2          |
+        | 2       | [1]            | 2          |
+        | 3       | [0, 1]         | 3          |
+        | 3       | [1, 2]         | 3          |
+        | 10      | range(0, 9)    | 10         |
+        | 10      | range(1, 10)   | 10         |
+
+
+    Scenario Outline: New Communicator Token Mismatch
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When players <group> create a new communicator with world size <world_size> and name "foo" and tokens <tokens>
+        Then players <group> should fail with TokenMismatch errors
+
+        Examples:
+        | players | group       | world_size | tokens                        |
+        | 2       | range(2)    | 2          | [3, "3"]                      |
+        | 3       | range(3)    | 3          | ["foo", "bar", "baz"]         |
+        | 10      | range(10)   | 10         | list(range(9)) + ["blah"]     |
+
+
+    Scenario Outline: Revoke Communicator
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When player <player> revokes the communicator
+        Then players <group> should fail with Revoked errors
+
+        Examples:
+        | players | player | group       |
+        | 2       | 0      | range(2)    |
+        | 2       | 1      | range(2)    |
+        | 3       | 0      | range(3)    |
+        | 3       | 1      | range(3)    |
+        | 3       | 2      | range(3)    |
+        | 10      | 8      | range(10)   |
+
+
     Scenario Outline: Scatter
         Given <players> players
         And cicada.communicator.SocketCommunicator
@@ -119,49 +178,6 @@ Feature: SocketCommunicator
         | 3       | 100     |
         | 4       | 100     |
         | 10      | 100     |
-
-
-    Scenario Outline: New Communicator
-        Given <players> players
-        And cicada.communicator.SocketCommunicator
-        When players <group> create a new communicator with world size <world_size> and name <name> and token <token>
-        Then the new communicator names should match <names>
-        And the new communicator world sizes should match <world_sizes>
-
-        Examples:
-        | players | group           | world_size | name     | token           | names          | world_sizes |
-        | 2       | range(2)        | 2          | "red"    | 13              | ["red"] * 2    | [2] * 2     |
-        | 3       | range(3)        | 3          | "green"  | "token"         | ["green"] * 3  | [3] * 3     |
-        | 10      | range(10)       | 10         | "blue"   | "OurSecretClub" | ["blue"] * 10  | [10] * 10   |
-
-
-    Scenario Outline: New Communicator Missing Players
-        Given <players> players
-        And cicada.communicator.SocketCommunicator
-        When players <group> create a new communicator with world size <world_size> and name "foo" and token "bar"
-        Then players <group> should timeout
-
-        Examples:
-        | players | group          | world_size |
-        | 2       | [0]            | 2          |
-        | 2       | [1]            | 2          |
-        | 3       | [0, 1]         | 3          |
-        | 3       | [1, 2]         | 3          |
-        | 10      | range(0, 9)    | 10         |
-        | 10      | range(1, 10)   | 10         |
-
-
-    Scenario Outline: New Communicator Token Mismatch
-        Given <players> players
-        And cicada.communicator.SocketCommunicator
-        When players <group> create a new communicator with world size <world_size> and name "foo" and tokens <tokens>
-        Then players <group> should fail with TokenMismatch errors
-
-        Examples:
-        | players | group       | world_size | tokens                        |
-        | 2       | range(2)    | 2          | [3, "3"]                      |
-        | 3       | range(3)    | 3          | ["foo", "bar", "baz"]         |
-        | 10      | range(10)   | 10         | list(range(9)) + ["blah"]     |
 
 
     Scenario Outline: Shrink Communicator
