@@ -279,3 +279,15 @@ def step_impl(context):
         test.assert_equal(result, list(range(context.players)))
 
 
+@when(u'players {group} shrink the communicator with name {name}')
+def step_impl(context, group, name):
+    group = eval(group)
+    name = eval(name)
+    def operation(communicator, group, name):
+        if communicator.rank in group:
+            comm, newranks = communicator.shrink(name=name)
+            return {"name": comm.name, "world_size": comm.world_size}
+        return {}
+
+    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(group, name))
+

@@ -126,7 +126,7 @@ Feature: SocketCommunicator
         And cicada.communicator.SocketCommunicator
         When players <group> create a new communicator with world size <world_size> and name <name> and token <token>
         Then the new communicator names should match <names>
-        Then the new communicator world sizes should match <world_sizes>
+        And the new communicator world sizes should match <world_sizes>
 
         Examples:
         | players | group           | world_size | name     | token           | names          | world_sizes |
@@ -167,13 +167,15 @@ Feature: SocketCommunicator
     Scenario Outline: Shrink Communicator
         Given <players> players
         And cicada.communicator.SocketCommunicator
-        Then shrinking the communicator under normal conditions will return the same players in the same rank order
+        When players <group> shrink the communicator with name <name>
+        Then the new communicator names should match <names>
+        And the new communicator world sizes should match <world_sizes>
 
         Examples:
-        | players |
-        | 2       |
-        | 3       |
-        | 10      |
+        | players | group       | name      | names         | world_sizes |
+        | 2       | range(2)    | "red"     | ["red"] * 2   | [2] * 2     |
+        | 3       | range(3)    | "green"   | ["green"] * 3 | [3] * 3     |
+        | 10      | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
 
 
     Scenario Outline: Split Communicator
@@ -181,7 +183,7 @@ Feature: SocketCommunicator
         And cicada.communicator.SocketCommunicator
         When the players split the communicator with names <names>
         Then the new communicator names should match <names>
-        Then the new communicator world sizes should match <world_sizes>
+        And the new communicator world sizes should match <world_sizes>
 
         Examples:
         | players | names                             | world_sizes      |
