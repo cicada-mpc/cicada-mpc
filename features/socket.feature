@@ -2,14 +2,12 @@ Feature: SocketCommunicator
 
     Scenario: Barrier
         Given 3 players
-        And cicada.communicator.SocketCommunicator
         When the players enter a barrier at different times
         Then the players should exit the barrier at roughly the same time
 
 
     Scenario Outline: AllGather
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When the players allgather <values>
         Then the group should return <result>
 
@@ -21,7 +19,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: Broadcast
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When player <src> broadcasts <value>
         Then the group should return <result>
 
@@ -34,7 +31,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: Gather
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When player <dst> gathers <values>
         Then the group should return <result>
 
@@ -48,7 +44,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: GatherV
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When player <dst> gathers <values> from <sources>
         Then the group should return <result>
 
@@ -62,7 +57,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: Message Reliability
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When player <src> scatters messages to the other players <count> times
         Then player <src> should have sent exactly <sent> messages
         And every player other than <src> should receive exactly <received> messages
@@ -81,7 +75,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: New Communicator
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When players <group> create a new communicator with world size <world_size> and name <name> and token <token>
         Then the new communicator names should match <names>
         And the new communicator world sizes should match <world_sizes>
@@ -95,7 +88,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: New Communicator Missing Players
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When players <group> create a new communicator with world size <world_size> and name "foo" and token "bar"
         Then players <group> should timeout
 
@@ -111,7 +103,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: New Communicator Token Mismatch
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When players <group> create a new communicator with world size <world_size> and name "foo" and tokens <tokens>
         Then players <group> should fail with TokenMismatch errors
 
@@ -124,7 +115,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: Revoke Communicator
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When player <player> revokes the communicator
         Then players <group> should fail with Revoked errors
 
@@ -140,7 +130,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: Scatter
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When player <src> scatters <values>
         Then the group should return <result>
 
@@ -154,7 +143,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: ScatterV
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When player <src> scatters <values> to <destinations>
         Then the group should return <result>
 
@@ -168,7 +156,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: Send-Receive
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         Then player <src> can send <value> to player <dest>
 
         Examples:
@@ -181,7 +168,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: Startup Reliability
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         Then it should be possible to start and stop a communicator <count> times
 
         Examples:
@@ -194,7 +180,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: Shrink Communicator
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When players <group> shrink the communicator with name <name>
         Then the new communicator names should match <names>
         And the new communicator world sizes should match <world_sizes>
@@ -212,7 +197,6 @@ Feature: SocketCommunicator
 
     Scenario Outline: Split Communicator
         Given <players> players
-        And cicada.communicator.SocketCommunicator
         When the players split the communicator with names <names>
         Then the new communicator names should match <names>
         And the new communicator world sizes should match <world_sizes>
@@ -224,4 +208,26 @@ Feature: SocketCommunicator
         | 4       | ["red", "red", "red", "blue"]     | [3, 3, 3, 1]     |
         | 4       | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
 
+
+    Scenario Outline: Permanent Timeout Changes
+        Given <players> players
+        When the communicator timeout is permanently changed to <timeout>
+        Then the initial communicator timeouts should match <initial>
+        And the final communicator timeouts should match <final>
+
+        Examples:
+        | players | timeout | initial | final    |
+        | 3       | 10      | [5] * 3 | [10] * 3 |
+
+
+    Scenario Outline: Temporary Timeout Changes
+        Given <players> players
+        When the communicator timeout is temporarily changed to <timeout>
+        Then the initial communicator timeouts should match <initial>
+        And the temporary communicator timeouts should match <temporary>
+        And the final communicator timeouts should match <final>
+
+        Examples:
+        | players | timeout | initial | temporary | final   |
+        | 3       | 10      | [5] * 3 | [10] * 3  | [5] * 3 |
 

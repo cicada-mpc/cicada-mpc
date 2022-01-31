@@ -30,11 +30,6 @@ def step_impl(context, players):
 	context.players = eval(players)
 
 
-@given(u'cicada.communicator.SocketCommunicator')
-def step_impl(context):
-    context.communicator_cls = cicada.communicator.SocketCommunicator
-
-
 @when(u'the players enter a barrier at different times')
 def step_impl(context):
     def operation(communicator):
@@ -45,7 +40,7 @@ def step_impl(context):
 
         return enter, exit
 
-    context.result = context.communicator_cls.run(world_size=context.players, fn=operation)
+    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
 @then(u'the players should exit the barrier at roughly the same time')
@@ -63,7 +58,7 @@ def step_impl(context, values):
     def operation(communicator, values):
         return communicator.all_gather(value=values[communicator.rank])
 
-    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(values,))
+    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(values,))
 
 
 @when(u'player {} broadcasts {}')
@@ -76,7 +71,7 @@ def step_impl(context, src, value):
             value = None
         return communicator.broadcast(src=src, value=value)
 
-    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, value))
+    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value))
 
 
 @when(u'player {dst} gathers {values} from {src}')
@@ -88,7 +83,7 @@ def step_impl(context, src, values, dst):
     def operation(communicator):
         return communicator.gatherv(src=src, value=values[communicator.rank], dst=dst)
 
-    context.result = context.communicator_cls.run(world_size=context.players, fn=operation)
+    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
 @when(u'player {dst} gathers {values}')
@@ -99,7 +94,7 @@ def step_impl(context, dst, values):
     def operation(communicator, values, dst):
         return communicator.gather(value=values[communicator.rank], dst=dst)
 
-    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(values, dst))
+    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(values, dst))
 
 
 @when(u'player {src} scatters messages to the other players {count} times')
@@ -114,7 +109,7 @@ def step_impl(context, src, count):
         communicator.free()
         return communicator.stats
 
-    context.stats = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, count))
+    context.stats = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, count))
 
 
 @when(u'player {} scatters {} to {}')
@@ -128,7 +123,7 @@ def step_impl(context, src, values, dst):
             values = None
         return communicator.scatterv(src=src, values=values, dst=dst)
 
-    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, values, dst))
+    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values, dst))
 
 
 @when(u'player {} scatters {}')
@@ -141,7 +136,7 @@ def step_impl(context, src, values):
             values = None
         return communicator.scatter(src=src, values=values)
 
-    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, values))
+    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values))
 
 
 @then(u'player {} can send {} to player {}')
@@ -157,7 +152,7 @@ def step_impl(context, src, value, dst):
             result = communicator.recv(src=src)
             numpy.testing.assert_almost_equal(value, result, decimal=4)
 
-    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(src, value, dst))
+    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst))
 
 
 @then(u'player {src} should have sent exactly {sent} messages')
@@ -185,7 +180,7 @@ def step_impl(context, count):
         pass
 
     for i in range(count):
-        context.communicator_cls.run(world_size=context.players, fn=operation)
+        cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
 @when(u'the players split the communicator with names {names}')
@@ -199,7 +194,7 @@ def step_impl(context, names):
         else:
             return {}
 
-    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(names,))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(names,))
 
 
 @then(u'the new communicator names should match {names}')
@@ -234,7 +229,7 @@ def step_impl(context, group, world_size, name, token):
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(group, world_size, name, token))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, world_size, name, token))
 
 
 @when(u'players {group} create a new communicator with world size {world_size} and name {name} and tokens {tokens}')
@@ -257,7 +252,7 @@ def step_impl(context, group, world_size, name, tokens):
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(group, world_size, name))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, world_size, name))
 
 
 @then(u'players {players} should timeout')
@@ -284,7 +279,7 @@ def step_impl(context):
         comm, newranks = communicator.shrink(name="split")
         return(newranks)
 
-    results = context.communicator_cls.run(world_size=context.players, fn=operation)
+    results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
     for result in results:
         test.assert_equal(result, list(range(context.players)))
 
@@ -299,7 +294,7 @@ def step_impl(context, group, name):
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(group, name))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name))
 
 
 @when(u'player {player} revokes the communicator')
@@ -318,7 +313,7 @@ def step_impl(context, player):
                 logging.error(f"Player {communicator.rank} exception: {e}")
                 raise e
 
-    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(player,))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(player,))
 
 
 @then(u'players {players} should fail with Revoked errors')
@@ -328,5 +323,52 @@ def step_impl(context, players):
         result = context.results[player]
         test.assert_is_instance(result, cicada.communicator.socket.Failed)
         test.assert_is_instance(result.exception, cicada.communicator.socket.Revoked)
+
+
+@when(u'the communicator timeout is permanently changed to {timeout}')
+def step_impl(context, timeout):
+    timeout = eval(timeout)
+
+    def operation(communicator, timeout):
+        timeout1 = communicator.timeout
+        communicator.timeout = timeout
+        timeout2 = communicator.timeout
+
+        return [timeout1, timeout2]
+
+    context.timeouts = numpy.array(cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(timeout,)))
+
+
+@when(u'the communicator timeout is temporarily changed to {timeout}')
+def step_impl(context, timeout):
+    timeout = eval(timeout)
+
+    def operation(communicator, timeout):
+        timeout1 = communicator.timeout
+        with communicator.override(timeout=timeout):
+            timeout2 = communicator.timeout
+        timeout3 = communicator.timeout
+
+        return [timeout1, timeout2, timeout3]
+
+    context.timeouts = numpy.array(cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(timeout,)))
+
+
+@then(u'the initial communicator timeouts should match {timeouts}')
+def step_impl(context, timeouts):
+    timeouts = eval(timeouts)
+    numpy.testing.assert_array_equal(timeouts, context.timeouts[:, 0])
+
+
+@then(u'the temporary communicator timeouts should match {timeouts}')
+def step_impl(context, timeouts):
+    timeouts = eval(timeouts)
+    numpy.testing.assert_array_equal(timeouts, context.timeouts[:, 1])
+
+
+@then(u'the final communicator timeouts should match {timeouts}')
+def step_impl(context, timeouts):
+    timeouts = eval(timeouts)
+    numpy.testing.assert_array_equal(timeouts, context.timeouts[:, -1])
 
 
