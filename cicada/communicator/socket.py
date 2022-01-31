@@ -203,20 +203,20 @@ class SocketCommunicator(Communicator):
 
     Parameters
     ----------
-    name: string, optional
+    name: :class:`str`, optional
         The name of this communicator, which is used strictly for logging
         and debugging.  If unspecified the default is "world".
-    world_size: integer, optional
+    world_size: :class:`int`, optional
         The number of players that will be members of this communicator.
         Defaults to the value of the WORLD_SIZE environment variable.
-    link_addr: string, optional
+    link_addr: :class:`str`, optional
         URL address of the root (rank 0) player.  The URL scheme *must* be
         `tcp`, and the address must be reachable by all of the other players.
         Defaults to the value of the LINK_ADDR environment variable.
-    rank: integer, optional
+    rank: :class:`int`, optional
         The rank of the local player, in the range [0, world_size).  Defaults
         to the value of the RANK environment variable.
-    host_addr: string, optional
+    host_addr: :class:`str`, optional
         URL address of the local player.  The URL scheme *must* be `tcp` and
         the address must be reachable by all of the other players.  Defaults to
         the address of host_socket if supplied, or the value of the HOST_ADDR
@@ -227,9 +227,9 @@ class SocketCommunicator(Communicator):
         communicator.  The provided socket *must* be created using `AF_INET`
         and `SOCK_STREAM`, and be bound to the same address and port specified
         by `host_addr`.
-    timeout: number
+    timeout: :class:`numbers.Number`
         Maximum time to wait for communication to complete, in seconds.
-    startup_timeout: number
+    startup_timeout: :class:`numbers.Number`
         Maximum time to wait for communicator initialization, in seconds.
     """
 
@@ -1244,12 +1244,12 @@ class SocketCommunicator(Communicator):
 
     @property
     def timeout(self):
-        """Amount of time allowed to elapse before blocking communications time-out.
+        """Amount of time allowed for communications to complete, in seconds.
 
         Returns
         -------
-        timeout: number or `None`.
-            The timeout in seconds, or `None` if there is no timeout.
+        timeout: :class:`numbers.Number`.
+            The timeout in seconds.
         """
         return self._timeout
 
