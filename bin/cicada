@@ -10,31 +10,54 @@ import sys
 import cicada
 
 
-def basic_frontend(arguments, players):
+def log_command(command, env, log):
+    log.info(f"Command: {' '.join(command)}")
+    log.info(f"  Environment:")
+    log.info(f"    WORLD_SIZE={env['WORLD_SIZE']}")
+    log.info(f"    RANK={env['RANK']}")
+    log.info(f"    LINK_ADDR={env['LINK_ADDR']}")
+    log.info(f"    HOST_ADDR={env['HOST_ADDR']}")
 
+
+def basic_frontend(arguments, players, log):
     processes = []
     for world_size, rank, host_addr, link_addr in players:
         env = get_environment(world_size, rank, host_addr, link_addr)
 
-#        if arguments.xterm:
-#            command += ["xterm", "-e"]
         command = [sys.executable]
         if arguments.inspect:
             command += ["-i"]
         command += [arguments.program]
         command += arguments.args
 
-        log.info(f"Command: {' '.join(command)}")
-        log.info(f"  Environment:")
-        log.info(f"    WORLD_SIZE={env['WORLD_SIZE']}")
-        log.info(f"    RANK={env['RANK']}")
-        log.info(f"    LINK_ADDR={env['LINK_ADDR']}")
-        log.info(f"    HOST_ADDR={env['HOST_ADDR']}")
+        log_command(command, env, log)
 
         if not arguments.dry_run:
             processes.append(subprocess.Popen(command, env=env))
 
-    # Wait for player processes to finish.
+    if not arguments.dry_run:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        for process in processes:
+            process.wait()
+
+
+def xterm_frontend(arguments, players, log):
+    processes = []
+    for world_size, rank, host_addr, link_addr in players:
+        env = get_environment(world_size, rank, host_addr, link_addr)
+
+        command = ["xterm", "-e"]
+        command += [sys.executable]
+        if arguments.inspect:
+            command += ["-i"]
+        command += [arguments.program]
+        command += arguments.args
+
+        log_command(command, env, log)
+
+        if not arguments.dry_run:
+            processes.append(subprocess.Popen(command, env=env))
+
     if not arguments.dry_run:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         for process in processes:
@@ -92,6 +115,7 @@ def get_player(arguments):
 
 frontends = {
     "basic": basic_frontend,
+    "xterm": xterm_frontend,
 }
 
 
@@ -103,7 +127,7 @@ subparsers = parser.add_subparsers(title="commands (choose one)", dest="command"
 subparser = subparsers.add_parser("start", help="Start one Cicada process.")
 subparser.add_argument("--bind-public", action="store_true", help="Use a public host address.")
 subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
-subparser.add_argument("--frontend", "-f", choices=["basic"], default="basic", help="Frontend to execute processes.")
+subparser.add_argument("--frontend", "-f", choices=["basic", "xterm"], default="basic", help="Frontend to execute processes.")
 subparser.add_argument("--host-addr", default="127.0.0.1", help="Host address. Default: %(default)s")
 subparser.add_argument("--host-port", type=int, default=None, help="Host port. Default: randomly chosen port")
 subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
@@ -132,7 +156,7 @@ if __name__ == "__main__":
     if arguments.command == "start":
         players = [get_player(arguments)]
         frontend = frontends[arguments.frontend]
-        frontend(arguments, players)
+        frontend(arguments, players, log)
 
     # version
     if arguments.command == "version":
