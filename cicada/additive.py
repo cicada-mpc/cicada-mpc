@@ -834,6 +834,40 @@ class AdditiveProtocol(object):
             ans.append(it_ans)
         return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
 
+    def private_public_subtract(self, lhs, rhs):
+        """Return the elementwise difference between public and secret shared arrays.
+
+        All players *must* supply the same value of `lhs` when calling this
+        method.  The result will be the secret shared elementwise difference
+        between the public (known to all players) `lhs` array and the private
+        (secret shared) `rhs` array.  If revealed, the result will need to be
+        decoded to obtain the actual difference.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value from which rhs should be subtracted.
+        rhs: :class:`numpy.ndarray`, required
+            Public value, which must have been encoded with this protocol's
+            :attr:`encoder`.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret shared difference `lhs` - `rhs`.
+        """
+        self._assert_unary_compatible(lhs, "lhs")
+
+        if self._communicator.rank == 0:
+            return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs))
+        return AdditiveArrayShare(lhs.storage)
+
+
     def _public_bitwise_less_than(self,*, lhspub, rhs):
         """Comparison Operator
 
@@ -1456,15 +1490,15 @@ class AdditiveProtocol(object):
         """
         ones=self.encoder.encode(numpy.full(operand.storage.shape, 1))
         half = self.encoder.encode(numpy.full(operand.storage.shape, .5))
-        secret_plushalf = cicada.additive.AdditiveArrayShare(self.encoder.add(operand.storage,half))
-        secret_minushalf = cicada.additive.AdditiveArrayShare(self.encoder.subtract(operand.storage, half))
-        ltph = self.less_than_zero(secret_minushalf)
-        nltph = self.logical_not(ltph)
-        ltnh = self.less_than_zero(secret_plushalf)
-        nltnh = self.logical_not(ltnh)
-        middlins = self.subtract(ltph, ltnh)
+        
+        secret_plushalf = self.public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self.encoder.add(operand.storage,half))
+        secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self.encoder.subtract(operand.storage, half))
+        ltzsmh = self.less_than_zero(secret_minushalf)
+        nltzsmh = self.logical_not(ltzsmh)
+        ltzsph = self.less_than_zero(secret_plushalf)
+        middlins = self.subtract(ltzsmh, ltzsph)
         extracted_middlins = self.untruncated_multiply(middlins, operand)
         extracted_halfs = cicada.additive.AdditiveArrayShare(self.encoder.untruncated_multiply(middlins.storage, half))
         extracted_middlins = self.add(extracted_middlins, extracted_halfs)
-        ones_part = cicada.additive.AdditiveArrayShare(self.encoder.untruncated_multiply(nltph.storage, ones))
+        ones_part = cicada.additive.AdditiveArrayShare(self.encoder.untruncated_multiply(nltzsmh.storage, ones))
         return self.add(ones_part, extracted_middlins)

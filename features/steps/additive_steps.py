@@ -399,3 +399,25 @@ def step_impl(context):
         return protocol.encoder.decode(protocol.reveal(relu_share))
     context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
+@given(u'unary operation zigmoid')
+def step_impl(context):
+    def operation(communicator, a):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+        a = numpy.array(a)
+        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
+        zigmoid_share = protocol.zigmoid(a_share)
+        return protocol.encoder.decode(protocol.reveal(zigmoid_share))
+    context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
+
+@when(u'player {} performs private public subtraction on the shared secret')
+def step_impl(context, player):
+    player = eval(player)
+
+    def operation(communicator, secret, player, local):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
+        result = protocol.private_public_subtract(share, protocol.encoder.encode(local))
+        return protocol.encoder.decode(protocol.reveal(result))
+
+    context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))

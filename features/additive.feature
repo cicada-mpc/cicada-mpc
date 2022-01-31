@@ -399,3 +399,46 @@ Feature: Additive Protocol
         | 3       | relu      | -2.1                    | 10    | [[0] * 3] * 10                  |
         | 3       | relu      | [[0, 3.4],[-1234,1234]] | 10    | [[[[0,3.4],[0,1234]]] * 3] * 10 |
 
+
+
+    Scenario Outline: Zigmoid
+        Given <players> players
+        And unary operation <operation>
+        And operand <a>
+        When the unary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players | operation | a                       | count | result                          |
+        | 2       | zigmoid   | 1                       | 10    | [[1] * 2] * 10                  |
+        | 2       | zigmoid   | 1.1                     | 10    | [[1] * 2] * 10                  |
+        | 2       | zigmoid   | -2                      | 10    | [[0] * 2] * 10                  |
+        | 2       | zigmoid   | -2.1                    | 10    | [[0] * 2] * 10                  |
+        | 2       | zigmoid   | 0.25                    | 10    | [[.75] * 2] * 10                |
+        | 2       | zigmoid   | 0.75                    | 10    | [[1] * 2] * 10                  |
+        | 2       | zigmoid   | -.0625                  | 10    | [[.4375] * 2] * 10              |
+        | 2       | zigmoid   | -.5                     | 10    | [[0] * 2] * 10                  |
+        | 2       | zigmoid   | [[0, 3.4],[-1234,1234]] | 10    | [[[[0.5,1],[0,1]]] * 2] * 10 |
+        | 3       | zigmoid   | 1                       | 10    | [[1] * 3] * 10                  |
+        | 3       | zigmoid   | 1.1                     | 10    | [[1] * 3] * 10                |
+        | 3       | zigmoid   | -2                      | 10    | [[0] * 3] * 10                  |
+        | 3       | zigmoid   | -2.1                    | 10    | [[0] * 3] * 10                  |
+        | 3       | zigmoid   | 0.25                    | 10    | [[.75] * 3] * 10                |
+        | 3       | zigmoid   | 0.75                    | 10    | [[1] * 3] * 10                  |
+        | 3       | zigmoid   | -.0625                  | 10    | [[.4375] * 3] * 10              |
+        | 3       | zigmoid   | -.5                     | 10    | [[0] * 3] * 10                  |
+        | 3       | zigmoid   | [[0, 3.4],[-1234,1234]] | 10    | [[[[0.5,1],[0,1]]] * 3] * 10 |
+
+    Scenario Outline: Private Public Subtraction
+        Given <players> players
+        And secret value <secret>
+        And local value <local>
+        When player <player> performs private public subtraction on the shared secret
+        Then the group should return <result>
+
+        Examples:
+        | players | secret  | local       | player | result                                    |
+        | 2       | 5       | 1           | 1      | [4] * 2                                   |
+        | 3       | 5       | 1.1         | 1      | [3.9] * 3                                 |
+        | 4       | 5       | 1.5         | 1      | [3.5] * 4                                 |
+        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
