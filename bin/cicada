@@ -19,8 +19,8 @@ def basic_frontend(arguments, players):
 #        if arguments.xterm:
 #            command += ["xterm", "-e"]
         command = [sys.executable]
-#        if arguments.interactive:
-#            command += ["-i"]
+        if arguments.inspect:
+            command += ["-i"]
         command += [arguments.program]
         command += arguments.args
 
@@ -90,6 +90,11 @@ def get_player(arguments):
     return world_size, rank, host_addr, link_addr
 
 
+frontends = {
+    "basic": basic_frontend,
+}
+
+
 parser = argparse.ArgumentParser(description="Run a Cicada MPC program.")
 parser.add_argument("--debug", action="store_true", help="Verbose logging output.")
 subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
@@ -98,8 +103,10 @@ subparsers = parser.add_subparsers(title="commands (choose one)", dest="command"
 subparser = subparsers.add_parser("start", help="Start one Cicada process.")
 subparser.add_argument("--bind-public", action="store_true", help="Use a public host address.")
 subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
+subparser.add_argument("--frontend", "-f", choices=["basic"], default="basic", help="Frontend to execute processes.")
 subparser.add_argument("--host-addr", default="127.0.0.1", help="Host address. Default: %(default)s")
 subparser.add_argument("--host-port", type=int, default=None, help="Host port. Default: randomly chosen port")
+subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
 subparser.add_argument("--link-addr", default=None, help="Link address. Default: 127.0.0.1")
 subparser.add_argument("--link-port", type=int, default=None, help="Link port.")
 subparser.add_argument("--rank", type=int, required=True, help="Player rank.")
@@ -124,7 +131,8 @@ if __name__ == "__main__":
     # Start
     if arguments.command == "start":
         players = [get_player(arguments)]
-        basic_frontend(arguments, players)
+        frontend = frontends[arguments.frontend]
+        frontend(arguments, players)
 
     # version
     if arguments.command == "version":
