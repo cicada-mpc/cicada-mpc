@@ -372,6 +372,10 @@ class SocketCommunicator(Communicator):
                     other_player = NetstringSocket(other_player)
                     self._players[0] = other_player
                     break
+                except ConnectionRefusedError as e: # pragma: no cover
+                    # This happens regularly, particularly when starting on
+                    # separate hosts, so no need to log a warning.
+                    time.sleep(0.1)
                 except Exception as e: # pragma: no cover
                     self._log.warning(f"exception connecting to player 0: {e}")
                     time.sleep(0.1)
