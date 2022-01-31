@@ -51,6 +51,7 @@ setup(
         "Source": "https://github.com/cicada-mpc/cicada-mpc",
     },
     scripts=[
+        "bin/cicada",
         "bin/cicada-exec",
     ],
     version=re.search(

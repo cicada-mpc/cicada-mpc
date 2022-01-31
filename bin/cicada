@@ -1,0 +1,133 @@
+#!/usr/bin/env python
+
+import argparse
+import logging
+import os
+import signal
+import subprocess
+import sys
+
+import cicada
+
+
+def basic_frontend(arguments, players):
+
+    processes = []
+    for world_size, rank, host_addr, link_addr in players:
+        env = get_environment(world_size, rank, host_addr, link_addr)
+
+#        if arguments.xterm:
+#            command += ["xterm", "-e"]
+        command = [sys.executable]
+#        if arguments.interactive:
+#            command += ["-i"]
+        command += [arguments.program]
+        command += arguments.args
+
+        log.info(f"Command: {' '.join(command)}")
+        log.info(f"  Environment:")
+        log.info(f"    WORLD_SIZE={env['WORLD_SIZE']}")
+        log.info(f"    RANK={env['RANK']}")
+        log.info(f"    LINK_ADDR={env['LINK_ADDR']}")
+        log.info(f"    HOST_ADDR={env['HOST_ADDR']}")
+
+        if not arguments.dry_run:
+            processes.append(subprocess.Popen(command, env=env))
+
+    # Wait for player processes to finish.
+    if not arguments.dry_run:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        for process in processes:
+            process.wait()
+
+
+def get_environment(world_size, rank, host_addr, link_addr):
+    env = os.environ.copy()
+    env["WORLD_SIZE"] = str(arguments.world_size)
+    env["RANK"] = str(arguments.rank)
+    env["LINK_ADDR"] = link_addr
+    env["HOST_ADDR"] = host_addr
+    return env
+
+
+def get_player(arguments):
+    world_size = arguments.world_size
+    if world_size < 1:
+        raise RuntimeError("--world-size must be greater than zero.")
+
+    rank = arguments.rank
+
+    if rank >= world_size:
+        raise RuntimeError("--rank must be less than --world-size.")
+
+    if rank == 0:
+        if arguments.host_port is None:
+            raise RuntimeError("--host-port must be specified when --rank is 0.")
+        if arguments.link_addr is not None:
+            raise RuntimeError("--link-addr cannot be specified when --rank is 0.")
+        if arguments.link_port is not None:
+            raise RuntimeError("--link-port cannot be specified when --rank is 0.")
+
+        addr = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
+        port = arguments.host_port
+        host_addr = f"tcp://{addr}:{port}"
+        link_addr = host_addr
+    else:
+        if arguments.link_port is None:
+            raise RuntimeError("--link-port must be specified when --rank is not 0.")
+
+        addr = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
+        port = arguments.host_port
+        if port is None:
+            host_addr = f"tcp://{addr}"
+        else:
+            host_addr = f"tcp://{addr}:{port}"
+
+        addr = "127.0.0.1" if arguments.link_addr is None else arguments.link_addr
+        port = arguments.link_port
+        link_addr = f"tcp://{addr}:{port}"
+
+    return world_size, rank, host_addr, link_addr
+
+
+parser = argparse.ArgumentParser(description="Run a Cicada MPC program.")
+parser.add_argument("--debug", action="store_true", help="Verbose logging output.")
+subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
+
+# start
+subparser = subparsers.add_parser("start", help="Start one Cicada process.")
+subparser.add_argument("--bind-public", action="store_true", help="Use a public host address.")
+subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
+subparser.add_argument("--host-addr", default="127.0.0.1", help="Host address. Default: %(default)s")
+subparser.add_argument("--host-port", type=int, default=None, help="Host port. Default: randomly chosen port")
+subparser.add_argument("--link-addr", default=None, help="Link address. Default: 127.0.0.1")
+subparser.add_argument("--link-port", type=int, default=None, help="Link port.")
+subparser.add_argument("--rank", type=int, required=True, help="Player rank.")
+subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+subparser.add_argument("program", help="Program to execute.")
+subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
+
+# version
+subparser = subparsers.add_parser("version", help="Print the Cicada version.")
+
+
+if __name__ == "__main__":
+    arguments = parser.parse_args()
+
+    if arguments.command is None:
+        parser.print_help()
+
+    logging.basicConfig(level=logging.DEBUG if arguments.debug else logging.INFO)
+    log = logging.getLogger()
+    log.name = os.path.basename(sys.argv[0])
+
+    # Start
+    if arguments.command == "start":
+        players = [get_player(arguments)]
+        basic_frontend(arguments, players)
+
+    # version
+    if arguments.command == "version":
+        print(cicada.__version__)
+
+
