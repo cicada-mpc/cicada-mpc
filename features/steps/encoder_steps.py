@@ -144,19 +144,6 @@ def step_impl(context, A, x, y):
        raise ValueError("result mismatch")
 
 
-@when(u'matrix {A} and vector {x} are encoded and multiplied, the decoded result should match {y}')
-def step_impl(context, A, x, y):
-    encoder = context.encoders[-1]
-    A = encoder.encode(numpy.array(eval(A)))
-    x = encoder.encode(numpy.array(eval(x)))
-    y = numpy.array(eval(y))
-
-    result = encoder.matvec(A, x)
-    assert_is_fixed_field_representation(result)
-    decoded = encoder.decode(result)
-    test.assert_true(numpy.allclose(decoded, y, rtol=0, atol=0.001))
-
-
 @when(u'{b} is subtracted from {a} the result should match {c}')
 def step_impl(context, a, b, c):
     encoder = context.encoders[-1]

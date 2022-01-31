@@ -17,10 +17,8 @@
 """Functionality for communicating using the builtin :mod:`socket` module.
 """
 
-import asyncio
 import collections
 import contextlib
-import functools
 import hashlib
 import logging
 import math
@@ -185,6 +183,11 @@ class Timer(object):
         return False
 
 
+class TokenMismatch(Exception):
+    """Raised when players can't agree on a token for communicator creation."""
+    pass
+
+
 class TryAgain(Exception):
     """Raised when a non-blocking operation would block."""
     pass
@@ -200,20 +203,20 @@ class SocketCommunicator(Communicator):
 
     Parameters
     ----------
-    name: string, optional
+    name: :class:`str`, optional
         The name of this communicator, which is used strictly for logging
         and debugging.  If unspecified the default is "world".
-    world_size: integer, optional
+    world_size: :class:`int`, optional
         The number of players that will be members of this communicator.
         Defaults to the value of the WORLD_SIZE environment variable.
-    link_addr: string, optional
+    link_addr: :class:`str`, optional
         URL address of the root (rank 0) player.  The URL scheme *must* be
         `tcp`, and the address must be reachable by all of the other players.
         Defaults to the value of the LINK_ADDR environment variable.
-    rank: integer, optional
+    rank: :class:`int`, optional
         The rank of the local player, in the range [0, world_size).  Defaults
         to the value of the RANK environment variable.
-    host_addr: string, optional
+    host_addr: :class:`str`, optional
         URL address of the local player.  The URL scheme *must* be `tcp` and
         the address must be reachable by all of the other players.  Defaults to
         the address of host_socket if supplied, or the value of the HOST_ADDR
@@ -224,10 +227,10 @@ class SocketCommunicator(Communicator):
         communicator.  The provided socket *must* be created using `AF_INET`
         and `SOCK_STREAM`, and be bound to the same address and port specified
         by `host_addr`.
-    timeout: number or `None`
-        Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
-    setup_timeout: number or `None`
-        Maximum time allowed to setup the communicator in seconds, or `None` to disable timeouts during setup.
+    timeout: :class:`numbers.Number`
+        Maximum time to wait for communication to complete, in seconds.
+    startup_timeout: :class:`numbers.Number`
+        Maximum time to wait for communicator initialization, in seconds.
     """
 
     _tags = [
@@ -241,19 +244,14 @@ class SocketCommunicator(Communicator):
         "scatter",
         "scatterv",
         "send",
-        "shrink-enter",
-        "shrink-exit",
-        "split",
-        "split-prepare",
+        "shrink-begin",
+        "shrink-end",
+        "split-begin",
+        "split-end",
         ]
 
 
-    def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
-        asyncio.run(asyncio.wait_for(self._setup(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_addr=host_addr, host_socket=host_socket, token=token, timeout=timeout, setup_timeout=setup_timeout), timeout=setup_timeout))
-
-
-    async def _setup(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, setup_timeout=5):
-        # Enforce preconditions
+    def __init__(self, *, name=None, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5, startup_timeout=5):
         if name is None:
             name = "world"
         if not isinstance(name, str):
@@ -315,10 +313,10 @@ class SocketCommunicator(Communicator):
         if host_socket is not None and host_socket.getsockname()[1] != host_addr.port:
             raise ValueError(f"host_socket port must match host_addr.") # pragma: no cover
 
-        if not isinstance(timeout, (numbers.Number, type(None))):
-            raise ValueError(f"timeout must be a number or None, got {timeout} instead.") # pragma: no cover
-        if not isinstance(setup_timeout, (numbers.Number, type(None))):
-            raise ValueError(f"setup_timeout must be a number or None, got {setup_timeout} instead.") # pragma: no cover
+        if not isinstance(timeout, numbers.Number):
+            raise ValueError(f"timeout must be a number, got {timeout} instead.") # pragma: no cover
+        if not isinstance(startup_timeout, numbers.Number):
+            raise ValueError(f"startup_timeout must be a number, got {startup_timeout} instead.") # pragma: no cover
 
         # Setup internal state.
         self._name = name
@@ -326,18 +324,19 @@ class SocketCommunicator(Communicator):
         self._rank = rank
         self._host_addr = host_addr
         self._timeout = timeout
-        self._setup_timeout = setup_timeout
+        self._startup_timeout = startup_timeout
         self._revoked = False
         self._log = LoggerAdapter(log, name, rank)
 
+        self._startup(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_addr=host_addr, host_socket=host_socket, token=token, timeout=timeout, startup_timeout=startup_timeout)
+
+
+    def _startup(self, *, name, world_size, rank, link_addr, host_addr, host_socket, token, timeout, startup_timeout):
         # Set aside storage for connections to the other players.
         self._players = {}
 
         # Track elapsed time during setup.
-        timer = Timer(threshold=setup_timeout)
-
-        # Rendezvous with the other players.
-        self._log.info(f"rendezvous with {link_addr.geturl()} from {host_addr.geturl()}")
+        timer = Timer(threshold=startup_timeout)
 
         ###########################################################################
         # Phase 1: Every player sets-up a socket to listen for connections.
@@ -345,17 +344,22 @@ class SocketCommunicator(Communicator):
         if host_socket is None:
             while not timer.expired:
                 try:
-                    host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    host_socket.bind((host_addr.hostname, host_addr.port or 0))
+                    host_socket = socket.create_server((host_addr.hostname, host_addr.port or 0))
                     break
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception creating host socket: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout creating host socket.")
 
+        host_socket.setblocking(False)
         host_socket.listen(world_size)
         self._log.debug(f"listening for connections.")
+
+        # Update host_addr to include the (possibly randomly-chosen) port.
+        host, port = host_socket.getsockname()
+        host_addr = urllib.parse.urlparse(f"tcp://{host}:{port}")
+        self._log.info(f"rendezvous with {link_addr.geturl()} from {host_addr.geturl()}")
 
         ###########################################################################
         # Phase 2: Every player (except root) makes a connection to root.
@@ -368,10 +372,10 @@ class SocketCommunicator(Communicator):
                     other_player = NetstringSocket(other_player)
                     self._players[0] = other_player
                     break
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception connecting to player 0: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player 0.")
 
         ###########################################################################
@@ -382,10 +386,10 @@ class SocketCommunicator(Communicator):
                 try:
                     self._players[0].send(pickle.dumps((rank, host_addr, token)))
                     break
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception sending address to player 0: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout sending address to player 0.")
 
         ###########################################################################
@@ -405,14 +409,14 @@ class SocketCommunicator(Communicator):
                         other_player = NetstringSocket(other_player)
                         other_players.append(other_player)
                         self._log.debug(f"accepted connection from player.")
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception waiting for connections from other players: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player connections.")
 
             # Collect an address from every player.
-            addresses = {rank: host_addr}
+            addresses = {rank: (host_addr, token)}
             for other_player in other_players:
                 while not timer.expired:
                     try:
@@ -420,17 +424,14 @@ class SocketCommunicator(Communicator):
                         if raw_message is not None:
                             other_rank, other_addr, other_token = pickle.loads(raw_message)
                             self._players[other_rank] = other_player
-                            addresses[other_rank] = other_addr
+                            addresses[other_rank] = (other_addr, other_token)
                             self._log.debug(f"received address from player {other_rank}.")
                             break
-                    except Exception as e:
-                        self._log.warning(f"exception receiving player address.")
+                    except Exception as e: # pragma: no cover
+                        self._log.warning(f"exception receiving player address: {e}")
                         time.sleep(0.1)
-                else:
+                else: # pragma: no cover
                     raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player address.")
-
-#                if other_token != token:
-#                    raise RuntimeError(f"Comm {self._name!r} player {self._rank} expected token {token}, received {other_token} from player {other_rank}.")
 
         ###########################################################################
         # Phase 5: Root broadcasts the set of all addresses to every player.
@@ -450,14 +451,21 @@ class SocketCommunicator(Communicator):
                         addresses = pickle.loads(raw_message)
                         self._log.debug(f"received addresses from player 0.")
                         break
-                except Exception as e:
+                except Exception as e: # pragma: no cover
                     self._log.warning(f"exception getting addresses from player 0: {e}")
                     time.sleep(0.1)
-            else:
+            else: # pragma: no cover
                 raise Timeout(f"Comm {name!r} player {rank} timeout waiting for addresses from player 0.")
 
         ###########################################################################
-        # Phase 7: Players setup connections with one another.
+        # Phase 7: Every player verifies that all tokens match.
+
+        for other_rank, (other_address, other_token) in addresses.items():
+            if other_token != token:
+                raise TokenMismatch(f"Comm {self._name!r} player {self._rank} expected token {token!r}, received {other_token!r} from player {other_rank}.")
+
+        ###########################################################################
+        # Phase 8: Players setup connections with one another.
 
         for listener in range(1, world_size-1):
             if rank == listener:
@@ -474,7 +482,7 @@ class SocketCommunicator(Communicator):
                             other_player = NetstringSocket(other_player)
                             other_players.append(other_player)
                             self._log.debug(f"accepted connection from player.")
-                    except Exception as e:
+                    except Exception as e: # pragma: no cover
                         self._log.warning(f"exception listening for other players: {e}")
                         time.sleep(0.1)
 
@@ -488,29 +496,25 @@ class SocketCommunicator(Communicator):
                                 self._players[other_rank] = other_player
                                 self._log.debug(f"received rank from player {other_rank}.")
                                 break
-                        except Exception as e:
+                        except Exception as e: # pragma: no cover
                             self._log.warning(f"exception receiving player rank.")
                             time.sleep(0.1)
-                    else:
+                    else: # pragma: no cover
                         raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player rank.")
-
-#                # Send acks to the other players.
-#                for other_player in other_players:
-#                    other_player.send("ack") # Is this really necessary?
 
             elif rank > listener:
                 # Make a connection to the listener.
                 while not timer.expired:
                     try:
                         other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        other_player.connect((addresses[listener].hostname, addresses[listener].port))
+                        other_player.connect((addresses[listener][0].hostname, addresses[listener][0].port))
                         other_player = NetstringSocket(other_player)
                         self._players[listener] = other_player
                         break
-                    except Exception as e:
+                    except Exception as e: # pragma: no cover
                         self._log.warning(f"exception connecting to player {listener}: {e}")
                         time.sleep(0.5)
-                else:
+                else: # pragma: no cover
                     raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
 
                 # Send our rank to the listener.
@@ -518,26 +522,14 @@ class SocketCommunicator(Communicator):
                     try:
                         self._players[listener].send(pickle.dumps(rank))
                         break
-                    except Exception as e:
+                    except Exception as e: # pragma: no cover
                         self._log.warning(f"exception sending rank to player {listener}: {e}")
                         time.sleep(0.5)
-                else:
+                else: # pragma: no cover
                     raise Timeout(f"Comm {name!r} player {rank} timeout sending rank to player {listener}.")
 
-#                # Wait for an ack from the listener.  Is this really necessary?
-#                while not timer.expired:
-#                    try:
-#                        raw_message = self._players[listener].next_message(timeout=0.1)
-#                        if raw_message is not None:
-#                            break
-#                    except Exception as e:
-#                        self._log.warning(f"exception receiving ack from player {listener}: {e}")
-#                        time.sleep(0.5)
-#                else:
-#                    raise Timeout(f"Comm {name!r} player {rank} timeout receiving ack from player {listener}.")
-
         ###########################################################################
-        # Phase 8: The mesh has been initialized, begin normal operation.
+        # Phase 9: The mesh has been initialized, begin normal operation.
 
         self._send_serial = 0
         self._running = True
@@ -558,12 +550,6 @@ class SocketCommunicator(Communicator):
         # Start receiving incoming messages.
         self._incoming_thread = threading.Thread(name="Incoming", target=self._receive_messages, daemon=True)
         self._incoming_thread.start()
-
-#        # Log information about our peers.
-#        for rank, player in sorted(self._players.items()):
-#            host, port = player.getsockname()
-#            otherhost, otherport = player.getpeername()
-#            self._log.debug(f"tcp://{host}:{port} connected to player {rank} tcp://{otherhost}:{otherport}.")
 
         self._log.info(f"communicator ready.")
 
@@ -596,7 +582,7 @@ class SocketCommunicator(Communicator):
 
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
-                self._log.debug(f"<-- player {message.sender} {message.tag}#{message.serial:04}")
+                self._log.debug(f"<-- player {message.sender} {message.tag}#{message.serial:04}") # pragma: no cover
 
             # Revoke messages don't get queued because they receive special handling.
             if message.tag == "revoke":
@@ -637,7 +623,7 @@ class SocketCommunicator(Communicator):
 
                         # Insert the message into the incoming queue.
                         self._incoming.put(message, block=True, timeout=None)
-            except Exception as e:
+            except Exception as e: # pragma: no cover
                 self._log.error(f"receive exception: {e}")
 
         # The communicator has been freed, so exit the thread.
@@ -651,7 +637,7 @@ class SocketCommunicator(Communicator):
         except queue.Empty:
             if block:
                 raise Timeout(f"Tag {tag!r} from sender {sender} timed-out after {self._timeout}s")
-            else:
+            else: # pragma: no cover
                 raise TryAgain(f"Tag {tag!r} from sender {sender} try again.")
 
 
@@ -704,7 +690,7 @@ class SocketCommunicator(Communicator):
                 raw_message = pickle.dumps(message)
                 player = self._players[dst]
                 player.send(raw_message)
-            except Exception as e:
+            except Exception as e: # pragma: no cover
                 self._log.error(f"send exception: {e}")
 
 
@@ -893,23 +879,36 @@ class SocketCommunicator(Communicator):
 
 
     @contextlib.contextmanager
-    def override(self, *, timeout):
-        """Temporarily change the timeout value.
+    def override(self, *, timeout=None):
+        """Temporarily change communicator properties.
+
+        Use :meth:`override` to temporarily modify communicator behavior in a with statement::
+
+            with communicator.override(timeout=10):
+                # Do stuff with the new timeout here.
+            # The timeout will return to its previous value here.
 
         Parameters
         ----------
-        timeout: number or `None`
-            The timeout for subsequent send / receive operations, in seconds, or `None` to disable timeouts completely.
+        timeout: :class:`numbers.Number`, optional
+            If specified, override the maximum time for communications to complete, in seconds.
 
         Returns
         -------
-        A context manager object that will restore the original timeout value when exited.
+        context:
+            A context manager object that will restore the communicator state when exited.
         """
-        original_timeout, self._timeout = self._timeout, timeout
+        original_context = {
+            "timeout": self._timeout,
+        }
+
         try:
-            yield original_timeout
+            if timeout is not None:
+                self._timeout = timeout
+            yield original_context
         finally:
-            self._timeout = original_timeout
+            if timeout is not None:
+                self._timeout = original_context["timeout"]
 
 
     @property
@@ -942,7 +941,7 @@ class SocketCommunicator(Communicator):
         for rank in self.ranks:
             try:
                 self._send(tag="revoke", payload=None, dst=rank)
-            except Exception as e:
+            except Exception as e: # pragma: no cover
                 # We handle this here instead of propagating it to the
                 # application layer because we expect some recipients to be
                 # missing, else there'd be no reason to call revoke().
@@ -950,7 +949,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, args=(), kwargs={}, timeout=5, setup_timeout=5):
+    def run(*, world_size, fn, args=(), kwargs={}, timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -974,7 +973,7 @@ class SocketCommunicator(Communicator):
             Keyword arguments to pass to `fn` when it is executed.
         timeout: number or `None`
             Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
-        setup_timeout: number or `None`
+        startup_timeout: number or `None`
             Maximum time allowed to setup the communicator in seconds, or `None` to disable timeouts during setup.
 
         Returns
@@ -988,10 +987,9 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, setup_timeout):
+        def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, startup_timeout):
             # Create a socket with a randomly-assigned port number.
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            host_socket.bind(("127.0.0.1", 0))
+            host_socket = socket.create_server((cicada.bind.loopback_ip(), 0))
             host, port = host_socket.getsockname()
             host_addr = f"tcp://{host}:{port}"
 
@@ -1004,7 +1002,7 @@ class SocketCommunicator(Communicator):
 
             # Run the work function.
             try:
-                communicator = SocketCommunicator(world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket, timeout=timeout, setup_timeout=setup_timeout)
+                communicator = SocketCommunicator(world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket, timeout=timeout, startup_timeout=startup_timeout)
                 result = fn(communicator, *args, **kwargs)
                 communicator.free()
             except Exception as e: # pragma: no cover
@@ -1025,7 +1023,7 @@ class SocketCommunicator(Communicator):
         for rank in range(world_size):
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(link_addr_queue=link_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, setup_timeout=setup_timeout),
+                kwargs=dict(link_addr_queue=link_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
@@ -1125,7 +1123,7 @@ class SocketCommunicator(Communicator):
         self._send(tag="send", payload=value, dst=dst)
 
 
-    def shrink(self, timeout=None, name=None):
+    def shrink(self, *, name):
         """Create a new communicator containing surviving players.
 
         This method should be called as part of a failure-recovery phase by as
@@ -1137,60 +1135,33 @@ class SocketCommunicator(Communicator):
         """
         self._log.debug(f"shrink()")
 
-        # Set a default timeout of 2 seconds.
-        if timeout is None:
-            timeout = 2
-
-        # Create a default name for the new communicator.
-        if name is None:
-            name = f"shrunk_{self.name}"
-
-        # Our goal is to identify which players still exist.
-        remaining_ranks = set()
-
-        # Notify players that we're alive.
-        for rank in self.ranks:
-            self._send(tag="shrink-enter", payload=None, dst=rank)
-
-        # Collect notifications from the other players during a window of time.
-        start = time.time()
-        while True:
-            for rank in self.ranks:
-                try:
-                    message = self._receive(tag="shrink-enter", sender=rank, block=False)
-                    remaining_ranks.add(rank)
-                except Exception as e:
-                    self._log.debug(f"exception {e}")
-            if time.time() - start > timeout:
-                break
-            time.sleep(0.1)
+        # By default, we assume that everyone is alive.
+        remaining_ranks = self.ranks
 
         # Sort the remaining ranks; the lowest rank will become rank 0 in the new communicator.
-        remaining_ranks = sorted(list(remaining_ranks))
-        #self._log.info(f"remaining players: {remaining_ranks}")
+        remaining_ranks = sorted(remaining_ranks)
 
         # Generate a token based on a hash of the remaining ranks that we can
         # use to ensure that every player is in agreement on who's remaining.
         token = hashlib.sha3_256()
         for rank in remaining_ranks:
-            token.update(rank.to_bytes(math.ceil(rank.bit_length() / 8), byteorder="big"))
+            token.update(f"rank-{rank}".encode("utf8"))
         token = token.hexdigest()
 
         # Generate new connection information.
-        new_world_size=len(remaining_ranks)
-        new_rank = remaining_ranks.index(self.rank)
+        world_size=len(remaining_ranks)
+        rank = remaining_ranks.index(self.rank)
 
-        protocol, addr = self._host_addr.split("//")
-        addr, port = addr.split(":")
-        port = cicada.bind.random_port(addr)
-        new_host_addr = f"{protocol}//{addr}:{port}"
+        host_socket = socket.create_server((self._host_addr.hostname, 0))
+        host, port = host_socket.getsockname()
+        host_addr = f"tcp://{host}:{port}"
 
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
-                self._send(tag="shrink-exit", payload=new_host_addr, dst=remaining_rank)
-        new_link_addr = self._receive(tag="shrink-exit", sender=remaining_ranks[0], block=True).payload
+                self._send(tag="shrink-end", payload=host_addr, dst=remaining_rank)
+        link_addr = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
 
-        return SocketCommunicator(name=name, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_addr=new_host_addr, token=token), remaining_ranks
+        return SocketCommunicator(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_socket=host_socket, token=token, timeout=self._timeout, startup_timeout=self._startup_timeout), remaining_ranks
 
 
     def split(self, *, name):
@@ -1225,49 +1196,45 @@ class SocketCommunicator(Communicator):
 
         # Create a new socket with a randomly-assigned port number.
         if name is not None:
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            host_socket.bind((self._host_addr.hostname, 0))
+            host_socket = socket.create_server((self._host_addr.hostname, 0))
             host, port = host_socket.getsockname()
-
-            my_name = name
-            my_host_addr = f"tcp://{host}:{port}"
+            host_addr = f"tcp://{host}:{port}"
         else:
-            my_name = None
-            my_host_addr = None
+            host_addr = None
 
         # Send names and addresses to rank 0.
-        self._send(tag="split-prepare", payload=(my_name, my_host_addr), dst=0)
+        self._send(tag="split-begin", payload=(name, host_addr), dst=0)
 
         # Collect name membership information from all players and compute new communicator parameters.
         if self.rank == 0:
-            messages = [self._receive(tag="split-prepare", sender=rank, block=True) for rank in self.ranks]
-            new_names = [message.payload[0] for message in messages]
-            new_host_addrs = [message.payload[1] for message in messages]
+            messages = [self._receive(tag="split-begin", sender=rank, block=True) for rank in self.ranks]
+            group_names = [message.payload[0] for message in messages]
+            group_host_addrs = [message.payload[1] for message in messages]
 
-            new_world_sizes = collections.Counter()
-            new_ranks = []
-            for new_name in new_names:
-                new_ranks.append(new_world_sizes[new_name])
-                new_world_sizes[new_name] += 1
+            group_world_sizes = collections.Counter()
+            group_ranks = []
+            for group_name in group_names:
+                group_ranks.append(group_world_sizes[group_name])
+                group_world_sizes[group_name] += 1
 
-            new_world_sizes = [new_world_sizes[new_name] for new_name in new_names]
+            group_world_sizes = [group_world_sizes[group_name] for group_name in group_names]
 
-            new_link_addrs = {}
-            for new_name, new_host_addr in zip(new_names, new_host_addrs):
-                if new_name not in new_link_addrs:
-                    new_link_addrs[new_name] = new_host_addr
-            new_link_addrs = [new_link_addrs[new_name] for new_name in new_names]
+            group_link_addrs = {}
+            for group_name, group_host_addr in zip(group_names, group_host_addrs):
+                if group_name not in group_link_addrs:
+                    group_link_addrs[group_name] = group_host_addr
+            group_link_addrs = [group_link_addrs[group_name] for group_name in group_names]
 
         # Send name, world_size, rank, and link_addr to all players.
         if self.rank == 0:
-            for dst, (new_name, new_world_size, new_rank, new_link_addr) in enumerate(zip(new_names, new_world_sizes, new_ranks, new_link_addrs)):
-                self._send(tag="split", payload=(new_name, new_world_size, new_rank, new_link_addr), dst=dst)
+            for dst, (group_name, group_world_size, group_rank, group_link_addr) in enumerate(zip(group_names, group_world_sizes, group_ranks, group_link_addrs)):
+                self._send(tag="split-end", payload=(group_name, group_world_size, group_rank, group_link_addr), dst=dst)
 
         # Collect name information.
-        new_name, new_world_size, new_rank, new_link_addr = self._receive(tag="split", sender=0, block=True).payload
+        group_name, group_world_size, group_rank, group_link_addr = self._receive(tag="split-end", sender=0, block=True).payload
         # Return a new communicator.
-        if new_name is not None:
-            return SocketCommunicator(name=new_name, world_size=new_world_size, rank=new_rank, link_addr=new_link_addr, host_socket=host_socket, timeout=self._timeout, setup_timeout=self._setup_timeout)
+        if group_name is not None:
+            return SocketCommunicator(name=group_name, world_size=group_world_size, rank=group_rank, link_addr=group_link_addr, host_socket=host_socket, timeout=self._timeout, startup_timeout=self._startup_timeout)
 
         return None
 
@@ -1290,12 +1257,12 @@ class SocketCommunicator(Communicator):
 
     @property
     def timeout(self):
-        """Amount of time allowed to elapse before blocking communications time-out.
+        """Amount of time allowed for communications to complete, in seconds.
 
         Returns
         -------
-        timeout: number or `None`.
-            The timeout in seconds, or `None` if there is no timeout.
+        timeout: :class:`numbers.Number`.
+            The timeout in seconds.
         """
         return self._timeout
 

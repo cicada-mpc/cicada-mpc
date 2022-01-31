@@ -56,6 +56,16 @@ def step_impl(context):
     numpy.testing.assert_almost_equal(exit_delta, 0, decimal=2)
 
 
+@when(u'the players allgather {values}')
+def step_impl(context, values):
+    values = eval(values)
+
+    def operation(communicator, values):
+        return communicator.all_gather(value=values[communicator.rank])
+
+    context.result = context.communicator_cls.run(world_size=context.players, fn=operation, args=(values,))
+
+
 @when(u'player {} broadcasts {}')
 def step_impl(context, src, value):
     src = eval(src)
@@ -178,29 +188,145 @@ def step_impl(context, count):
         context.communicator_cls.run(world_size=context.players, fn=operation)
 
 
-@when(u'the players split based on names {names}')
+@when(u'the players split the communicator with names {names}')
 def step_impl(context, names):
     names = eval(names)
 
     def operation(communicator, groups):
-        newcomm = communicator.split(name=groups[communicator.rank])
-        if newcomm is not None:
-            return newcomm.name, newcomm.world_size
+        comm = communicator.split(name=groups[communicator.rank])
+        if comm is not None:
+            return {"name": comm.name, "world_size": comm.world_size}
         else:
-            return None, None
+            return {}
 
-    results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(names,))
-    context.names, context.world_sizes = zip(*results)
-
-
-@then(u'the resulting communicators should have {world_size} players')
-def step_impl(context, world_size):
-    world_size = eval(world_size)
-    test.assert_equal(list(context.world_sizes), list(world_size))
+    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(names,))
 
 
-@then(u'the resulting communicator names should match {names}')
+@then(u'the new communicator names should match {names}')
 def step_impl(context, names):
     names = eval(names)
-    test.assert_equal(list(context.names), list(names))
+    test.assert_equal([result.get("name") for result in context.results], list(names))
+
+
+@then(u'the new communicator world sizes should match {world_sizes}')
+def step_impl(context, world_sizes):
+    world_sizes = eval(world_sizes)
+    test.assert_equal([result.get("world_size") for result in context.results], list(world_sizes))
+
+
+@when(u'players {group} create a new communicator with world size {world_size} and name {name} and token {token}')
+def step_impl(context, group, world_size, name, token):
+    group = eval(group)
+    world_size = eval(world_size)
+    name = eval(name)
+    token = eval(token)
+
+    def operation(communicator, group, world_size, name, token):
+        if communicator.rank in group:
+            comm = cicada.communicator.SocketCommunicator(
+                name=name,
+                world_size=world_size,
+                rank=communicator.rank,
+                host_addr="tcp://127.0.0.1:25000" if communicator.rank == group[0] else "tcp://127.0.0.1",
+                link_addr="tcp://127.0.0.1:25000",
+                token=token,
+                )
+            return {"name": comm.name, "world_size": comm.world_size}
+        return {}
+
+    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(group, world_size, name, token))
+
+
+@when(u'players {group} create a new communicator with world size {world_size} and name {name} and tokens {tokens}')
+def step_impl(context, group, world_size, name, tokens):
+    group = eval(group)
+    world_size = eval(world_size)
+    name = eval(name)
+    tokens = eval(tokens)
+
+    def operation(communicator, group, world_size, name):
+        if communicator.rank in group:
+            comm = cicada.communicator.SocketCommunicator(
+                name=name,
+                world_size=world_size,
+                rank=communicator.rank,
+                host_addr="tcp://127.0.0.1:25000" if communicator.rank == group[0] else "tcp://127.0.0.1",
+                link_addr="tcp://127.0.0.1:25000",
+                token=tokens[group.index(communicator.rank)]
+                )
+            return {"name": comm.name, "world_size": comm.world_size}
+        return {}
+
+    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(group, world_size, name))
+
+
+@then(u'players {players} should timeout')
+def step_impl(context, players):
+    players = eval(players)
+    for player in players:
+        result = context.results[player]
+        test.assert_is_instance(result, cicada.communicator.socket.Failed)
+        test.assert_is_instance(result.exception, cicada.communicator.socket.Timeout)
+
+
+@then(u'players {players} should fail with TokenMismatch errors')
+def step_impl(context, players):
+    players = eval(players)
+    for player in players:
+        result = context.results[player]
+        test.assert_is_instance(result, cicada.communicator.socket.Failed)
+        test.assert_is_instance(result.exception, cicada.communicator.socket.TokenMismatch)
+
+
+@then(u'shrinking the communicator under normal conditions will return the same players in the same rank order')
+def step_impl(context):
+    def operation(communicator):
+        comm, newranks = communicator.shrink(name="split")
+        return(newranks)
+
+    results = context.communicator_cls.run(world_size=context.players, fn=operation)
+    for result in results:
+        test.assert_equal(result, list(range(context.players)))
+
+
+@when(u'players {group} shrink the communicator with name {name}')
+def step_impl(context, group, name):
+    group = eval(group)
+    name = eval(name)
+    def operation(communicator, group, name):
+        if communicator.rank in group:
+            comm, newranks = communicator.shrink(name=name)
+            return {"name": comm.name, "world_size": comm.world_size}
+        return {}
+
+    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(group, name))
+
+
+@when(u'player {player} revokes the communicator')
+def step_impl(context, player):
+    player = eval(player)
+    def operation(communicator, player):
+        while True:
+            try:
+                value = communicator.broadcast(src=0, value="foo")
+                if communicator.rank == player:
+                    communicator.revoke()
+            except cicada.communicator.socket.Timeout as e:
+                logging.error(f"Player {communicator.rank} exception: {e}")
+                continue
+            except Exception as e:
+                logging.error(f"Player {communicator.rank} exception: {e}")
+                raise e
+
+    context.results = context.communicator_cls.run(world_size=context.players, fn=operation, args=(player,))
+
+
+@then(u'players {players} should fail with Revoked errors')
+def step_impl(context, players):
+    players = eval(players)
+    for player in players:
+        result = context.results[player]
+        test.assert_is_instance(result, cicada.communicator.socket.Failed)
+        test.assert_is_instance(result.exception, cicada.communicator.socket.Revoked)
+
 
