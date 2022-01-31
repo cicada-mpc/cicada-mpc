@@ -20,48 +20,46 @@ import numpy
 
 from cicada.communicator.interface import Communicator
 
-def secret_input(*, protocol, encoder, src, prompt=None, dtype=float):
-    """Interactive prompt for a secret.
+def secret_input(*, communicator, src, prompt=None, dtype=float, timeout=300):
+    """Prompt one user for a secret.
 
     Note
     ----
     Although this function only prompts one player for input, it is a
     collective operation that *must* be called by all players that are members
-    of the communicator owned by `protocol`.
+    of `communicator`.
 
     Parameters
     ----------
-    protocol: any protocol object, required
-        Generates shares of the the secret value.
+    communicator: :class:`~cicada.communicator.interface.Communicator`, required
+        Used to coordinate among players.
     src: int, required
         Rank of the player who will be prompted for a secret.
-    prompt: str, optional
+    prompt: :class:`str`, optional
         Override the default interactive prompt.  See :func:`input`
         for usage.
     dtype: callable, optional
-        Function for parsing user input into a secret-sharable value.  The
-        function must take zero or one argument.  In the zero argument case, it
-        should return a value which will be ignored.  In the one argument case,
-        it must accept a string and return a scalar type that can be encoded
-        and secret shared.  The builtin functions :func:`int` and :func:`float`
-        are useful examples that provide this behavior.
+        Function for parsing user input into a final value.  The function must
+        take one :class:`str` argument and return a result.  The builtin
+        functions :func:`int`, :func:`float`, and :func:`str` are useful
+        examples.
+    timeout: :class:`numbers.Number`, optional
+        Maximum time to wait for user input, in seconds. Defaults to 300 seconds.
 
     Returns
     -------
-    share:
-        A share of the secret input.  The type of the returned value will depend
-        on the choice of protocol.
+    value:
+        For player `src`: the secret input.  For all other players: :any:`None`.
     """
-    if protocol.communicator.rank == src:
+    if communicator.rank == src:
         if prompt is None:
-            prompt = f"Player {protocol.communicator.rank} secret: "
+            prompt = f"Enter a secret: "
         secret = numpy.array(dtype(input(prompt)))
     else:
-        secret = numpy.array(dtype())
+        secret = None
 
-    # Wait indefinitely for user input.
-    with protocol.communicator.override(timeout=None):
-        protocol.communicator.barrier()
+    # Wait for user input.
+    with communicator.override(timeout=timeout):
+        communicator.barrier()
 
-    # Secret-share the input.
-    return protocol.share(src=src, secret=encoder.encode(secret), shape=())
+    return secret

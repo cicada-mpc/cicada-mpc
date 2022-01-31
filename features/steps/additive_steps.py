@@ -16,7 +16,6 @@
 
 import functools
 import logging
-import unittest.mock
 
 from behave import *
 import numpy
@@ -72,20 +71,6 @@ def step_impl(context):
         for j in range(i+1, len(context.shares)):
             with numpy.testing.assert_raises(AssertionError):
                 numpy.testing.assert_almost_equal(context.shares[i], context.shares[j], decimal=4)
-
-
-@when(u'player {} receives secret input {}')
-def step_impl(context, player, text):
-    player = eval(player)
-    text = eval(text)
-
-    def operation(communicator, player, text):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-        cicada.interactive.input = unittest.mock.MagicMock(return_value=text)
-        share = cicada.interactive.secret_input(protocol=protocol, encoder=protocol.encoder, src=player)
-        return protocol.encoder.decode(protocol.reveal(share))
-
-    context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player, text))
 
 
 @given(u'secret value {}')

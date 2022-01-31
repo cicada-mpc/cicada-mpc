@@ -24,20 +24,6 @@ Feature: Additive Protocol
         Then the shares should never be repeated
 
 
-    Scenario Outline: Secret Input
-        Given <players> players
-        When player <player> receives secret input <input>
-        Then the group should return <result>
-
-        Examples:
-        | players |  player | input     | result            |
-        | 1       |  0      | "1.2"     | [1.2] * 1         |
-        | 2       |  0      | "1.2"     | [1.2] * 2         |
-        | 2       |  1      | "1.2"     | [1.2] * 2         |
-        | 3       |  1      | "-5"      | [-5] * 3          |
-        | 4       |  2      | "-13.7"   | [-13.7] * 4       |
-
-
     Scenario Outline: Random Round Trip Sharing
         Given <players> players
         When player <player> shares and reveals <count> random secrets, the revealed secrets should match the originals
