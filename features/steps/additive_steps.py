@@ -372,3 +372,30 @@ def step_impl(context):
         one_share = protocol.untruncated_multiply(a_share, b_share)
         return protocol.reveal(one_share)
     context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
+
+
+@given(u'binary operation less')
+def step_impl(context):
+    def operation(communicator, a, b):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+        a = protocol.encoder.encode(numpy.array(a))
+        a = protocol.share(src=0, secret=a, shape=a.shape)
+        b = protocol.encoder.encode(numpy.array(b))
+        b = protocol.share(src=0, secret=b, shape=b.shape)
+        c = protocol.less(a, b)
+        return protocol.reveal(c)
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
+
+
+@given(u'unary operation relu')
+def step_impl(context):
+    def operation(communicator, a):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+        a = numpy.array(a)
+        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
+        relu_share = protocol.relu(a_share)
+        return protocol.encoder.decode(protocol.reveal(relu_share))
+    context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
+

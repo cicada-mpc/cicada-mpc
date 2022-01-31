@@ -355,3 +355,47 @@ Feature: Additive Protocol
         | 3       | multiplicative_inverse  | -75                               | 10    | [[1] * 3] * 10              |
         | 3       | multiplicative_inverse  | -1000                             | 10    | [[1] * 3] * 10              |
         | 3       | multiplicative_inverse  | [[35.125,65.25],[73.5, -3.0625]]  | 10    | [[[[1,1],[1,1]]] * 3] * 10  |
+
+
+    Scenario Outline: Less
+        Given <players> players
+        And binary operation less 
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players  | a             | b              | count | result                          |
+        | 3        | 0             | 0              | 10    | [[0] * 3] * 10                  |
+        | 3        | 0             | 100            | 10    | [[1] * 3] * 10                  |
+        | 3        | 0             | -100           | 10    | [[0] * 3] * 10                  |
+        | 3        | 0             | 2**-16         | 10    | [[1] * 3] * 10                  |
+        | 3        | 0             | -2**-16        | 10    | [[0] * 3] * 10                  |
+        | 3        | -100          | 100            | 10    | [[1] * 3] * 10                  |
+        | 3        | 100           | 100            | 10    | [[0] * 3] * 10                  |
+        | 3        | -100          | -100           | 10    | [[0] * 3] * 10                  |
+        | 3        | 2**16         | 2**16-1        | 10    | [[0] * 3] * 10                  |
+        | 3        | 2**16-2       | 2**16-1        | 10    | [[1] * 3] * 10                  |
+        | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | 10    | [[[[1,0],[1,0]]] * 3] * 10      |
+
+
+    Scenario Outline: ReLU 
+        Given <players> players
+        And unary operation <operation>
+        And operand <a>
+        When the unary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players | operation | a                       | count | result                          |
+        | 2       | relu      | 1                       | 10    | [[1] * 2] * 10                  |
+        | 2       | relu      | 1.1                     | 10    | [[1.1] * 2] * 10                |
+        | 2       | relu      | -2                      | 10    | [[0] * 2] * 10                  |
+        | 2       | relu      | -2.1                    | 10    | [[0] * 2] * 10                  |
+        | 2       | relu      | [[0, 3.4],[-1234,1234]] | 10    | [[[[0,3.4],[0,1234]]] * 2] * 10 |
+        | 3       | relu      | 1                       | 10    | [[1] * 3] * 10                  |
+        | 3       | relu      | 1.1                     | 10    | [[1.1] * 3] * 10                |
+        | 3       | relu      | -2                      | 10    | [[0] * 3] * 10                  |
+        | 3       | relu      | -2.1                    | 10    | [[0] * 3] * 10                  |
+        | 3       | relu      | [[0, 3.4],[-1234,1234]] | 10    | [[[[0,3.4],[0,1234]]] * 3] * 10 |
+
