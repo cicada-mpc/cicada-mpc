@@ -227,10 +227,10 @@ class SocketCommunicator(Communicator):
         communicator.  The provided socket *must* be created using `AF_INET`
         and `SOCK_STREAM`, and be bound to the same address and port specified
         by `host_addr`.
-    timeout: number or `None`
-        Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
-    startup_timeout: number or `None`
-        Maximum time allowed to start the communicator in seconds, or `None` to disable timeouts during setup.
+    timeout: number
+        Maximum time to wait for communication to complete, in seconds.
+    startup_timeout: number
+        Maximum time to wait for communicator initialization, in seconds.
     """
 
     _tags = [
@@ -313,10 +313,10 @@ class SocketCommunicator(Communicator):
         if host_socket is not None and host_socket.getsockname()[1] != host_addr.port:
             raise ValueError(f"host_socket port must match host_addr.") # pragma: no cover
 
-        if not isinstance(timeout, (numbers.Number, type(None))):
-            raise ValueError(f"timeout must be a number or None, got {timeout} instead.") # pragma: no cover
-        if not isinstance(startup_timeout, (numbers.Number, type(None))):
-            raise ValueError(f"startup_timeout must be a number or None, got {startup_timeout} instead.") # pragma: no cover
+        if not isinstance(timeout, numbers.Number):
+            raise ValueError(f"timeout must be a number, got {timeout} instead.") # pragma: no cover
+        if not isinstance(startup_timeout, numbers.Number):
+            raise ValueError(f"startup_timeout must be a number, got {startup_timeout} instead.") # pragma: no cover
 
         # Setup internal state.
         self._name = name
