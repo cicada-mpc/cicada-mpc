@@ -442,3 +442,35 @@ Feature: Additive Protocol
         | 3       | 5       | 1.1         | 1      | [3.9] * 3                                 |
         | 4       | 5       | 1.5         | 1      | [3.5] * 4                                 |
         | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
+
+
+    Scenario Outline: Logical AND
+        Given <players> players
+        And binary operation logical_and 
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players  | a             | b              | count | result                          |
+        | 3        | 0             | 0              | 10    | [[0] * 3] * 10                  |
+        | 3        | 0             | 1              | 10    | [[0] * 3] * 10                  |
+        | 3        | 1             | 0              | 10    | [[0] * 3] * 10                  |
+        | 3        | 1             | 1              | 10    | [[1] * 3] * 10                  |
+
+
+    Scenario Outline: Private Public Power 
+        Given <players> players
+        And binary operation private_public_power 
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players  | a             | b              | count | result                          |
+        | 3        | 0             | 5              | 10    | [[0] * 3] * 10                  |
+        | 3        | 1             | 5              | 10    | [[1] * 3] * 10                  |
+        | 3        | 2             | 16             | 10    | [[65536] * 3] * 10                  |
+        | 3        | -1            | 4              | 10    | [[1] * 3] * 10                  |
+        | 3        | -2            | 16             | 10    | [[65536] * 3] * 10                  |
+        | 3        | -1            | 5              | 10    | [[-1] * 3] * 10                  |
