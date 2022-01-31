@@ -879,23 +879,36 @@ class SocketCommunicator(Communicator):
 
 
     @contextlib.contextmanager
-    def override(self, *, timeout):
-        """Temporarily change the timeout value.
+    def override(self, *, timeout=None):
+        """Temporarily change communicator properties.
+
+        Use :meth:`override` to temporarily modify communicator behavior in a with statement::
+
+            with communicator.override(timeout=10):
+                # Do stuff with the new timeout here.
+            # The timeout will return to its previous value here.
 
         Parameters
         ----------
-        timeout: number or `None`
-            The timeout for subsequent send / receive operations, in seconds, or `None` to disable timeouts completely.
+        timeout: :class:`numbers.Number`, optional
+            If specified, override the maximum time for communications to complete, in seconds.
 
         Returns
         -------
-        A context manager object that will restore the original timeout value when exited.
+        context:
+            A context manager object that will restore the communicator state when exited.
         """
-        original_timeout, self._timeout = self._timeout, timeout
+        original_context = {
+            "timeout": self._timeout,
+        }
+
         try:
-            yield original_timeout
+            if timeout is not None:
+                self._timeout = timeout
+            yield original_context
         finally:
-            self._timeout = original_timeout
+            if timeout is not None:
+                self._timeout = original_context["timeout"]
 
 
     @property
