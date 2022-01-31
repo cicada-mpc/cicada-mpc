@@ -336,4 +336,22 @@ Feature: Additive Protocol
         | 3        | 144409            | 125              | 10    | [[144409 % 125] * 2] * 10       |
         | 3        | 144409            | 126              | 10    | [[144409 % 126] * 2] * 10       |
 
+    Scenario Outline: Multiplicative Inverse
+        Given <players> players
+        And unary operation <operation>
+        And operand <a>
+        When the unary operation is executed <count> times
+        Then the group should return <result>
 
+        Examples:
+        | players | operation               | a                                 | count | result                      |
+        | 2       | multiplicative_inverse  | 2                                 | 10    | [[1] * 2] * 10              |
+        | 2       | multiplicative_inverse  | 100                               | 10    | [[1] * 2] * 10              |
+        | 2       | multiplicative_inverse  | -75                               | 10    | [[1] * 2] * 10              |
+        | 2       | multiplicative_inverse  | -1000                             | 10    | [[1] * 2] * 10              |
+        | 2       | multiplicative_inverse  | [[35.125,65.25],[73.5, -3.0625]]  | 10    | [[[[1,1],[1,1]]] * 2] * 10  |
+        | 3       | multiplicative_inverse  | 2                                 | 10    | [[1] * 3] * 10              |
+        | 3       | multiplicative_inverse  | 100                               | 10    | [[1] * 3] * 10              |
+        | 3       | multiplicative_inverse  | -75                               | 10    | [[1] * 3] * 10              |
+        | 3       | multiplicative_inverse  | -1000                             | 10    | [[1] * 3] * 10              |
+        | 3       | multiplicative_inverse  | [[35.125,65.25],[73.5, -3.0625]]  | 10    | [[[[1,1],[1,1]]] * 3] * 10  |

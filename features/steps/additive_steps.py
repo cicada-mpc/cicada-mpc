@@ -361,3 +361,14 @@ def step_impl(context, bits, src, seed):
         test.assert_equal(secret, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
 
 
+@given(u'unary operation multiplicative_inverse')
+def step_impl(context):
+    def operation(communicator, a):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+        a = numpy.array(a)
+        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
+        b_share = protocol.multiplicative_inverse(a_share)
+        one_share = protocol.untruncated_multiply(a_share, b_share)
+        return protocol.reveal(one_share)
+    context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
