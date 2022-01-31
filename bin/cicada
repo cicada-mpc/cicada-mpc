@@ -130,7 +130,7 @@ subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start
 subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
 subparser.add_argument("--host-addr", default="127.0.0.1", help="Host address. Default: %(default)s")
 subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
-subparser.add_argument("--link-port", type=int, required=True, help="Link port.")
+subparser.add_argument("--link-port", type=int, default=25252, help="Link port.")
 subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 subparser.add_argument("program", help="Program to execute.")
 subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
