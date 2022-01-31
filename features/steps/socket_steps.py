@@ -330,3 +330,50 @@ def step_impl(context, players):
         test.assert_is_instance(result.exception, cicada.communicator.socket.Revoked)
 
 
+@when(u'the communicator timeout is permanently changed to {timeout}')
+def step_impl(context, timeout):
+    timeout = eval(timeout)
+
+    def operation(communicator, timeout):
+        timeout1 = communicator.timeout
+        communicator.timeout = timeout
+        timeout2 = communicator.timeout
+
+        return [timeout1, timeout2]
+
+    context.timeouts = numpy.array(context.communicator_cls.run(world_size=context.players, fn=operation, args=(timeout,)))
+
+
+@when(u'the communicator timeout is temporarily changed to {timeout}')
+def step_impl(context, timeout):
+    timeout = eval(timeout)
+
+    def operation(communicator, timeout):
+        timeout1 = communicator.timeout
+        with communicator.override(timeout=timeout):
+            timeout2 = communicator.timeout
+        timeout3 = communicator.timeout
+
+        return [timeout1, timeout2, timeout3]
+
+    context.timeouts = numpy.array(context.communicator_cls.run(world_size=context.players, fn=operation, args=(timeout,)))
+
+
+@then(u'the initial communicator timeouts should match {timeouts}')
+def step_impl(context, timeouts):
+    timeouts = eval(timeouts)
+    numpy.testing.assert_array_equal(timeouts, context.timeouts[:, 0])
+
+
+@then(u'the temporary communicator timeouts should match {timeouts}')
+def step_impl(context, timeouts):
+    timeouts = eval(timeouts)
+    numpy.testing.assert_array_equal(timeouts, context.timeouts[:, 1])
+
+
+@then(u'the final communicator timeouts should match {timeouts}')
+def step_impl(context, timeouts):
+    timeouts = eval(timeouts)
+    numpy.testing.assert_array_equal(timeouts, context.timeouts[:, -1])
+
+

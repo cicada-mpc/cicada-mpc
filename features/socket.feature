@@ -225,3 +225,27 @@ Feature: SocketCommunicator
         | 4       | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
 
 
+    Scenario Outline: Permanent Timeout Changes
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When the communicator timeout is permanently changed to <timeout>
+        Then the initial communicator timeouts should match <initial>
+        And the final communicator timeouts should match <final>
+
+        Examples:
+        | players | timeout | initial | final    |
+        | 3       | 10      | [5] * 3 | [10] * 3 |
+
+
+    Scenario Outline: Temporary Timeout Changes
+        Given <players> players
+        And cicada.communicator.SocketCommunicator
+        When the communicator timeout is temporarily changed to <timeout>
+        Then the initial communicator timeouts should match <initial>
+        And the temporary communicator timeouts should match <temporary>
+        And the final communicator timeouts should match <final>
+
+        Examples:
+        | players | timeout | initial | temporary | final   |
+        | 3       | 10      | [5] * 3 | [10] * 3  | [5] * 3 |
+
