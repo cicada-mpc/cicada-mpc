@@ -15,8 +15,8 @@ def log_command(command, env, log):
     log.info(f"  Environment:")
     log.info(f"    WORLD_SIZE={env['WORLD_SIZE']}")
     log.info(f"    RANK={env['RANK']}")
-    log.info(f"    LINK_ADDR={env['LINK_ADDR']}")
     log.info(f"    HOST_ADDR={env['HOST_ADDR']}")
+    log.info(f"    LINK_ADDR={env['LINK_ADDR']}")
 
 
 def basic_frontend(arguments, players, log):
@@ -66,10 +66,10 @@ def xterm_frontend(arguments, players, log):
 
 def get_environment(world_size, rank, host_addr, link_addr):
     env = os.environ.copy()
-    env["WORLD_SIZE"] = str(arguments.world_size)
-    env["RANK"] = str(arguments.rank)
-    env["LINK_ADDR"] = link_addr
-    env["HOST_ADDR"] = host_addr
+    env["WORLD_SIZE"] = str(world_size)
+    env["RANK"] = str(rank)
+    env["LINK_ADDR"] = str(link_addr)
+    env["HOST_ADDR"] = str(host_addr)
     return env
 
 
@@ -119,15 +119,27 @@ frontends = {
 }
 
 
-parser = argparse.ArgumentParser(description="Run a Cicada MPC program.")
+parser = argparse.ArgumentParser(description="Cicada MPC tools.")
 parser.add_argument("--debug", action="store_true", help="Verbose logging output.")
 subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
+
+# run
+subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
+subparser.add_argument("--bind-public", action="store_true", help="Use a public host address.")
+subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
+subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
+subparser.add_argument("--host-addr", default="127.0.0.1", help="Host address. Default: %(default)s")
+subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
+subparser.add_argument("--link-port", type=int, required=True, help="Link port.")
+subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+subparser.add_argument("program", help="Program to execute.")
+subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
 
 # start
 subparser = subparsers.add_parser("start", help="Start one Cicada process.")
 subparser.add_argument("--bind-public", action="store_true", help="Use a public host address.")
 subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
-subparser.add_argument("--frontend", "-f", choices=["basic", "xterm"], default="basic", help="Frontend to execute processes.")
+subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
 subparser.add_argument("--host-addr", default="127.0.0.1", help="Host address. Default: %(default)s")
 subparser.add_argument("--host-port", type=int, default=None, help="Host port. Default: randomly chosen port")
 subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
@@ -152,7 +164,23 @@ if __name__ == "__main__":
     log = logging.getLogger()
     log.name = os.path.basename(sys.argv[0])
 
-    # Start
+    # run
+    if arguments.command == "run":
+        host = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
+
+        host_addrs = []
+        for rank in range(arguments.world_size):
+            host_addr = f"tcp://{host}:{arguments.link_port}" if rank == 0 else f"tcp://{host}"
+            host_addrs.append(host_addr)
+
+        players = []
+        for rank, host_addr in enumerate(host_addrs):
+            players.append((arguments.world_size, rank, host_addr, host_addrs[0]))
+
+        frontend = frontends[arguments.frontend]
+        frontend(arguments, players, log)
+
+    # start
     if arguments.command == "start":
         players = [get_player(arguments)]
         frontend = frontends[arguments.frontend]
