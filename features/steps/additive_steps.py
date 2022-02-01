@@ -126,6 +126,18 @@ def step_impl(context, player):
     context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
 
+@then(u'the group should return {} to within {} digits')
+def step_impl(context, result, digits_accuracy):
+    result = numpy.array(eval(result))
+    digits_accuracy = numpy.array(eval(digits_accuracy))
+    group = numpy.array(context.result)
+
+    if issubclass(result.dtype.type, numpy.number) and issubclass(group.dtype.type, numpy.number):
+        numpy.testing.assert_almost_equal(result, group, decimal=digits_accuracy)
+    else:
+        numpy.testing.assert_array_equal(result, group)
+
+
 @then(u'the group should return {}')
 def step_impl(context, result):
     result = numpy.array(eval(result))
@@ -446,5 +458,21 @@ def step_impl(context):
         a = protocol.share(src=0, secret=a, shape=a.shape)
         b = numpy.array(b)
         c = protocol.private_public_power(a, b)
+        return protocol.encoder.decode(protocol.reveal(c))
+    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
+
+
+
+@given(u'binary operation untruncated_private_divide')
+def step_impl(context):
+    def operation(communicator, a, b):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+        a = protocol.encoder.encode(numpy.array(a))
+        a = protocol.share(src=0, secret=a, shape=a.shape)
+        b = protocol.encoder.encode(numpy.array(b))
+        b = protocol.share(src=0, secret=b, shape=b.shape)
+        c = protocol.untruncated_private_divide(a, b)
+        c = protocol.truncate(c)
         return protocol.encoder.decode(protocol.reveal(c))
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)

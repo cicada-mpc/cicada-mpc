@@ -470,7 +470,24 @@ Feature: Additive Protocol
         | players  | a             | b              | count | result                          |
         | 3        | 0             | 5              | 10    | [[0] * 3] * 10                  |
         | 3        | 1             | 5              | 10    | [[1] * 3] * 10                  |
-        | 3        | 2             | 16             | 10    | [[65536] * 3] * 10                  |
+        | 3        | 2             | 16             | 10    | [[65536] * 3] * 10              |
         | 3        | -1            | 4              | 10    | [[1] * 3] * 10                  |
-        | 3        | -2            | 16             | 10    | [[65536] * 3] * 10                  |
-        | 3        | -1            | 5              | 10    | [[-1] * 3] * 10                  |
+        | 3        | -2            | 16             | 10    | [[65536] * 3] * 10              |
+        | 3        | -1            | 5              | 10    | [[-1] * 3] * 10                 |
+
+    Scenario Outline: Private Divide
+        Given <players> players
+        And binary operation untruncated_private_divide
+        And operands <a> and <b>
+        When the binary operation is executed <count> times
+        Then the group should return <result> to within 3 digits
+
+        Examples:
+        | players  | a             | b              | count | result                          |
+        | 3        | 0             | 5              | 10    | [[0] * 3] * 10                  |
+        | 3        | 1             | 5              | 10    | [[.2] * 3] * 10                 |
+        | 3        | 2             | 16             | 10    | [[1/8] * 3] * 10                |
+        | 3        | 37            | 1              | 10    | [[37.0] * 3] * 10               |
+        | 3        | -1            | 5              | 10    | [[-.2] * 3] * 10                |
+        | 3        | 2             | -16            | 10    | [[-1/8] * 3] * 10               |
+        | 3        | -37           | 1              | 10    | [[-37.0] * 3] * 10              |
