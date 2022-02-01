@@ -145,7 +145,6 @@ frontends = {
 
 
 parser = argparse.ArgumentParser(description="Cicada MPC tools.")
-parser.add_argument("--debug", action="store_true", help="Verbose logging output.")
 subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
 
 # run
@@ -186,7 +185,7 @@ if __name__ == "__main__":
     if arguments.command is None:
         parser.print_help()
 
-    logging.basicConfig(level=logging.DEBUG if arguments.debug else logging.INFO)
+    logging.basicConfig(level=logging.INFO)
     log = logging.getLogger()
     log.name = os.path.basename(sys.argv[0])
 
