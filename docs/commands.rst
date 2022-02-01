@@ -24,4 +24,8 @@ cicada-exec
     :func: parser
     :prog: cicada-exec
 
+    .. warning::
+
+        .. deprecated:: 0.3.0
+           Use :ref:`cicada` instead.
 

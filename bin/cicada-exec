@@ -30,6 +30,8 @@ if __name__ == "__main__":
     log = logging.getLogger()
     log.name = os.path.basename(sys.argv[0])
 
+    log.warning(f"'cicada-exec' is deprecated and will be removed in a future release. Use the 'cicada' command instead.\n")
+
     def get_addr(*, addr=None, port=None, public=False):
         if addr is None:
             addr = cicada.bind.public_ip() if public else cicada.bind.loopback_ip()
