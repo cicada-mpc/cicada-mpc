@@ -10,6 +10,15 @@ import sys
 import cicada
 
 
+def get_environment(world_size, rank, host_addr, link_addr):
+    env = os.environ.copy()
+    env["WORLD_SIZE"] = str(world_size)
+    env["RANK"] = str(rank)
+    env["LINK_ADDR"] = str(link_addr)
+    env["HOST_ADDR"] = str(host_addr)
+    return env
+
+
 def log_command(command, env, log):
     log.info(f"Command: {' '.join(command)}")
     log.info(f"  Environment:")
@@ -62,55 +71,6 @@ def xterm_frontend(arguments, players, log):
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         for process in processes:
             process.wait()
-
-
-def get_environment(world_size, rank, host_addr, link_addr):
-    env = os.environ.copy()
-    env["WORLD_SIZE"] = str(world_size)
-    env["RANK"] = str(rank)
-    env["LINK_ADDR"] = str(link_addr)
-    env["HOST_ADDR"] = str(host_addr)
-    return env
-
-
-def get_player(arguments):
-    world_size = arguments.world_size
-    if world_size < 1:
-        raise RuntimeError("--world-size must be greater than zero.")
-
-    rank = arguments.rank
-
-    if rank >= world_size:
-        raise RuntimeError("--rank must be less than --world-size.")
-
-    if rank == 0:
-        if arguments.host_port is None:
-            raise RuntimeError("--host-port must be specified when --rank is 0.")
-        if arguments.link_addr is not None:
-            raise RuntimeError("--link-addr cannot be specified when --rank is 0.")
-        if arguments.link_port is not None:
-            raise RuntimeError("--link-port cannot be specified when --rank is 0.")
-
-        addr = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
-        port = arguments.host_port
-        host_addr = f"tcp://{addr}:{port}"
-        link_addr = host_addr
-    else:
-        if arguments.link_port is None:
-            raise RuntimeError("--link-port must be specified when --rank is not 0.")
-
-        addr = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
-        port = arguments.host_port
-        if port is None:
-            host_addr = f"tcp://{addr}"
-        else:
-            host_addr = f"tcp://{addr}:{port}"
-
-        addr = "127.0.0.1" if arguments.link_addr is None else arguments.link_addr
-        port = arguments.link_port
-        link_addr = f"tcp://{addr}:{port}"
-
-    return world_size, rank, host_addr, link_addr
 
 
 frontends = {
@@ -182,7 +142,43 @@ if __name__ == "__main__":
 
     # start
     if arguments.command == "start":
-        players = [get_player(arguments)]
+        world_size = arguments.world_size
+        if world_size < 1:
+            raise RuntimeError("--world-size must be greater than zero.")
+
+        rank = arguments.rank
+
+        if rank >= world_size:
+            raise RuntimeError("--rank must be less than --world-size.")
+
+        if rank == 0:
+            if arguments.host_port is None:
+                raise RuntimeError("--host-port must be specified when --rank is 0.")
+            if arguments.link_addr is not None:
+                raise RuntimeError("--link-addr cannot be specified when --rank is 0.")
+            if arguments.link_port is not None:
+                raise RuntimeError("--link-port cannot be specified when --rank is 0.")
+
+            addr = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
+            port = arguments.host_port
+            host_addr = f"tcp://{addr}:{port}"
+            link_addr = host_addr
+        else:
+            if arguments.link_port is None:
+                raise RuntimeError("--link-port must be specified when --rank is not 0.")
+
+            addr = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
+            port = arguments.host_port
+            if port is None:
+                host_addr = f"tcp://{addr}"
+            else:
+                host_addr = f"tcp://{addr}:{port}"
+
+            addr = "127.0.0.1" if arguments.link_addr is None else arguments.link_addr
+            port = arguments.link_port
+            link_addr = f"tcp://{addr}:{port}"
+
+        players = [(world_size, rank, host_addr, link_addr)]
         frontend = frontends[arguments.frontend]
         frontend(arguments, players, log)
 
