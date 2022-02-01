@@ -50,14 +50,45 @@ def basic_frontend(arguments, players, log):
             process.wait()
 
 
-def tmux_frontend(arguments, players, log):
+def tmux_panes_frontend(arguments, players, log):
     command = []
     for world_size, rank, host_addr, link_addr in players:
         if rank == 0:
-            #command += ["tmux", "new-session", "-s", "cicada"]
             command += ["tmux", "new-session"]
         else:
-            command += [";", "new-window"]
+            command += [";", "split-window", "-v", "-d"]
+
+        command += ["-e", f"WORLD_SIZE={world_size}"]
+        command += ["-e", f"RANK={rank}"]
+        command += ["-e", f"HOST_ADDR={host_addr}"]
+        command += ["-e", f"LINK_ADDR={link_addr}"]
+        command += [sys.executable]
+        if arguments.inspect:
+            command += ["-i"]
+        command += [arguments.program]
+        command += arguments.args
+
+    command += [";", "select-layout", arguments.tmux_layout]
+
+    log.info(f"Command: {' '.join(command)}")
+
+    processes = []
+    if not arguments.dry_run:
+        processes.append(subprocess.Popen(command))
+
+    if not arguments.dry_run:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        for process in processes:
+            process.wait()
+
+
+def tmux_windows_frontend(arguments, players, log):
+    command = []
+    for world_size, rank, host_addr, link_addr in players:
+        if rank == 0:
+            command += ["tmux", "new-session"]
+        else:
+            command += [";", "new-window", "-d"]
 
         command += ["-n", f"rank-{rank}"]
         command += ["-e", f"WORLD_SIZE={world_size}"]
@@ -70,7 +101,6 @@ def tmux_frontend(arguments, players, log):
         command += [arguments.program]
         command += arguments.args
 
-        #log_command(command, env, log)
     log.info(f"Command: {' '.join(command)}")
 
     processes = []
@@ -108,7 +138,8 @@ def xterm_frontend(arguments, players, log):
 
 frontends = {
     "basic": basic_frontend,
-    "tmux": tmux_frontend,
+    "tmux": tmux_panes_frontend,
+    "tmux-windows": tmux_windows_frontend,
     "xterm": xterm_frontend,
 }
 
@@ -125,6 +156,7 @@ subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="ba
 subparser.add_argument("--host-addr", default="127.0.0.1", help="Host address. Default: %(default)s")
 subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
 subparser.add_argument("--link-port", type=int, default=25252, help="Link port.")
+subparser.add_argument("--tmux-layout", default="even-vertical", choices=["even-horizontal", "even-vertical", "tiled"], help="Pane layout for the tmux frontend. Default: %(default)s")
 subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 subparser.add_argument("program", help="Program to execute.")
 subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
