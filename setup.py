@@ -52,7 +52,6 @@ setup(
     },
     scripts=[
         "bin/cicada",
-        "bin/cicada-exec",
     ],
     version=re.search(
         r"^__version__ = ['\"]([^'\"]*)['\"]",

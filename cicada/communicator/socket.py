@@ -967,7 +967,7 @@ class SocketCommunicator(Communicator):
         communicator.
 
         To run computations across multiple hosts, you should use the
-        :ref:`cicada-exec` command line executable instead.
+        :ref:`cicada` command line executable instead.
 
         Parameters
         ----------

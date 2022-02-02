@@ -35,10 +35,3 @@ def public_ip():
     return netifaces.ifaddresses(interface)[netifaces.AF_INET][0]["addr"]
 
 
-def random_port(addr):
-    """Return a randomly-chosen open port number for the given address."""
-    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind((addr, 0))
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return s.getsockname()[1]
-
