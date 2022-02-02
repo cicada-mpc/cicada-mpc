@@ -92,8 +92,13 @@ nbsphinx_thumbnails = {
     "user-guide/logical-not": "_static/logical-not.png",
     "user-guide/logical-xor": "_static/logical-xor.png",
     "user-guide/modulus": "_static/modulus.png",
+    "user-guide/multiplicative-inverse": "_static/multiplicative-inverse.png",
     "user-guide/multiplication-and-truncation": "_static/multiplication.png",
     "user-guide/power": "_static/power.png",
+    "user-guide/relu": "_static/relu.png",
+    "user-guide/zigmoid": "_static/zigmoid.png",
+    "user-guide/communication-patterns": "_static/communication-patterns.png",
+    "user-guide/timeouts": "_static/timeouts.png",
 }
 
 # -- Options for HTML output -------------------------------------------------
