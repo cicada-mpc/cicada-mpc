@@ -664,14 +664,6 @@ class SocketCommunicator(Communicator):
         return ranks
 
 
-    def _require_value(self, value):
-        return value
-
-
-    def _require_optional_value(self, value):
-        return value
-
-
     def _require_unrevoked(self):
         if self._revoked:
             raise Revoked(f"Comm {self.name!r} player {self.rank} revoked.")
@@ -706,7 +698,6 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"all_gather()")
 
         self._require_unrevoked()
-        value = self._require_value(value)
 
         # Send messages.
         for rank in self.ranks:
@@ -747,7 +738,6 @@ class SocketCommunicator(Communicator):
 
         self._require_unrevoked()
         src = self._require_rank(src)
-        value = self._require_optional_value(value)
 
         # Broadcast the value to all players.
         if self.rank == src:
@@ -783,7 +773,6 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"gather(dst={dst})")
 
         self._require_unrevoked()
-        value = self._require_value(value)
         dst = self._require_rank(dst)
 
         # Send local data to the destination.
@@ -804,7 +793,6 @@ class SocketCommunicator(Communicator):
 
         self._require_unrevoked()
         src = self._require_rank_list(src)
-        value = self._require_value(value)
         dst = self._require_rank(dst)
 
         # Send local data to the destination.
@@ -858,7 +846,6 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"isend(dst={dst})")
 
         self._require_unrevoked()
-        value = self._require_value(value)
         dst = self._require_rank(dst)
 
         self._send(tag="send", payload=value, dst=dst)
@@ -1082,7 +1069,7 @@ class SocketCommunicator(Communicator):
         self._require_unrevoked()
         src = self._require_rank(src)
         if self.rank == src:
-            values = [self._require_value(value) for value in values]
+            values = [value for value in values]
             if len(values) != self._world_size:
                 raise ValueError(f"Expected {self._world_size} values, received {len(values)}.") # pragma: no cover
 
@@ -1104,7 +1091,7 @@ class SocketCommunicator(Communicator):
         dst = self._require_rank_list(dst)
 
         if self.rank == src:
-            values = [self._require_value(value) for value in values]
+            values = [value for value in values]
             if len(values) != len(dst):
                 raise ValueError("values must contain one value instance for every destination player.") # pragma: no cover
 
@@ -1125,7 +1112,6 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"send(dst={dst})")
 
         self._require_unrevoked()
-        value = self._require_value(value)
         dst = self._require_rank(dst)
 
         self._send(tag="send", payload=value, dst=dst)
