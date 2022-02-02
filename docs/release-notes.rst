@@ -7,6 +7,18 @@
 Release Notes
 =============
 
+Cicada 0.3.0 - February 1st, 2022
+---------------------------------
+
+* Improved code coverage from 80% to 95%.
+* Greatly improved SocketCommunicator startup behavior.
+* SocketCommunicator can choose random ports for players other than root.
+* Made SocketCommunicator.override() more flexible.
+* Fixed a bug in AdditiveProtocol.zigmoid().
+* Eliminated warnings waiting for interactive user input.
+* cicada.interactive.secret_input() just prompts for input.
+* Created new `cicada` command to replace `cicada-exec`, which is deprecated.
+
 Cicada 0.2.0 - January 25th, 2022
 ---------------------------------
 
