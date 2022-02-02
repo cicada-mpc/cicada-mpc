@@ -94,7 +94,7 @@ def step_impl(context, player):
             protocol.encoder.inplace_add(share.storage, protocol.encoder.encode(local))
         return protocol.encoder.decode(protocol.reveal(share))
 
-    context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
 
 @when(u'player {} performs local in-place subtraction on the shared secret')
@@ -108,14 +108,14 @@ def step_impl(context, player):
             protocol.encoder.inplace_subtract(share.storage, protocol.encoder.encode(local))
         return protocol.encoder.decode(protocol.reveal(share))
 
-    context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
 
 @then(u'the group should return {} to within {} digits')
 def step_impl(context, result, digits_accuracy):
     result = numpy.array(eval(result))
     digits_accuracy = numpy.array(eval(digits_accuracy))
-    group = numpy.array(context.result)
+    group = numpy.array(context.results)
 
     if issubclass(result.dtype.type, numpy.number) and issubclass(group.dtype.type, numpy.number):
         numpy.testing.assert_almost_equal(result, group, decimal=digits_accuracy)
@@ -126,7 +126,7 @@ def step_impl(context, result, digits_accuracy):
 @then(u'the group should return {}')
 def step_impl(context, result):
     result = numpy.array(eval(result))
-    group = numpy.array(context.result)
+    group = numpy.array(context.results)
 
     if issubclass(result.dtype.type, numpy.number) and issubclass(group.dtype.type, numpy.number):
         numpy.testing.assert_almost_equal(result, group, decimal=4)
@@ -295,9 +295,9 @@ def step_impl(context, a):
 def step_impl(context, count):
     count = eval(count)
 
-    context.result = []
+    context.results = []
     for i in range(count):
-        context.result.append(context.binary_operation(args=(context.a, context.b)))
+        context.results.append(context.binary_operation(args=(context.a, context.b)))
 
 
 @given(u'unary operation floor')
@@ -316,9 +316,9 @@ def step_impl(context):
 def step_impl(context, count):
     count = eval(count)
 
-    context.result = []
+    context.results = []
     for i in range(count):
-        context.result.append(context.unary_operation(args=(context.a,)))
+        context.results.append(context.unary_operation(args=(context.a,)))
 
 
 
@@ -417,7 +417,7 @@ def step_impl(context, player):
         result = protocol.private_public_subtract(share, protocol.encoder.encode(local))
         return protocol.encoder.decode(protocol.reveal(result))
 
-    context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
 
 @given(u'binary operation logical_and')

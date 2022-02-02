@@ -29,6 +29,12 @@ Feature: SocketCommunicator
         | 3       | 1        | 4.02    | [4.02, 4.02, 4.02] |
 
 
+    Scenario: Freed Communicator
+        Given 3 players
+        When player 1 broadcasts 1.23 after the communicator has been freed
+        Then players range(3) should fail with NotRunning errors
+
+
     Scenario Outline: Gather
         Given <players> players
         When player <dst> gathers <values>

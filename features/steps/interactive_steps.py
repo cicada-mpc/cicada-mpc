@@ -31,6 +31,6 @@ def step_impl(context, player, text):
         cicada.interactive.input = unittest.mock.MagicMock(return_value=text)
         return cicada.interactive.secret_input(communicator=communicator, src=player)
 
-    context.result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player, text))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player, text))
 
 

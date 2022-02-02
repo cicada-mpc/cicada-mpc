@@ -138,6 +138,11 @@ class NetstringSocket(object):
             }
 
 
+class NotRunning(Exception):
+    """Raised calling an operation after the communicator has been freed."""
+    pass
+
+
 class Revoked(Exception):
     """Raised calling an operation after the communicator has been revoked."""
     pass
@@ -664,9 +669,14 @@ class SocketCommunicator(Communicator):
         return ranks
 
 
+    def _require_running(self):
+        if not self._running:
+            raise NotRunning(f"Comm {self.name!r} player {self.rank} is not running.")
+
+
     def _require_unrevoked(self):
         if self._revoked:
-            raise Revoked(f"Comm {self.name!r} player {self.rank} revoked.")
+            raise Revoked(f"Comm {self.name!r} player {self.rank} has been revoked.")
 
 
     def _send(self, *, tag, payload, dst):
@@ -698,6 +708,7 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"all_gather()")
 
         self._require_unrevoked()
+        self._require_running()
 
         # Send messages.
         for rank in self.ranks:
@@ -717,6 +728,7 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"barrier()")
 
         self._require_unrevoked()
+        self._require_running()
 
         # Notify rank 0 that we've entered the barrier.
         self._send(tag="barrier-enter", payload=None, dst=0)
@@ -737,6 +749,8 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"broadcast(src={src})")
 
         self._require_unrevoked()
+        self._require_running()
+
         src = self._require_rank(src)
 
         # Broadcast the value to all players.
@@ -773,6 +787,8 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"gather(dst={dst})")
 
         self._require_unrevoked()
+        self._require_running()
+
         dst = self._require_rank(dst)
 
         # Send local data to the destination.
@@ -792,6 +808,8 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"gatherv(src={src}, dst={dst})")
 
         self._require_unrevoked()
+        self._require_running()
+
         src = self._require_rank_list(src)
         dst = self._require_rank(dst)
 
@@ -813,6 +831,8 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"irecv(src={src})")
 
         self._require_unrevoked()
+        self._require_running()
+
         src = self._require_rank(src)
 
         class Result:
@@ -846,6 +866,8 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"isend(dst={dst})")
 
         self._require_unrevoked()
+        self._require_running()
+
         dst = self._require_rank(dst)
 
         self._send(tag="send", payload=value, dst=dst)
@@ -915,6 +937,8 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"recv(src={src})")
 
         self._require_unrevoked()
+        self._require_running()
+
         src = self._require_rank(src)
 
         message = self._receive(tag="send", sender=src, block=True)
@@ -931,6 +955,8 @@ class SocketCommunicator(Communicator):
         a recovery phase.
         """
         self._log.debug(f"revoke()")
+
+        self._require_running()
 
         # Notify all players that the communicator is revoked.
         for rank in self.ranks:
@@ -1067,6 +1093,8 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"scatter(src={src})")
 
         self._require_unrevoked()
+        self._require_running()
+
         src = self._require_rank(src)
         if self.rank == src:
             values = [value for value in values]
@@ -1087,6 +1115,8 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"scatterv(src={src}, dst={dst})")
 
         self._require_unrevoked()
+        self._require_running()
+
         src = self._require_rank(src)
         dst = self._require_rank_list(dst)
 
@@ -1112,6 +1142,8 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"send(dst={dst})")
 
         self._require_unrevoked()
+        self._require_running()
+
         dst = self._require_rank(dst)
 
         self._send(tag="send", payload=value, dst=dst)
@@ -1128,6 +1160,8 @@ class SocketCommunicator(Communicator):
         proceed.
         """
         self._log.debug(f"shrink()")
+
+        self._require_running()
 
         # By default, we assume that everyone is alive.
         remaining_ranks = self.ranks
@@ -1184,6 +1218,7 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"split(name={name})")
 
         self._require_unrevoked()
+        self._require_running()
 
         if not isinstance(name, (str, type(None))):
             raise ValueError(f"name must be a string or None, got {name} instead.") # pragma: no cover

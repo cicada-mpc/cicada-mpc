@@ -40,12 +40,12 @@ def step_impl(context):
 
         return enter, exit
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
 @then(u'the players should exit the barrier at roughly the same time')
 def step_impl(context):
-    enter_delta, exit_delta = numpy.max(context.result, axis=0) - numpy.min(context.result, axis=0)
+    enter_delta, exit_delta = numpy.max(context.results, axis=0) - numpy.min(context.results, axis=0)
     logging.info(f"Enter delta: {enter_delta} exit delta: {exit_delta}.")
     # Every process should exit the barrier at around the same time.
     numpy.testing.assert_almost_equal(exit_delta, 0, decimal=2)
@@ -58,7 +58,19 @@ def step_impl(context, values):
     def operation(communicator, values):
         return communicator.all_gather(value=values[communicator.rank])
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(values,))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(values,))
+
+
+@when(u'player {src} broadcasts {value} after the communicator has been freed')
+def step_impl(context, src, value):
+    src = eval(src)
+    value = numpy.array(eval(value))
+
+    def operation(communicator, src, value):
+        communicator.free()
+        return communicator.broadcast(src=src, value=value)
+
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value))
 
 
 @when(u'player {} broadcasts {}')
@@ -67,11 +79,9 @@ def step_impl(context, src, value):
     value = numpy.array(eval(value))
 
     def operation(communicator, src, value):
-        if communicator.rank != src:
-            value = None
         return communicator.broadcast(src=src, value=value)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value))
 
 
 @when(u'player {dst} gathers {values} from {src}')
@@ -83,7 +93,7 @@ def step_impl(context, src, values, dst):
     def operation(communicator):
         return communicator.gatherv(src=src, value=values[communicator.rank], dst=dst)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
 @when(u'player {dst} gathers {values}')
@@ -94,7 +104,7 @@ def step_impl(context, dst, values):
     def operation(communicator, values, dst):
         return communicator.gather(value=values[communicator.rank], dst=dst)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(values, dst))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(values, dst))
 
 
 @when(u'player {src} scatters messages to the other players {count} times')
@@ -123,7 +133,7 @@ def step_impl(context, src, values, dst):
             values = None
         return communicator.scatterv(src=src, values=values, dst=dst)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values, dst))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values, dst))
 
 
 @when(u'player {} scatters {}')
@@ -136,7 +146,7 @@ def step_impl(context, src, values):
             values = None
         return communicator.scatter(src=src, values=values)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values))
 
 
 @then(u'player {} can send {} to player {}')
@@ -152,7 +162,7 @@ def step_impl(context, src, value, dst):
             result = communicator.recv(src=src)
             numpy.testing.assert_almost_equal(value, result, decimal=4)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst))
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst))
 
 
 @then(u'player {src} should have sent exactly {sent} messages')
@@ -314,6 +324,15 @@ def step_impl(context, player):
                 raise e
 
     context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(player,))
+
+
+@then(u'players {players} should fail with NotRunning errors')
+def step_impl(context, players):
+    players = eval(players)
+    for player in players:
+        result = context.results[player]
+        test.assert_is_instance(result, cicada.communicator.socket.Failed)
+        test.assert_is_instance(result.exception, cicada.communicator.socket.NotRunning)
 
 
 @then(u'players {players} should fail with Revoked errors')

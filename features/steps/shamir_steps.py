@@ -68,6 +68,6 @@ def step_impl(context, player, secret, recipients, senders, destinations):
         share = protocol.share(src=player, k=context.k, secret=secret)
         return protocol.reveal(src=senders, share=share, dst=destinations)
 
-    context.result = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
