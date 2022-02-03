@@ -228,7 +228,7 @@ def step_impl(context, group, world_size, name, token):
 
     def operation(communicator, group, world_size, name, token):
         if communicator.rank in group:
-            players=rendezvous(
+            sockets=rendezvous(
                 name=name,
                 world_size=world_size,
                 rank=communicator.rank,
@@ -236,7 +236,7 @@ def step_impl(context, group, world_size, name, token):
                 link_addr="tcp://127.0.0.1:25000",
                 token=token,
                 )
-            comm = SocketCommunicator(players=players, name=name)
+            comm = SocketCommunicator(sockets=sockets, name=name)
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
@@ -252,7 +252,7 @@ def step_impl(context, group, world_size, name, tokens):
 
     def operation(communicator, group, world_size, name):
         if communicator.rank in group:
-            players=rendezvous(
+            sockets=rendezvous(
                 name=name,
                 world_size=world_size,
                 rank=communicator.rank,
@@ -260,7 +260,7 @@ def step_impl(context, group, world_size, name, tokens):
                 link_addr="tcp://127.0.0.1:25000",
                 token=tokens[group.index(communicator.rank)]
                 )
-            comm = SocketCommunicator(players=players, name=name)
+            comm = SocketCommunicator(sockets=sockets, name=name)
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 

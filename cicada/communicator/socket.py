@@ -213,13 +213,14 @@ class SocketCommunicator(Communicator):
 
     Parameters
     ----------
-    players: :class:`dict` of :class:`NetstringSocket`, required
-        Dictionary mapping player ranks to sockets that are connected to the
-        other players and ready to use.  The collection must contain one socket
-        for every player except the caller.  Note that the communicator world
-        size is inferred from the size of the collection, and the
-        communicator rank from whichever rank doesn't appear in the
-        collection.
+    sockets: :class:`dict` of :class:`NetstringSocket`, required
+        Dictionary containing sockets that are connected to the other players
+        and ready to use.  The dictionary keys must be the ranks of the other
+        players, and there must be one sockets in the dictionary for every
+        player except the caller (since players don't use a socket to
+        communicate with themselves).  Note that the communicator world size is
+        inferred from the size of the collection, and the communicator rank
+        from whichever rank doesn't appear in the collection.
     name: :class:`str`, required
         Human-readable name for this communicator, used for logging and
         debugging.
@@ -245,13 +246,13 @@ class SocketCommunicator(Communicator):
         ]
 
 
-    def __init__(self, *, players, name, timeout=5):
-        if not isinstance(players, dict):
-            raise ValueError("players must be a dict, got {players} instead.") # pragma: no cover
+    def __init__(self, *, sockets, name, timeout=5):
+        if not isinstance(sockets, dict):
+            raise ValueError("sockets must be a dict, got {sockets} instead.") # pragma: no cover
 
-        world_size = len(players) + 1
+        world_size = len(sockets) + 1
         for index in range(world_size):
-            if index not in players:
+            if index not in sockets:
                 rank = index
 
         if name is None:
@@ -269,7 +270,7 @@ class SocketCommunicator(Communicator):
         self._timeout = timeout
         self._revoked = False
         self._log = LoggerAdapter(log, name, rank)
-        self._players = players
+        self._players = sockets
 
         # Begin normal operation.
         self._send_serial = 0
@@ -753,7 +754,8 @@ class SocketCommunicator(Communicator):
             # Run the work function.
             try:
                 name = "world"
-                communicator = SocketCommunicator(players=rendezvous(name=name, world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket, timeout=startup_timeout), name=name, timeout=timeout)
+                sockets=rendezvous(name=name, world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket, timeout=startup_timeout)
+                communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
                 result = fn(communicator, *args, **kwargs)
                 communicator.free()
             except Exception as e: # pragma: no cover
@@ -931,7 +933,8 @@ class SocketCommunicator(Communicator):
                 self._send(tag="shrink-end", payload=host_addr, dst=remaining_rank)
         link_addr = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
 
-        return SocketCommunicator(name=name, players=rendezvous(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_socket=host_socket, token=token, timeout=timeout)), remaining_ranks
+        sockets=rendezvous(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_socket=host_socket, token=token, timeout=timeout)
+        return SocketCommunicator(sockets=sockets, name=name), remaining_ranks
 
 
     def split(self, *, name, timeout=5):
@@ -1008,7 +1011,8 @@ class SocketCommunicator(Communicator):
         group_name, group_world_size, group_rank, group_link_addr = self._receive(tag="split-end", sender=0, block=True).payload
         # Return a new communicator.
         if group_name is not None:
-            return SocketCommunicator(name=group_name, players=rendezvous(name=group_name, world_size=group_world_size, rank=group_rank, link_addr=group_link_addr, host_socket=host_socket, timeout=timeout))
+            sockets=rendezvous(name=group_name, world_size=group_world_size, rank=group_rank, link_addr=group_link_addr, host_socket=host_socket, timeout=timeout)
+            return SocketCommunicator(sockets=sockets, name=group_name)
 
         return None
 
@@ -1089,7 +1093,7 @@ def rendezvous(*, name, world_size=None, rank=None, link_addr=None, host_addr=No
 
     Returns
     -------
-    players: :class:`dict` of :class:`NetstringSocket`
+    sockets: :class:`dict` of :class:`NetstringSocket`
         Dictionary mapping player ranks to connected sockets, ready for use by :class:`SocketCommunicator`.
     """
     if not isinstance(name, str):
