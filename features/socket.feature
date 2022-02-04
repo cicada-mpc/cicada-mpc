@@ -119,6 +119,17 @@ Feature: SocketCommunicator
         | 10      | range(10)   | 10         | list(range(9)) + ["blah"]     |
 
 
+    Scenario Outline: Predefined Communicator
+        Given <players> players
+        When players <group> create a new communicator with name <name> and predefined addresses <addresses>
+        Then the new communicator names should match <names>
+        And the new communicator world sizes should match <world_sizes>
+
+        Examples:
+        | players | group        | name       | addresses                                          | names       | world_sizes   |
+        | 2       | range(2)     | "red"      | ["tcp://127.0.0.1:34000", "tcp://127.0.0.1:34001"] | ["red"] * 2 | [2] * 2       |
+
+
     Scenario Outline: Revoke Communicator
         Given <players> players
         When player <player> revokes the communicator

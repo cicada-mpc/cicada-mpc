@@ -1055,6 +1055,143 @@ class SocketCommunicator(Communicator):
         return self._world_size
 
 
+def predefined(*, name, addresses, rank, timeout=5):
+    """Given a list of addresses for every player, create per-player sockets for :class:`SocketCommunicator`.
+
+    Parameters
+    ----------
+    name: :class:`str`, required
+        Human readable label used for logging and debugging. Typically, this
+        should be the same name assigned to the communicator that will use
+        the :func:`predefined` outputs.
+    addresses: :class:`list` of :class:`str`, required
+        List of addresses for every player.
+    rank: :class:`int`, required
+        Rank of the calling player.
+    timeout: :class:`numbers.Number`, optional
+        Maximum time to wait for socket creation, in seconds.
+
+    Returns
+    -------
+    sockets: :class:`dict` of :class:`NetstringSocket`
+        Dictionary mapping player ranks to connected sockets, ready for use by :class:`SocketCommunicator`.
+    """
+    if not isinstance(name, str):
+        raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
+
+    for address in addresses:
+        if not isinstance(address, str):
+            raise ValueError(f"address must be a string, got {address} instead.") # pragma: no cover
+
+    addresses = [urllib.parse.urlparse(address) for address in addresses]
+
+    world_size = len(addresses)
+
+    if not isinstance(rank, int):
+        raise ValueError(f"rank must be an integer, got {rank} instead.") # pragma: no cover
+    if rank < 0:
+        raise ValueError(f"rank cannot be negative, but got {rank}.") # pragma: no cover
+    if rank >= world_size:
+        raise ValueError(f"rank must be less than {world_size}, got {rank} instead.") # pragma: no cover
+
+    if not isinstance(timeout, numbers.Number):
+        raise ValueError(f"timeout must be a number, got {timeout} instead.") # pragma: no cover
+    if not timeout > 0:
+        raise ValueError(f"timeout must be a positive number, got {timeout} instead.") # pragma: no cover
+
+    # Setup logging
+    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+
+    # Set aside storage for connections to the other players.
+    players = {}
+
+    # Track elapsed time during setup.
+    timer = Timer(threshold=timeout)
+
+    ###########################################################################################
+    # Phase 1: Every player sets-up a socket to listen for connections from the other players.
+
+    while not timer.expired:
+        try:
+            listen_socket = socket.create_server((addresses[rank].hostname, addresses[rank].port or 0))
+            break
+        except Exception as e: # pragma: no cover
+            log.warning(f"exception creating host socket: {e}")
+            time.sleep(0.1)
+    else: # pragma: no cover
+        raise Timeout(f"Comm {name!r} player {rank} timeout creating listening socket.")
+
+    listen_socket.setblocking(False)
+    listen_socket.listen(world_size)
+    log.debug(f"listening for connections.")
+
+    ###########################################################################
+    # Phase 2: Players setup connections with one another.
+
+    for listener in range(0, world_size-1):
+        if rank == listener:
+            # Accept connections from higher-rank players.
+            other_players = []
+            while not timer.expired:
+                if len(other_players) == world_size - rank - 1: # We don't connect to ourself.
+                    break
+
+                try:
+                    ready = select.select([listen_socket], [], [], 0.1)
+                    if ready:
+                        other_player, _ = listen_socket.accept()
+                        other_player = NetstringSocket(other_player)
+                        other_players.append(other_player)
+                        log.debug(f"accepted connection from player.")
+                except Exception as e: # pragma: no cover
+                    log.warning(f"exception listening for other players: {e}")
+                    time.sleep(0.1)
+
+            # Collect ranks from the other players.
+            for other_player in other_players:
+                while not timer.expired:
+                    try:
+                        raw_message = other_player.next_message(timeout=0.1)
+                        if raw_message is not None:
+                            other_rank = pickle.loads(raw_message)
+                            players[other_rank] = other_player
+                            log.debug(f"received rank from player {other_rank}.")
+                            break
+                    except Exception as e: # pragma: no cover
+                        log.warning(f"exception receiving player rank.")
+                        time.sleep(0.1)
+                else: # pragma: no cover
+                    raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player rank.")
+
+        elif rank > listener:
+            # Make a connection to the listener.
+            while not timer.expired:
+                try:
+                    other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    other_player.connect((addresses[listener].hostname, addresses[listener].port))
+                    other_player = NetstringSocket(other_player)
+                    players[listener] = other_player
+                    break
+                except Exception as e: # pragma: no cover
+                    log.warning(f"exception connecting to player {listener}: {e}")
+                    time.sleep(0.5)
+            else: # pragma: no cover
+                raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
+
+            # Send our rank to the listener.
+            while not timer.expired:
+                try:
+                    players[listener].send(pickle.dumps(rank))
+                    break
+                except Exception as e: # pragma: no cover
+                    log.warning(f"exception sending rank to player {listener}: {e}")
+                    time.sleep(0.5)
+            else: # pragma: no cover
+                raise Timeout(f"Comm {name!r} player {rank} timeout sending rank to player {listener}.")
+
+    return players
+
+
 def rendezvous(*, name, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5):
     """Given just the address of the root player, create per-player sockets for :class:`SocketCommunicator`.
 
