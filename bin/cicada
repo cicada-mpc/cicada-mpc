@@ -7,6 +7,8 @@ import signal
 import subprocess
 import sys
 
+import netifaces
+
 import cicada
 
 
@@ -26,6 +28,12 @@ def log_command(command, env, log):
     log.info(f"    RANK={env['RANK']}")
     log.info(f"    HOST_ADDR={env['HOST_ADDR']}")
     log.info(f"    LINK_ADDR={env['LINK_ADDR']}")
+
+
+def public_ip():
+    """Return a public-facing IP address."""
+    gateway, interface = netifaces.gateways()["default"][netifaces.AF_INET]
+    return netifaces.ifaddresses(interface)[netifaces.AF_INET][0]["addr"]
 
 
 def basic_frontend(arguments, players, log):
@@ -191,7 +199,7 @@ if __name__ == "__main__":
 
     # run
     if arguments.command == "run":
-        host = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
+        host = public_ip() if arguments.bind_public else arguments.host_addr
 
         host_addrs = []
         for rank in range(arguments.world_size):
@@ -224,7 +232,7 @@ if __name__ == "__main__":
             if arguments.link_port is not None:
                 raise RuntimeError("--link-port cannot be specified when --rank is 0.")
 
-            addr = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
+            addr = public_ip() if arguments.bind_public else arguments.host_addr
             port = arguments.host_port
             host_addr = f"tcp://{addr}:{port}"
             link_addr = host_addr
@@ -232,7 +240,7 @@ if __name__ == "__main__":
             if arguments.link_port is None:
                 raise RuntimeError("--link-port must be specified when --rank is not 0.")
 
-            addr = cicada.bind.public_ip() if arguments.bind_public else arguments.host_addr
+            addr = public_ip() if arguments.bind_public else arguments.host_addr
             port = arguments.host_port
             if port is None:
                 host_addr = f"tcp://{addr}"

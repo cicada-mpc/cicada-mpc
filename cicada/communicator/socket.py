@@ -39,7 +39,6 @@ import pynetstring
 
 from .interface import Communicator
 import cicada
-import cicada.bind
 
 log = logging.getLogger(__name__)
 
@@ -740,7 +739,7 @@ class SocketCommunicator(Communicator):
         """
         def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, startup_timeout):
             # Create a socket with a randomly-assigned port number.
-            host_socket = socket.create_server((cicada.bind.loopback_ip(), 0))
+            host_socket = socket.create_server(("127.0.0.1", 0))
             host, port = host_socket.getsockname()
             host_addr = f"tcp://{host}:{port}"
 
