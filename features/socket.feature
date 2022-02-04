@@ -126,8 +126,9 @@ Feature: SocketCommunicator
         And the new communicator world sizes should match <world_sizes>
 
         Examples:
-        | players | group        | name       | addresses                                          | names       | world_sizes   |
-        | 2       | range(2)     | "red"      | ["tcp://127.0.0.1:34000", "tcp://127.0.0.1:34001"] | ["red"] * 2 | [2] * 2       |
+        | players | group        | name       | addresses                                          | names        | world_sizes   |
+        | 2       | range(2)     | "red"      | ["tcp://127.0.0.1:34000", "tcp://127.0.0.1:34001"] | ["red"] * 2  | [2] * 2       |
+        | 2       | range(2)     | "blue"     | ["file:///tmp/cicada0", "file:///tmp/cicada1"]     | ["blue"] * 2 | [2] * 2       |
 
 
     Scenario Outline: Revoke Communicator

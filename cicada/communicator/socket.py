@@ -1085,6 +1085,14 @@ def predefined(*, name, addresses, rank, timeout=5):
 
     addresses = [urllib.parse.urlparse(address) for address in addresses]
 
+    for address in addresses:
+        if address.scheme not in ["file", "tcp"]:
+            raise ValueError(f"address scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
+        if address.scheme == "tcp" and not address.port:
+            raise ValueError(f"port must be specified for tcp addresses, got {address} instead.") # pragma: no cover
+        if address.scheme != addresses[0].scheme:
+            raise ValueError(f"address schemes must all be the same.") # pragma: no cover
+
     world_size = len(addresses)
 
     if not isinstance(rank, int):
@@ -1113,7 +1121,14 @@ def predefined(*, name, addresses, rank, timeout=5):
 
     while not timer.expired:
         try:
-            listen_socket = socket.create_server((addresses[rank].hostname, addresses[rank].port or 0))
+            address = addresses[rank]
+            if address.scheme == "tcp":
+                listen_socket = socket.create_server((address.hostname, address.port))
+            elif address.scheme == "file":
+                if os.path.exists(address.path):
+                    os.unlink(address.path)
+                listen_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                listen_socket.bind(address.path)
             break
         except Exception as e: # pragma: no cover
             log.warning(f"exception creating host socket: {e}")
@@ -1123,7 +1138,7 @@ def predefined(*, name, addresses, rank, timeout=5):
 
     listen_socket.setblocking(False)
     listen_socket.listen(world_size)
-    log.debug(f"listening for connections.")
+    log.debug(f"listening for connections at {addresses[rank].geturl()}.")
 
     ###########################################################################
     # Phase 2: Players setup connections with one another.
@@ -1167,8 +1182,14 @@ def predefined(*, name, addresses, rank, timeout=5):
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    other_player.connect((addresses[listener].hostname, addresses[listener].port))
+                    address = addresses[listener]
+                    if address.scheme == "tcp":
+                        other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        other_player.connect((address.hostname, address.port))
+                    elif address.scheme == "file":
+                        other_player = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                        other_player.connect(address.path)
+
                     other_player = NetstringSocket(other_player)
                     players[listener] = other_player
                     break

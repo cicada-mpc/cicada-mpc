@@ -16,6 +16,7 @@
 
 import logging
 import sys
+import tempfile
 import time
 
 from behave import *
