@@ -7,3 +7,6 @@
 .ipynb_checkpoints
 dist
 docs/_build
+*.swo
+*.swp
+
