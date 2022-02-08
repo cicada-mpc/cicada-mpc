@@ -29,7 +29,6 @@ import urllib.parse
 
 import pynetstring
 
-log = logging.getLogger(__name__)
 
 class LoggerAdapter(logging.LoggerAdapter):
     """Wraps a Python logger for consistent formatting of communicator log entries.
@@ -152,19 +151,19 @@ class TokenMismatch(Exception):
     pass
 
 
-def direct(*, name, addresses, rank, timeout=5):
+def direct(*, addresses, rank, name="world", timeout=5):
     """Given a list of addresses for every player, create per-player sockets for :class:`SocketCommunicator`.
 
     Parameters
     ----------
-    name: :class:`str`, required
-        Human readable label used for logging and debugging. Typically, this
-        should be the same name assigned to the communicator that will use
-        the :func:`predefined` outputs.
     addresses: :class:`list` of :class:`str`, required
         List of addresses for every player.
     rank: :class:`int`, required
         Rank of the calling player.
+    name: :class:`str`, optional
+        Human readable label used for logging and debugging. Typically, this
+        should be the same name assigned to the communicator that will use
+        the :func:`predefined` outputs.  Defaults to "world".
     timeout: :class:`numbers.Number`, optional
         Maximum time to wait for socket creation, in seconds.
 
@@ -235,7 +234,7 @@ def direct(*, name, addresses, rank, timeout=5):
 
     listen_socket.setblocking(False)
     listen_socket.listen(world_size)
-    log.debug(f"listening for connections at {addresses[rank].geturl()}.")
+    log.info(f"direct connect with {[address.geturl() for address in addresses]}.")
 
     ###########################################################################
     # Phase 2: Players setup connections with one another.
@@ -310,15 +309,15 @@ def direct(*, name, addresses, rank, timeout=5):
     return players
 
 
-def rendezvous(*, name, world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5):
+def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5):
     """Given just the address of the root player, create per-player sockets for :class:`SocketCommunicator`.
 
     Parameters
     ----------
-    name: :class:`str`, required
+    name: :class:`str`, optional
         Human readable label used for logging and debugging. Typically, this
         should be the same name assigned to the communicator that will use
-        the :func:`rendezvous` outputs.
+        the :func:`rendezvous` outputs.  Defaults to "world".
     world_size: :class:`int`, optional
         The number of players that will be members of this communicator.
         Defaults to the value of the WORLD_SIZE environment variable.

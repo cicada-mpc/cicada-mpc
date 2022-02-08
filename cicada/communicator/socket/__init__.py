@@ -39,8 +39,6 @@ import pynetstring
 from ..interface import Communicator
 from .connect import LoggerAdapter, Timeout, rendezvous
 
-log = logging.getLogger(__name__)
-
 Message = collections.namedtuple("Message", ["serial", "tag", "sender", "payload"])
 Message.__doc__ = """
 Wrapper class for messages sent between processes.
@@ -98,9 +96,9 @@ class SocketCommunicator(Communicator):
         communicate with themselves).  Note that the communicator world size is
         inferred from the size of the collection, and the communicator rank
         from whichever rank doesn't appear in the collection.
-    name: :class:`str`, required
+    name: :class:`str`, optional
         Human-readable name for this communicator, used for logging and
-        debugging.
+        debugging.  Defaults to "world"
     timeout: :class:`numbers.Number`
         Maximum time to wait for communication to complete, in seconds.
     """
@@ -123,7 +121,7 @@ class SocketCommunicator(Communicator):
         ]
 
 
-    def __init__(self, *, sockets, name, timeout=5):
+    def __init__(self, *, sockets, name="world", timeout=5):
         if not isinstance(sockets, dict):
             raise ValueError("sockets must be a dict, got {sockets} instead.") # pragma: no cover
 
@@ -146,7 +144,7 @@ class SocketCommunicator(Communicator):
         self._rank = rank
         self._timeout = timeout
         self._revoked = False
-        self._log = LoggerAdapter(log, name, rank)
+        self._log = LoggerAdapter(logging.getLogger(__name__), name, rank)
         self._players = sockets
 
         # Begin normal operation.
@@ -197,7 +195,7 @@ class SocketCommunicator(Communicator):
                 if message.sender not in self.ranks:
                     raise RuntimeError(f"Unexpected sender: {message.sender}") # pragma: no cover
             except Exception as e: # pragma: no cover
-                self._log.error(f"dropping unexpected message: {message} exception: {e}")
+                self._log.warning(f"ignoring message: {message} exception: {e}")
                 continue
 
             # Log queued messages.
@@ -208,7 +206,7 @@ class SocketCommunicator(Communicator):
             if message.tag == "revoke":
                 if not self._revoked:
                     self._revoked = True
-                    self._log.info(f"revoked by player {message.sender}")
+                    self._log.warning(f"revoked by player {message.sender}")
                 continue
 
             # Insert the message into the correct queue.
@@ -236,7 +234,7 @@ class SocketCommunicator(Communicator):
                         try:
                             message = pickle.loads(raw_message)
                         except Exception as e: # pragma: no cover
-                            self._log.error(f"ignoring unparsable message: {e}")
+                            self._log.warning(f"ignoring unparsable message: {e}")
                             continue
 
                         self._log.debug(f"received {message}")
@@ -244,7 +242,7 @@ class SocketCommunicator(Communicator):
                         # Insert the message into the incoming queue.
                         self._incoming.put(message, block=True, timeout=None)
             except Exception as e: # pragma: no cover
-                self._log.error(f"receive exception: {e}")
+                self._log.warning(f"receive exception: {e}")
 
         # The communicator has been freed, so exit the thread.
         self._log.debug(f"receive thread closed.")
@@ -577,7 +575,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, args=(), kwargs={}, timeout=5, startup_timeout=5):
+    def run(*, world_size, fn, args=(), kwargs={}, timeout=5, startup_timeout=5, name="world"):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -599,10 +597,15 @@ class SocketCommunicator(Communicator):
             Positional arguments to pass to `fn` when it is executed.
         kwargs: :class:`dict`, optional
             Keyword arguments to pass to `fn` when it is executed.
-        timeout: number or `None`
-            Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
-        startup_timeout: number or `None`
-            Maximum time allowed to setup the communicator in seconds, or `None` to disable timeouts during setup.
+        timeout: number or `None`, optional
+            Maximum time to wait for normal communication to complete in
+            seconds, or `None` to disable timeouts.
+        startup_timeout: number or `None`, optional
+            Maximum time allowed to setup the communicator in seconds, or
+            `None` to disable timeouts during setup.
+        name: :class:`str`, optional
+            Human-readable name for the communicator created by this function.
+            Defaults to "world".
 
         Returns
         -------
@@ -680,19 +683,21 @@ class SocketCommunicator(Communicator):
             output[rank] = result
 
         # Log the results for each player.
+        log = logging.getLogger(__name__)
+
         for rank, result in enumerate(output):
             if isinstance(result, Failed):
-                log.info(f"Player {rank} failed: {result.exception!r}")
+                log.warning(f"Comm {name!r} player {rank} failed: {result.exception!r}")
             elif isinstance(result, Exception):
-                log.info(f"Player {rank} failed: {result!r}")
+                log.warning(f"Comm {name!r} player {rank} failed: {result!r}")
             else:
-                log.info(f"Player {rank} return: {result}")
+                log.info(f"Comm {name!r} player {rank} result: {result}")
 
         # Print a traceback for players that failed.
         for rank, result in enumerate(output):
             if isinstance(result, Failed):
                 log.error("*" * 80)
-                log.error(f"Player {rank} traceback:")
+                log.error(f"Comm {name!r} player {rank} traceback:")
                 log.error(result.traceback)
 
         return output

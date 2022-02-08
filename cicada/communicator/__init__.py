@@ -20,6 +20,10 @@ The classes in this submodule provide functions similar to those in MPI but
 with additional API and semantics for reliability and error recovery.
 """
 
+import logging
+
+logging.getLogger(__name__).setLevel(logging.WARNING)
+
 from .interface import Communicator
 from .socket import SocketCommunicator
 
