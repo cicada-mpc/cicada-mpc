@@ -153,12 +153,12 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        src: integer, required
+        src: :class:`int`, required
             The player providing the secret array to be shared.
         secret: :class:`numpy.ndarray` or :any:`None`, required
             The secret array to be shared, which must contain integers >= 0.
             This value is ignored for all players but `src`.
-        k: integer, required
+        k: :class:`int`, required
             Minimum number of shares required to reveal the secret.
             Must be <= the number of players that are members of
             :attr:`communicator`.

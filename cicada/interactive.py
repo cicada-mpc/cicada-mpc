@@ -33,22 +33,22 @@ def secret_input(*, communicator, src, prompt=None, dtype=float, timeout=300):
     ----------
     communicator: :class:`~cicada.communicator.interface.Communicator`, required
         Used to coordinate among players.
-    src: int, required
+    src: :class:`int`, required
         Rank of the player who will be prompted for a secret.
     prompt: :class:`str`, optional
         Override the default interactive prompt.  See :func:`input`
         for usage.
-    dtype: callable, optional
+    dtype: :func:`callable`, optional
         Function for parsing user input into a final value.  The function must
         take one :class:`str` argument and return a result.  The builtin
-        functions :func:`int`, :func:`float`, and :func:`str` are useful
+        functions :class:`int`, :class:`float`, and :class:`str` are useful
         examples.
     timeout: :class:`numbers.Number`, optional
         Maximum time to wait for user input, in seconds. Defaults to 300 seconds.
 
     Returns
     -------
-    value:
+    value: :class:`object` or :any:`None`
         For player `src`: the secret input.  For all other players: :any:`None`.
     """
     if communicator.rank == src:

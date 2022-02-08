@@ -36,7 +36,7 @@ class Logger(object):
         The Python logger to be used for output.
     communicator: :class:`cicada.communicator.interface.Communicator`, required
         The communicator that will be used to synchronize output among players.
-    sync: boolean, optional
+    sync: :class:`bool`, optional
         Controls whether log output is synchronized among players.  In general,
         you should enable synchronization (the default) when multiple players
         are logging to the same console, for example during local debugging and

@@ -76,7 +76,7 @@ class Communicator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        src: integer, required
+        src: :class:`int`, required
             Rank of the player who is broadcasting.
         value: Any picklable :class:`object` or `None`, required
             Value to be broadcast by `src`.  Ignored for all other players.
@@ -113,7 +113,7 @@ class Communicator(metaclass=ABCMeta):
         ----------
         value: Any picklable :class:`object`, required
             Value to be sent to `dst`.
-        dst: integer, required
+        dst: :class:`int`, required
             Rank of the player who will receive all of the values.
 
         Returns
@@ -138,11 +138,11 @@ class Communicator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        src: sequence of integers, required
+        src: sequence of :class:`int`, required
             Rank of each player sending a value.
         value: Any picklable :class:`object`, or :any:`None`, required
             Value to be sent to `dst`.
-        dst: integer, required
+        dst: :class:`int`, required
             Rank of the player who will receive all of the values.
 
         Returns
@@ -172,7 +172,7 @@ class Communicator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        src: integer, required
+        src: :class:`int`, required
             Rank of the sending player.
 
         Returns
@@ -208,7 +208,7 @@ class Communicator(metaclass=ABCMeta):
         ----------
         value: Picklable :class:`object`, required
             Value to be sent.
-        dst: integer, required
+        dst: :class:`int`, required
             Rank of the destination player.
 
         Returns
@@ -230,7 +230,7 @@ class Communicator(metaclass=ABCMeta):
 
         Returns
         -------
-        rank: integer
+        rank: :class:`int`
             Player rank, in the range :math:`[0, \\text{world_size})`.
         """
         pass # pragma: no cover
@@ -265,7 +265,7 @@ class Communicator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        src: integer, required
+        src: :class:`int`, required
             Rank of the sending player.
 
         Returns
@@ -288,7 +288,7 @@ class Communicator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        src: integer, required
+        src: :class:`int`, required
             Rank of the sending player.
         values: sequence of picklable :class:`object`, or `None`, required
             Collection of objects to be sent, one per player, in rank order.
@@ -313,11 +313,11 @@ class Communicator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        src: integer, required
+        src: :class:`int`, required
             Rank of the sending player.
         values: sequence of picklable :class:`object`, or `None`, required
             Collection of objects to be sent, one per recipient.
-        dst: sequence of integers, required
+        dst: sequence of :class:`int`, required
             Rank of each player receiving an object, in the same order as `values`.
 
         Returns
@@ -348,7 +348,7 @@ class Communicator(metaclass=ABCMeta):
         ----------
         value: Picklable :class:`object`, required
             Value to be sent.
-        dst: integer, required
+        dst: :class:`int`, required
             Rank of the destination player.
         """
         pass # pragma: no cover
@@ -360,7 +360,7 @@ class Communicator(metaclass=ABCMeta):
 
         Returns
         -------
-        world_size: integer
+        world_size: :class:`int`
             The number of players sharing this communicator.
         """
         pass # pragma: no cover

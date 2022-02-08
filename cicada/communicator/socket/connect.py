@@ -125,7 +125,7 @@ class Timer(object):
 
     Parameters
     ----------
-    threshold: number, required
+    threshold: :class:`numbers.Number`, required
         The maximum of number of elapsed seconds before this timer will be expired.
     """
     def __init__(self, threshold):
@@ -152,7 +152,7 @@ class TokenMismatch(Exception):
 
 
 def direct(*, addresses, rank, name="world", timeout=5):
-    """Given a list of addresses for every player, create per-player sockets for :class:`SocketCommunicator`.
+    """Create per-player socket connections for a list of addresses.
 
     Parameters
     ----------
@@ -163,7 +163,7 @@ def direct(*, addresses, rank, name="world", timeout=5):
     name: :class:`str`, optional
         Human readable label used for logging and debugging. Typically, this
         should be the same name assigned to the communicator that will use
-        the :func:`predefined` outputs.  Defaults to "world".
+        the :func:`direct` outputs.  Defaults to "world".
     timeout: :class:`numbers.Number`, optional
         Maximum time to wait for socket creation, in seconds.
 
@@ -310,7 +310,7 @@ def direct(*, addresses, rank, name="world", timeout=5):
 
 
 def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5):
-    """Given just the address of the root player, create per-player sockets for :class:`SocketCommunicator`.
+    """Create per-player socket connections given just the address of the root player.
 
     Parameters
     ----------
