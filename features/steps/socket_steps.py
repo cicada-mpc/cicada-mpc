@@ -23,7 +23,8 @@ from behave import *
 import numpy.testing
 import test
 
-from cicada.communicator.socket import Failed, NotRunning, Revoked, Timeout, TokenMismatch, SocketCommunicator, predefined, rendezvous
+from cicada.communicator.socket import Failed, NotRunning, Revoked, SocketCommunicator
+from cicada.communicator.socket.connect import Timeout, TokenMismatch, direct, rendezvous
 
 
 @given(u'{} players')
@@ -268,7 +269,7 @@ def step_impl(context, group, world_size, name, tokens):
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, world_size, name))
 
 
-@when(u'players {group} create a new communicator with name {name} and predefined addresses {addresses}')
+@when(u'players {group} create a new communicator with name {name} and direct addresses {addresses}')
 def step_impl(context, group, name, addresses):
     group = eval(group)
     name = eval(name)
@@ -276,7 +277,7 @@ def step_impl(context, group, name, addresses):
 
     def operation(communicator, group, name, addresses):
         if communicator.rank in group:
-            sockets=predefined(
+            sockets=direct(
                 name=name,
                 addresses=addresses,
                 rank=communicator.rank,

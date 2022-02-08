@@ -12,10 +12,10 @@ API Reference
 
     cicada.rst
     cicada.additive.rst
-    cicada.bind.rst
     cicada.communicator.rst
     cicada.communicator.interface.rst
     cicada.communicator.socket.rst
+    cicada.communicator.socket.connect.rst
     cicada.encoder.rst
     cicada.encoder.fixedfield.rst
     cicada.interactive.rst

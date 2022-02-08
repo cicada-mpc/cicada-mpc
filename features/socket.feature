@@ -121,7 +121,7 @@ Feature: SocketCommunicator
 
     Scenario Outline: Predefined Communicator
         Given <players> players
-        When players <group> create a new communicator with name <name> and predefined addresses <addresses>
+        When players <group> create a new communicator with name <name> and direct addresses <addresses>
         Then the new communicator names should match <names>
         And the new communicator world sizes should match <world_sizes>
 
