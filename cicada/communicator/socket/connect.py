@@ -170,7 +170,9 @@ def listen(*, address, rank, name="world", timeout=5):
     while not timer.expired:
         try:
             if address.scheme == "tcp":
-                listen_socket = socket.create_server((address.hostname, address.port))
+                listen_socket = socket.create_server((address.hostname, address.port or 0))
+                host, port = listen_socket.getsockname()
+                address = urllib.parse.urlparse(f"tcp://{host}:{port}")
             elif address.scheme == "file":
                 if os.path.exists(address.path):
                     os.unlink(address.path)
@@ -178,7 +180,7 @@ def listen(*, address, rank, name="world", timeout=5):
                 listen_socket.bind(address.path)
             listen_socket.setblocking(False)
             listen_socket.listen()
-            log.info(f"listening at {address.geturl()} for connections.")
+            log.info(f"listening to {address.geturl()} for connections.")
             break
         except Exception as e: # pragma: no cover
             log.warning(f"exception creating listening socket: {e}")
