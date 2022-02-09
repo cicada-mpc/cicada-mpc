@@ -24,7 +24,7 @@ import numpy.testing
 import test
 
 from cicada.communicator.socket import Failed, NotRunning, Revoked, SocketCommunicator
-from cicada.communicator.socket.connect import Timeout, TokenMismatch, direct, rendezvous
+from cicada.communicator.socket.connect import Timeout, TokenMismatch, direct, listen, rendezvous
 
 
 @given(u'{} players')
@@ -277,11 +277,8 @@ def step_impl(context, group, name, addresses):
 
     def operation(communicator, group, name, addresses):
         if communicator.rank in group:
-            sockets=direct(
-                name=name,
-                addresses=addresses,
-                rank=communicator.rank,
-                )
+            listen_socket = listen(address=addresses[communicator.rank], name=name, rank=communicator.rank)
+            sockets = direct(listen_socket=listen_socket, addresses=addresses, rank=communicator.rank)
             comm = SocketCommunicator(sockets=sockets, name=name)
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
