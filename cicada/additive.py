@@ -780,16 +780,13 @@ class AdditiveProtocol(object):
         if isinstance(rhspub, int):
             rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
         ans=[]
-        print(f'rhspub: {rhspub}')
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
-            print(f'rhse: {rhse}')
             try:
                 rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
             except:
                 print(f'error: {rhse}')
             tmp = AdditiveArrayShare(lhse)
             it_ans = self.share(src = 0, secret=numpy.full(tmp.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=tmp.storage.shape)
-            print(f'it_ans shape: {it_ans.storage.shape} \t tmp shape: {tmp.storage.shape}')
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
                 if bit:
