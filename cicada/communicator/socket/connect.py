@@ -320,18 +320,18 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
         the :func:`rendezvous` outputs.  Defaults to "world".
     world_size: :class:`int`, optional
         The number of players that will be members of this communicator.
-        Defaults to the value of the WORLD_SIZE environment variable.
+        Defaults to the value of the CICADA_WORLD_SIZE environment variable.
     rank: :class:`int`, optional
         The rank of the local player, in the range [0, world_size).  Defaults
-        to the value of the RANK environment variable.
+        to the value of the CICADA_RANK environment variable.
     link_addr: :class:`str`, optional
         URL address of the root (rank 0) player.  The URL scheme *must* be
         `tcp`, and the address must be reachable by all of the other players.
-        Defaults to the value of the LINK_ADDR environment variable.
+        Defaults to the value of the CICADA_LINK_ADDR environment variable.
     host_addr: :class:`str`, optional
         URL address of the local player.  The URL scheme *must* be `tcp` and
         the address must be reachable by all of the other players.  Defaults to
-        the address of host_socket if supplied, or the value of the HOST_ADDR
+        the address of host_socket if supplied, or the value of the CICADA_HOST_ADDR
         environment variable.  Note that this value is ignored by the root
         player.
     host_socket: :class:`socket.socket`, optional
@@ -354,21 +354,21 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
         raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
 
     if world_size is None:
-        world_size = int(os.environ["WORLD_SIZE"])
+        world_size = int(os.environ["CICADA_WORLD_SIZE"])
     if not isinstance(world_size, int):
         raise ValueError("world_size must be an integer, got {world_size} instead.") # pragma: no cover
     if not world_size > 0:
         raise ValueError("world_size must be an integer greater than zero, got {world_size} instead.") # pragma: no cover
 
     if rank is None:
-        rank = int(os.environ["RANK"])
+        rank = int(os.environ["CICADA_RANK"])
     if not isinstance(rank, int):
         raise ValueError("rank must be an integer, got {rank} instead.") # pragma: no cover
     if not (0 <= rank and rank < world_size):
         raise ValueError(f"rank must be in the range [0, {world_size}), got {rank} instead.") # pragma: no cover
 
     if link_addr is None:
-        link_addr = os.environ["LINK_ADDR"]
+        link_addr = os.environ["CICADA_LINK_ADDR"]
     link_addr = urllib.parse.urlparse(link_addr)
     if link_addr.scheme != "tcp":
         raise ValueError("link_addr scheme must be tcp, got {link_addr.scheme} instead.") # pragma: no cover
@@ -383,7 +383,7 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
         hostname, port = host_socket.getsockname()
         host_addr = f"tcp://{hostname}:{port}"
     if host_addr is None and host_socket is None:
-        host_addr = os.environ["HOST_ADDR"]
+        host_addr = os.environ["CICADA_HOST_ADDR"]
     host_addr = urllib.parse.urlparse(host_addr)
     if host_addr.scheme != "tcp":
         raise ValueError("host_addr scheme must be tcp, got {host_addr.scheme} instead.") # pragma: no cover

@@ -14,20 +14,20 @@ import cicada
 
 def get_environment(world_size, rank, host_addr, link_addr):
     env = os.environ.copy()
-    env["WORLD_SIZE"] = str(world_size)
-    env["RANK"] = str(rank)
-    env["LINK_ADDR"] = str(link_addr)
-    env["HOST_ADDR"] = str(host_addr)
+    env["CICADA_WORLD_SIZE"] = str(world_size)
+    env["CICADA_RANK"] = str(rank)
+    env["CICADA_HOST_ADDR"] = str(host_addr)
+    env["CICADA_LINK_ADDR"] = str(link_addr)
     return env
 
 
 def log_command(command, env, log):
     log.info(f"Command: {' '.join(command)}")
     log.info(f"  Environment:")
-    log.info(f"    WORLD_SIZE={env['WORLD_SIZE']}")
-    log.info(f"    RANK={env['RANK']}")
-    log.info(f"    HOST_ADDR={env['HOST_ADDR']}")
-    log.info(f"    LINK_ADDR={env['LINK_ADDR']}")
+    log.info(f"    CICADA_WORLD_SIZE={env['CICADA_WORLD_SIZE']}")
+    log.info(f"    CICADA_RANK={env['CICADA_RANK']}")
+    log.info(f"    CICADA_HOST_ADDR={env['CICADA_HOST_ADDR']}")
+    log.info(f"    CICADA_LINK_ADDR={env['CICADA_LINK_ADDR']}")
 
 
 def public_ip():
@@ -66,10 +66,10 @@ def tmux_panes_frontend(arguments, players, log):
         else:
             command += [";", "split-window", "-v", "-d"]
 
-        command += ["-e", f"WORLD_SIZE={world_size}"]
-        command += ["-e", f"RANK={rank}"]
-        command += ["-e", f"HOST_ADDR={host_addr}"]
-        command += ["-e", f"LINK_ADDR={link_addr}"]
+        command += ["-e", f"CICADA_WORLD_SIZE={world_size}"]
+        command += ["-e", f"CICADA_RANK={rank}"]
+        command += ["-e", f"CICADA_HOST_ADDR={host_addr}"]
+        command += ["-e", f"CICADA_LINK_ADDR={link_addr}"]
         command += [sys.executable]
         if arguments.inspect:
             command += ["-i"]
@@ -99,10 +99,10 @@ def tmux_windows_frontend(arguments, players, log):
             command += [";", "new-window", "-d"]
 
         command += ["-n", f"rank-{rank}"]
-        command += ["-e", f"WORLD_SIZE={world_size}"]
-        command += ["-e", f"RANK={rank}"]
-        command += ["-e", f"HOST_ADDR={host_addr}"]
-        command += ["-e", f"LINK_ADDR={link_addr}"]
+        command += ["-e", f"CICADA_WORLD_SIZE={world_size}"]
+        command += ["-e", f"CICADA_RANK={rank}"]
+        command += ["-e", f"CICADA_HOST_ADDR={host_addr}"]
+        command += ["-e", f"CICADA_LINK_ADDR={link_addr}"]
         command += [sys.executable]
         if arguments.inspect:
             command += ["-i"]
