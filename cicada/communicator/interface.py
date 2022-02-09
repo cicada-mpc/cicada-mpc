@@ -180,10 +180,10 @@ class Communicator(metaclass=ABCMeta):
         result: :class:`object`
             A special result object that can be used to wait for and access the
             value sent by the sender.  The result object will have three
-            methods: :meth:`is_completed`, which returns immediately with a boolean
-            value indicating whether the result has been received; :meth:`wait`,
+            methods: `is_completed`, which returns immediately with a boolean
+            value indicating whether the result has been received; `wait`,
             which will block indefinitely until the result is received; and
-            :meth:`value`, which returns the received value, or throws an exception
+            `value`, which returns the received value, or throws an exception
             if the value has not been received yet.
         """
         pass # pragma: no cover
@@ -216,10 +216,9 @@ class Communicator(metaclass=ABCMeta):
         result: :class:`object`
             A special result object that can be used to wait until the message
             has been sent.  The result object will have two methods:
-            :meth:`is_completed`, which returns immediately with a boolean
-            value indicating whether the result has been sent; and
-            :meth:`wait`, which will block indefinitely until the message is
-            sent.
+            `is_completed`, which returns immediately with a boolean value
+            indicating whether the result has been sent; and `wait`, which will
+            block indefinitely until the message is sent.
         """
         pass # pragma: no cover
 

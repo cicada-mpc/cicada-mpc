@@ -37,7 +37,7 @@ import numpy
 import pynetstring
 
 from ..interface import Communicator
-from .connect import LoggerAdapter, Timeout, rendezvous
+from .connect import LoggerAdapter, NetstringSocket, Timeout, rendezvous
 
 Message = collections.namedtuple("Message", ["serial", "tag", "sender", "payload"])
 Message.__doc__ = """
@@ -88,7 +88,7 @@ class SocketCommunicator(Communicator):
 
     Parameters
     ----------
-    sockets: :class:`dict` of :class:`NetstringSocket`, required
+    sockets: :class:`dict` of :class:`~cicada.communicator.socket.connect.NetstringSocket`, required
         Dictionary containing sockets that are connected to the other players
         and ready to use.  The dictionary keys must be the ranks of the other
         players, and there must be one sockets in the dictionary for every
@@ -124,6 +124,11 @@ class SocketCommunicator(Communicator):
     def __init__(self, *, sockets, name="world", timeout=5):
         if not isinstance(sockets, dict):
             raise ValueError("sockets must be a dict, got {sockets} instead.") # pragma: no cover
+        for key, socket in sockets.items():
+            if not isinstance(key, int):
+                raise ValueError("sockets keys must be ints, got {sockets} instead.") # pragma: no cover
+            if not isinstance(socket, NetstringSocket):
+                raise ValueError("sockets values must be NetstringSocket, got {sockets} instead.") # pragma: no cover
 
         world_size = len(sockets) + 1
         for index in range(world_size):
@@ -495,7 +500,7 @@ class SocketCommunicator(Communicator):
 
         Returns
         -------
-        name: string
+        name: :class:`str`
         """
         return self._name
 
@@ -517,7 +522,7 @@ class SocketCommunicator(Communicator):
 
         Returns
         -------
-        context:
+        context: :class:`object`
             A context manager object that will restore the communicator state when exited.
         """
         original_context = {
@@ -591,7 +596,7 @@ class SocketCommunicator(Communicator):
         ----------
         world_size: :class:`int`, required
             The number of players that will run the function.
-        fn: callable object, required
+        fn: :func:`callable`, required
             The function to execute in parallel.
         args: :class:`tuple`, optional
             Positional arguments to pass to `fn` when it is executed.

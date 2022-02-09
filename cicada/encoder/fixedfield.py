@@ -265,7 +265,7 @@ class FixedFieldEncoder(object):
 
         Parameters
         ----------
-        size: tuple, required
+        size: :class:`tuple`, required
             A tuple defining the shape of the output array.
         generator: :class:`numpy.random.Generator`, required
             A psuedorandom number generator for sampling.
@@ -355,7 +355,7 @@ class FixedFieldEncoder(object):
 
         Parameters
         ----------
-        shape: tuple, required
+        shape: :class:`tuple`, required
             The shape of the output array.
 
         Returns

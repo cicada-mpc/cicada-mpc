@@ -170,7 +170,7 @@ def direct(*, addresses, rank, name="world", timeout=5):
     Returns
     -------
     sockets: :class:`dict` of :class:`NetstringSocket`
-        Dictionary mapping player ranks to connected sockets, ready for use by :class:`SocketCommunicator`.
+        Dictionary mapping player ranks to connected sockets.
     """
     if not isinstance(name, str):
         raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
@@ -348,7 +348,7 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
     Returns
     -------
     sockets: :class:`dict` of :class:`NetstringSocket`
-        Dictionary mapping player ranks to connected sockets, ready for use by :class:`SocketCommunicator`.
+        Dictionary mapping player ranks to connected sockets.
     """
     if not isinstance(name, str):
         raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
