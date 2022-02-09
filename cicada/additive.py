@@ -789,7 +789,6 @@ class AdditiveProtocol(object):
                 print(f'error: {rhse}')
             tmp = AdditiveArrayShare(lhse)
             it_ans = self.share(src = 0, secret=numpy.full(tmp.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=tmp.storage.shape)
-            print(f'it_ans shape: {it_ans.storage.shape} \t tmp shape: {tmp.storage.shape}')
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
                 if bit:
