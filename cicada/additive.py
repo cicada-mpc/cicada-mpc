@@ -780,9 +780,7 @@ class AdditiveProtocol(object):
         if isinstance(rhspub, int):
             rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
         ans=[]
-        print(f'rhspub: {rhspub}')
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
-            print(f'rhse: {rhse}')
             try:
                 rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
             except:
