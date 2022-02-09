@@ -623,7 +623,7 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, startup_timeout):
+        def launch(*, root_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, startup_timeout):
             # Create a socket with a randomly-assigned port number.
             host_socket = socket.create_server(("127.0.0.1", 0))
             host, port = host_socket.getsockname()
@@ -632,14 +632,14 @@ class SocketCommunicator(Communicator):
             # Send address information to our peers.
             if rank == 0:
                 for index in range(world_size):
-                    link_addr_queue.put(host_addr)
+                    root_addr_queue.put(host_addr)
 
-            link_addr = link_addr_queue.get()
+            root_addr = root_addr_queue.get()
 
             # Run the work function.
             try:
                 name = "world"
-                sockets=rendezvous(name=name, world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket, timeout=startup_timeout)
+                sockets=rendezvous(name=name, world_size=world_size, root_addr=root_addr, rank=rank, host_socket=host_socket, timeout=startup_timeout)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
                 result = fn(communicator, *args, **kwargs)
                 communicator.free()
@@ -653,7 +653,7 @@ class SocketCommunicator(Communicator):
         context = multiprocessing.get_context(method="fork") # I don't remember why we preferred fork().
 
         # Create queues for IPC.
-        link_addr_queue = context.Queue()
+        root_addr_queue = context.Queue()
         result_queue = context.Queue()
 
         # Create per-player processes.
@@ -661,7 +661,7 @@ class SocketCommunicator(Communicator):
         for rank in range(world_size):
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(link_addr_queue=link_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                kwargs=dict(root_addr_queue=root_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
@@ -818,9 +818,9 @@ class SocketCommunicator(Communicator):
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
                 self._send(tag="shrink-end", payload=host_addr, dst=remaining_rank)
-        link_addr = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
+        root_addr = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
 
-        sockets=rendezvous(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_socket=host_socket, token=token, timeout=timeout)
+        sockets=rendezvous(name=name, world_size=world_size, rank=rank, root_addr=root_addr, host_socket=host_socket, token=token, timeout=timeout)
         return SocketCommunicator(sockets=sockets, name=name), remaining_ranks
 
 
@@ -883,22 +883,22 @@ class SocketCommunicator(Communicator):
 
             group_world_sizes = [group_world_sizes[group_name] for group_name in group_names]
 
-            group_link_addrs = {}
+            group_root_addrs = {}
             for group_name, group_host_addr in zip(group_names, group_host_addrs):
-                if group_name not in group_link_addrs:
-                    group_link_addrs[group_name] = group_host_addr
-            group_link_addrs = [group_link_addrs[group_name] for group_name in group_names]
+                if group_name not in group_root_addrs:
+                    group_root_addrs[group_name] = group_host_addr
+            group_root_addrs = [group_root_addrs[group_name] for group_name in group_names]
 
-        # Send name, world_size, rank, and link_addr to all players.
+        # Send name, world_size, rank, and root_addr to all players.
         if self.rank == 0:
-            for dst, (group_name, group_world_size, group_rank, group_link_addr) in enumerate(zip(group_names, group_world_sizes, group_ranks, group_link_addrs)):
-                self._send(tag="split-end", payload=(group_name, group_world_size, group_rank, group_link_addr), dst=dst)
+            for dst, (group_name, group_world_size, group_rank, group_root_addr) in enumerate(zip(group_names, group_world_sizes, group_ranks, group_root_addrs)):
+                self._send(tag="split-end", payload=(group_name, group_world_size, group_rank, group_root_addr), dst=dst)
 
         # Collect name information.
-        group_name, group_world_size, group_rank, group_link_addr = self._receive(tag="split-end", sender=0, block=True).payload
+        group_name, group_world_size, group_rank, group_root_addr = self._receive(tag="split-end", sender=0, block=True).payload
         # Return a new communicator.
         if group_name is not None:
-            sockets=rendezvous(name=group_name, world_size=group_world_size, rank=group_rank, link_addr=group_link_addr, host_socket=host_socket, timeout=timeout)
+            sockets=rendezvous(name=group_name, world_size=group_world_size, rank=group_rank, root_addr=group_root_addr, host_socket=host_socket, timeout=timeout)
             return SocketCommunicator(sockets=sockets, name=group_name)
 
         return None

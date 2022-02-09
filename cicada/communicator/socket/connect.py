@@ -309,7 +309,7 @@ def direct(*, addresses, rank, name="world", timeout=5):
     return players
 
 
-def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host_addr=None, host_socket=None, token=0, timeout=5):
+def rendezvous(*, name="world", world_size=None, rank=None, host_addr=None, host_socket=None, root_addr=None, token=0, timeout=5):
     """Create per-player socket connections given just the address of the root player.
 
     Parameters
@@ -324,10 +324,6 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
     rank: :class:`int`, optional
         The rank of the local player, in the range [0, world_size).  Defaults
         to the value of the CICADA_RANK environment variable.
-    link_addr: :class:`str`, optional
-        URL address of the root (rank 0) player.  The URL scheme *must* be
-        `tcp`, and the address must be reachable by all of the other players.
-        Defaults to the value of the CICADA_LINK_ADDR environment variable.
     host_addr: :class:`str`, optional
         URL address of the local player.  The URL scheme *must* be `tcp` and
         the address must be reachable by all of the other players.  Defaults to
@@ -339,6 +335,10 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
         communicator.  The provided socket *must* be created using `AF_INET`
         and `SOCK_STREAM`, and be bound to the same address and port specified
         by `host_addr`.
+    root_addr: :class:`str`, optional
+        URL address of the root (rank 0) player.  The URL scheme *must* be
+        `tcp`, and the address must be reachable by all of the other players.
+        Defaults to the value of the CICADA_ROOT_ADDR environment variable.
     token: :class:`object`, optional
         All players provide an arbitrary token at startup; every player token
         must match, or a :class:`TokenMismatch` exception will be raised.
@@ -367,16 +367,6 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
     if not (0 <= rank and rank < world_size):
         raise ValueError(f"rank must be in the range [0, {world_size}), got {rank} instead.") # pragma: no cover
 
-    if link_addr is None:
-        link_addr = os.environ["CICADA_LINK_ADDR"]
-    link_addr = urllib.parse.urlparse(link_addr)
-    if link_addr.scheme != "tcp":
-        raise ValueError("link_addr scheme must be tcp, got {link_addr.scheme} instead.") # pragma: no cover
-    if link_addr.hostname is None:
-        raise ValueError("link_addr hostname must be specified.") # pragma: no cover
-    if link_addr.port is None:
-        raise ValueError("link_addr port must be specified.") # pragma: no cover
-
     if host_addr is not None and host_socket is not None:
         raise ValueError("Specify host_addr or host_socket, but not both.") # pragma: no cover
     if host_addr is None and host_socket is not None:
@@ -395,8 +385,18 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
         if host_addr.port is None:
             raise ValueError("Player 0 host_addr port must be specified.") # pragma: no cover
 
-    if rank == 0 and host_addr != link_addr:
-        raise ValueError(f"Player 0 link_addr {link_addr} and host_addr {host_addr} must match.") # pragma: no cover
+    if root_addr is None:
+        root_addr = os.environ["CICADA_ROOT_ADDR"]
+    root_addr = urllib.parse.urlparse(root_addr)
+    if root_addr.scheme != "tcp":
+        raise ValueError("root_addr scheme must be tcp, got {root_addr.scheme} instead.") # pragma: no cover
+    if root_addr.hostname is None:
+        raise ValueError("root_addr hostname must be specified.") # pragma: no cover
+    if root_addr.port is None:
+        raise ValueError("root_addr port must be specified.") # pragma: no cover
+
+    if rank == 0 and host_addr != root_addr:
+        raise ValueError(f"Player 0 host_addr {host_addr} and root_addr {root_addr} must match.") # pragma: no cover
 
     if not isinstance(host_socket, (socket.socket, type(None))):
         raise ValueError(f"host_socket must be an instance of socket.socket or None.") # pragma: no cover
@@ -442,7 +442,7 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
     # Update host_addr to include the (possibly randomly-chosen) port.
     host, port = host_socket.getsockname()
     host_addr = urllib.parse.urlparse(f"tcp://{host}:{port}")
-    log.info(f"rendezvous with {link_addr.geturl()} from {host_addr.geturl()}")
+    log.info(f"rendezvous with {root_addr.geturl()} from {host_addr.geturl()}")
 
     ###########################################################################
     # Phase 2: Every player (except root) makes a connection to root.
@@ -451,7 +451,7 @@ def rendezvous(*, name="world", world_size=None, rank=None, link_addr=None, host
         while not timer.expired:
             try:
                 other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                other_player.connect((link_addr.hostname, link_addr.port))
+                other_player.connect((root_addr.hostname, root_addr.port))
                 other_player = NetstringSocket(other_player)
                 players[0] = other_player
                 break

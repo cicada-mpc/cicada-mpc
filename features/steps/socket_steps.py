@@ -235,7 +235,7 @@ def step_impl(context, group, world_size, name, token):
                 world_size=world_size,
                 rank=communicator.rank,
                 host_addr="tcp://127.0.0.1:25000" if communicator.rank == group[0] else "tcp://127.0.0.1",
-                link_addr="tcp://127.0.0.1:25000",
+                root_addr="tcp://127.0.0.1:25000",
                 token=token,
                 )
             comm = SocketCommunicator(sockets=sockets, name=name)
@@ -259,7 +259,7 @@ def step_impl(context, group, world_size, name, tokens):
                 world_size=world_size,
                 rank=communicator.rank,
                 host_addr="tcp://127.0.0.1:25000" if communicator.rank == group[0] else "tcp://127.0.0.1",
-                link_addr="tcp://127.0.0.1:25000",
+                root_addr="tcp://127.0.0.1:25000",
                 token=tokens[group.index(communicator.rank)]
                 )
             comm = SocketCommunicator(sockets=sockets, name=name)
