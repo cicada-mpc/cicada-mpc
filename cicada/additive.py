@@ -778,13 +778,10 @@ class AdditiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         if isinstance(rhspub, int):
-            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
+            rhspub = numpy.full(lhs.storage.shape, rhspub)
         ans=[]
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
-            try:
-                rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
-            except:
-                print(f'error: {rhse}')
+            rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
             tmp = AdditiveArrayShare(lhse)
             it_ans = self.share(src = 0, secret=numpy.full(tmp.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=tmp.storage.shape)
             limit = len(rhsbits)-1
