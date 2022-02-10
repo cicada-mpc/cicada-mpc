@@ -37,7 +37,7 @@ import numpy
 import pynetstring
 
 from ..interface import Communicator
-from .connect import LoggerAdapter, NetstringSocket, Timeout, rendezvous
+from .connect import LoggerAdapter, NetstringSocket, Timeout, direct, listen, rendezvous
 
 Message = collections.namedtuple("Message", ["serial", "tag", "sender", "payload"])
 Message.__doc__ = """
@@ -623,23 +623,23 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, root_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, startup_timeout):
-            # Create a socket with a randomly-assigned port number.
-            host_socket = socket.create_server(("127.0.0.1", 0))
-            host, port = host_socket.getsockname()
-            host_addr = f"tcp://{host}:{port}"
-
-            # Send address information to our peers.
-            if rank == 0:
-                for index in range(world_size):
-                    root_addr_queue.put(host_addr)
-
-            root_addr = root_addr_queue.get()
-
+        def launch(*, parent_queue, child_queue, rank, fn, args, kwargs, timeout, startup_timeout):
             # Run the work function.
             try:
                 name = "world"
-                sockets=rendezvous(name=name, world_size=world_size, root_addr=root_addr, rank=rank, host_socket=host_socket, timeout=startup_timeout)
+
+                # Create a socket with a randomly-assigned port number.
+                listen_socket = listen(name=name, rank=rank, address="tcp://127.0.0.1", timeout=startup_timeout)
+                host, port = listen_socket.getsockname()
+                listen_addr = f"tcp://{host}:{port}"
+
+                # Send our address to the parent process.
+                parent_queue.put((rank, listen_addr))
+
+                # Get all addresses from the parent process.
+                addresses = child_queue.get()
+
+                sockets=direct(name=name, rank=rank, addresses=addresses, listen_socket=listen_socket, timeout=startup_timeout)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
                 result = fn(communicator, *args, **kwargs)
                 communicator.free()
@@ -647,27 +647,37 @@ class SocketCommunicator(Communicator):
                 result = Failed(e, traceback.format_exc())
 
             # Return results to the parent process.
-            result_queue.put((rank, result))
+            parent_queue.put((rank, result))
 
         # Setup the multiprocessing context.
-        context = multiprocessing.get_context(method="fork") # I don't remember why we preferred fork().
+        context = multiprocessing.get_context(method="fork") # I don't remember why we prefer fork().
 
         # Create queues for IPC.
-        root_addr_queue = context.Queue()
-        result_queue = context.Queue()
+        parent_queue = context.Queue()
+        child_queue = context.Queue()
 
         # Create per-player processes.
         processes = []
         for rank in range(world_size):
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(root_addr_queue=root_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
         for process in processes:
             process.daemon = True
             process.start()
+
+        # Collect addresses from every process.
+        addresses = [None] * world_size
+        for process in processes:
+            rank, address = parent_queue.get(block=True)
+            addresses[rank] = address
+
+        # Send addresses to every process.
+        for process in processes:
+            child_queue.put(addresses)
 
         # Wait until every process terminates.
         for process in processes:
@@ -678,7 +688,7 @@ class SocketCommunicator(Communicator):
         results = []
         for process in processes:
             try:
-                results.append(result_queue.get(block=False))
+                results.append(parent_queue.get(block=False))
             except:
                 break
 

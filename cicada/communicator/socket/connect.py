@@ -151,13 +151,53 @@ class TokenMismatch(Exception):
     pass
 
 
-def direct(*, addresses, rank, name="world", timeout=5):
+def listen(*, address, rank, name="world", timeout=5):
+    if not isinstance(address, str):
+        raise ValueError(f"Comm {name!r} player {rank} address must be a string, got {address} instead.") # pragma: no cover
+
+    address = urllib.parse.urlparse(address)
+
+    if address.scheme not in ["file", "tcp"]:
+        raise ValueError(f"Comm {name!r} player {rank} address scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
+
+    # Setup logging
+    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+
+    # Track elapsed time during setup.
+    timer = Timer(threshold=timeout)
+
+    # Create the socket.
+    while not timer.expired:
+        try:
+            if address.scheme == "tcp":
+                listen_socket = socket.create_server((address.hostname, address.port or 0))
+                host, port = listen_socket.getsockname()
+                address = urllib.parse.urlparse(f"tcp://{host}:{port}")
+            elif address.scheme == "file":
+                if os.path.exists(address.path):
+                    os.unlink(address.path)
+                listen_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                listen_socket.bind(address.path)
+            listen_socket.setblocking(False)
+            listen_socket.listen()
+            log.info(f"listening to {address.geturl()} for connections.")
+            break
+        except Exception as e: # pragma: no cover
+            log.warning(f"exception creating listening socket: {e}")
+            time.sleep(0.1)
+    else: # pragma: no cover
+        raise Timeout(f"Comm {name!r} player {rank} timeout creating listening socket.")
+
+    return listen_socket
+
+
+def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
     """Create per-player socket connections for a list of addresses.
 
     Parameters
     ----------
     addresses: :class:`list` of :class:`str`, required
-        List of addresses for every player.
+        List of addresses for every player in rank order.
     rank: :class:`int`, required
         Rank of the calling player.
     name: :class:`str`, optional
@@ -172,8 +212,6 @@ def direct(*, addresses, rank, name="world", timeout=5):
     sockets: :class:`dict` of :class:`NetstringSocket`
         Dictionary mapping player ranks to connected sockets.
     """
-    if not isinstance(name, str):
-        raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
 
     for address in addresses:
         if not isinstance(address, str):
@@ -198,6 +236,9 @@ def direct(*, addresses, rank, name="world", timeout=5):
     if rank >= world_size:
         raise ValueError(f"rank must be less than {world_size}, got {rank} instead.") # pragma: no cover
 
+    if not isinstance(name, str):
+        raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
+
     if not isinstance(timeout, numbers.Number):
         raise ValueError(f"timeout must be a number, got {timeout} instead.") # pragma: no cover
     if not timeout > 0:
@@ -205,6 +246,7 @@ def direct(*, addresses, rank, name="world", timeout=5):
 
     # Setup logging
     log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+    log.info(f"direct connect with {[address.geturl() for address in addresses]}.")
 
     # Set aside storage for connections to the other players.
     players = {}
@@ -212,33 +254,7 @@ def direct(*, addresses, rank, name="world", timeout=5):
     # Track elapsed time during setup.
     timer = Timer(threshold=timeout)
 
-    ###########################################################################################
-    # Phase 1: Every player sets-up a socket to listen for connections from the other players.
-
-    while not timer.expired:
-        try:
-            address = addresses[rank]
-            if address.scheme == "tcp":
-                listen_socket = socket.create_server((address.hostname, address.port))
-            elif address.scheme == "file":
-                if os.path.exists(address.path):
-                    os.unlink(address.path)
-                listen_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                listen_socket.bind(address.path)
-            break
-        except Exception as e: # pragma: no cover
-            log.warning(f"exception creating host socket: {e}")
-            time.sleep(0.1)
-    else: # pragma: no cover
-        raise Timeout(f"Comm {name!r} player {rank} timeout creating listening socket.")
-
-    listen_socket.setblocking(False)
-    listen_socket.listen(world_size)
-    log.info(f"direct connect with {[address.geturl() for address in addresses]}.")
-
-    ###########################################################################
-    # Phase 2: Players setup connections with one another.
-
+    # Players setup connections with each other, in rank order.
     for listener in range(0, world_size-1):
         if rank == listener:
             # Accept connections from higher-rank players.
