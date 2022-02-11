@@ -146,12 +146,12 @@ class AdditiveProtocol(object):
         self._assert_unary_compatible(lhs, lhslabel)
         self._assert_unary_compatible(rhs, rhslabel)
         if lhs.storage.shape != rhs.storage.shape:
-            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.")
+            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
 
 
     def _assert_unary_compatible(self, share, label):
         if not isinstance(share, AdditiveArrayShare):
-            raise ValueError(f"{label} must be an instance of AdditiveArrayShare, got {type(share)} instead.")
+            raise ValueError(f"{label} must be an instance of AdditiveArrayShare, got {type(share)} instead.") # pragma: no cover
 
 
     def absolute(self, operand):
@@ -886,7 +886,7 @@ class AdditiveProtocol(object):
         an additive shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
         """
         if lhspub.shape != rhs.storage.shape[:-1]:
-            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension')
+            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension') # pragma: no cover
         bitwidth = rhs.storage.shape[-1]
         lhsbits = []
         for val in lhspub:
