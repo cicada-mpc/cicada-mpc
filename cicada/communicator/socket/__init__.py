@@ -31,6 +31,7 @@ import socket
 import threading
 import time
 import traceback
+import urllib.parse
 
 import numpy
 import pynetstring
@@ -115,8 +116,6 @@ class SocketCommunicator(Communicator):
         "send",
         "shrink-begin",
         "shrink-end",
-        "split-begin",
-        "split-end",
         ]
 
 
@@ -863,50 +862,42 @@ class SocketCommunicator(Communicator):
         self._require_running()
 
         if not isinstance(name, (str, type(None))):
-            raise ValueError(f"name must be a string or None, got {name} instead.") # pragma: no cover
+            raise ValueError(f"Comm {self.name!r} player {self.rank} name must be a string or None, got {name} instead.") # pragma: no cover
 
         # Create a new socket with a randomly-assigned port number.
         if name is not None:
-            old_host_addr = next(iter(self._players.values())).sock.getsockname()[0]
-            host_socket = socket.create_server((old_host_addr, 0))
-            host, port = host_socket.getsockname()
-            host_addr = f"tcp://{host}:{port}"
+            address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
+            if address.scheme != "tcp":
+                raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can be split.")
+
+            listen_socket = socket.create_server((address.hostname, 0))
+            address = geturl(listen_socket)
         else:
-            host_addr = None
+            address = None
 
         # Send names and addresses to rank 0.
-        self._send(tag="split-begin", payload=(name, host_addr), dst=0)
+        addresses = self.gather(value=(name, address), dst=0)
 
-        # Collect name membership information from all players and compute new communicator parameters.
+        # Compute new communicator parameters.
         if self.rank == 0:
-            messages = [self._receive(tag="split-begin", sender=rank, block=True) for rank in self.ranks]
-            group_names = [message.payload[0] for message in messages]
-            group_host_addrs = [message.payload[1] for message in messages]
+            groups = collections.defaultdict(list)
+            for rank, (name, address) in enumerate(addresses):
+                groups[name].append((rank, address))
 
-            group_world_sizes = collections.Counter()
-            group_ranks = []
-            for group_name in group_names:
-                group_ranks.append(group_world_sizes[group_name])
-                group_world_sizes[group_name] += 1
+            players = []
+            for rank, (name, address) in enumerate(addresses):
+                group = sorted(groups[name])
+                ranks, addresses = zip(*group)
+                players.append((name, len(group), ranks.index(rank), addresses))
+        else:
+            players = None
 
-            group_world_sizes = [group_world_sizes[group_name] for group_name in group_names]
+        # Send new connection info to all players.
+        group_name, group_world_size, group_rank, group_addresses = self.scatter(src=0, values=players)
 
-            group_root_addrs = {}
-            for group_name, group_host_addr in zip(group_names, group_host_addrs):
-                if group_name not in group_root_addrs:
-                    group_root_addrs[group_name] = group_host_addr
-            group_root_addrs = [group_root_addrs[group_name] for group_name in group_names]
-
-        # Send name, world_size, rank, and root_addr to all players.
-        if self.rank == 0:
-            for dst, (group_name, group_world_size, group_rank, group_root_addr) in enumerate(zip(group_names, group_world_sizes, group_ranks, group_root_addrs)):
-                self._send(tag="split-end", payload=(group_name, group_world_size, group_rank, group_root_addr), dst=dst)
-
-        # Collect name information.
-        group_name, group_world_size, group_rank, group_root_addr = self._receive(tag="split-end", sender=0, block=True).payload
         # Return a new communicator.
         if group_name is not None:
-            sockets=rendezvous(name=group_name, world_size=group_world_size, rank=group_rank, root_addr=group_root_addr, host_socket=host_socket, timeout=timeout)
+            sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timeout=timeout)
             return SocketCommunicator(sockets=sockets, name=group_name)
 
         return None

@@ -70,12 +70,19 @@ class NetstringSocket(object):
         self._received_messages += len(messages)
         self._messages += messages
 
+    @property
+    def family(self):
+        return self._socket.family
+
     def fileno(self):
         """Return the file descriptor for the underlying socket.
 
         This allows :class:`NetstringSocket` to be used with :func:`select.select`.
         """
         return self._socket.fileno()
+
+    def getsockname(self):
+        return self._socket.getsockname()
 
     def messages(self):
         """Return every message that has been received, if any."""
