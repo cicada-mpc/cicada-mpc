@@ -151,6 +151,16 @@ class TokenMismatch(Exception):
     pass
 
 
+def geturl(sock):
+    if sock.family == socket.AF_UNIX:
+        path = sock.getsockname()
+        return f"file://{path}"
+    if sock.family == socket.AF_INET:
+        host, port = sock.getsockname()
+        return f"tcp://{host}:{port}"
+    raise ValueError(f"Unknown address family: {sock.family}")
+
+
 def listen(*, address, rank, name="world", timeout=5):
     if not isinstance(address, str):
         raise ValueError(f"Comm {name!r} player {rank} address must be a string, got {address} instead.") # pragma: no cover
@@ -171,8 +181,7 @@ def listen(*, address, rank, name="world", timeout=5):
         try:
             if address.scheme == "tcp":
                 listen_socket = socket.create_server((address.hostname, address.port or 0))
-                host, port = listen_socket.getsockname()
-                address = urllib.parse.urlparse(f"tcp://{host}:{port}")
+                address = urllib.parse.urlparse(geturl(listen_socket)) # Recreate the address in case the port was assigned at random.
             elif address.scheme == "file":
                 if os.path.exists(address.path):
                     os.unlink(address.path)

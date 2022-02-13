@@ -31,13 +31,12 @@ import socket
 import threading
 import time
 import traceback
-import urllib.parse
 
 import numpy
 import pynetstring
 
 from ..interface import Communicator
-from .connect import LoggerAdapter, NetstringSocket, Timeout, direct, listen, rendezvous
+from .connect import LoggerAdapter, NetstringSocket, Timeout, direct, geturl, listen, rendezvous
 
 Message = collections.namedtuple("Message", ["serial", "tag", "sender", "payload"])
 Message.__doc__ = """
@@ -630,11 +629,10 @@ class SocketCommunicator(Communicator):
 
                 # Create a socket with a randomly-assigned port number.
                 listen_socket = listen(name=name, rank=rank, address="tcp://127.0.0.1", timeout=startup_timeout)
-                host, port = listen_socket.getsockname()
-                listen_addr = f"tcp://{host}:{port}"
+                address = geturl(listen_socket)
 
                 # Send our address to the parent process.
-                parent_queue.put((rank, listen_addr))
+                parent_queue.put((rank, address))
 
                 # Get all addresses from the parent process.
                 addresses = child_queue.get()
@@ -853,7 +851,7 @@ class SocketCommunicator(Communicator):
         name: :class:`str` or :any:`None`, required
             Communicator name, or `None`.
         timeout: :class:`numbers.Number`, optional
-            Maximum time to wait for socket creation, in seconds. 
+            Maximum time to wait for socket creation, in seconds.
 
         Returns
         -------
