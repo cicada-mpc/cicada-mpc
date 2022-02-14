@@ -817,17 +817,20 @@ class SocketCommunicator(Communicator):
         world_size=len(remaining_ranks)
         rank = remaining_ranks.index(self.rank)
 
-        old_host_addr = next(iter(self._players.values())).sock.getsockname()[0]
-        host_socket = socket.create_server((old_host_addr, 0))
-        host, port = host_socket.getsockname()
-        host_addr = f"tcp://{host}:{port}"
+        # Create a new socket with a randomly-assigned port number.
+        address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
+        if address.scheme != "tcp":
+            raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can shrink.")
+
+        listen_socket = socket.create_server((address.hostname, 0))
+        address = geturl(listen_socket)
 
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
-                self._send(tag="shrink-end", payload=host_addr, dst=remaining_rank)
-        root_addr = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
+                self._send(tag="shrink-end", payload=address, dst=remaining_rank)
+        root_address = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
 
-        sockets=rendezvous(name=name, world_size=world_size, rank=rank, root_addr=root_addr, host_socket=host_socket, token=token, timeout=timeout)
+        sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timeout=timeout)
         return SocketCommunicator(sockets=sockets, name=name), remaining_ranks
 
 

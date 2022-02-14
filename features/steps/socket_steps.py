@@ -230,14 +230,10 @@ def step_impl(context, group, world_size, name, token):
 
     def operation(communicator, group, world_size, name, token):
         if communicator.rank in group:
-            sockets=rendezvous(
-                name=name,
-                world_size=world_size,
-                rank=communicator.rank,
-                host_addr="tcp://127.0.0.1:25000" if communicator.rank == group[0] else "tcp://127.0.0.1",
-                root_addr="tcp://127.0.0.1:25000",
-                token=token,
-                )
+            rank = group.index(communicator.rank)
+            address = "tcp://127.0.0.1:25000" if rank == 0 else "tcp://127.0.0.1"
+            listen_socket = listen(address=address, rank=communicator.rank, name=name)
+            sockets=rendezvous(listen_socket=listen_socket, root_address="tcp://127.0.0.1:25000", world_size=world_size, rank=rank, name=name, token=token)
             comm = SocketCommunicator(sockets=sockets, name=name)
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
@@ -254,14 +250,10 @@ def step_impl(context, group, world_size, name, tokens):
 
     def operation(communicator, group, world_size, name):
         if communicator.rank in group:
-            sockets=rendezvous(
-                name=name,
-                world_size=world_size,
-                rank=communicator.rank,
-                host_addr="tcp://127.0.0.1:25000" if communicator.rank == group[0] else "tcp://127.0.0.1",
-                root_addr="tcp://127.0.0.1:25000",
-                token=tokens[group.index(communicator.rank)]
-                )
+            rank = group.index(communicator.rank)
+            address = "tcp://127.0.0.1:25000" if rank == 0 else "tcp://127.0.0.1"
+            listen_socket = listen(address=address, rank=rank, name=name)
+            sockets=rendezvous(listen_socket=listen_socket, root_address="tcp://127.0.0.1:25000", world_size=world_size, rank=rank, name=name, token=tokens[rank])
             comm = SocketCommunicator(sockets=sockets, name=name)
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
