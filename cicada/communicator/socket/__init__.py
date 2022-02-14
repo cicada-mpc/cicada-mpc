@@ -371,6 +371,66 @@ class SocketCommunicator(Communicator):
         return message.payload
 
 
+    @staticmethod
+    def connect(*, world_size=None, rank=None, address=None, root_address=None, name="world", timeout=5, startup_timeout=5):
+        """High level function to create a SocketCommunicator.
+
+        This is a high level convenience function that can be used to create a
+        communicator, given just the calling player's address and the address
+        of the root player.  By default, the parameters will be read from
+        environment variables that can be set permanently by the user, or
+        temporarily using the :ref:`cicada` command.
+
+        Parameters
+        ----------
+        world_size: :class:`int` or :any:`None`, optional
+            Number of players.  Defaults to the value of the CICADA_WORLD_SIZE
+            environment variable, which is automatically set by the :ref:`cicada` command.
+        rank: :class:`int` or :any:`None`, optional
+            Rank of the caller.  Defaults to the value of the CICADA_RANK
+            environment variable, which is automatically set by the :ref:`cicada` command.
+        address: :class:`str` or :any:`None`, optional
+            Listening address of the caller.  This must be a URL of the form
+            `"tcp://{host}:{port}"` for TCP sockets, or `"file:///path/to/foo"`
+            for Unix domain sockets.  Defaults to the value of the
+            CICADA_ADDRESS environment variable, which is automatically set
+            by the :ref:`cicada` command.
+        root_address: :class:`str` or :any:`None`, optional
+            Listening address of the root (rank 0) player.  This must be a URL
+            of the form `"tcp://{host}:{port}"` for TCP sockets, or
+            `"file:///path/to/foo"` for Unix domain sockets.  Defaults to the
+            value of the CICADA_ROOT_ADDRESS environment variable, which is
+            automatically set by the :ref:`cicada` command.
+
+        Raises
+        ------
+        :class:`ValueError`
+            If there are problems with input parameters.
+        :class:`Timeout`
+            If `timeout` seconds elapses before all connections are established.
+        :class:`TokenMismatch`
+            If every player doesn't provide the same token during startup.
+
+        Returns
+        -------
+        communicator: :class:`SocketCommunicator`
+            A fully-initialized communicator, ready for use.
+
+        """
+        if world_size is None:
+            world_size = int(os.environ.get("CICADA_WORLD_SIZE"))
+        if rank is None:
+            rank = int(os.environ.get("CICADA_RANK"))
+        if address is None:
+            address = os.environ.get("CICADA_ADDRESS")
+        if root_address is None:
+            root_address = os.environ.get("CICADA_ROOT_ADDRESS")
+
+        listen_socket = listen(address=address, rank=rank, name=name, timeout=startup_timeout)
+        sockets = rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, timeout=startup_timeout)
+        return SocketCommunicator(sockets=sockets, timeout=timeout)
+
+
     def free(self):
         # Calling free() multiple times is a no-op.
         if not self._running:
@@ -578,7 +638,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, args=(), kwargs={}, timeout=5, startup_timeout=5, name="world"):
+    def run(*, world_size, fn, args=(), kwargs={}, name="world", timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -600,15 +660,15 @@ class SocketCommunicator(Communicator):
             Positional arguments to pass to `fn` when it is executed.
         kwargs: :class:`dict`, optional
             Keyword arguments to pass to `fn` when it is executed.
+        name: :class:`str`, optional
+            Human-readable name for the communicator created by this function.
+            Defaults to "world".
         timeout: number or `None`, optional
             Maximum time to wait for normal communication to complete in
             seconds, or `None` to disable timeouts.
         startup_timeout: number or `None`, optional
             Maximum time allowed to setup the communicator in seconds, or
             `None` to disable timeouts during setup.
-        name: :class:`str`, optional
-            Human-readable name for the communicator created by this function.
-            Defaults to "world".
 
         Returns
         -------

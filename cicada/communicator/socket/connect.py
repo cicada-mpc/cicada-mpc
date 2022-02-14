@@ -44,7 +44,7 @@ class LoggerAdapter(logging.LoggerAdapter):
         super().__init__(logger, extra={"name": name, "rank": rank})
 
     def process(self, msg, kwargs):
-        return f"Comm {self.extra['name']!r} player {self.extra['rank']} {msg}", kwargs
+        return message(self.extra["name"], self.extra["rank"], msg), kwargs
 
 
 class NetstringSocket(object):
@@ -166,6 +166,148 @@ class TokenMismatch(Exception):
     pass
 
 
+def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
+    """Create socket connections given a list of player addresses.
+
+    Parameters
+    ----------
+    listen_socket: :class:`socket.socket`, required
+        A nonblocking Python socket or compatible object, already bound and
+        listening for connections.  Typically created with :func:`listen`.
+    addresses: :class:`list` of :class:`str`, required
+        List of address URLs for every player in rank order.
+    rank: :class:`int`, required
+        Rank of the calling player.
+    name: :class:`str`, optional
+        Human readable label used for logging and error messages. Typically,
+        this should be the same name assigned to the communicator that will use
+        the :func:`direct` outputs.  Defaults to "world".
+    timeout: :class:`numbers.Number`, optional
+        Maximum time to wait for player connections, in seconds.
+
+    Raises
+    ------
+    :class:`ValueError`
+        If there are problems with input parameters.
+    :class:`Timeout`
+        If `timeout` seconds elapses before all connections are established.
+
+    Returns
+    -------
+    sockets: :class:`dict` of :class:`NetstringSocket`
+        Dictionary mapping player ranks to connected sockets.
+    """
+
+    for address in addresses:
+        if not isinstance(address, str):
+            raise ValueError(message(name, rank, f"address must be a string, got {address} instead.")) # pragma: no cover
+
+    addresses = [urllib.parse.urlparse(address) for address in addresses]
+
+    for address in addresses:
+        if address.scheme not in ["file", "tcp"]:
+            raise ValueError(message(name, rank, f"address scheme must be file or tcp, got {address.scheme} instead.")) # pragma: no cover
+        if address.scheme == "tcp" and not address.port:
+            raise ValueError(message(name, rank, f"port must be specified for tcp addresses, got {address} instead.")) # pragma: no cover
+        if address.scheme != addresses[0].scheme:
+            raise ValueError(message(name, rank, f"address schemes must all be the same.")) # pragma: no cover
+
+    world_size = len(addresses)
+
+    if not isinstance(rank, int):
+        raise ValueError(message(name, rank, f"rank must be an integer, got {rank} instead.")) # pragma: no cover
+    if rank < 0 or rank >= world_size:
+        raise ValueError(message(name, rank, f"rank must be in the range [0, {world_size}), got {rank} instead.")) # pragma: no cover
+
+    if not isinstance(name, str):
+        raise ValueError(message(name, rank, f"name must be a string, got {name} instead.")) # pragma: no cover
+
+    if not isinstance(timeout, numbers.Number):
+        raise ValueError(message(name, rank, f"timeout must be a number, got {timeout} instead.")) # pragma: no cover
+    if not timeout > 0:
+        raise ValueError(message(name, rank, f"timeout must be a positive number, got {timeout} instead.")) # pragma: no cover
+
+    # Setup logging
+    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+    log.info(f"direct connect with {[address.geturl() for address in addresses]}.")
+
+    # Set aside storage for connections to the other players.
+    players = {}
+
+    # Track elapsed time during setup.
+    timer = Timer(threshold=timeout)
+
+    # Players setup connections with each other, in rank order.
+    for listener in range(0, world_size-1):
+        if rank == listener:
+            # Accept connections from higher-rank players.
+            other_players = []
+            while not timer.expired:
+                if len(other_players) == world_size - rank - 1: # We don't connect to ourself.
+                    break
+
+                try:
+                    ready = select.select([listen_socket], [], [], 0.1)
+                    if ready:
+                        other_player, _ = listen_socket.accept()
+                        other_player = NetstringSocket(other_player)
+                        other_players.append(other_player)
+                        log.debug(f"accepted connection from player.")
+                except Exception as e: # pragma: no cover
+                    log.warning(f"exception listening for other players: {e}")
+                    time.sleep(0.1)
+
+            # Collect ranks from the other players.
+            for other_player in other_players:
+                while not timer.expired:
+                    try:
+                        raw_message = other_player.next_message(timeout=0.1)
+                        if raw_message is not None:
+                            other_rank = pickle.loads(raw_message)
+                            players[other_rank] = other_player
+                            log.debug(f"received rank from player {other_rank}.")
+                            break
+                    except Exception as e: # pragma: no cover
+                        log.warning("exception receiving player rank.")
+                        time.sleep(0.1)
+                else: # pragma: no cover
+                    raise Timeout(message(name, rank, "timeout waiting for player rank."))
+
+        elif rank > listener:
+            # Make a connection to the listener.
+            while not timer.expired:
+                try:
+                    address = addresses[listener]
+                    if address.scheme == "tcp":
+                        other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        other_player.connect((address.hostname, address.port))
+                    elif address.scheme == "file":
+                        other_player = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                        other_player.connect(address.path)
+
+                    other_player = NetstringSocket(other_player)
+                    players[listener] = other_player
+                    break
+                except Exception as e: # pragma: no cover
+                    log.warning(f"exception connecting to player {listener}: {e}")
+                    time.sleep(0.5)
+            else: # pragma: no cover
+                raise Timeout(message(name, rank, f"timeout connecting to player {listener}."))
+
+            # Send our rank to the listener.
+            while not timer.expired:
+                try:
+                    players[listener].send(pickle.dumps(rank))
+                    break
+                except Exception as e: # pragma: no cover
+                    log.warning(f"exception sending rank to player {listener}: {e}")
+                    time.sleep(0.5)
+            else: # pragma: no cover
+                raise Timeout(message(name, rank, f"timeout sending rank to player {listener}."))
+
+    return players
+
+
 def geturl(sock):
     """Return a socket's address as a URL.
 
@@ -214,12 +356,12 @@ def listen(*, address, rank, name="world", timeout=5):
         A non-blocking socket, bound to `address`, listening for connections.
     """
     if not isinstance(address, str):
-        raise ValueError(f"Comm {name!r} player {rank} address must be a string, got {address} instead.") # pragma: no cover
+        raise ValueError(message(name, rank, f"address must be a string, got {address} instead.")) # pragma: no cover
 
     address = urllib.parse.urlparse(address)
 
     if address.scheme not in ["file", "tcp"]:
-        raise ValueError(f"Comm {name!r} player {rank} address scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
+        raise ValueError(message(name, rank, f"address scheme must be file or tcp, got {address.scheme} instead.")) # pragma: no cover
 
     # Setup logging
     log = LoggerAdapter(logging.getLogger(__name__), name, rank)
@@ -246,153 +388,13 @@ def listen(*, address, rank, name="world", timeout=5):
             log.warning(f"exception creating listening socket: {e}")
             time.sleep(0.1)
     else: # pragma: no cover
-        raise Timeout(f"Comm {name!r} player {rank} timeout creating listening socket.")
+        raise Timeout(message(name, rank, f"timeout creating listening socket."))
 
     return listen_socket
 
 
-def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
-    """Create socket connections given a list of player addresses.
-
-    Parameters
-    ----------
-    listen_socket: :class:`socket.socket`, required
-        A nonblocking Python socket or compatible object, already bound and
-        listening for connections.  Typically created with :func:`listen`.
-    addresses: :class:`list` of :class:`str`, required
-        List of address URLs for every player in rank order.
-    rank: :class:`int`, required
-        Rank of the calling player.
-    name: :class:`str`, optional
-        Human readable label used for logging and error messages. Typically,
-        this should be the same name assigned to the communicator that will use
-        the :func:`direct` outputs.  Defaults to "world".
-    timeout: :class:`numbers.Number`, optional
-        Maximum time to wait for player connections, in seconds.
-
-    Raises
-    ------
-    :class:`ValueError`
-        If there are problems with input parameters.
-    :class:`Timeout`
-        If `timeout` seconds elapses before all connections are established.
-
-    Returns
-    -------
-    sockets: :class:`dict` of :class:`NetstringSocket`
-        Dictionary mapping player ranks to connected sockets.
-    """
-
-    for address in addresses:
-        if not isinstance(address, str):
-            raise ValueError(f"address must be a string, got {address} instead.") # pragma: no cover
-
-    addresses = [urllib.parse.urlparse(address) for address in addresses]
-
-    for address in addresses:
-        if address.scheme not in ["file", "tcp"]:
-            raise ValueError(f"address scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
-        if address.scheme == "tcp" and not address.port:
-            raise ValueError(f"port must be specified for tcp addresses, got {address} instead.") # pragma: no cover
-        if address.scheme != addresses[0].scheme:
-            raise ValueError(f"address schemes must all be the same.") # pragma: no cover
-
-    world_size = len(addresses)
-
-    if not isinstance(rank, int):
-        raise ValueError(f"rank must be an integer, got {rank} instead.") # pragma: no cover
-    if rank < 0:
-        raise ValueError(f"rank cannot be negative, but got {rank}.") # pragma: no cover
-    if rank >= world_size:
-        raise ValueError(f"rank must be less than {world_size}, got {rank} instead.") # pragma: no cover
-
-    if not isinstance(name, str):
-        raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
-
-    if not isinstance(timeout, numbers.Number):
-        raise ValueError(f"timeout must be a number, got {timeout} instead.") # pragma: no cover
-    if not timeout > 0:
-        raise ValueError(f"timeout must be a positive number, got {timeout} instead.") # pragma: no cover
-
-    # Setup logging
-    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
-    log.info(f"direct connect with {[address.geturl() for address in addresses]}.")
-
-    # Set aside storage for connections to the other players.
-    players = {}
-
-    # Track elapsed time during setup.
-    timer = Timer(threshold=timeout)
-
-    # Players setup connections with each other, in rank order.
-    for listener in range(0, world_size-1):
-        if rank == listener:
-            # Accept connections from higher-rank players.
-            other_players = []
-            while not timer.expired:
-                if len(other_players) == world_size - rank - 1: # We don't connect to ourself.
-                    break
-
-                try:
-                    ready = select.select([listen_socket], [], [], 0.1)
-                    if ready:
-                        other_player, _ = listen_socket.accept()
-                        other_player = NetstringSocket(other_player)
-                        other_players.append(other_player)
-                        log.debug(f"accepted connection from player.")
-                except Exception as e: # pragma: no cover
-                    log.warning(f"exception listening for other players: {e}")
-                    time.sleep(0.1)
-
-            # Collect ranks from the other players.
-            for other_player in other_players:
-                while not timer.expired:
-                    try:
-                        raw_message = other_player.next_message(timeout=0.1)
-                        if raw_message is not None:
-                            other_rank = pickle.loads(raw_message)
-                            players[other_rank] = other_player
-                            log.debug(f"received rank from player {other_rank}.")
-                            break
-                    except Exception as e: # pragma: no cover
-                        log.warning(f"exception receiving player rank.")
-                        time.sleep(0.1)
-                else: # pragma: no cover
-                    raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player rank.")
-
-        elif rank > listener:
-            # Make a connection to the listener.
-            while not timer.expired:
-                try:
-                    address = addresses[listener]
-                    if address.scheme == "tcp":
-                        other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        other_player.connect((address.hostname, address.port))
-                    elif address.scheme == "file":
-                        other_player = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                        other_player.connect(address.path)
-
-                    other_player = NetstringSocket(other_player)
-                    players[listener] = other_player
-                    break
-                except Exception as e: # pragma: no cover
-                    log.warning(f"exception connecting to player {listener}: {e}")
-                    time.sleep(0.5)
-            else: # pragma: no cover
-                raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
-
-            # Send our rank to the listener.
-            while not timer.expired:
-                try:
-                    players[listener].send(pickle.dumps(rank))
-                    break
-                except Exception as e: # pragma: no cover
-                    log.warning(f"exception sending rank to player {listener}: {e}")
-                    time.sleep(0.5)
-            else: # pragma: no cover
-                raise Timeout(f"Comm {name!r} player {rank} timeout sending rank to player {listener}.")
-
-    return players
+def message(name, rank, msg):
+    return f"Comm {name!r} player {rank} {msg}"
 
 
 def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timeout=5):
@@ -437,29 +439,19 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     if not isinstance(name, str):
         raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
 
-#    if world_size is None:
-#        world_size = int(os.environ["CICADA_WORLD_SIZE"])
     if not isinstance(world_size, int):
         raise ValueError("world_size must be an integer, got {world_size} instead.") # pragma: no cover
     if not world_size > 0:
         raise ValueError("world_size must be an integer greater than zero, got {world_size} instead.") # pragma: no cover
 
-#    if rank is None:
-#        rank = int(os.environ["CICADA_RANK"])
     if not isinstance(rank, int):
         raise ValueError("rank must be an integer, got {rank} instead.") # pragma: no cover
     if not (0 <= rank and rank < world_size):
         raise ValueError(f"rank must be in the range [0, {world_size}), got {rank} instead.") # pragma: no cover
 
-#    if root_addr is None:
-#        root_addr = os.environ["CICADA_ROOT_ADDR"]
     root_address = urllib.parse.urlparse(root_address)
-    if root_address.scheme != "tcp":
-        raise ValueError(f"root_address scheme must be tcp, got {root_address.scheme} instead.") # pragma: no cover
-    if root_address.hostname is None:
-        raise ValueError("root_address hostname must be specified.") # pragma: no cover
-    if root_address.port is None:
-        raise ValueError("root_address port must be specified.") # pragma: no cover
+    if root_address.scheme not in ["file", "tcp"]:
+        raise ValueError(f"root_address scheme must be file or tcp, got {root_address.scheme} instead.") # pragma: no cover
 
     if rank == 0 and root_address.geturl() != geturl(listen_socket):
         raise ValueError(f"Player 0 root_address {root_address} must match listen_socket.") # pragma: no cover
@@ -483,8 +475,13 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     if rank != 0:
         while not timer.expired:
             try:
-                other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                other_player.connect((root_address.hostname, root_address.port))
+                if root_address.scheme == "tcp":
+                    other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    other_player.connect((root_address.hostname, root_address.port))
+                elif root_address.scheme == "file":
+                    other_player = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    other_player.connect(root_address.path)
+
                 other_player = NetstringSocket(other_player)
                 players[0] = other_player
                 break
@@ -632,8 +629,14 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    other_player.connect((addresses[listener][0].hostname, addresses[listener][0].port))
+                    address = addresses[listener][0]
+                    if address.scheme == "tcp":
+                        other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        other_player.connect((address.hostname, address.port))
+                    elif address.scheme == "file":
+                        other_player = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                        other_player.connect(address.path)
+
                     other_player = NetstringSocket(other_player)
                     players[listener] = other_player
                     break

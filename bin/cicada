@@ -6,18 +6,21 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
+import urllib.parse
 
 import netifaces
 
 import cicada
+from cicada.communicator.socket.connect import geturl
 
 
-def get_environment(world_size, rank, host_addr, root_addr):
+def get_environment(world_size, rank, address, root_address):
     env = os.environ.copy()
     env["CICADA_WORLD_SIZE"] = str(world_size)
     env["CICADA_RANK"] = str(rank)
-    env["CICADA_HOST_ADDR"] = str(host_addr)
-    env["CICADA_ROOT_ADDR"] = str(root_addr)
+    env["CICADA_ADDRESS"] = str(address)
+    env["CICADA_ROOT_ADDRESS"] = str(root_address)
     return env
 
 
@@ -26,8 +29,8 @@ def log_command(command, env, log):
     log.info(f"  Environment:")
     log.info(f"    CICADA_WORLD_SIZE={env['CICADA_WORLD_SIZE']}")
     log.info(f"    CICADA_RANK={env['CICADA_RANK']}")
-    log.info(f"    CICADA_HOST_ADDR={env['CICADA_HOST_ADDR']}")
-    log.info(f"    CICADA_ROOT_ADDR={env['CICADA_ROOT_ADDR']}")
+    log.info(f"    CICADA_ADDRESS={env['CICADA_ADDRESS']}")
+    log.info(f"    CICADA_ROOT_ADDRESS={env['CICADA_ROOT_ADDRESS']}")
 
 
 def public_ip():
@@ -38,8 +41,8 @@ def public_ip():
 
 def basic_frontend(arguments, players, log):
     processes = []
-    for world_size, rank, host_addr, root_addr in players:
-        env = get_environment(world_size, rank, host_addr, root_addr)
+    for world_size, rank, address, root_address in players:
+        env = get_environment(world_size, rank, address, root_address)
 
         command = [sys.executable]
         if arguments.inspect:
@@ -60,7 +63,7 @@ def basic_frontend(arguments, players, log):
 
 def tmux_panes_frontend(arguments, players, log):
     command = []
-    for world_size, rank, host_addr, root_addr in players:
+    for world_size, rank, address, root_address in players:
         if rank == 0:
             command += ["tmux", "new-session"]
         else:
@@ -68,8 +71,8 @@ def tmux_panes_frontend(arguments, players, log):
 
         command += ["-e", f"CICADA_WORLD_SIZE={world_size}"]
         command += ["-e", f"CICADA_RANK={rank}"]
-        command += ["-e", f"CICADA_HOST_ADDR={host_addr}"]
-        command += ["-e", f"CICADA_ROOT_ADDR={root_addr}"]
+        command += ["-e", f"CICADA_ADDRESS={address}"]
+        command += ["-e", f"CICADA_ROOT_ADDRESS={root_address}"]
         command += [sys.executable]
         if arguments.inspect:
             command += ["-i"]
@@ -92,7 +95,7 @@ def tmux_panes_frontend(arguments, players, log):
 
 def tmux_windows_frontend(arguments, players, log):
     command = []
-    for world_size, rank, host_addr, root_addr in players:
+    for world_size, rank, address, root_address in players:
         if rank == 0:
             command += ["tmux", "new-session"]
         else:
@@ -101,8 +104,8 @@ def tmux_windows_frontend(arguments, players, log):
         command += ["-n", f"rank-{rank}"]
         command += ["-e", f"CICADA_WORLD_SIZE={world_size}"]
         command += ["-e", f"CICADA_RANK={rank}"]
-        command += ["-e", f"CICADA_HOST_ADDR={host_addr}"]
-        command += ["-e", f"CICADA_ROOT_ADDR={root_addr}"]
+        command += ["-e", f"CICADA_ADDRESS={address}"]
+        command += ["-e", f"CICADA_ROOT_ADDRESS={root_address}"]
         command += [sys.executable]
         if arguments.inspect:
             command += ["-i"]
@@ -123,8 +126,8 @@ def tmux_windows_frontend(arguments, players, log):
 
 def xterm_frontend(arguments, players, log):
     processes = []
-    for world_size, rank, host_addr, root_addr in players:
-        env = get_environment(world_size, rank, host_addr, root_addr)
+    for world_size, rank, address, root_address in players:
+        env = get_environment(world_size, rank, address, root_address)
 
         command = ["xterm", "-e"]
         command += [sys.executable]
@@ -157,12 +160,10 @@ subparsers = parser.add_subparsers(title="commands (choose one)", dest="command"
 
 # run
 subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
-subparser.add_argument("--bind-public", action="store_true", help="Use a public host address.")
 subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
 subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
-subparser.add_argument("--host-addr", default="127.0.0.1", help="Host address. Default: %(default)s")
 subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
-subparser.add_argument("--root-port", type=int, default=25252, help="Root port.")
+subparser.add_argument("--root-address", default="tcp://127.0.0.1:25252", help="Root address.  Default: %(default)s")
 subparser.add_argument("--tmux-layout", default="even-vertical", choices=["even-horizontal", "even-vertical", "tiled"], help="Pane layout for the tmux frontend. Default: %(default)s")
 subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 subparser.add_argument("program", help="Program to execute.")
@@ -170,14 +171,11 @@ subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments
 
 # start
 subparser = subparsers.add_parser("start", help="Start one Cicada process.")
-subparser.add_argument("--bind-public", action="store_true", help="Use a public host address.")
 subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
 subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
-subparser.add_argument("--host-addr", default="127.0.0.1", help="Host address. Default: %(default)s")
-subparser.add_argument("--host-port", type=int, default=None, help="Host port. Default: randomly chosen port")
+subparser.add_argument("--address", default="tcp://127.0.0.1", help="Network address. Default: %(default)s")
 subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
-subparser.add_argument("--root-addr", default=None, help="Root address. Default: 127.0.0.1")
-subparser.add_argument("--root-port", type=int, default=None, help="Root port.")
+subparser.add_argument("--root-address", default="tcp://127.0.0.1:25252", help="Root address. Default: %(default)s")
 subparser.add_argument("--rank", type=int, required=True, help="Player rank.")
 subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 subparser.add_argument("program", help="Program to execute.")
@@ -199,16 +197,27 @@ if __name__ == "__main__":
 
     # run
     if arguments.command == "run":
-        host = public_ip() if arguments.bind_public else arguments.host_addr
+        root_address = urllib.parse.urlparse(arguments.root_address)
+        if root_address.scheme not in ["file", "tcp"]:
+            raise RuntimeError(f"--root-address scheme must be file or tcp, got {root_address.scheme} instead.")
+        if root_address.scheme == "tcp" and root_address.port is None:
+            raise RuntimeError("--root-address must specify a port number when the scheme is tcp.")
 
-        host_addrs = []
+        addresses = []
         for rank in range(arguments.world_size):
-            host_addr = f"tcp://{host}:{arguments.root_port}" if rank == 0 else f"tcp://{host}"
-            host_addrs.append(host_addr)
+            if rank == 0:
+                addresses.append(arguments.root_address)
+            else:
+                if root_address.scheme == "file":
+                    fd, path = tempfile.mkstemp()
+                    os.close(fd)
+                    addresses.append(f"file://{path}")
+                if root_address.scheme == "tcp":
+                    addresses.append(f"tcp://{root_address.hostname}")
 
         players = []
-        for rank, host_addr in enumerate(host_addrs):
-            players.append((arguments.world_size, rank, host_addr, host_addrs[0]))
+        for rank, address in enumerate(addresses):
+            players.append((arguments.world_size, rank, address, addresses[0]))
 
         frontend = frontends[arguments.frontend]
         frontend(arguments, players, log)
@@ -224,34 +233,7 @@ if __name__ == "__main__":
         if rank >= world_size:
             raise RuntimeError("--rank must be less than --world-size.")
 
-        if rank == 0:
-            if arguments.host_port is None:
-                raise RuntimeError("--host-port must be specified when --rank is 0.")
-            if arguments.root_addr is not None:
-                raise RuntimeError("--root-addr cannot be specified when --rank is 0.")
-            if arguments.root_port is not None:
-                raise RuntimeError("--root-port cannot be specified when --rank is 0.")
-
-            addr = public_ip() if arguments.bind_public else arguments.host_addr
-            port = arguments.host_port
-            host_addr = f"tcp://{addr}:{port}"
-            root_addr = host_addr
-        else:
-            if arguments.root_port is None:
-                raise RuntimeError("--root-port must be specified when --rank is not 0.")
-
-            addr = public_ip() if arguments.bind_public else arguments.host_addr
-            port = arguments.host_port
-            if port is None:
-                host_addr = f"tcp://{addr}"
-            else:
-                host_addr = f"tcp://{addr}:{port}"
-
-            addr = "127.0.0.1" if arguments.root_addr is None else arguments.root_addr
-            port = arguments.root_port
-            root_addr = f"tcp://{addr}:{port}"
-
-        players = [(world_size, rank, host_addr, root_addr)]
+        players = [(world_size, rank, arguments.address, arguments.root_address)]
         frontend = frontends[arguments.frontend]
         frontend(arguments, players, log)
 
