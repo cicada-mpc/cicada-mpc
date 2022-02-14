@@ -166,6 +166,21 @@ class TokenMismatch(Exception):
     pass
 
 
+def connect(*, address):
+    if address.scheme == "file":
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(address.path)
+
+    elif address.scheme == "tcp":
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((address.hostname, address.port))
+
+    else:
+        raise ValueError(f"address.scheme must be file or tcp, got {address.scheme} instead.")
+
+    return NetstringSocket(sock)
+
+
 def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
     """Create socket connections given a list of player addresses.
 
@@ -277,16 +292,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    address = addresses[listener]
-                    if address.scheme == "tcp":
-                        other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        other_player.connect((address.hostname, address.port))
-                    elif address.scheme == "file":
-                        other_player = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                        other_player.connect(address.path)
-
-                    other_player = NetstringSocket(other_player)
-                    players[listener] = other_player
+                    players[listener] = connect(address=addresses[listener])
                     break
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
@@ -475,15 +481,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     if rank != 0:
         while not timer.expired:
             try:
-                if root_address.scheme == "tcp":
-                    other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    other_player.connect((root_address.hostname, root_address.port))
-                elif root_address.scheme == "file":
-                    other_player = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                    other_player.connect(root_address.path)
-
-                other_player = NetstringSocket(other_player)
-                players[0] = other_player
+                players[0] = connect(address=root_address)
                 break
             except ConnectionRefusedError as e: # pragma: no cover
                 # This happens regularly, particularly when starting on
@@ -629,16 +627,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    address = addresses[listener][0]
-                    if address.scheme == "tcp":
-                        other_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        other_player.connect((address.hostname, address.port))
-                    elif address.scheme == "file":
-                        other_player = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                        other_player.connect(address.path)
-
-                    other_player = NetstringSocket(other_player)
-                    players[listener] = other_player
+                    players[listener] = connect(address=addresses[listener][0])
                     break
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
