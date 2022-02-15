@@ -133,8 +133,6 @@ class SocketCommunicator(Communicator):
             if index not in sockets:
                 rank = index
 
-        if name is None:
-            name = "world"
         if not isinstance(name, str):
             raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
 
@@ -888,7 +886,7 @@ class SocketCommunicator(Communicator):
         # Create a new socket with a randomly-assigned port number.
         address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
         if address.scheme != "tcp":
-            raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can shrink.")
+            raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can shrink.") # pragma: no cover
 
         listen_socket = socket.create_server((address.hostname, 0))
         address = geturl(listen_socket)
@@ -942,7 +940,7 @@ class SocketCommunicator(Communicator):
         if name is not None:
             address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
             if address.scheme != "tcp":
-                raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can be split.")
+                raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can be split.") # pragma: no cover
 
             listen_socket = socket.create_server((address.hostname, 0))
             address = geturl(listen_socket)

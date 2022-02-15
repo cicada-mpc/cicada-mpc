@@ -188,7 +188,7 @@ def connect(*, address):
         sock.connect((address.hostname, address.port))
 
     else:
-        raise ValueError(f"address.scheme must be file or tcp, got {address.scheme} instead.")
+        raise ValueError(f"address.scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
 
     return NetstringSocket(sock)
 
@@ -341,10 +341,12 @@ def geturl(sock):
     if sock.family == socket.AF_UNIX:
         path = sock.getsockname()
         return f"file://{path}"
+
     if sock.family == socket.AF_INET:
         host, port = sock.getsockname()
         return f"tcp://{host}:{port}"
-    raise ValueError(f"Unknown address family: {sock.family}")
+
+    raise ValueError(f"Unknown address family: {sock.family}") # pragma: no cover
 
 
 def listen(*, address, rank, name="world", timer=None):
