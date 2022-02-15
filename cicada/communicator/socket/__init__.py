@@ -37,7 +37,7 @@ import numpy
 import pynetstring
 
 from ..interface import Communicator
-from .connect import LoggerAdapter, NetstringSocket, Timeout, direct, geturl, listen, rendezvous
+from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, rendezvous
 
 Message = collections.namedtuple("Message", ["serial", "tag", "sender", "payload"])
 Message.__doc__ = """
@@ -401,6 +401,12 @@ class SocketCommunicator(Communicator):
             `"file:///path/to/foo"` for Unix domain sockets.  Defaults to the
             value of the CICADA_ROOT_ADDRESS environment variable, which is
             automatically set by the :ref:`cicada` command.
+        name: :class:`str`, optional
+            Human-readable name for the new communicator.  Defaults to "world".
+        timeout: :class:`numbers.Number`
+            Communication timeout for the new communicator, in seconds.  Defaults to five.
+        startup_timeout: :class:`numbers.Number`
+            Maximum time to wait for communicator setup, in seconds.  Defaults to five.
 
         Raises
         ------
@@ -426,8 +432,9 @@ class SocketCommunicator(Communicator):
         if root_address is None:
             root_address = os.environ.get("CICADA_ROOT_ADDRESS")
 
-        listen_socket = listen(address=address, rank=rank, name=name, timeout=startup_timeout)
-        sockets = rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, timeout=startup_timeout)
+        timer = Timer(threshold=startup_timeout)
+        listen_socket = listen(address=address, rank=rank, name=name, timer=timer)
+        sockets = rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, timer=timer)
         return SocketCommunicator(sockets=sockets, timeout=timeout)
 
 
@@ -663,12 +670,12 @@ class SocketCommunicator(Communicator):
         name: :class:`str`, optional
             Human-readable name for the communicator created by this function.
             Defaults to "world".
-        timeout: number or `None`, optional
+        timeout: :class:`numbers.Number`, optional
             Maximum time to wait for normal communication to complete in
-            seconds, or `None` to disable timeouts.
-        startup_timeout: number or `None`, optional
-            Maximum time allowed to setup the communicator in seconds, or
-            `None` to disable timeouts during setup.
+            seconds.  Defaults to five seconds.
+        startup_timeout: :class:`numbers.Number`, optional
+            Maximum time allowed to setup the communicator in seconds.
+            Defaults to five seconds.
 
         Returns
         -------
@@ -681,13 +688,12 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, parent_queue, child_queue, rank, fn, args, kwargs, timeout, startup_timeout):
+        def launch(*, parent_queue, child_queue, rank, fn, args, kwargs, name, timeout, startup_timeout):
             # Run the work function.
             try:
-                name = "world"
-
                 # Create a socket with a randomly-assigned port number.
-                listen_socket = listen(name=name, rank=rank, address="tcp://127.0.0.1", timeout=startup_timeout)
+                timer = Timer(threshold=startup_timeout)
+                listen_socket = listen(name=name, rank=rank, address="tcp://127.0.0.1", timer=timer)
                 address = geturl(listen_socket)
 
                 # Send our address to the parent process.
@@ -696,7 +702,7 @@ class SocketCommunicator(Communicator):
                 # Get all addresses from the parent process.
                 addresses = child_queue.get()
 
-                sockets=direct(name=name, rank=rank, addresses=addresses, listen_socket=listen_socket, timeout=startup_timeout)
+                sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
                 result = fn(communicator, *args, **kwargs)
                 communicator.free()
@@ -718,7 +724,7 @@ class SocketCommunicator(Communicator):
         for rank in range(world_size):
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, args=args, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
@@ -835,7 +841,7 @@ class SocketCommunicator(Communicator):
         self._send(tag="send", payload=value, dst=dst)
 
 
-    def shrink(self, *, name, timeout=5):
+    def shrink(self, *, name, timeout=5, startup_timeout=5):
         """Create a new communicator containing surviving players.
 
         This method should be called as part of a failure-recovery phase by as
@@ -850,7 +856,9 @@ class SocketCommunicator(Communicator):
         name: :class:`str`, required
             New communicator name.
         timeout: :class:`numbers.Number`, optional
-            Maximum time to wait for socket creation, in seconds.
+            Maximum time to wait for communication, in seconds.
+        startup_timeout: :class:`numbers.Number`, optional
+            Maximum time to wait for communicator_setup, in seconds.
 
         Returns
         -------
@@ -890,11 +898,12 @@ class SocketCommunicator(Communicator):
                 self._send(tag="shrink-end", payload=address, dst=remaining_rank)
         root_address = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
 
-        sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timeout=timeout)
-        return SocketCommunicator(sockets=sockets, name=name), remaining_ranks
+        timer = Timer(threshold=startup_timeout)
+        sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer)
+        return SocketCommunicator(sockets=sockets, name=name, timeout=timeout), remaining_ranks
 
 
-    def split(self, *, name, timeout=5):
+    def split(self, *, name, timeout=5, startup_timeout=5):
         """Return a new communicator with the given name.
 
         If players specify different names - which can be any :class:`str`
@@ -913,7 +922,9 @@ class SocketCommunicator(Communicator):
         name: :class:`str` or :any:`None`, required
             Communicator name, or `None`.
         timeout: :class:`numbers.Number`, optional
-            Maximum time to wait for socket creation, in seconds.
+            Maximum time to wait for communication, in seconds.
+        startup_timeout: :class:`numbers.Number`, optional
+            Maximum time to wait for communicator setup, in seconds.
 
         Returns
         -------
@@ -960,8 +971,9 @@ class SocketCommunicator(Communicator):
 
         # Return a new communicator.
         if group_name is not None:
-            sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timeout=timeout)
-            return SocketCommunicator(sockets=sockets, name=group_name)
+            timer = Timer(threshold=startup_timeout)
+            sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timer=timer)
+            return SocketCommunicator(sockets=sockets, name=group_name, timeout=timeout)
 
         return None
 

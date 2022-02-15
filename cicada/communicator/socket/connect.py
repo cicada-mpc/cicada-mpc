@@ -193,7 +193,7 @@ def connect(*, address):
     return NetstringSocket(sock)
 
 
-def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
+def direct(*, listen_socket, addresses, rank, name="world", timer=None):
     """Create socket connections given a list of player addresses.
 
     Parameters
@@ -209,15 +209,16 @@ def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
         Human readable label used for logging and error messages. Typically,
         this should be the same name assigned to the communicator that will use
         the :func:`direct` outputs.  Defaults to "world".
-    timeout: :class:`numbers.Number`, optional
-        Maximum time to wait for player connections, in seconds.
+    timer: :class:`Timer`, optional
+        Determines the maximum time to wait for player connections.  Defaults
+        to five seconds.
 
     Raises
     ------
     :class:`ValueError`
         If there are problems with input parameters.
     :class:`Timeout`
-        If `timeout` seconds elapses before all connections are established.
+        If `timer` expires before all connections are established.
 
     Returns
     -------
@@ -237,7 +238,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
         if address.scheme == "tcp" and not address.port:
             raise ValueError(message(name, rank, f"port must be specified for tcp addresses, got {address} instead.")) # pragma: no cover
         if address.scheme != addresses[0].scheme:
-            raise ValueError(message(name, rank, f"address schemes must all be the same.")) # pragma: no cover
+            raise ValueError(message(name, rank, f"address schemes must match.")) # pragma: no cover
 
     world_size = len(addresses)
 
@@ -249,10 +250,10 @@ def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
     if not isinstance(name, str):
         raise ValueError(message(name, rank, f"name must be a string, got {name} instead.")) # pragma: no cover
 
-    if not isinstance(timeout, numbers.Number):
-        raise ValueError(message(name, rank, f"timeout must be a number, got {timeout} instead.")) # pragma: no cover
-    if not timeout > 0:
-        raise ValueError(message(name, rank, f"timeout must be a positive number, got {timeout} instead.")) # pragma: no cover
+    if timer is None:
+        timer = Timer(threshold=5)
+    if not isinstance(timer, Timer):
+        raise ValueError(message(name, rank, f"timer must be an instance of Timer, got {timer} instead.")) # pragma: no cover
 
     # Setup logging
     log = LoggerAdapter(logging.getLogger(__name__), name, rank)
@@ -260,9 +261,6 @@ def direct(*, listen_socket, addresses, rank, name="world", timeout=5):
 
     # Set aside storage for connections to the other players.
     players = {}
-
-    # Track elapsed time during setup.
-    timer = Timer(threshold=timeout)
 
     # Players setup connections with each other, in rank order.
     for listener in range(0, world_size-1):
@@ -349,7 +347,7 @@ def geturl(sock):
     raise ValueError(f"Unknown address family: {sock.family}")
 
 
-def listen(*, address, rank, name="world", timeout=5):
+def listen(*, address, rank, name="world", timer=None):
     """Create a listening socket from a URL.
 
     Typically, callers should use this function to create a listening socket
@@ -358,15 +356,24 @@ def listen(*, address, rank, name="world", timeout=5):
     Parameters
     ----------
     address: :class:`str`, required
-        Address to use for listening, in the form of a URL.  For example: `"tcp://127.0.0.1:59478"`
-        to create a TCP socket, or `"file:///path/to/foo"` to create a Unix domain socket.
+        Address to use for listening, in the form of a URL.  For example:
+        `"tcp://127.0.0.1:59478"` to create a TCP socket, or
+        `"file:///path/to/foo"` to create a Unix domain socket.
     rank: :class:`int`, required
         Integer rank of the caller.  Used for logging and error messages.
     name: :class:`str`, optional
-        Human readable label.  Used for logging and error messages.  Typically, this should match the
-        name used elsewhere to create a communicator.
-    timeout: :class:`numbers.Number`, optional
-        Maximum time to wait for socket creation, in seconds.
+        Human readable label.  Used for logging and error messages.  Typically,
+        this should match the name used elsewhere to create a communicator.
+    timer: :class:`Timer`, optional
+        Determines the maximum time to wait for socket creation.  Defaults to
+        five seconds.
+
+    Raises
+    ------
+    :class:`ValueError`
+        If there are problems with input parameters.
+    :class:`Timeout`
+        If `timer` expires before all connections are established.
 
     Returns
     -------
@@ -375,17 +382,23 @@ def listen(*, address, rank, name="world", timeout=5):
     """
     if not isinstance(address, str):
         raise ValueError(message(name, rank, f"address must be a string, got {address} instead.")) # pragma: no cover
-
     address = urllib.parse.urlparse(address)
-
     if address.scheme not in ["file", "tcp"]:
         raise ValueError(message(name, rank, f"address scheme must be file or tcp, got {address.scheme} instead.")) # pragma: no cover
 
+    if not isinstance(rank, int):
+        raise ValueError(message(name, rank, f"rank must be an integer, got {rank} instead.")) # pragma: no cover
+
+    if not isinstance(name, str):
+        raise ValueError(message(name, rank, f"name must be a string, got {name} instead.")) # pragma: no cover
+
+    if timer is None:
+        timer = Timer(threshold=5)
+    if not isinstance(timer, Timer):
+        raise ValueError(message(name, rank, f"timer must be an instance of Timer, got {timer} instead.")) # pragma: no cover
+
     # Setup logging
     log = LoggerAdapter(logging.getLogger(__name__), name, rank)
-
-    # Track elapsed time during setup.
-    timer = Timer(threshold=timeout)
 
     # Create the socket.
     while not timer.expired:
@@ -416,7 +429,7 @@ def message(name, rank, msg):
     return f"Comm {name!r} player {rank} {msg}"
 
 
-def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timeout=5):
+def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timer=None):
     """Create socket connections given just the address of the root player.
 
     Parameters
@@ -438,15 +451,16 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     token: :class:`object`, optional
         All players provide an arbitrary token at startup; every player token
         must match, or a :class:`TokenMismatch` exception will be raised.
-    timeout: :class:`numbers.Number`
-        Maximum time to wait for socket creation, in seconds.
+    timer: :class:`Timer`, optional
+        Determines the maximum time to wait for socket creation.  Defaults to
+        five seconds.
 
     Raises
     ------
     :class:`ValueError`
         If there are problems with input parameters.
     :class:`Timeout`
-        If `timeout` seconds elapses before all connections are established.
+        If `timer` expires before all connections are established.
     :class:`TokenMismatch`
         If every player doesn't call this function with the same token.
 
@@ -455,28 +469,31 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     sockets: :class:`dict` of :class:`NetstringSocket`
         Dictionary mapping player ranks to connected sockets.
     """
-    if not isinstance(name, str):
-        raise ValueError(message(name, rank, f"name must be a string, got {name} instead.")) # pragma: no cover
+    if not isinstance(root_address, str):
+        raise ValueError(message(name, rank, f"root_address must be a string, got {root_address} instead.")) # pragma: no cover
+    root_address = urllib.parse.urlparse(root_address)
+    if root_address.scheme not in ["file", "tcp"]:
+        raise ValueError(message(name, rank, f"root_address scheme must be file or tcp, got {root_address.scheme} instead.")) # pragma: no cover
+    if rank == 0 and root_address.geturl() != geturl(listen_socket):
+        raise ValueError(message(name, rank, f"Player 0 root_address {root_address} must match listen_socket.")) # pragma: no cover
 
     if not isinstance(world_size, int):
         raise ValueError(message(name, rank, f"world_size must be an integer, got {world_size} instead.")) # pragma: no cover
     if not world_size > 0:
-        raise ValueError(message(name, rank, f"world_size must be an integer greater than zero, got {world_size} instead.")) # pragma: no cover
+        raise ValueError(message(name, rank, f"world_size must be greater than zero, got {world_size} instead.")) # pragma: no cover
 
     if not isinstance(rank, int):
         raise ValueError(message(name, rank, f"rank must be an integer, got {rank} instead.")) # pragma: no cover
-    if not (0 <= rank and rank < world_size):
+    if rank < 0 or rank >= world_size:
         raise ValueError(message(name, rank, f"rank must be in the range [0, {world_size}), got {rank} instead.")) # pragma: no cover
 
-    root_address = urllib.parse.urlparse(root_address)
-    if root_address.scheme not in ["file", "tcp"]:
-        raise ValueError(message(name, rank, f"root_address scheme must be file or tcp, got {root_address.scheme} instead.")) # pragma: no cover
+    if not isinstance(name, str):
+        raise ValueError(message(name, rank, f"name must be a string, got {name} instead.")) # pragma: no cover
 
-    if rank == 0 and root_address.geturl() != geturl(listen_socket):
-        raise ValueError(message(name, rank, f"Player 0 root_address {root_address} must match listen_socket.")) # pragma: no cover
-
-    if not isinstance(timeout, numbers.Number):
-        raise ValueError(message(name, rank, f"timeout must be a number, got {timeout} instead.")) # pragma: no cover
+    if timer is None:
+        timer = Timer(threshold=5)
+    if not isinstance(timer, Timer):
+        raise ValueError(message(name, rank, f"timer must be an instance of Timer, got {timer} instead.")) # pragma: no cover
 
     # Setup logging
     log = LoggerAdapter(logging.getLogger(__name__), name, rank)
@@ -484,9 +501,6 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
 
     # Set aside storage for connections to the other players.
     players = {}
-
-    # Track elapsed time during setup.
-    timer = Timer(threshold=timeout)
 
     ###########################################################################
     # Phase 1: Every player (except root) makes a connection to root.
