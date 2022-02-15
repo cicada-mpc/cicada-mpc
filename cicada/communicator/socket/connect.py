@@ -167,6 +167,18 @@ class TokenMismatch(Exception):
 
 
 def connect(*, address):
+    """Given an address, create a socket and make a connection.
+
+    Parameters
+    ----------
+    address: :class:`str`, required
+        The address URL.
+
+    Returns
+    -------
+    socket: :class:`NetstringSocket`
+        The newly-connected socket, ready for use.
+    """
     if address.scheme == "file":
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(address.path)
@@ -400,6 +412,7 @@ def listen(*, address, rank, name="world", timeout=5):
 
 
 def message(name, rank, msg):
+    """Format a message for logging and error handling."""
     return f"Comm {name!r} player {rank} {msg}"
 
 
@@ -443,27 +456,27 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
         Dictionary mapping player ranks to connected sockets.
     """
     if not isinstance(name, str):
-        raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
+        raise ValueError(message(name, rank, f"name must be a string, got {name} instead.")) # pragma: no cover
 
     if not isinstance(world_size, int):
-        raise ValueError("world_size must be an integer, got {world_size} instead.") # pragma: no cover
+        raise ValueError(message(name, rank, f"world_size must be an integer, got {world_size} instead.")) # pragma: no cover
     if not world_size > 0:
-        raise ValueError("world_size must be an integer greater than zero, got {world_size} instead.") # pragma: no cover
+        raise ValueError(message(name, rank, f"world_size must be an integer greater than zero, got {world_size} instead.")) # pragma: no cover
 
     if not isinstance(rank, int):
-        raise ValueError("rank must be an integer, got {rank} instead.") # pragma: no cover
+        raise ValueError(message(name, rank, f"rank must be an integer, got {rank} instead.")) # pragma: no cover
     if not (0 <= rank and rank < world_size):
-        raise ValueError(f"rank must be in the range [0, {world_size}), got {rank} instead.") # pragma: no cover
+        raise ValueError(message(name, rank, f"rank must be in the range [0, {world_size}), got {rank} instead.")) # pragma: no cover
 
     root_address = urllib.parse.urlparse(root_address)
     if root_address.scheme not in ["file", "tcp"]:
-        raise ValueError(f"root_address scheme must be file or tcp, got {root_address.scheme} instead.") # pragma: no cover
+        raise ValueError(message(name, rank, f"root_address scheme must be file or tcp, got {root_address.scheme} instead.")) # pragma: no cover
 
     if rank == 0 and root_address.geturl() != geturl(listen_socket):
-        raise ValueError(f"Player 0 root_address {root_address} must match listen_socket.") # pragma: no cover
+        raise ValueError(message(name, rank, f"Player 0 root_address {root_address} must match listen_socket.")) # pragma: no cover
 
     if not isinstance(timeout, numbers.Number):
-        raise ValueError(f"timeout must be a number, got {timeout} instead.") # pragma: no cover
+        raise ValueError(message(name, rank, f"timeout must be a number, got {timeout} instead.")) # pragma: no cover
 
     # Setup logging
     log = LoggerAdapter(logging.getLogger(__name__), name, rank)
@@ -491,7 +504,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                 log.warning(f"exception connecting to player 0: {e}")
                 time.sleep(0.1)
         else: # pragma: no cover
-            raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player 0.")
+            raise Timeout(message(name, rank, "timeout connecting to player 0."))
 
     ###########################################################################
     # Phase 2: Every player sends their listening address to root.
@@ -505,7 +518,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                 log.warning(f"exception sending address to player 0: {e}")
                 time.sleep(0.1)
         else: # pragma: no cover
-            raise Timeout(f"Comm {name!r} player {rank} timeout sending address to player 0.")
+            raise Timeout(message(name, rank, f"timeout sending address to player 0."))
 
     ###########################################################################
     # Phase 3: Root gathers addresses from every player.
@@ -532,7 +545,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                 log.warning(f"exception waiting for connections from other players: {e}")
                 time.sleep(0.1)
         else: # pragma: no cover
-            raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player connections.")
+            raise Timeout(message(name, rank, "timeout waiting for player connections."))
 
         # Collect an address from every player.
         addresses = {rank: (geturl(listen_socket), token)}
@@ -550,7 +563,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                     log.warning(f"exception receiving player address: {e}")
                     time.sleep(0.1)
             else: # pragma: no cover
-                raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player address.")
+                raise Timeout(message(name, rank, "timeout waiting for player address."))
 
     ###########################################################################
     # Phase 4: Root broadcasts the set of all addresses to every player.
@@ -574,7 +587,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                 log.warning(f"exception getting addresses from player 0: {e}")
                 time.sleep(0.1)
         else: # pragma: no cover
-            raise Timeout(f"Comm {name!r} player {rank} timeout waiting for addresses from player 0.")
+            raise Timeout(message(name, rank, "timeout waiting for addresses from player 0."))
 
     addresses = {rank: (urllib.parse.urlparse(address), token) for rank, (address, token) in addresses.items()}
 
@@ -583,7 +596,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
 
     for other_rank, (other_address, other_token) in addresses.items():
         if other_token != token:
-            raise TokenMismatch(f"Comm {name!r} player {rank} expected token {token!r}, received {other_token!r} from player {other_rank}.")
+            raise TokenMismatch(message(name, rank, f"expected token {token!r}, received {other_token!r} from player {other_rank}."))
 
     ###########################################################################
     # Phase 7: Players setup connections with one another.
@@ -621,7 +634,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                         log.warning(f"exception receiving player rank.")
                         time.sleep(0.1)
                 else: # pragma: no cover
-                    raise Timeout(f"Comm {name!r} player {rank} timeout waiting for player rank.")
+                    raise Timeout(message(name, rank, "timeout waiting for player rank."))
 
         elif rank > listener:
             # Make a connection to the listener.
@@ -633,7 +646,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                     log.warning(f"exception connecting to player {listener}: {e}")
                     time.sleep(0.5)
             else: # pragma: no cover
-                raise Timeout(f"Comm {name!r} player {rank} timeout connecting to player {listener}.")
+                raise Timeout(message(name, rank, f"timeout connecting to player {listener}."))
 
             # Send our rank to the listener.
             while not timer.expired:
@@ -644,6 +657,6 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                     log.warning(f"exception sending rank to player {listener}: {e}")
                     time.sleep(0.5)
             else: # pragma: no cover
-                raise Timeout(f"Comm {name!r} player {rank} timeout sending rank to player {listener}.")
+                raise Timeout(message(name, rank, f"timeout sending rank to player {listener}."))
 
     return players
