@@ -91,11 +91,11 @@ class SocketCommunicator(Communicator):
     sockets: :class:`dict` of :class:`~cicada.communicator.socket.connect.NetstringSocket`, required
         Dictionary containing sockets that are connected to the other players
         and ready to use.  The dictionary keys must be the ranks of the other
-        players, and there must be one sockets in the dictionary for every
-        player except the caller (since players don't use a socket to
+        players, and there must be one socket in the dictionary for every
+        player except the caller (since players don't need a socket to
         communicate with themselves).  Note that the communicator world size is
-        inferred from the size of the collection, and the communicator rank
-        from whichever rank doesn't appear in the collection.
+        inferred from the size of the dictionary, and the communicator rank
+        from whichever key doesn't appear in the dictionary.
     name: :class:`str`, optional
         Human-readable name for this communicator, used for logging and
         debugging.  Defaults to "world"
