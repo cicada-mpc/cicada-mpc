@@ -1155,7 +1155,7 @@ class ShamirProtocol(object):
 
         return secret
 
-    def share(self, *, src, secret, shape):
+    def share(self, *, src, secret, shape, dst, k):
         """Convert a private array to an additive secret share.
 
         Note
@@ -1180,9 +1180,34 @@ class ShamirProtocol(object):
         share: :class:`AdditiveArrayShare`
             The local share of the secret shared array.
         """
+        #if not isinstance(shape, tuple):
+        #    shape = (shape,)
+
+        #if self.communicator.rank == src:
+        #    if not isinstance(secret, numpy.ndarray):
+        #        raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
+        #    if secret.dtype != self.encoder.dtype:
+        #        raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
+        #    if secret.shape != shape:
+        #        raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
+
+        ## Generate a pseudo-random zero sharing ...
+        #v0 = self._g0
+        #v1 = self._g1
+        #przs = self.encoder.uniform(size=shape, generator=v0)
+        #self.encoder.inplace_subtract(przs, self.encoder.uniform(size=shape, generator=v1))
+
+        #print(f'rank: {self.communicator.rank}, v0: {v0} v1: {v1}')
+        ## Add the private secret to the PRZS
+        #if self.communicator.rank == src:
+        #    self.encoder.inplace_add(przs, secret)
+
+        ## Package the result.
+        #return ShamirArrayShare(przs)
         if not isinstance(shape, tuple):
             shape = (shape,)
 
+        shares = []
         if self.communicator.rank == src:
             if not isinstance(secret, numpy.ndarray):
                 raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
@@ -1190,20 +1215,15 @@ class ShamirProtocol(object):
                 raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
             if secret.shape != shape:
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
+            coef = self.encoder.uniform(size=shape+(k,), generator=self._g0)
+            for index in numpy.ndindex(shape):
+                for x in dst:
+                    shares.append(numpy.dot(numpy.power(numpy.full((k,), x+1),numpy.arange(1, k+1)), coef[index])+secret[index])
+            #share = self.communicator.scatterv(src=src, dst=self.communicator.ranks, values=values)
+            revc = [3,-3,1]
+            print(int(sum([(shares[x]*revc[x])%self.encoder.modulus for x in range(k+1)])%self.encoder.modulus))
 
-        # Generate a pseudo-random zero sharing ...
-        v0 = self._g0
-        v1 = self._g1
-        przs = self.encoder.uniform(size=shape, generator=v0)
-        self.encoder.inplace_subtract(przs, self.encoder.uniform(size=shape, generator=v1))
-
-        print(f'rank: {self.communicator.rank}, v0: {v0} v1: {v1}')
-        # Add the private secret to the PRZS
-        if self.communicator.rank == src:
-            self.encoder.inplace_add(przs, secret)
-
-        # Package the result.
-        return ShamirArrayShare(przs)
+        return shares
 
 
     def subtract(self, lhs, rhs):
