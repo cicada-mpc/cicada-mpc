@@ -173,9 +173,9 @@ subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments
 subparser = subparsers.add_parser("start", help="Start one Cicada process.")
 subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
 subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
-subparser.add_argument("--address", default="tcp://127.0.0.1", help="Network address. Default: %(default)s")
+subparser.add_argument("--address", default=None, help="Network address. Default: tcp://127.0.0.1:25252 for player 0, otherwise tcp://127.0.0.1")
 subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
-subparser.add_argument("--root-address", default="tcp://127.0.0.1:25252", help="Root address. Default: %(default)s")
+subparser.add_argument("--root-address", default=None, help="Root address. Default: same as --address for player 0, otherwise tcp://127.0.0.1:25252")
 subparser.add_argument("--rank", type=int, required=True, help="Player rank.")
 subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 subparser.add_argument("program", help="Program to execute.")
@@ -197,6 +197,8 @@ if __name__ == "__main__":
 
     # run
     if arguments.command == "run":
+        world_size = arguments.world_size
+
         root_address = urllib.parse.urlparse(arguments.root_address)
         if root_address.scheme not in ["file", "tcp"]:
             raise RuntimeError(f"--root-address scheme must be file or tcp, got {root_address.scheme} instead.")
@@ -204,7 +206,7 @@ if __name__ == "__main__":
             raise RuntimeError("--root-address must specify a port number when the scheme is tcp.")
 
         addresses = []
-        for rank in range(arguments.world_size):
+        for rank in range(world_size):
             if rank == 0:
                 addresses.append(arguments.root_address)
             else:
@@ -217,7 +219,7 @@ if __name__ == "__main__":
 
         players = []
         for rank, address in enumerate(addresses):
-            players.append((arguments.world_size, rank, address, addresses[0]))
+            players.append((world_size, rank, address, addresses[0]))
 
         frontend = frontends[arguments.frontend]
         frontend(arguments, players, log)
@@ -229,11 +231,22 @@ if __name__ == "__main__":
             raise RuntimeError("--world-size must be greater than zero.")
 
         rank = arguments.rank
+        if rank < 0 or rank >= world_size:
+            raise RuntimeError(f"--rank must be in the range [0, {world_size}).")
 
-        if rank >= world_size:
-            raise RuntimeError("--rank must be less than --world-size.")
+        address = arguments.address
+        if address is None:
+            address = "tcp://127.0.0.1:25252" if rank == 0 else "tcp://127.0.0.1"
+        address = urllib.parse.urlparse(address)
+        address = address.geturl()
 
-        players = [(world_size, rank, arguments.address, arguments.root_address)]
+        root_address = arguments.root_address
+        if root_address is None:
+            root_address = address if rank == 0 else "tcp://127.0.0.1:25252"
+        root_address = urllib.parse.urlparse(root_address)
+        root_address = root_address.geturl()
+
+        players = [(world_size, rank, address, root_address)]
         frontend = frontends[arguments.frontend]
         frontend(arguments, players, log)
 
