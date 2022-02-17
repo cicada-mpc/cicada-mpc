@@ -1109,7 +1109,7 @@ class ShamirProtocol(object):
         return nltz_parts
 
 
-    def reveal(self, share, dst=None):
+    def reveal(self, share, src, dst=None):
         """Reveals a secret shared value to a subset of players.
 
         Note
@@ -1135,6 +1135,15 @@ class ShamirProtocol(object):
             Encoded representation of the revealed secret, if this player is a
             member of `dst`, or :any:`None`.
         """
+        # Given a set of indices, it returns a dictionary containing the lagrange coefficients
+        # with respect to each index given, keyed by those indices
+        from math import prod
+        def lagrangeCoef():
+            coefs=numpy.array([0 for x in src], dtype=self.encoder.dtype)
+            for i in range(len(src)):
+                coefs[i]=int(prod([(-(1+j)/((1+src[i])-(j+1))) for j in src if j != src[i]]))
+            return coefs
+
         if not isinstance(share, ShamirArrayShare):
             raise ValueError("share must be an instance of ShamirArrayShare.") # pragma: no cover
 
@@ -1145,15 +1154,22 @@ class ShamirProtocol(object):
         # Send data to the other players.
         secret = None
         for recipient in dst:
-            received_shares = self.communicator.gather(value=share.storage, dst=recipient)
-
+            received_shares = numpy.array(self.communicator.gatherv(src=src, value=share.storage, dst=recipient))
+            print(received_shares)
             # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
-                secret = received_shares[0].copy()
-                for received_share in received_shares[1:]:
-                    self.encoder.inplace_add(secret, received_share)
-
-        return secret
+                revc = lagrangeCoef()
+                print(revc)
+                print(f'ans: {(revc[0]*received_shares[0]+revc[1]*received_shares[1]+revc[2]*received_shares[2])%self.encoder.modulus}')
+                secret=[]
+                for index in numpy.ndindex(received_shares[0].shape):
+                    secret.append(sum([revc[i]*received_shares[i] for i in range(len(src))]))
+                #for received_share in received_shares[1:]:
+                #    self.encoder.inplace_add(secret, received_share)
+        if secret is None:
+            return secret
+        else:
+            return numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype)
 
     def share(self, *, src, secret, shape, dst, k):
         """Convert a private array to an additive secret share.
@@ -1208,6 +1224,7 @@ class ShamirProtocol(object):
             shape = (shape,)
 
         shares = []
+        sharesn = numpy.zeros(shape+(len(dst),))
         if self.communicator.rank == src:
             if not isinstance(secret, numpy.ndarray):
                 raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
@@ -1219,11 +1236,9 @@ class ShamirProtocol(object):
             for index in numpy.ndindex(shape):
                 for x in dst:
                     shares.append(numpy.dot(numpy.power(numpy.full((k,), x+1),numpy.arange(1, k+1)), coef[index])+secret[index])
-            #share = self.communicator.scatterv(src=src, dst=self.communicator.ranks, values=values)
-            revc = [3,-3,1]
-            print(int(sum([(shares[x]*revc[x])%self.encoder.modulus for x in range(k+1)])%self.encoder.modulus))
-
-        return shares
+            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),))
+        share = numpy.array(self.communicator.scatterv(src=src, dst=dst, values=sharesn), dtype=self.encoder.dtype)
+        return ShamirArrayShare(share)
 
 
     def subtract(self, lhs, rhs):
