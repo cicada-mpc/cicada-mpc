@@ -1159,17 +1159,17 @@ class ShamirProtocol(object):
             # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
                 revc = lagrangeCoef()
-                print(revc)
-                print(f'ans: {(revc[0]*received_shares[0]+revc[1]*received_shares[1]+revc[2]*received_shares[2])%self.encoder.modulus}')
                 secret=[]
                 for index in numpy.ndindex(received_shares[0].shape):
-                    secret.append(sum([revc[i]*received_shares[i] for i in range(len(src))]))
+                    secret.append(sum([revc[i]*received_shares[i][index] for i in range(len(src))]))
                 #for received_share in received_shares[1:]:
                 #    self.encoder.inplace_add(secret, received_share)
         if secret is None:
             return secret
         else:
-            return numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype)
+            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(received_shares[0].shape).T
+            return ret
+
 
     def share(self, *, src, secret, shape, dst, k):
         """Convert a private array to an additive secret share.
