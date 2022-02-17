@@ -1236,7 +1236,8 @@ class ShamirProtocol(object):
             for index in numpy.ndindex(shape):
                 for x in dst:
                     shares.append(numpy.dot(numpy.power(numpy.full((k,), x+1),numpy.arange(1, k+1)), coef[index])+secret[index])
-            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),))
+            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),)).T
+            print(sharesn)
         share = numpy.array(self.communicator.scatterv(src=src, dst=dst, values=sharesn), dtype=self.encoder.dtype)
         return ShamirArrayShare(share)
 

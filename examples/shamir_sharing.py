@@ -30,7 +30,7 @@ def main(communicator):
     encoder = cicada.encoder.FixedFieldEncoder()
 
     # Player 0 will provide a secret.
-    secret = numpy.array(numpy.pi) 
+    secret = numpy.array([1,2,3]) 
     log.info(f"Player {communicator.rank} secret: {secret}")
 
     # Generate shares for four out of five players.
