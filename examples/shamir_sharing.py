@@ -30,16 +30,16 @@ def main(communicator):
     encoder = cicada.encoder.FixedFieldEncoder()
 
     # Player 0 will provide a secret.
-    secret = numpy.zeros((2,3,4))
+    secret = numpy.arange(24).reshape((2,3,4))
     log.info(f"Player {communicator.rank} secret: {secret}")
 
     # Generate shares for four out of five players.
     share = shamir.share(src=0, k=2, secret=encoder.encode(secret),shape=secret.shape, dst=[0, 1, 2, 3, 4])
-    log.info(f"Player {communicator.rank} share: {share}")
+    #log.info(f"Player {communicator.rank} share: {share}")
 
     # Reveal the secret to player one, using just three shares.
     tmp = shamir.reveal(share, src=[2, 3, 4], dst=[0])
-    log.info(f"Player {communicator.rank} encoded: {tmp}")
+    #log.info(f"Player {communicator.rank} encoded: {tmp}")
     revealed = encoder.decode(tmp)
     log.info(f"Player {communicator.rank} revealed: {revealed}")
 

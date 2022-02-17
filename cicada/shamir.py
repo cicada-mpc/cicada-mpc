@@ -760,7 +760,6 @@ class ShamirProtocol(object):
         quotient = self.floor(quotient)
         val2subtract = self.truncate(AdditiveArrayShare(self.encoder.untruncated_multiply(rhs_enc, quotient.storage)))
         remainder = self.subtract(lhs, val2subtract) 
-        print(f'div: {divisor} rhs_enc: {rhs_enc}, q: {self.encoder.decode(self.reveal(quotient))}')
         return remainder 
 
 
@@ -785,13 +784,8 @@ class ShamirProtocol(object):
         if isinstance(rhspub, int):
             rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
         ans=[]
-        print(f'rhspub: {rhspub}')
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
-            print(f'rhse: {rhse}')
-            try:
-                rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
-            except:
-                print(f'error: {rhse}')
+            rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
             tmp = AdditiveArrayShare(lhse)
             it_ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
             limit = len(rhsbits)-1
@@ -1155,7 +1149,6 @@ class ShamirProtocol(object):
         secret = None
         for recipient in dst:
             received_shares = numpy.array(self.communicator.gatherv(src=src, value=share.storage, dst=recipient))
-            print(received_shares)
             # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
                 revc = lagrangeCoef()
@@ -1237,7 +1230,6 @@ class ShamirProtocol(object):
                 for x in dst:
                     shares.append(numpy.dot(numpy.power(numpy.full((k,), x+1),numpy.arange(1, k+1)), coef[index])+secret[index])
             sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),)).T
-            print(sharesn)
         share = numpy.array(self.communicator.scatterv(src=src, dst=dst, values=sharesn), dtype=self.encoder.dtype)
         return ShamirArrayShare(share)
 
