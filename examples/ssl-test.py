@@ -26,14 +26,14 @@ address = os.environ.get("CICADA_ADDRESS")
 root_address = os.environ.get("CICADA_ROOT_ADDRESS")
 
 server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-server.load_cert_chain(certfile="cert.pem")
-server.load_verify_locations("cert.pem")
+server.load_cert_chain(certfile=f"player-{rank}.pem", keyfile=f"player-{rank}.key")
+server.load_verify_locations("all.pem")
 server.check_hostname=False
 server.verify_mode = ssl.CERT_REQUIRED
 
 client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-client.load_cert_chain(certfile="cert.pem")
-client.load_verify_locations("cert.pem")
+client.load_cert_chain(certfile=f"player-{rank}.pem", keyfile=f"player-{rank}.key")
+client.load_verify_locations("all.pem")
 client.check_hostname = False
 client.verify_mode = ssl.CERT_REQUIRED
 
