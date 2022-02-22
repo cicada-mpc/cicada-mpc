@@ -862,9 +862,7 @@ class ShamirProtocol(object):
         """
         self._assert_unary_compatible(lhs, "lhs")
 
-        if self._communicator.rank == 0:
-            return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs))
-        return AdditiveArrayShare(lhs.storage)
+        return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs))
 
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
@@ -959,9 +957,7 @@ class ShamirProtocol(object):
         """
         self._assert_unary_compatible(rhs, "rhs")
 
-        if self.communicator.rank == 0:
-            return AdditiveArrayShare(self.encoder.add(lhs, rhs.storage))
-        return rhs
+        return AdditiveArrayShare(self.encoder.add(lhs, rhs.storage))
 
 
     def public_private_subtract(self, lhs, rhs):
@@ -993,10 +989,7 @@ class ShamirProtocol(object):
         """
         self._assert_unary_compatible(rhs, "rhs")
 
-        if self._communicator.rank == 0:
-            return AdditiveArrayShare(self.encoder.subtract(lhs, rhs.storage))
-
-        return AdditiveArrayShare(self.encoder.negative(rhs.storage))
+        return AdditiveArrayShare(self.encoder.subtract(lhs, rhs.storage))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
@@ -1371,7 +1364,7 @@ class ShamirProtocol(object):
 
         return AdditiveArrayShare(self.encoder.uniform(size=shape, generator=generator)) 
 
-
+#TODO
     def untruncated_multiply(self, lhs, rhs):
         """Element-wise multiplication of two shared arrays.
 
