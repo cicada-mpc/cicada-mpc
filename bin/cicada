@@ -159,30 +159,29 @@ parser = argparse.ArgumentParser(description="Cicada MPC tools.")
 subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
 
 # run
-subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
-subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
-subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
-subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
-subparser.add_argument("--root-address", default="tcp://127.0.0.1:25252", help="Root address.  Default: %(default)s")
-subparser.add_argument("--tmux-layout", default="even-vertical", choices=["even-horizontal", "even-vertical", "tiled"], help="Pane layout for the tmux frontend. Default: %(default)s")
-subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
-subparser.add_argument("program", help="Program to execute.")
-subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
+run_subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
+run_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
+run_subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
+run_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
+run_subparser.add_argument("--root-address", default="tcp://127.0.0.1:25252", help="Root address.  Default: %(default)s")
+run_subparser.add_argument("--tmux-layout", default="even-vertical", choices=["even-horizontal", "even-vertical", "tiled"], help="Pane layout for the tmux frontend. Default: %(default)s")
+run_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+run_subparser.add_argument("program", help="Program to execute.")
+run_subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
 
 # start
-subparser = subparsers.add_parser("start", help="Start one Cicada process.")
-subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
-subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
-subparser.add_argument("--address", default=None, help="Network address. Default: tcp://127.0.0.1:25252 for player 0, otherwise tcp://127.0.0.1")
-subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
-subparser.add_argument("--root-address", default=None, help="Root address. Default: same as --address for player 0, otherwise tcp://127.0.0.1:25252")
-subparser.add_argument("--rank", type=int, required=True, help="Player rank.")
-subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
-subparser.add_argument("program", help="Program to execute.")
-subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
+start_subparser = subparsers.add_parser("start", help="Start one Cicada process.")
+start_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
+start_subparser.add_argument("--address", default=None, help=f"Network address. Default: tcp://{public_ip()}:25252 for player 0, otherwise tcp://{public_ip()}")
+start_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
+start_subparser.add_argument("--root-address", default=None, help="Root address. Default: same as --address for player 0, required otherwise.")
+start_subparser.add_argument("--rank", type=int, required=True, help="Player rank.")
+start_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+start_subparser.add_argument("program", help="Program to execute.")
+start_subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
 
 # version
-subparser = subparsers.add_parser("version", help="Print the Cicada version.")
+version_subparser = subparsers.add_parser("version", help="Print the Cicada version.")
 
 
 if __name__ == "__main__":
@@ -198,12 +197,14 @@ if __name__ == "__main__":
     # run
     if arguments.command == "run":
         world_size = arguments.world_size
+        if world_size < 1:
+            run_subparser.error("--world-size must be greater than zero.")
 
         root_address = urllib.parse.urlparse(arguments.root_address)
         if root_address.scheme not in ["file", "tcp"]:
-            raise RuntimeError(f"--root-address scheme must be file or tcp, got {root_address.scheme} instead.")
+            run_subparser.error(f"--root-address scheme must be file or tcp, got {root_address.scheme} instead.")
         if root_address.scheme == "tcp" and root_address.port is None:
-            raise RuntimeError("--root-address must specify a port number when the scheme is tcp.")
+            run_subparser.error("--root-address must specify a port number when the scheme is tcp.")
 
         addresses = []
         for rank in range(world_size):
@@ -228,26 +229,29 @@ if __name__ == "__main__":
     if arguments.command == "start":
         world_size = arguments.world_size
         if world_size < 1:
-            raise RuntimeError("--world-size must be greater than zero.")
+            start_subparser.error("--world-size must be greater than zero.")
 
         rank = arguments.rank
         if rank < 0 or rank >= world_size:
-            raise RuntimeError(f"--rank must be in the range [0, {world_size}).")
+            start_subparser.error(f"--rank must be in the range [0, {world_size}).")
 
         address = arguments.address
         if address is None:
-            address = "tcp://127.0.0.1:25252" if rank == 0 else "tcp://127.0.0.1"
+            address = f"tcp://{public_ip()}:25252" if rank == 0 else f"tcp://{public_ip()}"
         address = urllib.parse.urlparse(address)
         address = address.geturl()
 
         root_address = arguments.root_address
         if root_address is None:
-            root_address = address if rank == 0 else "tcp://127.0.0.1:25252"
+            if rank == 0:
+                root_address = address
+            else:
+                start_subparser.error(f"--root-address must be specified.")
         root_address = urllib.parse.urlparse(root_address)
         root_address = root_address.geturl()
 
         players = [(world_size, rank, address, root_address)]
-        frontend = frontends[arguments.frontend]
+        frontend = frontends["basic"]
         frontend(arguments, players, log)
 
     # version
