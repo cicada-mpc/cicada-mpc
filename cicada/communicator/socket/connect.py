@@ -166,7 +166,7 @@ class TokenMismatch(Exception):
     pass
 
 
-def connect(*, address):
+def connect(*, address, tls=None):
     """Given an address, create a socket and make a connection.
 
     Parameters
@@ -190,10 +190,14 @@ def connect(*, address):
     else:
         raise ValueError(f"address.scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
 
+    # Optionally setup TLS.
+    if tls is not None:
+        sock = tls.wrap_socket(sock, server_side=False)
+
     return NetstringSocket(sock)
 
 
-def direct(*, listen_socket, addresses, rank, name="world", timer=None):
+def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None):
     """Create socket connections given a list of player addresses.
 
     Parameters
@@ -302,7 +306,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None):
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener])
+                    players[listener] = connect(address=addresses[listener], tls=tls)
                     break
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
@@ -349,7 +353,7 @@ def geturl(sock):
     raise ValueError(f"Unknown address family: {sock.family}") # pragma: no cover
 
 
-def listen(*, address, rank, name="world", timer=None):
+def listen(*, address, rank, name="world", timer=None, tls=None):
     """Create a listening socket from a URL.
 
     Typically, callers should use this function to create a listening socket
@@ -369,6 +373,8 @@ def listen(*, address, rank, name="world", timer=None):
     timer: :class:`Timer`, optional
         Determines the maximum time to wait for socket creation.  Defaults to
         five seconds.
+    tls: :class:`ssl.SSLContext`, optional
+        If supplied, the returned socket will implement transport layer security.
 
     Raises
     ------
@@ -423,6 +429,10 @@ def listen(*, address, rank, name="world", timer=None):
     else: # pragma: no cover
         raise Timeout(message(name, rank, f"timeout creating listening socket."))
 
+    # Optionally setup TLS.
+    if tls is not None:
+        listen_socket = tls.wrap_socket(listen_socket, server_side=True)
+
     return listen_socket
 
 
@@ -431,7 +441,7 @@ def message(name, rank, msg):
     return f"Comm {name!r} player {rank} {msg}"
 
 
-def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timer=None):
+def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timer=None, tls=None):
     """Create socket connections given just the address of the root player.
 
     Parameters
@@ -510,7 +520,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     if rank != 0:
         while not timer.expired:
             try:
-                players[0] = connect(address=root_address)
+                players[0] = connect(address=root_address, tls=tls)
                 break
             except ConnectionRefusedError as e: # pragma: no cover
                 # This happens regularly, particularly when starting on
@@ -656,7 +666,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener][0])
+                    players[listener] = connect(address=addresses[listener][0], tls=tls)
                     break
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
