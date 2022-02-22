@@ -14,11 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import ssl
 
 from cicada.communicator import SocketCommunicator
 from cicada.communicator.socket import connect
+
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("cicada.communicator").setLevel(logging.INFO)
 
 world_size = int(os.environ.get("CICADA_WORLD_SIZE"))
 rank = int(os.environ.get("CICADA_RANK"))

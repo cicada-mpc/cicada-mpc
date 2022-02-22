@@ -21,6 +21,7 @@ import logging
 import numbers
 import os
 import pickle
+import pprint
 import select
 import socket
 import time
@@ -166,7 +167,7 @@ class TokenMismatch(Exception):
     pass
 
 
-def connect(*, address, tls=None):
+def connect(*, address, rank, name="world", tls=None):
     """Given an address, create a socket and make a connection.
 
     Parameters
@@ -179,6 +180,8 @@ def connect(*, address, tls=None):
     socket: :class:`NetstringSocket`
         The newly-connected socket, ready for use.
     """
+    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+
     if address.scheme == "file":
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(address.path)
@@ -193,6 +196,7 @@ def connect(*, address, tls=None):
     # Optionally setup TLS.
     if tls is not None:
         sock = tls.wrap_socket(sock, server_side=False)
+        log.info(f"connected to peer:\n{pprint.pformat(sock.getpeercert())}")
 
     return NetstringSocket(sock)
 
@@ -306,7 +310,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener], tls=tls)
+                    players[listener] = connect(address=addresses[listener], rank=rank, name=name, tls=tls)
                     break
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
@@ -520,7 +524,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     if rank != 0:
         while not timer.expired:
             try:
-                players[0] = connect(address=root_address, tls=tls)
+                players[0] = connect(address=root_address, rank=rank, name=name, tls=tls)
                 break
             except ConnectionRefusedError as e: # pragma: no cover
                 # This happens regularly, particularly when starting on
@@ -666,7 +670,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener][0], tls=tls)
+                    players[listener] = connect(address=addresses[listener][0], rank=rank, name=name, tls=tls)
                     break
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
