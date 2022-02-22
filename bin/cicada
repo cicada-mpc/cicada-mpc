@@ -158,6 +158,18 @@ frontends = {
 parser = argparse.ArgumentParser(description="Cicada MPC tools.")
 subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
 
+# player-keygen
+player_keygen_subparser = subparsers.add_parser("player-keygen", help="Generate player key and certificate for TLS encryption.")
+player_keygen_subparser.add_argument("--country", default="US", help="Certificate country. Default: %(default)s")
+player_keygen_subparser.add_argument("--days", type=int, default=365, help="Length of time the certificate will be valid. Default: %(default)s")
+player_keygen_subparser.add_argument("--email", default=None, help="Certificate email. Default: %(default)s")
+player_keygen_subparser.add_argument("--locality", default="Albuquerque", help="Certificate locality. Default: %(default)s")
+player_keygen_subparser.add_argument("--name", default="*", help="Client name. Default: %(default)s")
+player_keygen_subparser.add_argument("--organization", default="Cicada", help="Certificate organization. Default: %(default)s")
+player_keygen_subparser.add_argument("--rank", required=True, help="Player rank.")
+player_keygen_subparser.add_argument("--state", default="New Mexico", help="Certificate state. Default: %(default)s")
+player_keygen_subparser.add_argument("--unit", default=None, help="Certificate organizational unit. Default: %(default)s")
+
 # run
 run_subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
 run_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
@@ -193,6 +205,29 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     log = logging.getLogger()
     log.name = os.path.basename(sys.argv[0])
+
+    # player-keygen
+    if arguments.command == "player-keygen":
+        rank = arguments.rank
+
+        subj = ""
+        subj += f"/C={arguments.country}" if arguments.country else ""
+        subj += f"/ST={arguments.state}" if arguments.state else ""
+        subj += f"/L={arguments.locality}" if arguments.locality else ""
+        subj += f"/O={arguments.organization}" if arguments.organization else ""
+        subj += f"/OU={arguments.unit}" if arguments.unit else ""
+        subj += f"/emailAddress={arguments.email}" if arguments.email else ""
+        subj += f"/CN={arguments.name}"
+
+        subprocess.check_call(["openssl", "genrsa", "-out", f"player-{rank}.key", "2048"])
+        subprocess.check_call(["openssl", "req", "-new", "-key", f"player-{rank}.key", "-x509", "-subj", subj, "-out", f"player-{rank}.cert", "-days", str(arguments.days)])
+        with open(f"player-{rank}.pem", "wb") as output:
+            with open(f"player-{rank}.key", "rb") as input:
+                output.write(input.read())
+            with open(f"player-{rank}.cert", "rb") as input:
+                output.write(input.read())
+        os.remove(f"player-{rank}.key")
+
 
     # run
     if arguments.command == "run":
