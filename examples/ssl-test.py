@@ -25,13 +25,15 @@ rank = int(os.environ.get("CICADA_RANK"))
 address = os.environ.get("CICADA_ADDRESS")
 root_address = os.environ.get("CICADA_ROOT_ADDRESS")
 
-#server = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-server = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_SERVER)
+server = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+server.load_cert_chain(certfile="cert.pem")
 #server.check_hostname = False
+#server.verify_mode = ssl.CERT_NONE
 
-client = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
-#client = ssl.create_default_context()
+client = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+client.load_cert_chain(certfile="cert.pem")
 client.check_hostname = False
+client.verify_mode = ssl.CERT_NONE
 
 timer = connect.Timer(threshold=5)
 listen_socket = connect.listen(address=address, rank=rank, timer=timer, tls=server)
