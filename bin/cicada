@@ -164,7 +164,7 @@ player_keygen_subparser.add_argument("--country", default="US", help="Certificat
 player_keygen_subparser.add_argument("--days", type=int, default=365, help="Length of time the certificate will be valid. Default: %(default)s")
 player_keygen_subparser.add_argument("--email", default=None, help="Certificate email. Default: %(default)s")
 player_keygen_subparser.add_argument("--locality", default="Albuquerque", help="Certificate locality. Default: %(default)s")
-player_keygen_subparser.add_argument("--name", default="*", help="Client name. Default: %(default)s")
+player_keygen_subparser.add_argument("--name", default=None, help="Common name. Default: based on player rank.")
 player_keygen_subparser.add_argument("--organization", default="Cicada", help="Certificate organization. Default: %(default)s")
 player_keygen_subparser.add_argument("--rank", required=True, help="Player rank.")
 player_keygen_subparser.add_argument("--state", default="New Mexico", help="Certificate state. Default: %(default)s")
@@ -209,6 +209,9 @@ if __name__ == "__main__":
     # player-keygen
     if arguments.command == "player-keygen":
         rank = arguments.rank
+
+        if arguments.name is None:
+            arguments.name = f"Player {rank}"
 
         subj = ""
         subj += f"/C={arguments.country}" if arguments.country else ""
