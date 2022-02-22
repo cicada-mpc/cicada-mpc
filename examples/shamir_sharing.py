@@ -38,7 +38,7 @@ def main(communicator):
     #log.info(f"Player {communicator.rank} share: {share}")
 
     # Reveal the secret to player one, using just three shares.
-    tmp = shamir.reveal(share, src=[2, 3, 4], dst=[0])
+    tmp = shamir.reveal(share, src=[0, 2, 3], dst=[0])
     #log.info(f"Player {communicator.rank} encoded: {tmp}")
     revealed = encoder.decode(tmp)
     log.info(f"Player {communicator.rank} revealed: {revealed}")

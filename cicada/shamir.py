@@ -1133,10 +1133,13 @@ class ShamirProtocol(object):
         # with respect to each index given, keyed by those indices
         from math import prod
         def lagrangeCoef():
-            coefs=numpy.array([0 for x in src], dtype=self.encoder.dtype)
-            for i in range(len(src)):
+            ls = len(src)
+            coefs=numpy.zeros(ls, dtype=self.encoder.dtype)#coefs=zeros((ls, ls))
+            for i in range(ls):
+                #for j in range(ls):
+                #    coefs[i][j]=(src[i]+1)**j
                 coefs[i]=int(prod([(-(1+j)/((1+src[i])-(j+1))) for j in src if j != src[i]]))
-            return coefs
+            return coefs #numpy.array([int(x) for x in numpy.linalg.inv(coefs)[0]])
 
         if not isinstance(share, ShamirArrayShare):
             raise ValueError("share must be an instance of ShamirArrayShare.") # pragma: no cover
@@ -1152,9 +1155,10 @@ class ShamirProtocol(object):
             # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
                 revc = lagrangeCoef()
+                print(revc, received_shares)
                 secret=[]
                 for index in numpy.ndindex(received_shares[0].shape):
-                    secret.append(sum([revc[i]*received_shares[i][index] for i in range(len(src))]))
+                    secret.append(sum([revc[i]*received_shares[i][index] for i in range(len(revc))]))
                 #for received_share in received_shares[1:]:
                 #    self.encoder.inplace_add(secret, received_share)
         if secret is None:
