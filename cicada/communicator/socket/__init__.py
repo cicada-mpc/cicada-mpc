@@ -37,9 +37,7 @@ import numpy
 import pynetstring
 
 from ..interface import Communicator
-from .connect import LoggerAdapter, Timeout, rendezvous
-
-log = logging.getLogger(__name__)
+from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, rendezvous
 
 Message = collections.namedtuple("Message", ["serial", "tag", "sender", "payload"])
 Message.__doc__ = """
@@ -90,17 +88,17 @@ class SocketCommunicator(Communicator):
 
     Parameters
     ----------
-    sockets: :class:`dict` of :class:`NetstringSocket`, required
+    sockets: :class:`dict` of :class:`~cicada.communicator.socket.connect.NetstringSocket`, required
         Dictionary containing sockets that are connected to the other players
         and ready to use.  The dictionary keys must be the ranks of the other
-        players, and there must be one sockets in the dictionary for every
-        player except the caller (since players don't use a socket to
+        players, and there must be one socket in the dictionary for every
+        player except the caller (since players don't need a socket to
         communicate with themselves).  Note that the communicator world size is
-        inferred from the size of the collection, and the communicator rank
-        from whichever rank doesn't appear in the collection.
-    name: :class:`str`, required
+        inferred from the size of the dictionary, and the communicator rank
+        from whichever key doesn't appear in the dictionary.
+    name: :class:`str`, optional
         Human-readable name for this communicator, used for logging and
-        debugging.
+        debugging.  Defaults to "world"
     timeout: :class:`numbers.Number`
         Maximum time to wait for communication to complete, in seconds.
     """
@@ -118,22 +116,23 @@ class SocketCommunicator(Communicator):
         "send",
         "shrink-begin",
         "shrink-end",
-        "split-begin",
-        "split-end",
         ]
 
 
-    def __init__(self, *, sockets, name, timeout=5):
+    def __init__(self, *, sockets, name="world", timeout=5):
         if not isinstance(sockets, dict):
             raise ValueError("sockets must be a dict, got {sockets} instead.") # pragma: no cover
+        for key, socket in sockets.items():
+            if not isinstance(key, int):
+                raise ValueError("sockets keys must be ints, got {sockets} instead.") # pragma: no cover
+            if not isinstance(socket, NetstringSocket):
+                raise ValueError("sockets values must be NetstringSocket, got {sockets} instead.") # pragma: no cover
 
         world_size = len(sockets) + 1
         for index in range(world_size):
             if index not in sockets:
                 rank = index
 
-        if name is None:
-            name = "world"
         if not isinstance(name, str):
             raise ValueError("name must be a string, got {name} instead.") # pragma: no cover
 
@@ -146,7 +145,7 @@ class SocketCommunicator(Communicator):
         self._rank = rank
         self._timeout = timeout
         self._revoked = False
-        self._log = LoggerAdapter(log, name, rank)
+        self._log = LoggerAdapter(logging.getLogger(__name__), name, rank)
         self._players = sockets
 
         # Begin normal operation.
@@ -197,7 +196,7 @@ class SocketCommunicator(Communicator):
                 if message.sender not in self.ranks:
                     raise RuntimeError(f"Unexpected sender: {message.sender}") # pragma: no cover
             except Exception as e: # pragma: no cover
-                self._log.error(f"dropping unexpected message: {message} exception: {e}")
+                self._log.warning(f"ignoring message: {message} exception: {e}")
                 continue
 
             # Log queued messages.
@@ -208,7 +207,7 @@ class SocketCommunicator(Communicator):
             if message.tag == "revoke":
                 if not self._revoked:
                     self._revoked = True
-                    self._log.info(f"revoked by player {message.sender}")
+                    self._log.warning(f"revoked by player {message.sender}")
                 continue
 
             # Insert the message into the correct queue.
@@ -236,7 +235,7 @@ class SocketCommunicator(Communicator):
                         try:
                             message = pickle.loads(raw_message)
                         except Exception as e: # pragma: no cover
-                            self._log.error(f"ignoring unparsable message: {e}")
+                            self._log.warning(f"ignoring unparsable message: {e}")
                             continue
 
                         self._log.debug(f"received {message}")
@@ -244,7 +243,7 @@ class SocketCommunicator(Communicator):
                         # Insert the message into the incoming queue.
                         self._incoming.put(message, block=True, timeout=None)
             except Exception as e: # pragma: no cover
-                self._log.error(f"receive exception: {e}")
+                self._log.warning(f"receive exception: {e}")
 
         # The communicator has been freed, so exit the thread.
         self._log.debug(f"receive thread closed.")
@@ -368,6 +367,73 @@ class SocketCommunicator(Communicator):
         # Receive the broadcast value.
         message = self._receive(tag="broadcast", sender=src, block=True)
         return message.payload
+
+
+    @staticmethod
+    def connect(*, world_size=None, rank=None, address=None, root_address=None, name="world", timeout=5, startup_timeout=5):
+        """High level function to create a SocketCommunicator.
+
+        This is a high level convenience function that can be used to create a
+        communicator, given just the calling player's address and the address
+        of the root player.  By default, the parameters will be read from
+        environment variables that can be set permanently by the user, or
+        temporarily using the :ref:`cicada` command.
+
+        Parameters
+        ----------
+        world_size: :class:`int` or :any:`None`, optional
+            Number of players.  Defaults to the value of the CICADA_WORLD_SIZE
+            environment variable, which is automatically set by the :ref:`cicada` command.
+        rank: :class:`int` or :any:`None`, optional
+            Rank of the caller.  Defaults to the value of the CICADA_RANK
+            environment variable, which is automatically set by the :ref:`cicada` command.
+        address: :class:`str` or :any:`None`, optional
+            Listening address of the caller.  This must be a URL of the form
+            `"tcp://{host}:{port}"` for TCP sockets, or `"file:///path/to/foo"`
+            for Unix domain sockets.  Defaults to the value of the
+            CICADA_ADDRESS environment variable, which is automatically set
+            by the :ref:`cicada` command.
+        root_address: :class:`str` or :any:`None`, optional
+            Listening address of the root (rank 0) player.  This must be a URL
+            of the form `"tcp://{host}:{port}"` for TCP sockets, or
+            `"file:///path/to/foo"` for Unix domain sockets.  Defaults to the
+            value of the CICADA_ROOT_ADDRESS environment variable, which is
+            automatically set by the :ref:`cicada` command.
+        name: :class:`str`, optional
+            Human-readable name for the new communicator.  Defaults to "world".
+        timeout: :class:`numbers.Number`
+            Communication timeout for the new communicator, in seconds.  Defaults to five.
+        startup_timeout: :class:`numbers.Number`
+            Maximum time to wait for communicator setup, in seconds.  Defaults to five.
+
+        Raises
+        ------
+        :class:`ValueError`
+            If there are problems with input parameters.
+        :class:`Timeout`
+            If `timeout` seconds elapses before all connections are established.
+        :class:`TokenMismatch`
+            If every player doesn't provide the same token during startup.
+
+        Returns
+        -------
+        communicator: :class:`SocketCommunicator`
+            A fully-initialized communicator, ready for use.
+
+        """
+        if world_size is None:
+            world_size = int(os.environ.get("CICADA_WORLD_SIZE"))
+        if rank is None:
+            rank = int(os.environ.get("CICADA_RANK"))
+        if address is None:
+            address = os.environ.get("CICADA_ADDRESS")
+        if root_address is None:
+            root_address = os.environ.get("CICADA_ROOT_ADDRESS")
+
+        timer = Timer(threshold=startup_timeout)
+        listen_socket = listen(address=address, rank=rank, name=name, timer=timer)
+        sockets = rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, timer=timer)
+        return SocketCommunicator(sockets=sockets, timeout=timeout)
 
 
     def free(self):
@@ -497,7 +563,7 @@ class SocketCommunicator(Communicator):
 
         Returns
         -------
-        name: string
+        name: :class:`str`
         """
         return self._name
 
@@ -519,7 +585,7 @@ class SocketCommunicator(Communicator):
 
         Returns
         -------
-        context:
+        context: :class:`object`
             A context manager object that will restore the communicator state when exited.
         """
         original_context = {
@@ -577,7 +643,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, args=(), kwargs={}, timeout=5, startup_timeout=5):
+    def run(*, world_size, fn, args=(), kwargs={}, name="world", timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -593,16 +659,21 @@ class SocketCommunicator(Communicator):
         ----------
         world_size: :class:`int`, required
             The number of players that will run the function.
-        fn: callable object, required
+        fn: :func:`callable`, required
             The function to execute in parallel.
         args: :class:`tuple`, optional
             Positional arguments to pass to `fn` when it is executed.
         kwargs: :class:`dict`, optional
             Keyword arguments to pass to `fn` when it is executed.
-        timeout: number or `None`
-            Maximum time to wait for normal communication to complete in seconds, or `None` to disable timeouts.
-        startup_timeout: number or `None`
-            Maximum time allowed to setup the communicator in seconds, or `None` to disable timeouts during setup.
+        name: :class:`str`, optional
+            Human-readable name for the communicator created by this function.
+            Defaults to "world".
+        timeout: :class:`numbers.Number`, optional
+            Maximum time to wait for normal communication to complete in
+            seconds.  Defaults to five seconds.
+        startup_timeout: :class:`numbers.Number`, optional
+            Maximum time allowed to setup the communicator in seconds.
+            Defaults to five seconds.
 
         Returns
         -------
@@ -615,23 +686,21 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, link_addr_queue, result_queue, world_size, rank, fn, args, kwargs, timeout, startup_timeout):
-            # Create a socket with a randomly-assigned port number.
-            host_socket = socket.create_server(("127.0.0.1", 0))
-            host, port = host_socket.getsockname()
-            host_addr = f"tcp://{host}:{port}"
-
-            # Send address information to our peers.
-            if rank == 0:
-                for index in range(world_size):
-                    link_addr_queue.put(host_addr)
-
-            link_addr = link_addr_queue.get()
-
+        def launch(*, parent_queue, child_queue, rank, fn, args, kwargs, name, timeout, startup_timeout):
             # Run the work function.
             try:
-                name = "world"
-                sockets=rendezvous(name=name, world_size=world_size, link_addr=link_addr, rank=rank, host_socket=host_socket, timeout=startup_timeout)
+                # Create a socket with a randomly-assigned port number.
+                timer = Timer(threshold=startup_timeout)
+                listen_socket = listen(name=name, rank=rank, address="tcp://127.0.0.1", timer=timer)
+                address = geturl(listen_socket)
+
+                # Send our address to the parent process.
+                parent_queue.put((rank, address))
+
+                # Get all addresses from the parent process.
+                addresses = child_queue.get()
+
+                sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
                 result = fn(communicator, *args, **kwargs)
                 communicator.free()
@@ -639,27 +708,37 @@ class SocketCommunicator(Communicator):
                 result = Failed(e, traceback.format_exc())
 
             # Return results to the parent process.
-            result_queue.put((rank, result))
+            parent_queue.put((rank, result))
 
         # Setup the multiprocessing context.
-        context = multiprocessing.get_context(method="fork") # I don't remember why we preferred fork().
+        context = multiprocessing.get_context(method="fork") # I don't remember why we prefer fork().
 
         # Create queues for IPC.
-        link_addr_queue = context.Queue()
-        result_queue = context.Queue()
+        parent_queue = context.Queue()
+        child_queue = context.Queue()
 
         # Create per-player processes.
         processes = []
         for rank in range(world_size):
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(link_addr_queue=link_addr_queue, result_queue=result_queue, world_size=world_size, rank=rank, fn=fn, args=args, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, args=args, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
         for process in processes:
             process.daemon = True
             process.start()
+
+        # Collect addresses from every process.
+        addresses = [None] * world_size
+        for process in processes:
+            rank, address = parent_queue.get(block=True)
+            addresses[rank] = address
+
+        # Send addresses to every process.
+        for process in processes:
+            child_queue.put(addresses)
 
         # Wait until every process terminates.
         for process in processes:
@@ -670,7 +749,7 @@ class SocketCommunicator(Communicator):
         results = []
         for process in processes:
             try:
-                results.append(result_queue.get(block=False))
+                results.append(parent_queue.get(block=False))
             except:
                 break
 
@@ -680,19 +759,21 @@ class SocketCommunicator(Communicator):
             output[rank] = result
 
         # Log the results for each player.
+        log = logging.getLogger(__name__)
+
         for rank, result in enumerate(output):
             if isinstance(result, Failed):
-                log.info(f"Player {rank} failed: {result.exception!r}")
+                log.warning(f"Comm {name!r} player {rank} failed: {result.exception!r}")
             elif isinstance(result, Exception):
-                log.info(f"Player {rank} failed: {result!r}")
+                log.warning(f"Comm {name!r} player {rank} failed: {result!r}")
             else:
-                log.info(f"Player {rank} return: {result}")
+                log.info(f"Comm {name!r} player {rank} result: {result}")
 
         # Print a traceback for players that failed.
         for rank, result in enumerate(output):
             if isinstance(result, Failed):
                 log.error("*" * 80)
-                log.error(f"Player {rank} traceback:")
+                log.error(f"Comm {name!r} player {rank} traceback:")
                 log.error(result.traceback)
 
         return output
@@ -758,7 +839,7 @@ class SocketCommunicator(Communicator):
         self._send(tag="send", payload=value, dst=dst)
 
 
-    def shrink(self, *, name, timeout=5):
+    def shrink(self, *, name, timeout=5, startup_timeout=5):
         """Create a new communicator containing surviving players.
 
         This method should be called as part of a failure-recovery phase by as
@@ -773,7 +854,9 @@ class SocketCommunicator(Communicator):
         name: :class:`str`, required
             New communicator name.
         timeout: :class:`numbers.Number`, optional
-            Maximum time to wait for socket creation, in seconds.
+            Maximum time to wait for communication, in seconds.
+        startup_timeout: :class:`numbers.Number`, optional
+            Maximum time to wait for communicator_setup, in seconds.
 
         Returns
         -------
@@ -800,21 +883,25 @@ class SocketCommunicator(Communicator):
         world_size=len(remaining_ranks)
         rank = remaining_ranks.index(self.rank)
 
-        old_host_addr = next(iter(self._players.values())).sock.getsockname()[0]
-        host_socket = socket.create_server((old_host_addr, 0))
-        host, port = host_socket.getsockname()
-        host_addr = f"tcp://{host}:{port}"
+        # Create a new socket with a randomly-assigned port number.
+        address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
+        if address.scheme != "tcp":
+            raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can shrink.") # pragma: no cover
+
+        listen_socket = socket.create_server((address.hostname, 0))
+        address = geturl(listen_socket)
 
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
-                self._send(tag="shrink-end", payload=host_addr, dst=remaining_rank)
-        link_addr = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
+                self._send(tag="shrink-end", payload=address, dst=remaining_rank)
+        root_address = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
 
-        sockets=rendezvous(name=name, world_size=world_size, rank=rank, link_addr=link_addr, host_socket=host_socket, token=token, timeout=timeout)
-        return SocketCommunicator(sockets=sockets, name=name), remaining_ranks
+        timer = Timer(threshold=startup_timeout)
+        sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer)
+        return SocketCommunicator(sockets=sockets, name=name, timeout=timeout), remaining_ranks
 
 
-    def split(self, *, name, timeout=5):
+    def split(self, *, name, timeout=5, startup_timeout=5):
         """Return a new communicator with the given name.
 
         If players specify different names - which can be any :class:`str`
@@ -833,7 +920,9 @@ class SocketCommunicator(Communicator):
         name: :class:`str` or :any:`None`, required
             Communicator name, or `None`.
         timeout: :class:`numbers.Number`, optional
-            Maximum time to wait for socket creation, in seconds. 
+            Maximum time to wait for communication, in seconds.
+        startup_timeout: :class:`numbers.Number`, optional
+            Maximum time to wait for communicator setup, in seconds.
 
         Returns
         -------
@@ -845,51 +934,44 @@ class SocketCommunicator(Communicator):
         self._require_running()
 
         if not isinstance(name, (str, type(None))):
-            raise ValueError(f"name must be a string or None, got {name} instead.") # pragma: no cover
+            raise ValueError(f"Comm {self.name!r} player {self.rank} name must be a string or None, got {name} instead.") # pragma: no cover
 
         # Create a new socket with a randomly-assigned port number.
         if name is not None:
-            old_host_addr = next(iter(self._players.values())).sock.getsockname()[0]
-            host_socket = socket.create_server((old_host_addr, 0))
-            host, port = host_socket.getsockname()
-            host_addr = f"tcp://{host}:{port}"
+            address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
+            if address.scheme != "tcp":
+                raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can be split.") # pragma: no cover
+
+            listen_socket = socket.create_server((address.hostname, 0))
+            address = geturl(listen_socket)
         else:
-            host_addr = None
+            address = None
 
         # Send names and addresses to rank 0.
-        self._send(tag="split-begin", payload=(name, host_addr), dst=0)
+        addresses = self.gather(value=(name, address), dst=0)
 
-        # Collect name membership information from all players and compute new communicator parameters.
+        # Compute new communicator parameters.
         if self.rank == 0:
-            messages = [self._receive(tag="split-begin", sender=rank, block=True) for rank in self.ranks]
-            group_names = [message.payload[0] for message in messages]
-            group_host_addrs = [message.payload[1] for message in messages]
+            groups = collections.defaultdict(list)
+            for rank, (name, address) in enumerate(addresses):
+                groups[name].append((rank, address))
 
-            group_world_sizes = collections.Counter()
-            group_ranks = []
-            for group_name in group_names:
-                group_ranks.append(group_world_sizes[group_name])
-                group_world_sizes[group_name] += 1
+            players = []
+            for rank, (name, address) in enumerate(addresses):
+                group = sorted(groups[name])
+                ranks, addresses = zip(*group)
+                players.append((name, len(group), ranks.index(rank), addresses))
+        else:
+            players = None
 
-            group_world_sizes = [group_world_sizes[group_name] for group_name in group_names]
+        # Send new connection info to all players.
+        group_name, group_world_size, group_rank, group_addresses = self.scatter(src=0, values=players)
 
-            group_link_addrs = {}
-            for group_name, group_host_addr in zip(group_names, group_host_addrs):
-                if group_name not in group_link_addrs:
-                    group_link_addrs[group_name] = group_host_addr
-            group_link_addrs = [group_link_addrs[group_name] for group_name in group_names]
-
-        # Send name, world_size, rank, and link_addr to all players.
-        if self.rank == 0:
-            for dst, (group_name, group_world_size, group_rank, group_link_addr) in enumerate(zip(group_names, group_world_sizes, group_ranks, group_link_addrs)):
-                self._send(tag="split-end", payload=(group_name, group_world_size, group_rank, group_link_addr), dst=dst)
-
-        # Collect name information.
-        group_name, group_world_size, group_rank, group_link_addr = self._receive(tag="split-end", sender=0, block=True).payload
         # Return a new communicator.
         if group_name is not None:
-            sockets=rendezvous(name=group_name, world_size=group_world_size, rank=group_rank, link_addr=group_link_addr, host_socket=host_socket, timeout=timeout)
-            return SocketCommunicator(sockets=sockets, name=group_name)
+            timer = Timer(threshold=startup_timeout)
+            sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timer=timer)
+            return SocketCommunicator(sockets=sockets, name=group_name, timeout=timeout)
 
         return None
 

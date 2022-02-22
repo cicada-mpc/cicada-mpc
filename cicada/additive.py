@@ -146,12 +146,12 @@ class AdditiveProtocol(object):
         self._assert_unary_compatible(lhs, lhslabel)
         self._assert_unary_compatible(rhs, rhslabel)
         if lhs.storage.shape != rhs.storage.shape:
-            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.")
+            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
 
 
     def _assert_unary_compatible(self, share, label):
         if not isinstance(share, AdditiveArrayShare):
-            raise ValueError(f"{label} must be an instance of AdditiveArrayShare, got {type(share)} instead.")
+            raise ValueError(f"{label} must be an instance of AdditiveArrayShare, got {type(share)} instead.") # pragma: no cover
 
 
     def absolute(self, operand):
@@ -209,9 +209,9 @@ class AdditiveProtocol(object):
 
 
     def additive_inverse(self, operand):
-        """Return an elementwise additive inverse of a shared array 
-        in the context of the underlying finite field. Explicitly, this 
-        function returns a same shape array which, when added 
+        """Return an elementwise additive inverse of a shared array
+        in the context of the underlying finite field. Explicitly, this
+        function returns a same shape array which, when added
         elementwise with operand, will return a same shape array comprised
         entirely of zeros (the additive identity).
 
@@ -340,7 +340,7 @@ class AdditiveProtocol(object):
 
 
     def floor(self, operand):
-        """Remove the `bits` least significant bits from each element in a secret shared array 
+        """Remove the `bits` least significant bits from each element in a secret shared array
             then shift back left so that only the original integer part of 'operand' remains.
 
 
@@ -367,10 +367,10 @@ class AdditiveProtocol(object):
         lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.additive_inverse(lsbs_composed)
         two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
-        ltz = self.less_than_zero(operand)  
+        ltz = self.less_than_zero(operand)
         ones2sub = AdditiveArrayShare(self.encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
-        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
-        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
+        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz)
+        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
@@ -597,7 +597,7 @@ class AdditiveProtocol(object):
         # gotta sort the next function call first
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
-        c0xr0 = numpy.empty(c.shape, dtype = self.encoder.dtype) 
+        c0xr0 = numpy.empty(c.shape, dtype = self.encoder.dtype)
         for i, lc in enumerate(c):
             if lc:
                 c0xr0[i] = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self.encoder.dtype))).storage
@@ -615,7 +615,7 @@ class AdditiveProtocol(object):
 
         The result is the secret shared elementwise maximum of the operands.
         If revealed, the result will need to be decoded to obtain the actual
-        maximum values. Note: the field element ( if in the 'negative' range 
+        maximum values. Note: the field element ( if in the 'negative' range
         of the field consider only its magnitude ) should be less than
         a quarter of the modulus for this method to be accurate in general.
 
@@ -648,7 +648,7 @@ class AdditiveProtocol(object):
 
         The result is the secret shared elementwise minimum of the operands.
         If revealed, the result will need to be decoded to obtain the actual
-        minimum values. Note: the field element ( if in the 'negative' range 
+        minimum values. Note: the field element ( if in the 'negative' range
         of the field consider only its magnitude ) should be less than
         a quarter of the modulus for this method to be accurate in general.
 
@@ -680,9 +680,9 @@ class AdditiveProtocol(object):
 
 
     def multiplicative_inverse(self, operand):
-        """Return an elementwise multiplicative inverse of a shared array 
-        in the context of the underlying finite field. Explicitly, this 
-        function returns a same shape array which, when multiplied 
+        """Return an elementwise multiplicative inverse of a shared array
+        in the context of the underlying finite field. Explicitly, this
+        function returns a same shape array which, when multiplied
         elementwise with operand, will return a same shape array comprised
         entirely of ones assuming operand is entirely non-trivial elements.
 
@@ -692,7 +692,7 @@ class AdditiveProtocol(object):
         by all players that are members of :attr:`communicator`.
         This function does not take into account any field-external symantics.
         There is a potential for information leak here if operand contains any
-        zero elements, that will be revealed. There is a small probability, 
+        zero elements, that will be revealed. There is a small probability,
         2^-operand.storage.size, for this approach to fail by zero being randomly
         generated by the parties as the mask.
 
@@ -718,11 +718,11 @@ class AdditiveProtocol(object):
 
 
     def _private_public_mod(self, lhs, rhspub, *, enc=False):
-        """Return an elementwise result of applying moduli contained in rhspub to lhs 
-        in the context of the underlying finite field. Explicitly, this 
+        """Return an elementwise result of applying moduli contained in rhspub to lhs
+        in the context of the underlying finite field. Explicitly, this
         function returns a same shape array which contains an approximation
-        of the division in which lhs is the secret shared dividend and 
-        rhspub is a publicly known divisor. 
+        of the division in which lhs is the secret shared dividend and
+        rhspub is a publicly known divisor.
 
         Note
         ----
@@ -735,7 +735,7 @@ class AdditiveProtocol(object):
             Secret shared array to act as the dend.
         rhspub: :class:`numpy.ndarray`, required
             Public value to act as divisor, it is assumed to not
-            be encoded, but we optionally provide an argument to 
+            be encoded, but we optionally provide an argument to
             handle the case in which it is
 
         Returns
@@ -754,9 +754,9 @@ class AdditiveProtocol(object):
         quotient = self.truncate(quotient)
         quotient = self.floor(quotient)
         val2subtract = self.truncate(AdditiveArrayShare(self.encoder.untruncated_multiply(rhs_enc, quotient.storage)))
-        remainder = self.subtract(lhs, val2subtract) 
+        remainder = self.subtract(lhs, val2subtract)
         print(f'div: {divisor} rhs_enc: {rhs_enc}, q: {self.encoder.decode(self.reveal(quotient))}')
-        return remainder 
+        return remainder
 
 
     def private_public_power(self, lhs, rhspub):
@@ -766,8 +766,8 @@ class AdditiveProtocol(object):
         ----------
         lhs: :class:`AdditiveArrayShare`, required
             Shared secret to which floor should be applied.
-        rhspub: :class:`Int`, required 
-            a publically known integer and the power to which each element in lhs should be raised 
+        rhspub: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
 
         Returns
         -------
@@ -778,17 +778,12 @@ class AdditiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         if isinstance(rhspub, int):
-            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
+            rhspub = numpy.full(lhs.storage.shape, rhspub)
         ans=[]
-        print(f'rhspub: {rhspub}')
-        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
-            print(f'rhse: {rhse}')
-            try:
-                rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
-            except:
-                print(f'error: {rhse}')
+        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
+            rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
             tmp = AdditiveArrayShare(lhse)
-            it_ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
+            it_ans = self.share(src = 0, secret=numpy.full(tmp.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=tmp.storage.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
                 if bit:
@@ -798,7 +793,7 @@ class AdditiveProtocol(object):
                     tmp = self.untruncated_multiply(tmp,tmp)
                     tmp = self.truncate(tmp)
             ans.append(it_ans)
-        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
+        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape))
 
 
     def private_public_power_field(self, lhs, rhspub):
@@ -808,8 +803,8 @@ class AdditiveProtocol(object):
         ----------
         lhs: :class:`AdditiveArrayShare`, required
             Shared secret to which floor should be applied.
-        rhspub: :class:`Int`, required 
-            a publically known integer and the power to which each element in lhs should be raised 
+        rhspub: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
 
         Returns
         -------
@@ -821,7 +816,7 @@ class AdditiveProtocol(object):
         if isinstance(rhspub, int):
             rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
         ans = []
-        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
+        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
             rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
             tmp = AdditiveArrayShare(lhse)
             it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self.encoder.dtype),shape=lhse.shape)
@@ -832,7 +827,7 @@ class AdditiveProtocol(object):
                 if i < limit:
                     tmp = self.untruncated_multiply(tmp,tmp)
             ans.append(it_ans)
-        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
+        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape))
 
     def private_public_subtract(self, lhs, rhs):
         """Return the elementwise difference between public and secret shared arrays.
@@ -873,8 +868,8 @@ class AdditiveProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`ndarray`, required 
-            a publically known numpy array of integers and one of the two objects to be compared 
+        lhs: :class:`ndarray`, required
+            a publically known numpy array of integers and one of the two objects to be compared
         rhs: :class:`AdditiveArrayShare`, required 
             bit decomposed shared secret(s) and the other of the two objects to be compared 
             the bitwidth of each value in rhs (deduced from its shape) is taken to be the 
@@ -891,7 +886,7 @@ class AdditiveProtocol(object):
         an additive shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
         """
         if lhspub.shape != rhs.storage.shape[:-1]:
-            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension')
+            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension') # pragma: no cover
         bitwidth = rhs.storage.shape[-1]
         lhsbits = []
         for val in lhspub:
@@ -1160,7 +1155,7 @@ class AdditiveProtocol(object):
 
         Parameters
         ----------
-        src: integer, required
+        src: :class:`int`, required
             The player providing the private array to be secret shared.
         secret: :class:`numpy.ndarray` or :any:`None`, required
             The secret array to be shared, which must be encoded with this

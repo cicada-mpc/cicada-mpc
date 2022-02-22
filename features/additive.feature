@@ -432,7 +432,7 @@ Feature: Additive Protocol
 
     Scenario Outline: Logical AND
         Given <players> players
-        And binary operation logical_and 
+        And binary operation logical_and
         And operands <a> and <b>
         When the binary operation is executed <count> times
         Then the group should return <result>
@@ -445,9 +445,9 @@ Feature: Additive Protocol
         | 3        | 1             | 1              | 10    | [[1] * 3] * 10                  |
 
 
-    Scenario Outline: Private Public Power 
+    Scenario Outline: Private Public Power
         Given <players> players
-        And binary operation private_public_power 
+        And binary operation private_public_power
         And operands <a> and <b>
         When the binary operation is executed <count> times
         Then the group should return <result>
@@ -460,6 +460,12 @@ Feature: Additive Protocol
         | 3        | -1            | 4              | 10    | [[1] * 3] * 10                  |
         | 3        | -2            | 16             | 10    | [[65536] * 3] * 10              |
         | 3        | -1            | 5              | 10    | [[-1] * 3] * 10                 |
+
+        Examples:
+        | players  | a                      | b  | count | result                                              |
+        | 3        | [-1, 2, 3.75, -2.0625] | 3  | 10    | [[[-1, 8, 52.734375, -8.773681640625]] * 3] * 10    |
+
+
 
     Scenario Outline: Private Divide
         Given <players> players
