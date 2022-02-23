@@ -179,7 +179,9 @@ player_keygen_subparser.add_argument("--unit", default=None, help="Certificate o
 run_subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
 run_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
 run_subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
+run_subparser.add_argument("--identity", default=None, help="Player private key and certificate in PEM format. Default: player-{rank}.pem file, if it exists.")
 run_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
+run_subparser.add_argument("--peers", nargs="*", default=None, help="Peer certificates in PEM format. Default: player-{rank}.cert files, if they exist.")
 run_subparser.add_argument("--root-address", default="tcp://127.0.0.1:25252", help="Root address.  Default: %(default)s")
 run_subparser.add_argument("--tmux-layout", default="even-vertical", choices=["even-horizontal", "even-vertical", "tiled"], help="Pane layout for the tmux frontend. Default: %(default)s")
 run_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
@@ -190,7 +192,7 @@ run_subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program argum
 start_subparser = subparsers.add_parser("start", help="Start one Cicada process.")
 start_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
 start_subparser.add_argument("--address", default=None, help=f"Network address. Default: tcp://{public_ip()}:25252 for player 0, otherwise tcp://{public_ip()}")
-start_subparser.add_argument("--identity", default=None, help="Player private key and certificate in PEM format. Default: player-{rank}.pem, if it exists.")
+start_subparser.add_argument("--identity", default=None, help="Player private key and certificate in PEM format. Default: player-{rank}.pem file, if it exists.")
 start_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
 start_subparser.add_argument("--peers", nargs="*", default=None, help="Peer certificates in PEM format. Default: player-{rank}.cert files, if they exist.")
 start_subparser.add_argument("--root-address", default=None, help="Root address. Default: same as --address for player 0, required otherwise.")
@@ -265,7 +267,21 @@ if __name__ == "__main__":
 
         players = []
         for rank, address in enumerate(addresses):
-            players.append((world_size, rank, address, addresses[0], None, None))
+            identity = arguments.identity
+            if identity is None:
+                identity = ""
+                default = f"player-{rank}.pem"
+                if os.path.exists(default):
+                    identity = default
+
+            peers = arguments.peers
+            if peers is None:
+                peers = []
+                for index in range(world_size):
+                    peer = f"player-{index}.cert"
+                    if index != rank and os.path.exists(peer):
+                        peers.append(peer)
+            players.append((world_size, rank, address, addresses[0], identity, peers))
 
         frontend = frontends[arguments.frontend]
         frontend(arguments, players, log)
