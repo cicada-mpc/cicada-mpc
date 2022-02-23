@@ -23,7 +23,7 @@ from cicada.communicator.socket import connect
 
 
 logging.basicConfig(level=logging.INFO)
-#logging.getLogger("cicada.communicator").setLevel(logging.INFO)
+logging.getLogger("cicada.communicator").setLevel(logging.INFO)
 
 world_size = int(os.environ.get("CICADA_WORLD_SIZE"))
 rank = int(os.environ.get("CICADA_RANK"))
@@ -48,7 +48,7 @@ client.verify_mode = ssl.CERT_REQUIRED
 
 timer = connect.Timer(threshold=5)
 listen_socket = connect.listen(address=address, rank=rank, timer=timer)
-sockets = connect.rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, timer=timer, server_tls=server, client_tls=client)
+sockets = connect.rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, timer=timer, tls=(server, client))
 with SocketCommunicator(sockets=sockets) as communicator:
     value = communicator.broadcast(src=0, value="Hello!")
     print(f"Player {communicator.rank} received: {value}")

@@ -167,7 +167,7 @@ class TokenMismatch(Exception):
     pass
 
 
-def connect(*, address, rank, name="world", client_tls=None):
+def connect(*, address, rank, name="world", tls=None):
     """Given an address, create a socket and make a connection.
 
     Parameters
@@ -180,8 +180,11 @@ def connect(*, address, rank, name="world", client_tls=None):
         Human readable label used for logging and error messages. Typically,
         this should be the same name that will be eventually used by a
         communicator instance. Defaults to "world".
-    client_tls: :class:`ssl.SSLContext`, optional
-        If supplied, the returned socket will implement transport layer security.
+    tls: pair of :class:`ssl.SSLContext`, optional
+        If provided, the returned sockets will implement transport layer
+        security.  Callers must provide a sequence containing one context
+        configured for server connections, and one for configured for client
+        connections, in that order.
 
     Returns
     -------
@@ -202,14 +205,14 @@ def connect(*, address, rank, name="world", client_tls=None):
         raise ValueError(f"address.scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
 
     # Optionally setup TLS.
-    if client_tls is not None:
-        sock = client_tls.wrap_socket(sock, server_side=False)
+    if tls is not None:
+        sock = tls[1].wrap_socket(sock, server_side=False)
         log.info(f"connected to player:\n{pprint.pformat(sock.getpeercert())}")
 
     return NetstringSocket(sock)
 
 
-def direct(*, listen_socket, addresses, rank, name="world", timer=None, server_tls=None, client_tls=None):
+def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None):
     """Create socket connections given a list of player addresses.
 
     Parameters
@@ -228,10 +231,11 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, server_t
     timer: :class:`Timer`, optional
         Determines the maximum time to wait for player connections.  Defaults
         to five seconds.
-    server_tls: :class:`ssl.SSLContext`, optional
-        If supplied, the returned sockets will implement transport layer security.
-    client_tls: :class:`ssl.SSLContext`, optional
-        If supplied, the returned sockets will implement transport layer security.
+    tls: pair of :class:`ssl.SSLContext`, optional
+        If provided, the returned sockets will implement transport layer
+        security.  Callers must provide a sequence containing one context
+        configured for server connections, and one for configured for client
+        connections, in that order.
 
     Raises
     ------
@@ -295,8 +299,8 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, server_t
                     ready = select.select([listen_socket], [], [], 0.1)
                     if ready:
                         other_player, _ = listen_socket.accept()
-                        if server_tls is not None:
-                            other_player = server_tls.wrap_socket(other_player, server_side=True)
+                        if tls is not None:
+                            other_player = tls[0].wrap_socket(other_player, server_side=True)
                             log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
                         else:
                             log.debug(f"accepted connection from player.")
@@ -326,7 +330,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, server_t
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener], rank=rank, name=name, client_tls=client_tls)
+                    players[listener] = connect(address=addresses[listener], rank=rank, name=name, tls=tls)
                     break
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
@@ -447,10 +451,6 @@ def listen(*, address, rank, name="world", timer=None):
     else: # pragma: no cover
         raise Timeout(message(name, rank, f"timeout creating listening socket."))
 
-#    # Optionally setup TLS.
-#    if tls is not None:
-#        listen_socket = tls.wrap_socket(listen_socket, server_side=True)
-
     return listen_socket
 
 
@@ -459,7 +459,7 @@ def message(name, rank, msg):
     return f"Comm {name!r} player {rank} {msg}"
 
 
-def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timer=None, server_tls=None, client_tls=None):
+def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timer=None, tls=None):
     """Create socket connections given just the address of the root player.
 
     Parameters
@@ -484,10 +484,11 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     timer: :class:`Timer`, optional
         Determines the maximum time to wait for socket creation.  Defaults to
         five seconds.
-    server_tls: :class:`ssl.SSLContext`, optional
-        If supplied, the returned sockets will implement transport layer security.
-    client_tls: :class:`ssl.SSLContext`, optional
-        If supplied, the returned sockets will implement transport layer security.
+    tls: pair of :class:`ssl.SSLContext`, optional
+        If provided, the returned sockets will implement transport layer
+        security.  Callers must provide a sequence containing one context
+        configured for server connections, and one for configured for client
+        connections, in that order.
 
     Raises
     ------
@@ -542,7 +543,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     if rank != 0:
         while not timer.expired:
             try:
-                players[0] = connect(address=root_address, rank=rank, name=name, client_tls=client_tls)
+                players[0] = connect(address=root_address, rank=rank, name=name, tls=tls)
                 break
             except ConnectionRefusedError as e: # pragma: no cover
                 # This happens regularly, particularly when starting on
@@ -582,8 +583,8 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                 ready = select.select([listen_socket], [], [], 0.1)
                 if ready:
                     other_player, _ = listen_socket.accept()
-                    if server_tls is not None:
-                        other_player = server_tls.wrap_socket(other_player, server_side=True)
+                    if tls is not None:
+                        other_player = tls[0].wrap_socket(other_player, server_side=True)
                         log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
                     else:
                         log.debug(f"accepted connection from player.")
@@ -665,8 +666,8 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                     ready = select.select([listen_socket], [], [], 0.1)
                     if ready:
                         other_player, _ = listen_socket.accept()
-                        if server_tls is not None:
-                            other_player = server_tls.wrap_socket(other_player, server_side=True)
+                        if tls is not None:
+                            other_player = tls[0].wrap_socket(other_player, server_side=True)
                             log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
                         else:
                             log.debug(f"accepted connection from player.")
@@ -696,7 +697,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener][0], rank=rank, name=name, client_tls=client_tls)
+                    players[listener] = connect(address=addresses[listener][0], rank=rank, name=name, tls=tls)
                     break
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
