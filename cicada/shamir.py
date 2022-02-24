@@ -38,11 +38,11 @@ class ShamirArrayShare(object):
 
 
     def __repr__(self):
-        return f"cicada.additive.AdditiveArrayShare(storage={self._storage})" # pragma: no cover
+        return f"cicada.additive.ShamirArrayShare(storage={self._storage})" # pragma: no cover
 
 
     def __getitem__(self, index):
-        return AdditiveArrayShare(numpy.array(self.storage[index], dtype=self.storage.dtype))
+        return ShamirArrayShare(numpy.array(self.storage[index], dtype=self.storage.dtype))
 
 
     @property
@@ -55,7 +55,7 @@ class ShamirArrayShare(object):
             The local additive share of the secret array.  The share is encoded
             using an instance of
             :class:`cicada.encoder.fixedfield.FixedFieldEncoder` which is owned
-            by an instance of :class:`AdditiveProtocol`, and **must** be used
+            by an instance of :class:`ShamirProtocol`, and **must** be used
             for any modifications to the share value.
         """
         return self._storage
@@ -155,8 +155,8 @@ class ShamirProtocol(object):
 
 
     def _assert_unary_compatible(self, share, label):
-        if not isinstance(share, AdditiveArrayShare):
-            raise ValueError(f"{label} must be an instance of AdditiveArrayShare, got {type(share)} instead.")
+        if not isinstance(share, ShamirArrayShare):
+            raise ValueError(f"{label} must be an instance of ShamirArrayShare, got {type(share)} instead.")
 
 
     def absolute(self, operand):
@@ -169,18 +169,18 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Secret shared value to which the absolute value function should be applied.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             Secret-shared elementwise absolute value of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
         ltz = self.less_than_zero(operand)
         nltz = self.logical_not(ltz)
-        addinvop = AdditiveArrayShare(self.encoder.negative(operand.storage))
+        addinvop = ShamirArrayShare(self.encoder.negative(operand.storage))
         ltz_parts = self.untruncated_multiply(ltz, addinvop)
         nltz_parts = self.untruncated_multiply(nltz, operand)
         return self.add(ltz_parts, nltz_parts)
@@ -199,18 +199,18 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared value to be added.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared value to be added.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             Secret-shared sum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return AdditiveArrayShare(self.encoder.add(lhs.storage, rhs.storage))
+        return ShamirArrayShare(self.encoder.add(lhs.storage, rhs.storage))
 
 
     def additive_inverse(self, operand):
@@ -228,12 +228,12 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Secret shared array to be additively inverted.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret additive inverse of operand on an elementwise basis.
         """
         self._assert_unary_compatible(operand, "operand")
@@ -251,16 +251,16 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Shared secret to be truncated.
 
         Returns
         -------
-        array: :class:`AdditiveArrayShare`
+        array: :class:`ShamirArrayShare`
             Share of the bit decomposed secret.
         """
-        if not isinstance(operand, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        if not isinstance(operand, ShamirArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
         outer_shape = operand.storage.shape[:-1]
         last_dimension = operand.storage.shape[-1]
         idx = numpy.ndindex(outer_shape)
@@ -270,7 +270,7 @@ class ShamirProtocol(object):
             shifted = self.encoder.untruncated_multiply(operand.storage[x], shift)
             val_share = numpy.sum(shifted) % self.encoder.modulus
             composed.append(val_share)
-        return AdditiveArrayShare(numpy.array([x for x in composed], dtype=self.encoder.dtype).reshape(outer_shape))
+        return ShamirArrayShare(numpy.array([x for x in composed], dtype=self.encoder.dtype).reshape(outer_shape))
 
     def bit_decompose(self, operand, num_bits=None):
         """Decompose operand into shares of its bitwise representation.
@@ -283,29 +283,29 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Shared secret to be truncated.
 
         Returns
         -------
-        array: :class:`AdditiveArrayShare`
+        array: :class:`ShamirArrayShare`
             Share of the bit decomposed secret.
         """
-        if not isinstance(operand, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        if not isinstance(operand, ShamirArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
         if num_bits is None:
             num_bits = self.encoder.fieldbits
         list_o_bits = []
         two_inv = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         for element in operand.storage.flat: # Iterates in "C" order.
-            loopop = AdditiveArrayShare(numpy.array(element, dtype=self.encoder.dtype))
+            loopop = ShamirArrayShare(numpy.array(element, dtype=self.encoder.dtype))
             elebits = []
             for i in range(num_bits):
                 elebits.append(self._lsb(loopop))
                 loopop = self.subtract(loopop, elebits[-1])
-                loopop = AdditiveArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
+                loopop = ShamirArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
             list_o_bits.append(elebits[::-1])
-        return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
+        return ShamirArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
 
 
     @property
@@ -329,14 +329,14 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared value to be compared.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared value to be compared.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        result: :class:`ShamirArrayShare`
             Secret-shared result of computing `lhs` == `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -351,16 +351,16 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Shared secret to which floor should be applied.
 
         Returns
         -------
-        array: :class:`AdditiveArrayShare`
+        array: :class:`ShamirArrayShare`
             Share of the shared integer part of operand.
         """
-        if not isinstance(operand, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        if not isinstance(operand, ShamirArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
         one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype), shape=operand.storage.shape)
         shift_op = numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype)
         pl2 = numpy.full(operand.storage.shape, self.encoder.modulus-1, dtype=self.encoder.dtype)
@@ -371,9 +371,9 @@ class ShamirProtocol(object):
         lsbs = self.bit_decompose(abs_op, self.encoder.precision)
         lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.additive_inverse(lsbs_composed)
-        two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
+        two_lsbs = ShamirArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
         ltz = self.less_than_zero(operand)  
-        ones2sub = AdditiveArrayShare(self.encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
+        ones2sub = ShamirArrayShare(self.encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
         sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
 
@@ -391,23 +391,23 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared value to be compared.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared value to be compared.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        result: :class:`ShamirArrayShare`
             Secret-shared result of computing `lhs` < `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         one = numpy.full(lhs.storage.shape, 1, dtype=self.encoder.dtype)
         two = numpy.full(lhs.storage.shape, 2, dtype=self.encoder.dtype)
-        twolhs = AdditiveArrayShare(self.encoder.untruncated_multiply(two, lhs.storage))
-        tworhs = AdditiveArrayShare(self.encoder.untruncated_multiply(two, rhs.storage))
+        twolhs = ShamirArrayShare(self.encoder.untruncated_multiply(two, lhs.storage))
+        tworhs = ShamirArrayShare(self.encoder.untruncated_multiply(two, rhs.storage))
         diff = self.subtract(lhs, rhs)
-        twodiff = AdditiveArrayShare(self.encoder.untruncated_multiply(two, diff.storage))
+        twodiff = ShamirArrayShare(self.encoder.untruncated_multiply(two, diff.storage))
         w = self.public_private_subtract(one, self._lsb(operand=twolhs))
         x = self.public_private_subtract(one, self._lsb(operand=tworhs))
         y = self.public_private_subtract(one, self._lsb(operand=twodiff))
@@ -433,17 +433,17 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Secret shared value to be compared.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        result: :class:`ShamirArrayShare`
             Secret-shared result of computing `operand` < `0` elementwise.
         """
         self._assert_unary_compatible(operand, "operand")
         two = numpy.array(2, dtype=self.encoder.dtype)
-        twoop = AdditiveArrayShare(self.encoder.untruncated_multiply(two, operand.storage))
+        twoop = ShamirArrayShare(self.encoder.untruncated_multiply(two, operand.storage))
         return self._lsb(operand=twoop)
 
 
@@ -462,14 +462,14 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared array to be AND'ed.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared array to be AND'ed.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret elementwise logical AND of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -493,12 +493,12 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Secret shared array to be negated.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret elementwise logical NOT of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
@@ -522,21 +522,21 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared array to be OR'd.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared array to be OR'd.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret elementwise logical OR of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
         total = self.encoder.add(lhs.storage, rhs.storage)
         product = self.untruncated_multiply(lhs, rhs)
-        return AdditiveArrayShare(self.encoder.subtract(total, product.storage))
+        return ShamirArrayShare(self.encoder.subtract(total, product.storage))
 
 
     def logical_xor(self, lhs, rhs):
@@ -554,14 +554,14 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared array to be exclusive OR'd.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared array to be exclusive OR'd.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret elementwise logical exclusive OR of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -569,7 +569,7 @@ class ShamirProtocol(object):
         total = self.encoder.add(lhs.storage, rhs.storage)
         product = self.untruncated_multiply(lhs, rhs)
         twice_product = self.encoder.untruncated_multiply(numpy.array(2, dtype=self.encoder.dtype), product.storage)
-        return AdditiveArrayShare(self.encoder.subtract(total, twice_product))
+        return ShamirArrayShare(self.encoder.subtract(total, twice_product))
 
 
     def _lsb(self, operand):
@@ -585,17 +585,17 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Secret shared array from which the least significant bits will be extracted
 
         Returns
         -------
-        lsb: :class:`AdditiveArrayShare`
+        lsb: :class:`ShamirArrayShare`
             Additive shared array containing the elementwise least significant
             bits of `operand`.
         """
         one = numpy.array(1, dtype=self.encoder.dtype)
-        lop = AdditiveArrayShare(storage = operand.storage.flatten())
+        lop = ShamirArrayShare(storage = operand.storage.flatten())
         tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=lop.storage.shape)
         maskedlop = self.add(lhs=lop, rhs=tmp)
         c = self.reveal(maskedlop)
@@ -605,15 +605,15 @@ class ShamirProtocol(object):
         c0xr0 = numpy.empty(c.shape, dtype = self.encoder.dtype) 
         for i, lc in enumerate(c):
             if lc:
-                c0xr0[i] = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self.encoder.dtype))).storage
+                c0xr0[i] = self.public_private_subtract(lhs=one, rhs=ShamirArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self.encoder.dtype))).storage
             else:
                 c0xr0[i] = tmpBW.storage[i][-1]
-        c0xr0 = AdditiveArrayShare(storage = c0xr0)
+        c0xr0 = ShamirArrayShare(storage = c0xr0)
         result = self.untruncated_multiply(lhs=comp_result, rhs=c0xr0)
-        result = AdditiveArrayShare(storage=self.encoder.untruncated_multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
+        result = ShamirArrayShare(storage=self.encoder.untruncated_multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
         result = self.subtract(lhs=c0xr0, rhs=result)
         result = self.add(lhs=comp_result, rhs=result)
-        return AdditiveArrayShare(storage = result.storage.reshape(operand.storage.shape))
+        return ShamirArrayShare(storage = result.storage.reshape(operand.storage.shape))
 
     def max(self, lhs, rhs):
         """Return the elementwise maximum of two secret shared arrays.
@@ -631,14 +631,14 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared operand.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared operand.
 
         Returns
         -------
-        max: :class:`AdditiveArrayShare`
+        max: :class:`ShamirArrayShare`
             Secret-shared elementwise maximum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -664,14 +664,14 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared operand.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared operand.
 
         Returns
         -------
-        min: :class:`AdditiveArrayShare`
+        min: :class:`ShamirArrayShare`
             Secret-shared elementwise minimum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -703,12 +703,12 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Secret shared array to be multiplicatively inverted.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret multiplicative inverse of operand on an elementwise basis.
         """
         self._assert_unary_compatible(operand, "operand")
@@ -719,7 +719,7 @@ class ShamirProtocol(object):
         nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self.encoder.dtype])
         inv = numpy.array(nppowmod(revealed_masked_op, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         op_inv_share = self.encoder.untruncated_multiply(inv, mask.storage)
-        return AdditiveArrayShare(op_inv_share)
+        return ShamirArrayShare(op_inv_share)
 
 
     def _private_public_mod(self, lhs, rhspub, *, enc=False):
@@ -736,7 +736,7 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared array to act as the dend.
         rhspub: :class:`numpy.ndarray`, required
             Public value to act as divisor, it is assumed to not
@@ -745,7 +745,7 @@ class ShamirProtocol(object):
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret approximate result of lhs/rhspub on an elementwise basis.
         """
         self._assert_unary_compatible(lhs, "lhs")
@@ -755,10 +755,10 @@ class ShamirProtocol(object):
         else:
             divisor = self.encoder.encode(numpy.array(1/self.encoder.decode(rhspub)))
             rhs_enc = rhspub
-        quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
+        quotient = ShamirArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
         quotient = self.truncate(quotient)
         quotient = self.floor(quotient)
-        val2subtract = self.truncate(AdditiveArrayShare(self.encoder.untruncated_multiply(rhs_enc, quotient.storage)))
+        val2subtract = self.truncate(ShamirArrayShare(self.encoder.untruncated_multiply(rhs_enc, quotient.storage)))
         remainder = self.subtract(lhs, val2subtract) 
         return remainder 
 
@@ -768,25 +768,25 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Shared secret to which floor should be applied.
         rhspub: :class:`Int`, required 
             a publically known integer and the power to which each element in lhs should be raised 
 
         Returns
         -------
-        array: :class:`AdditiveArrayShare`
+        array: :class:`ShamirArrayShare`
             Share of the array elements from lhs all raised to the power rhspub.
         """
-        if not isinstance(lhs, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        if not isinstance(lhs, ShamirArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         if isinstance(rhspub, int):
             rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
         ans=[]
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
             rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
-            tmp = AdditiveArrayShare(lhse)
+            tmp = ShamirArrayShare(lhse)
             it_ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
@@ -797,7 +797,7 @@ class ShamirProtocol(object):
                     tmp = self.untruncated_multiply(tmp,tmp)
                     tmp = self.truncate(tmp)
             ans.append(it_ans)
-        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
+        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
 
 
     def private_public_power_field(self, lhs, rhspub):
@@ -805,24 +805,24 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Shared secret to which floor should be applied.
         rhspub: :class:`Int`, required 
             a publically known integer and the power to which each element in lhs should be raised 
 
         Returns
         -------
-        array: :class:`AdditiveArrayShare`
+        array: :class:`ShamirArrayShare`
             Share of the array elements from lhs all raised to the power rhspub.
         """
-        if not isinstance(lhs, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        if not isinstance(lhs, ShamirArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
         if isinstance(rhspub, int):
             rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
         ans = []
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
             rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
-            tmp = AdditiveArrayShare(lhse)
+            tmp = ShamirArrayShare(lhse)
             it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self.encoder.dtype),shape=lhse.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
@@ -831,7 +831,7 @@ class ShamirProtocol(object):
                 if i < limit:
                     tmp = self.untruncated_multiply(tmp,tmp)
             ans.append(it_ans)
-        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
+        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
 
     def private_public_subtract(self, lhs, rhs):
         """Return the elementwise difference between public and secret shared arrays.
@@ -849,7 +849,7 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared value from which rhs should be subtracted.
         rhs: :class:`numpy.ndarray`, required
             Public value, which must have been encoded with this protocol's
@@ -857,12 +857,12 @@ class ShamirProtocol(object):
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret shared difference `lhs` - `rhs`.
         """
         self._assert_unary_compatible(lhs, "lhs")
 
-        return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs))
+        return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs))
 
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
@@ -872,7 +872,7 @@ class ShamirProtocol(object):
         ----------
         lhs: :class:`ndarray`, required 
             a publically known numpy array of integers and one of the two objects to be compared 
-        rhs: :class:`AdditiveArrayShare`, required 
+        rhs: :class:`ShamirArrayShare`, required 
             bit decomposed shared secret(s) and the other of the two objects to be compared 
             the bitwidth of each value in rhs (deduced from its shape) is taken to be the 
             bitwidth of interest for the comparison if the values in lhspub require more bits 
@@ -908,7 +908,7 @@ class ShamirProtocol(object):
             msbdiff=[]
             rhs_bit_at_msb_diff = []
             for i in range(bitwidth):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
+                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
                 if flatlhsbits[j][i] == 1:
                     xord.append(self.public_private_subtract(lhs=one, rhs=rhsbit))
                 else:
@@ -920,13 +920,13 @@ class ShamirProtocol(object):
             for i in range(1,bitwidth):
                 msbdiff.append(self.subtract(lhs=preord[i], rhs=preord[i-1]))
             for i in range(bitwidth):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
+                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
                 rhs_bit_at_msb_diff.append(self.untruncated_multiply(rhsbit, msbdiff[i]))
             result = rhs_bit_at_msb_diff[0]
             for i in range(1,bitwidth):
                 result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
-        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.encoder.dtype).reshape(rhs.storage.shape[:-1]))
+        return ShamirArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.encoder.dtype).reshape(rhs.storage.shape[:-1]))
 
     def public_private_add(self, lhs, rhs):
         """Return the elementwise sum of public and secret shared arrays.
@@ -947,17 +947,17 @@ class ShamirProtocol(object):
         lhs: :class:`numpy.ndarray`, required
             Public value to be added, which must have been encoded
             with this protocol's :attr:`encoder`.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared value to be added.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret shared sum of `lhs` and `rhs`.
         """
         self._assert_unary_compatible(rhs, "rhs")
 
-        return AdditiveArrayShare(self.encoder.add(lhs, rhs.storage))
+        return ShamirArrayShare(self.encoder.add(lhs, rhs.storage))
 
 
     def public_private_subtract(self, lhs, rhs):
@@ -979,17 +979,17 @@ class ShamirProtocol(object):
         lhs: :class:`numpy.ndarray`, required
             Public value, which must have been encoded with this protocol's
             :attr:`encoder`.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared value to be subtracted.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret shared difference `lhs` - `rhs`.
         """
         self._assert_unary_compatible(rhs, "rhs")
 
-        return AdditiveArrayShare(self.encoder.subtract(lhs, rhs.storage))
+        return ShamirArrayShare(self.encoder.subtract(lhs, rhs.storage))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
@@ -1015,9 +1015,9 @@ class ShamirProtocol(object):
 
         Returns
         -------
-        bits: :class:`AdditiveArrayShare`
+        bits: :class:`ShamirArrayShare`
             A share of the randomly-generated bits that make-up the secret.
-        secret: :class:`AdditiveArrayShare`
+        secret: :class:`ShamirArrayShare`
             A share of the value defined by `bits` (in big-endian order).
         """
         bits = int(bits)
@@ -1058,15 +1058,15 @@ class ShamirProtocol(object):
             # Shift and combine the resulting bits in big-endian order to produce a random value.
             shift = numpy.power(2, numpy.arange(bits, dtype=self.encoder.dtype)[::-1])
             shifted = self.encoder.untruncated_multiply(shift, bit_share.storage)
-            secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
+            secret_share = ShamirArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
             bit_res.append(bit_share)
             share_res.append(secret_share)
         if shape_was_none:
-            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(bits))
-            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
+            bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(bits))
+            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
         else:
-            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(shape+(bits,)))#, order="C"))
-            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
+            bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(shape+(bits,)))#, order="C"))
+            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
 
         return bit_share, secret_share
 
@@ -1081,12 +1081,12 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Secret shared value to which the ReLU function should be applied.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             Secret-shared elementwise ReLU of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
@@ -1110,7 +1110,7 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        share: :class:`AdditiveArrayShare`, required
+        share: :class:`ShamirArrayShare`, required
             The local share of the secret to be revealed.
         dst: sequence of :class:`int`, optional
             List of players who will receive the revealed secret.  If :any:`None`
@@ -1148,7 +1148,6 @@ class ShamirProtocol(object):
             # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
                 revc = lagrangeCoef()
-                print(revc, received_shares)
                 secret=[]
                 for index in numpy.ndindex(received_shares[0].shape):
                     secret.append(sum([revc[i]*received_shares[i][index] for i in range(len(revc))]))
@@ -1183,7 +1182,7 @@ class ShamirProtocol(object):
 
         Returns
         -------
-        share: :class:`AdditiveArrayShare`
+        share: :class:`ShamirArrayShare`
             The local share of the secret shared array.
         """
         #if not isinstance(shape, tuple):
@@ -1241,18 +1240,18 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Shared value.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Shared value to be subtracted.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The difference `lhs` - `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
+        return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
 
 
     def truncate(self, operand, *, bits=None, src=None, generator=None):
@@ -1264,7 +1263,7 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Shared secret to be truncated.
         bits: :class:`int`, optional
             Number of bits to truncate - defaults to the precision of the encoder.
@@ -1278,11 +1277,11 @@ class ShamirProtocol(object):
 
         Returns
         -------
-        array: :class:`AdditiveArrayShare`
+        array: :class:`ShamirArrayShare`
             Share of the truncated secret.
         """
-        if not isinstance(operand, AdditiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        if not isinstance(operand, ShamirArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         if bits is None:
             bits = self.encoder.precision
@@ -1324,7 +1323,7 @@ class ShamirProtocol(object):
         # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
         result = self.encoder.untruncated_multiply(result.storage, shift_right)
 
-        return AdditiveArrayShare(result)
+        return ShamirArrayShare(result)
 
 
 
@@ -1352,7 +1351,7 @@ class ShamirProtocol(object):
 
         Returns
         -------
-        secret: :class:`AdditiveArrayShare`
+        secret: :class:`ShamirArrayShare`
             A share of the random generated value.
         """
 
@@ -1362,7 +1361,7 @@ class ShamirProtocol(object):
         if generator is None:
             generator = numpy.random.default_rng()
 
-        return AdditiveArrayShare(self.encoder.uniform(size=shape, generator=generator)) 
+        return ShamirArrayShare(self.encoder.uniform(size=shape, generator=generator)) 
 
 #TODO
     def untruncated_multiply(self, lhs, rhs):
@@ -1379,14 +1378,14 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             secret value to be multiplied.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             secret value to be multiplied.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret elementwise product of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -1432,7 +1431,7 @@ class ShamirProtocol(object):
         for other_x, other_y in zip(X, Y):
             result += x * other_y + other_x * y
 
-        return AdditiveArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
+        return ShamirArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
 
 
     def untruncated_private_divide(self, lhs, rhs):
@@ -1446,14 +1445,14 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared array dividend.
         rhs: :class:`numpy.ndarray`, required
             Public array divisor, which must *not* be encoded.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret element-wise result of lhs / rhs.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -1475,19 +1474,19 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared array dividend.
         rhs: :class:`numpy.ndarray`, required
             Public array divisor, which must *not* be encoded.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             The secret element-wise result of lhs / rhs.
         """
         self._assert_unary_compatible(lhs, "lhs")
         divisor = self.encoder.encode(numpy.array(1 / rhs))
-        quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
+        quotient = ShamirArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
         return quotient
 
     def zigmoid(self, operand):
@@ -1513,25 +1512,25 @@ class ShamirProtocol(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ShamirArrayShare`, required
             Secret shared value to which the zigmoid function should be applied.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ShamirArrayShare`
             Secret-shared elementwise zigmoid of `operand`.
         """
         ones=self.encoder.encode(numpy.full(operand.storage.shape, 1))
         half = self.encoder.encode(numpy.full(operand.storage.shape, .5))
         
-        secret_plushalf = self.public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self.encoder.add(operand.storage,half))
-        secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self.encoder.subtract(operand.storage, half))
+        secret_plushalf = self.public_private_add(half, operand)#cicada.additive.ShamirArrayShare(self.encoder.add(operand.storage,half))
+        secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.ShamirArrayShare(self.encoder.subtract(operand.storage, half))
         ltzsmh = self.less_than_zero(secret_minushalf)
         nltzsmh = self.logical_not(ltzsmh)
         ltzsph = self.less_than_zero(secret_plushalf)
         middlins = self.subtract(ltzsmh, ltzsph)
         extracted_middlins = self.untruncated_multiply(middlins, operand)
-        extracted_halfs = cicada.additive.AdditiveArrayShare(self.encoder.untruncated_multiply(middlins.storage, half))
+        extracted_halfs = cicada.additive.ShamirArrayShare(self.encoder.untruncated_multiply(middlins.storage, half))
         extracted_middlins = self.add(extracted_middlins, extracted_halfs)
-        ones_part = cicada.additive.AdditiveArrayShare(self.encoder.untruncated_multiply(nltzsmh.storage, ones))
+        ones_part = cicada.additive.ShamirArrayShare(self.encoder.untruncated_multiply(nltzsmh.storage, ones))
         return self.add(ones_part, extracted_middlins)

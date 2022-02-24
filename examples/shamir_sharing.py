@@ -41,7 +41,13 @@ def main(communicator):
     tmp = shamir.reveal(share, src=[0, 2, 3], dst=[0])
     #log.info(f"Player {communicator.rank} encoded: {tmp}")
     revealed = encoder.decode(tmp)
-    log.info(f"Player {communicator.rank} revealed: {revealed}")
+    log.info(f"Player {communicator.rank} revealed: {revealed}", src=0)
 
+    summation = shamir.add(share, share)
+
+    tmp = shamir.reveal(summation, src=[0, 2, 3], dst=[0])
+    #log.info(f"Player {communicator.rank} encoded: {tmp}")
+    revealed = encoder.decode(tmp)
+    log.info(f"Player {communicator.rank} revealed sum: {revealed}", src=0)
 cicada.communicator.SocketCommunicator.run(world_size=5, fn=main)
 
