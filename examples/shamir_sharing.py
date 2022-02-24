@@ -49,9 +49,17 @@ def main(communicator):
     #log.info(f"Player {communicator.rank} encoded: {tmp}")
     revealed = encoder.decode(tmp)
     log.info(f"Player {communicator.rank} revealed sum: {revealed}", src=0)
+
     product = shamir.untruncated_multiply(share, share)
 
     tmp = shamir.reveal(product, src=[0, 2, 3], dst=[0])
+    #log.info(f"Player {communicator.rank} encoded: {tmp}")
+    revealed = encoder.decode(tmp)
+    log.info(f"Player {communicator.rank} revealed product: {revealed}", src=0)
+
+    zig = shamir.zigmoid(share)
+
+    tmp = shamir.reveal(zig, src=[0, 2, 3], dst=[0])
     #log.info(f"Player {communicator.rank} encoded: {tmp}")
     revealed = encoder.decode(tmp)
     log.info(f"Player {communicator.rank} revealed product: {revealed}", src=0)

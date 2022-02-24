@@ -606,7 +606,7 @@ class ShamirProtocol(object):
         lop = ShamirArrayShare(storage = operand.storage.flatten())
         tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=lop.storage.shape)
         maskedlop = self.add(lhs=lop, rhs=tmp)
-        c = self.reveal(maskedlop)
+        c = self.reveal(maskedlop, src=self.communicator.ranks)
         # gotta sort the next function call first
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
@@ -1056,7 +1056,7 @@ class ShamirProtocol(object):
             # Each participating player secret shares their bit vectors.
             player_bit_shares = []
             for rank in src:
-                player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,)))
+                player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,), dst=self.communicator.ranks, k=self.k))
 
             # Generate the final bit vector by xor-ing everything together elementwise.
             bit_share = player_bit_shares[0]
@@ -1153,7 +1153,7 @@ class ShamirProtocol(object):
         if secret is None:
             return secret
         else:
-            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(received_shares[0].shape).T
+            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share.storage.shape).T
             return ret
 
 
@@ -1403,20 +1403,19 @@ class ShamirProtocol(object):
         count = ceil((world_size - 1) / 2)
         x = lhs.storage
         y = rhs.storage
-        xy=x*y
+        xy=numpy.array((x*y)%self.encoder.modulus, dtype=self.encoder.dtype)
         X = [] # Storage for shares received from other players.
         Y = [] # Storage for shares received from other players.
         lc = self.lagrange_coef(self.communicator.ranks)
         dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.encoder.dtype)
-        print(f'dubdeg shape: {dubdeg.shape}\t xy shape: {xy.shape}\t dubdeg first shape: {dubdeg[0].shape}')
+        #print(f'dubdeg shape: {dubdeg.shape}\t xy shape: {xy.shape}\t dubdeg first shape: {dubdeg[0].shape}')
         # Distribute terms to the other players.
         for i, src in enumerate(self.communicator.ranks):
-            dubdeg[i]=numpy.transpose(self.share(src=src, secret=xy%self.encoder.modulus, shape=xy.shape, dst=self.communicator.ranks, k=self.k).storage)
+            dubdeg[i]=numpy.transpose(self.share(src=src, secret=xy, shape=xy.shape, dst=self.communicator.ranks, k=self.k).storage)
             # Send terms to the other players.
         sharray = numpy.zeros(lhs.storage.shape, dtype=self.encoder.dtype)
         for i in range(len(self.communicator.ranks)):
-            sharray = (sharray + dubdeg[i]*lc[i]) % self.encoder.modulus
-        
+            sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self.encoder.modulus, dtype=self.encoder.dtype)
         return ShamirArrayShare(sharray)
 
 
@@ -1509,14 +1508,14 @@ class ShamirProtocol(object):
         ones=self.encoder.encode(numpy.full(operand.storage.shape, 1))
         half = self.encoder.encode(numpy.full(operand.storage.shape, .5))
         
-        secret_plushalf = self.public_private_add(half, operand)#cicada.additive.ShamirArrayShare(self.encoder.add(operand.storage,half))
-        secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.ShamirArrayShare(self.encoder.subtract(operand.storage, half))
+        secret_plushalf = self.public_private_add(half, operand)
+        secret_minushalf = self.private_public_subtract(operand, half)
         ltzsmh = self.less_than_zero(secret_minushalf)
         nltzsmh = self.logical_not(ltzsmh)
         ltzsph = self.less_than_zero(secret_plushalf)
         middlins = self.subtract(ltzsmh, ltzsph)
         extracted_middlins = self.untruncated_multiply(middlins, operand)
-        extracted_halfs = cicada.additive.ShamirArrayShare(self.encoder.untruncated_multiply(middlins.storage, half))
+        extracted_halfs = ShamirArrayShare(self.encoder.untruncated_multiply(middlins.storage, half))
         extracted_middlins = self.add(extracted_middlins, extracted_halfs)
-        ones_part = cicada.additive.ShamirArrayShare(self.encoder.untruncated_multiply(nltzsmh.storage, ones))
+        ones_part = ShamirArrayShare(self.encoder.untruncated_multiply(nltzsmh.storage, ones))
         return self.add(ones_part, extracted_middlins)
