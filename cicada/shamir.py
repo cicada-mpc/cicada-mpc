@@ -96,7 +96,7 @@ class ShamirProtocol(object):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16):
+    def __init__(self, communicator, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, k=2):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
@@ -133,18 +133,16 @@ class ShamirProtocol(object):
             prev_seed = result.value
         else:
             prev_seed = seed
-
+        
+        if communicator.world_size < 2*k+1:
+            raise ValueError('k incompatible with worldsize, multiplications will not be feasible.')
+        self.k=k
         # Setup random number generators
         self._g0 = numpy.random.default_rng(seed=seed)
         self._g1 = numpy.random.default_rng(seed=prev_seed)
 
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
-        l = {}
-        inc_ranks = [x+1 for x in communicator.ranks]
-        for i in communicator.ranks:
-            l[i] = int(numpy.prod([(-(j+1)/(i-j)) for j in communicator.ranks if j != i])) % self.encoder.modulus
-        self._lagrange_coef = l
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -376,6 +374,16 @@ class ShamirProtocol(object):
         ones2sub = ShamirArrayShare(self.encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
         sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
+
+    def lagrange_coef(self, src):
+        # Given a set of indices, it returns a dictionary containing the lagrange coefficients
+        # with respect to each index given, keyed by those indices
+        from math import prod
+        ls = len(src)
+        coefs=numpy.zeros(ls, dtype=self.encoder.dtype)#coefs=zeros((ls, ls))
+        for i in range(ls):
+            coefs[i]=int(prod([(-(1+j)/((1+src[i])-(j+1))) for j in src if j != src[i]]))
+        return coefs 
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
@@ -1122,17 +1130,6 @@ class ShamirProtocol(object):
             Encoded representation of the revealed secret, if this player is a
             member of `dst`, or :any:`None`.
         """
-        # Given a set of indices, it returns a dictionary containing the lagrange coefficients
-        # with respect to each index given, keyed by those indices
-        from math import prod
-        def lagrangeCoef():
-            ls = len(src)
-            coefs=numpy.zeros(ls, dtype=self.encoder.dtype)#coefs=zeros((ls, ls))
-            for i in range(ls):
-                #for j in range(ls):
-                #    coefs[i][j]=(src[i]+1)**j
-                coefs[i]=int(prod([(-(1+j)/((1+src[i])-(j+1))) for j in src if j != src[i]]))
-            return coefs #numpy.array([int(x) for x in numpy.linalg.inv(coefs)[0]])
 
         if not isinstance(share, ShamirArrayShare):
             raise ValueError("share must be an instance of ShamirArrayShare.") # pragma: no cover
@@ -1147,7 +1144,7 @@ class ShamirProtocol(object):
             received_shares = numpy.array(self.communicator.gatherv(src=src, value=share.storage, dst=recipient))
             # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
-                revc = lagrangeCoef()
+                revc = self.lagrange_coef(src)
                 secret=[]
                 for index in numpy.ndindex(received_shares[0].shape):
                     secret.append(sum([revc[i]*received_shares[i][index] for i in range(len(revc))]))
@@ -1367,6 +1364,7 @@ class ShamirProtocol(object):
     def untruncated_multiply(self, lhs, rhs):
         """Element-wise multiplication of two shared arrays.
 
+    def share(self, *, src, secret, shape, dst, k):
         The operands are assumed to be vectors or matrices and their product is
         computed on an elementwise basis. Multiplication with shared secrets and
         public scalars is implemented in the encoder.
@@ -1405,33 +1403,21 @@ class ShamirProtocol(object):
         count = ceil((world_size - 1) / 2)
         x = lhs.storage
         y = rhs.storage
+        xy=x*y
         X = [] # Storage for shares received from other players.
         Y = [] # Storage for shares received from other players.
-
+        lc = self.lagrange_coef(self.communicator.ranks)
+        dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.encoder.dtype)
+        print(f'dubdeg shape: {dubdeg.shape}\t xy shape: {xy.shape}\t dubdeg first shape: {dubdeg[0].shape}')
         # Distribute terms to the other players.
-        for src in self.communicator.ranks:
-            # Identify which players will receive terms.
-            if world_size % 2 == 0 and src >= count:
-                dst = numpy.arange(src + 1, src + 1 + count - 1) % world_size
-            else:
-                dst = numpy.arange(src + 1, src + 1 + count) % world_size
-
+        for i, src in enumerate(self.communicator.ranks):
+            dubdeg[i]=numpy.transpose(self.share(src=src, secret=xy%self.encoder.modulus, shape=xy.shape, dst=self.communicator.ranks, k=self.k).storage)
             # Send terms to the other players.
-            values = [x] * len(dst) if src == rank else None
-            share = self.communicator.scatterv(src=src, dst=dst, values=values)
-            if rank in dst:
-                X.append(share)
-            values = [y] * len(dst) if src == rank else None
-            share = self.communicator.scatterv(src=src, dst=dst, values=values)
-            if rank in dst:
-                Y.append(share)
-
-        # Multiply the polynomial terms that we have on-hand.
-        result = x * y
-        for other_x, other_y in zip(X, Y):
-            result += x * other_y + other_x * y
-
-        return ShamirArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
+        sharray = numpy.zeros(lhs.storage.shape, dtype=self.encoder.dtype)
+        for i in range(len(self.communicator.ranks)):
+            sharray = (sharray + dubdeg[i]*lc[i]) % self.encoder.modulus
+        
+        return ShamirArrayShare(sharray)
 
 
     def untruncated_private_divide(self, lhs, rhs):
