@@ -15,48 +15,14 @@
 # limitations under the License.
 
 import logging
-import os
-import ssl
 
 from cicada.communicator import SocketCommunicator
-from cicada.communicator.socket import connect
 
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("cicada.communicator").setLevel(logging.INFO)
 
-world_size = int(os.environ.get("CICADA_WORLD_SIZE"))
-rank = int(os.environ.get("CICADA_RANK"))
-address = os.environ.get("CICADA_ADDRESS")
-root_address = os.environ.get("CICADA_ROOT_ADDRESS")
-identity = os.environ.get("CICADA_IDENTITY")
-peers = os.environ.get("CICADA_PEERS")
-
-tls = None
-
-if identity and peers:
-    server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    server.load_cert_chain(certfile=identity)
-    for peer in peers.split(","):
-        if peer:
-            server.load_verify_locations(peer)
-    server.check_hostname=False
-    server.verify_mode = ssl.CERT_REQUIRED
-
-    client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    client.load_cert_chain(certfile=identity)
-    for peer in peers.split(","):
-        if peer:
-            client.load_verify_locations(peer)
-    client.check_hostname = False
-    client.verify_mode = ssl.CERT_REQUIRED
-
-    tls = (server, client)
-
-timer = connect.Timer(threshold=300)
-listen_socket = connect.listen(address=address, rank=rank, timer=timer)
-sockets = connect.rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, timer=timer, tls=tls)
-with SocketCommunicator(sockets=sockets) as communicator:
+with SocketCommunicator.connect(startup_timeout=300) as communicator:
     value = communicator.broadcast(src=0, value="Hello!")
     print(f"Player {communicator.rank} received: {value}")
 

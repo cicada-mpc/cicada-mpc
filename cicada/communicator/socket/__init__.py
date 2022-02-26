@@ -28,6 +28,7 @@ import pickle
 import queue
 import select
 import socket
+import ssl
 import threading
 import time
 import traceback
@@ -370,7 +371,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def connect(*, world_size=None, rank=None, address=None, root_address=None, name="world", timeout=5, startup_timeout=5):
+    def connect(*, world_size=None, rank=None, address=None, root_address=None, identity=None, peers=None, name="world", timeout=5, startup_timeout=5):
         """High level function to create a SocketCommunicator.
 
         This is a high level convenience function that can be used to create a
@@ -381,23 +382,31 @@ class SocketCommunicator(Communicator):
 
         Parameters
         ----------
-        world_size: :class:`int` or :any:`None`, optional
+        world_size: :class:`int, optional
             Number of players.  Defaults to the value of the CICADA_WORLD_SIZE
             environment variable, which is automatically set by the :ref:`cicada` command.
-        rank: :class:`int` or :any:`None`, optional
+        rank: :class:`int`, optional
             Rank of the caller.  Defaults to the value of the CICADA_RANK
             environment variable, which is automatically set by the :ref:`cicada` command.
-        address: :class:`str` or :any:`None`, optional
+        address: :class:`str`, optional
             Listening address of the caller.  This must be a URL of the form
             `"tcp://{host}:{port}"` for TCP sockets, or `"file:///path/to/foo"`
             for Unix domain sockets.  Defaults to the value of the
             CICADA_ADDRESS environment variable, which is automatically set
             by the :ref:`cicada` command.
-        root_address: :class:`str` or :any:`None`, optional
+        root_address: :class:`str`, optional
             Listening address of the root (rank 0) player.  This must be a URL
             of the form `"tcp://{host}:{port}"` for TCP sockets, or
             `"file:///path/to/foo"` for Unix domain sockets.  Defaults to the
             value of the CICADA_ROOT_ADDRESS environment variable, which is
+            automatically set by the :ref:`cicada` command.
+        identity: :class:`str`, optional
+            Path to a private key and certificate in PEM format.  Defaults to
+            the value of the CICADA_IDENTITY environment variable, which is
+            automatically set by the :ref:`cicada` command.
+        peers: sequence of :class:`str`, optional
+            Path to certificates in PEM format.  Defaults to
+            the value of the CICADA_PEERS environment variable, which is
             automatically set by the :ref:`cicada` command.
         name: :class:`str`, optional
             Human-readable name for the new communicator.  Defaults to "world".
@@ -429,10 +438,33 @@ class SocketCommunicator(Communicator):
             address = os.environ.get("CICADA_ADDRESS")
         if root_address is None:
             root_address = os.environ.get("CICADA_ROOT_ADDRESS")
+        if identity is None:
+            identity = os.environ.get("CICADA_IDENTITY", "")
+        if peers is None:
+            peers = [peer for peer in os.environ.get("CICADA_PEERS", "").split(",") if peer]
+
+        if identity and peers:
+            server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            server.load_cert_chain(certfile=identity)
+            for peer in peers:
+                server.load_verify_locations(peer)
+            server.check_hostname=False
+            server.verify_mode = ssl.CERT_REQUIRED
+
+            client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            client.load_cert_chain(certfile=identity)
+            for peer in peers:
+                client.load_verify_locations(peer)
+            client.check_hostname = False
+            client.verify_mode = ssl.CERT_REQUIRED
+
+            tls = (server, client)
+        else:
+            tls = None
 
         timer = Timer(threshold=startup_timeout)
         listen_socket = listen(address=address, rank=rank, name=name, timer=timer)
-        sockets = rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, timer=timer)
+        sockets = rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, timer=timer, tls=tls)
         return SocketCommunicator(sockets=sockets, timeout=timeout)
 
 
