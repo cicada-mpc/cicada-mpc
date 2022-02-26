@@ -9,4 +9,5 @@ dist
 docs/_build
 *.swo
 *.swp
-
+examples/*.pem
+examples/*.cert
