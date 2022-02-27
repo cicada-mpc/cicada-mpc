@@ -121,11 +121,6 @@ class NetstringSocket(object):
         self._sent_messages += 1
 
     @property
-    def sock(self):
-        """Return the underlying :class:`socket.socket`."""
-        return self._socket
-
-    @property
     def stats(self):
         """Return a :class:`dict` containing statistics.
 
