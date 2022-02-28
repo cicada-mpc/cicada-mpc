@@ -96,7 +96,7 @@ class ShamirProtocol(object):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, k=2):
+    def __init__(self, communicator, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, k=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
@@ -133,10 +133,12 @@ class ShamirProtocol(object):
             prev_seed = result.value
         else:
             prev_seed = seed
-        
-        if communicator.world_size < 2*k+1:
+        if k is None:
+            self.k = 1
+        else:
+            self.k=k
+        if communicator.world_size < 2*self.k+1:
             raise ValueError('k incompatible with worldsize, multiplications will not be feasible.')
-        self.k=k
         # Setup random number generators
         self._g0 = numpy.random.default_rng(seed=seed)
         self._g1 = numpy.random.default_rng(seed=prev_seed)
@@ -1157,7 +1159,7 @@ class ShamirProtocol(object):
             return ret
 
 
-    def share(self, *, src, secret, shape, dst, k):
+    def share(self, *, src, secret, shape, dst, k=None):
         """Convert a private array to an additive secret share.
 
         Note
@@ -1208,6 +1210,9 @@ class ShamirProtocol(object):
         #return ShamirArrayShare(przs)
         if not isinstance(shape, tuple):
             shape = (shape,)
+
+        if k is None:
+            k=self.k
 
         shares = []
         sharesn = numpy.zeros(shape+(len(dst),))
