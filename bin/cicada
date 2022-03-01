@@ -15,22 +15,28 @@ import cicada
 from cicada.communicator.socket.connect import geturl
 
 
-def get_environment(world_size, rank, address, root_address):
-    env = os.environ.copy()
-    env["CICADA_WORLD_SIZE"] = str(world_size)
-    env["CICADA_RANK"] = str(rank)
-    env["CICADA_ADDRESS"] = str(address)
-    env["CICADA_ROOT_ADDRESS"] = str(root_address)
+def get_environment(world_size, rank, address, root_address, identity, peers):
+    env = {
+        "CICADA_WORLD_SIZE": str(world_size),
+        "CICADA_RANK": str(rank),
+        "CICADA_ADDRESS": address,
+        "CICADA_ROOT_ADDRESS": root_address,
+    }
+
+    if identity:
+        env["CICADA_IDENTITY"] = identity
+    if peers:
+        env["CICADA_PEERS"] = ",".join(peers)
+
     return env
 
 
 def log_command(command, env, log):
     log.info(f"Command: {' '.join(command)}")
     log.info(f"  Environment:")
-    log.info(f"    CICADA_WORLD_SIZE={env['CICADA_WORLD_SIZE']}")
-    log.info(f"    CICADA_RANK={env['CICADA_RANK']}")
-    log.info(f"    CICADA_ADDRESS={env['CICADA_ADDRESS']}")
-    log.info(f"    CICADA_ROOT_ADDRESS={env['CICADA_ROOT_ADDRESS']}")
+    for key, value in env.items():
+        if key.startswith("CICADA_"):
+            log.info(f"    {key}={value}")
 
 
 def public_ip():
@@ -41,8 +47,9 @@ def public_ip():
 
 def basic_frontend(arguments, players, log):
     processes = []
-    for world_size, rank, address, root_address in players:
-        env = get_environment(world_size, rank, address, root_address)
+    for world_size, rank, address, root_address, identity, peers in players:
+        env = os.environ.copy()
+        env.update(get_environment(world_size, rank, address, root_address, identity, peers))
 
         command = [sys.executable]
         if arguments.inspect:
@@ -63,16 +70,16 @@ def basic_frontend(arguments, players, log):
 
 def tmux_panes_frontend(arguments, players, log):
     command = []
-    for world_size, rank, address, root_address in players:
+    for world_size, rank, address, root_address, identity, peers in players:
+        env = get_environment(world_size, rank, address, root_address, identity, peers)
+
         if rank == 0:
             command += ["tmux", "new-session"]
         else:
             command += [";", "split-window", "-v", "-d"]
 
-        command += ["-e", f"CICADA_WORLD_SIZE={world_size}"]
-        command += ["-e", f"CICADA_RANK={rank}"]
-        command += ["-e", f"CICADA_ADDRESS={address}"]
-        command += ["-e", f"CICADA_ROOT_ADDRESS={root_address}"]
+        for name, value in env.items():
+            command += ["-e", f"{name}={value}"]
         command += [sys.executable]
         if arguments.inspect:
             command += ["-i"]
@@ -95,17 +102,17 @@ def tmux_panes_frontend(arguments, players, log):
 
 def tmux_windows_frontend(arguments, players, log):
     command = []
-    for world_size, rank, address, root_address in players:
+    for world_size, rank, address, root_address, identity, peers in players:
+        env = get_environment(world_size, rank, address, root_address, identity, peers)
+
         if rank == 0:
             command += ["tmux", "new-session"]
         else:
             command += [";", "new-window", "-d"]
 
         command += ["-n", f"rank-{rank}"]
-        command += ["-e", f"CICADA_WORLD_SIZE={world_size}"]
-        command += ["-e", f"CICADA_RANK={rank}"]
-        command += ["-e", f"CICADA_ADDRESS={address}"]
-        command += ["-e", f"CICADA_ROOT_ADDRESS={root_address}"]
+        for name, value in env.items():
+            command += ["-e", f"{name}={value}"]
         command += [sys.executable]
         if arguments.inspect:
             command += ["-i"]
@@ -126,8 +133,9 @@ def tmux_windows_frontend(arguments, players, log):
 
 def xterm_frontend(arguments, players, log):
     processes = []
-    for world_size, rank, address, root_address in players:
-        env = get_environment(world_size, rank, address, root_address)
+    for world_size, rank, address, root_address, identity, peers in players:
+        env = os.environ.copy()
+        env.update(get_environment(world_size, rank, address, root_address, identity, peers))
 
         command = ["xterm", "-e"]
         command += [sys.executable]
@@ -158,11 +166,25 @@ frontends = {
 parser = argparse.ArgumentParser(description="Cicada MPC tools.")
 subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
 
+# player-keygen
+player_keygen_subparser = subparsers.add_parser("player-keygen", help="Generate player key and certificate for TLS encryption.")
+player_keygen_subparser.add_argument("--country", default="US", help="Certificate country. Default: %(default)s")
+player_keygen_subparser.add_argument("--days", type=int, default=365, help="Length of time the certificate will be valid. Default: %(default)s")
+player_keygen_subparser.add_argument("--email", default=None, help="Certificate email. Default: %(default)s")
+player_keygen_subparser.add_argument("--locality", default="Albuquerque", help="Certificate locality. Default: %(default)s")
+player_keygen_subparser.add_argument("--name", default=None, help="Common name. Default: based on player rank.")
+player_keygen_subparser.add_argument("--organization", default="Cicada", help="Certificate organization. Default: %(default)s")
+player_keygen_subparser.add_argument("--rank", required=True, help="Player rank.")
+player_keygen_subparser.add_argument("--state", default="New Mexico", help="Certificate state. Default: %(default)s")
+player_keygen_subparser.add_argument("--unit", default=None, help="Certificate organizational unit. Default: %(default)s")
+
 # run
 run_subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
 run_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
 run_subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
+run_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
 run_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
+run_subparser.add_argument("--peers", default="player-{rank}.cert", help="Peer certificates in PEM format. Default: %(default)s files, if they exist.")
 run_subparser.add_argument("--root-address", default="tcp://127.0.0.1:25252", help="Root address.  Default: %(default)s")
 run_subparser.add_argument("--tmux-layout", default="even-vertical", choices=["even-horizontal", "even-vertical", "tiled"], help="Pane layout for the tmux frontend. Default: %(default)s")
 run_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
@@ -173,7 +195,9 @@ run_subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program argum
 start_subparser = subparsers.add_parser("start", help="Start one Cicada process.")
 start_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
 start_subparser.add_argument("--address", default=None, help=f"Network address. Default: tcp://{public_ip()}:25252 for player 0, otherwise tcp://{public_ip()}")
+start_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
 start_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
+start_subparser.add_argument("--peers", default="player-{rank}.cert", help="Peer certificates in PEM format. Default: %(default)s files, if they exist.")
 start_subparser.add_argument("--root-address", default=None, help="Root address. Default: same as --address for player 0, required otherwise.")
 start_subparser.add_argument("--rank", type=int, required=True, help="Player rank.")
 start_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
@@ -193,6 +217,32 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     log = logging.getLogger()
     log.name = os.path.basename(sys.argv[0])
+
+    # player-keygen
+    if arguments.command == "player-keygen":
+        rank = arguments.rank
+
+        if arguments.name is None:
+            arguments.name = f"Player {rank}"
+
+        subj = ""
+        subj += f"/C={arguments.country}" if arguments.country else ""
+        subj += f"/ST={arguments.state}" if arguments.state else ""
+        subj += f"/L={arguments.locality}" if arguments.locality else ""
+        subj += f"/O={arguments.organization}" if arguments.organization else ""
+        subj += f"/OU={arguments.unit}" if arguments.unit else ""
+        subj += f"/emailAddress={arguments.email}" if arguments.email else ""
+        subj += f"/CN={arguments.name}"
+
+        subprocess.check_call(["openssl", "genrsa", "-out", f"player-{rank}.key", "2048"])
+        subprocess.check_call(["openssl", "req", "-new", "-key", f"player-{rank}.key", "-x509", "-subj", subj, "-out", f"player-{rank}.cert", "-days", str(arguments.days)])
+        with open(f"player-{rank}.pem", "wb") as output:
+            with open(f"player-{rank}.key", "rb") as input:
+                output.write(input.read())
+            with open(f"player-{rank}.cert", "rb") as input:
+                output.write(input.read())
+        os.remove(f"player-{rank}.key")
+
 
     # run
     if arguments.command == "run":
@@ -220,7 +270,17 @@ if __name__ == "__main__":
 
         players = []
         for rank, address in enumerate(addresses):
-            players.append((world_size, rank, address, addresses[0]))
+            identity = arguments.identity.format(rank=rank, world_size=world_size)
+            if not os.path.exists(identity):
+                identity = ""
+
+            peers = []
+            for index in range(world_size):
+                peer = arguments.peers.format(rank=index, world_size=world_size)
+                if index != rank and os.path.exists(peer):
+                    peers.append(peer)
+
+            players.append((world_size, rank, address, addresses[0], identity, peers))
 
         frontend = frontends[arguments.frontend]
         frontend(arguments, players, log)
@@ -250,7 +310,17 @@ if __name__ == "__main__":
         root_address = urllib.parse.urlparse(root_address)
         root_address = root_address.geturl()
 
-        players = [(world_size, rank, address, root_address)]
+        identity = arguments.identity.format(rank=rank, world_size=world_size)
+        if not os.path.exists(identity):
+            identity = ""
+
+        peers = []
+        for index in range(world_size):
+            peer = arguments.peers.format(rank=index, world_size=world_size)
+            if index != rank and os.path.exists(peer):
+                peers.append(peer)
+
+        players = [(world_size, rank, address, root_address, identity, peers)]
         frontend = frontends["basic"]
         frontend(arguments, players, log)
 

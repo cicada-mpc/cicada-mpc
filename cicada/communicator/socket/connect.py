@@ -21,13 +21,20 @@ import logging
 import numbers
 import os
 import pickle
+import pprint
 import select
 import socket
+import ssl
 import time
 import traceback
 import urllib.parse
 
 import pynetstring
+
+
+class EncryptionFailed(Exception):
+    """Raised if an encrypted connection can't be established with another player."""
+    pass
 
 
 class LoggerAdapter(logging.LoggerAdapter):
@@ -114,11 +121,6 @@ class NetstringSocket(object):
         self._sent_messages += 1
 
     @property
-    def sock(self):
-        """Return the underlying :class:`socket.socket`."""
-        return self._socket
-
-    @property
     def stats(self):
         """Return a :class:`dict` containing statistics.
 
@@ -166,19 +168,32 @@ class TokenMismatch(Exception):
     pass
 
 
-def connect(*, address):
+def connect(*, address, rank, name="world", tls=None):
     """Given an address, create a socket and make a connection.
 
     Parameters
     ----------
     address: :class:`str`, required
         The address URL.
+    rank: :class:`int`, required
+        Rank of the calling player.
+    name: :class:`str`, optional
+        Human readable label used for logging and error messages. Typically,
+        this should be the same name that will be eventually used by a
+        communicator instance. Defaults to "world".
+    tls: pair of :class:`ssl.SSLContext`, optional
+        If provided, the returned sockets will implement transport layer
+        security.  Callers must provide a sequence containing one context
+        configured for server connections, and one for configured for client
+        connections, in that order.
 
     Returns
     -------
     socket: :class:`NetstringSocket`
         The newly-connected socket, ready for use.
     """
+    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+
     if address.scheme == "file":
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(address.path)
@@ -190,10 +205,15 @@ def connect(*, address):
     else:
         raise ValueError(f"address.scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
 
+    # Optionally setup TLS.
+    if tls is not None:
+        sock = tls[1].wrap_socket(sock, server_side=False)
+        log.info(f"connected to player:\n{pprint.pformat(sock.getpeercert())}")
+
     return NetstringSocket(sock)
 
 
-def direct(*, listen_socket, addresses, rank, name="world", timer=None):
+def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None):
     """Create socket connections given a list of player addresses.
 
     Parameters
@@ -212,13 +232,21 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None):
     timer: :class:`Timer`, optional
         Determines the maximum time to wait for player connections.  Defaults
         to five seconds.
+    tls: pair of :class:`ssl.SSLContext`, optional
+        If provided, the returned sockets will implement transport layer
+        security.  Callers must provide a sequence containing one context
+        configured for server connections, and one for configured for client
+        connections, in that order.
 
     Raises
     ------
-    :class:`ValueError`
-        If there are problems with input parameters.
+    :class:`EncryptionFailed`
+        If there are problems establishing an encrypted connection with another
+        player.
     :class:`Timeout`
         If `timer` expires before all connections are established.
+    :class:`ValueError`
+        If there are problems with input parameters.
 
     Returns
     -------
@@ -275,9 +303,17 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None):
                     ready = select.select([listen_socket], [], [], 0.1)
                     if ready:
                         other_player, _ = listen_socket.accept()
+                        if tls is not None:
+                            other_player = tls[0].wrap_socket(other_player, server_side=True)
+                            log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
+                        else:
+                            log.debug(f"accepted connection from player.")
                         other_player = NetstringSocket(other_player)
                         other_players.append(other_player)
-                        log.debug(f"accepted connection from player.")
+                except ssl.SSLError as e:
+                    # There was a problem setting up an encrypted connection with
+                    # the other player, so there's no point in continuing.
+                    raise EncryptionFailed(message(name, rank, f"remote player failed to connect: {e}"))
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception listening for other players: {e}")
                     time.sleep(0.1)
@@ -302,8 +338,12 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None):
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener])
+                    players[listener] = connect(address=addresses[listener], rank=rank, name=name, tls=tls)
                     break
+                except ssl.SSLCertVerificationError as e:
+                    # If this happens it means we couldn't verify the other
+                    # player's certificate, so there's no point in continuing.
+                    raise EncryptionFailed(message(name, rank, f"received invalid certificate from player {listener}."))
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
                     time.sleep(0.5)
@@ -431,7 +471,7 @@ def message(name, rank, msg):
     return f"Comm {name!r} player {rank} {msg}"
 
 
-def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timer=None):
+def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timer=None, tls=None):
     """Create socket connections given just the address of the root player.
 
     Parameters
@@ -456,15 +496,23 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     timer: :class:`Timer`, optional
         Determines the maximum time to wait for socket creation.  Defaults to
         five seconds.
+    tls: pair of :class:`ssl.SSLContext`, optional
+        If provided, the returned sockets will implement transport layer
+        security.  Callers must provide a sequence containing one context
+        configured for server connections, and one for configured for client
+        connections, in that order.
 
     Raises
     ------
-    :class:`ValueError`
-        If there are problems with input parameters.
+    :class:`EncryptionFailed`
+        If there are problems establishing an encrypted connection with another
+        player.
     :class:`Timeout`
         If `timer` expires before all connections are established.
     :class:`TokenMismatch`
         If every player doesn't call this function with the same token.
+    :class:`ValueError`
+        If there are problems with input parameters.
 
     Returns
     -------
@@ -510,12 +558,16 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     if rank != 0:
         while not timer.expired:
             try:
-                players[0] = connect(address=root_address)
+                players[0] = connect(address=root_address, rank=rank, name=name, tls=tls)
                 break
             except ConnectionRefusedError as e: # pragma: no cover
                 # This happens regularly, particularly when starting on
                 # separate hosts, so no need to log a warning.
                 time.sleep(0.1)
+            except ssl.SSLCertVerificationError as e:
+                # If this happens it means we couldn't verify the other
+                # player's certificate, so there's no point in continuing.
+                raise EncryptionFailed(message(name, rank, "received invalid certificate from player 0."))
             except Exception as e: # pragma: no cover
                 log.warning(f"exception connecting to player 0: {e}")
                 time.sleep(0.1)
@@ -550,15 +602,23 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                 ready = select.select([listen_socket], [], [], 0.1)
                 if ready:
                     other_player, _ = listen_socket.accept()
+                    if tls is not None:
+                        other_player = tls[0].wrap_socket(other_player, server_side=True)
+                        log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
+                    else:
+                        log.debug(f"accepted connection from player.")
                     other_player = NetstringSocket(other_player)
                     other_players.append(other_player)
-                    log.debug(f"accepted connection from player.")
+            except ssl.SSLError as e:
+                # There was a problem setting up an encrypted connection with
+                # the other player, so there's no point in continuing.
+                raise EncryptionFailed(message(name, rank, f"remote player failed to connect: {e}"))
             except BlockingIOError as e: # pragma: no cover
                 # This happens regularly, particularly when starting on
                 # separate hosts, so no need to log a warning.
                 time.sleep(0.1)
             except Exception as e: # pragma: no cover
-                log.warning(f"exception waiting for connections from other players: {e}")
+                log.warning(f"exception waiting for connections from other players: {type(e)} {e}")
                 time.sleep(0.1)
         else: # pragma: no cover
             raise Timeout(message(name, rank, "timeout waiting for player connections."))
@@ -629,11 +689,19 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                     ready = select.select([listen_socket], [], [], 0.1)
                     if ready:
                         other_player, _ = listen_socket.accept()
+                        if tls is not None:
+                            other_player = tls[0].wrap_socket(other_player, server_side=True)
+                            log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
+                        else:
+                            log.debug(f"accepted connection from player.")
                         other_player = NetstringSocket(other_player)
                         other_players.append(other_player)
-                        log.debug(f"accepted connection from player.")
+                except ssl.SSLError as e:
+                    # There was a problem setting up an encrypted connection with
+                    # the other player, so there's no point in continuing.
+                    raise EncryptionFailed(message(name, rank, f"remote player failed to connect: {e}"))
                 except Exception as e: # pragma: no cover
-                    log.warning(f"exception listening for other players: {e}")
+                    log.warning(f"exception listening for other players: {type(e)} {e}")
                     time.sleep(0.1)
 
             # Collect ranks from the other players.
@@ -656,8 +724,12 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener][0])
+                    players[listener] = connect(address=addresses[listener][0], rank=rank, name=name, tls=tls)
                     break
+                except ssl.SSLCertVerificationError as e:
+                    # If this happens it means we couldn't verify the other
+                    # player's certificate, so there's no point in continuing.
+                    raise EncryptionFailed(message(name, rank, f"received invalid certificate from player {listener}."))
                 except Exception as e: # pragma: no cover
                     log.warning(f"exception connecting to player {listener}: {e}")
                     time.sleep(0.5)
