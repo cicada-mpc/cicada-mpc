@@ -17,21 +17,20 @@ Feature: Shamir Protocol
 	    Then the shares should never be repeated
 
 
-	Scenario: Intra-session Repetition
+    Scenario: Intra-session Repetition
         Given 3 players
         When shamir secret sharing the same value 10 times in one session
         Then the shares should never be repeated
 
-
     Scenario Outline: Random Round Trip Shamir Sharing
-        Given <players> players for shamir
-        When player <player> shamir shares and reveals <count> random secrets, the revealed secrets should match the originals
+        Given <players> players 
+        When player <player> shamir shares and reveals <count> random secrets, the revealed secrets using a subset <subset> of players should match the originals
 
         Examples:
-        | players | player | count      |
-        | 3       | 1      | 100        |
-        | 4       | 2      | 100        |
-        | 5       | 3      | 100        |
+        | players | player | count      | subset  |
+        | 3       | 0      | 100        | [1,2]   |
+        | 4       | 0      | 100        | [1,2,3] |
+        | 5       | 0      | 100        | [1,2,3] |
 
 
     Scenario Outline: Local Shamir Addition
@@ -117,11 +116,6 @@ Feature: Shamir Protocol
 
         Examples:
         | players | operation                                  | a   | b    | count | result                |
-        | 2       | private-private untruncated multiplication | 5   | 2    | 10    | [[655360] * 2] * 10       |
-        | 2       | private-private untruncated multiplication | 5   | 2.5  | 10    | [[819200] * 2] * 10     |
-        | 2       | private-private untruncated multiplication | 5   | -2.5 | 10    | [[-819200] * 2] * 10    |
-        | 2       | private-private untruncated multiplication | -5  | -2.5 | 10    | [[819200] * 2] * 10     |
-        | 2       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 10    | [[[655360, 917504]] * 2] * 10       |
         | 3       | private-private untruncated multiplication | 5   | 2    | 10    | [[655360] * 3] * 10       |
         | 3       | private-private untruncated multiplication | 5   | 2.5  | 10    | [[819200] * 3] * 10     |
         | 3       | private-private untruncated multiplication | 5   | -2.5 | 10    | [[-819200] * 3] * 10    |
@@ -148,10 +142,10 @@ Feature: Shamir Protocol
 
         Examples:
         | players | operation           | a      | b      | count | result             |
-        | 2       | private-private xor | 0      | 0      | 10    | [[0] * 2] * 10     |
-        | 2       | private-private xor | 0      | 1      | 10    | [[1] * 2] * 10     |
-        | 2       | private-private xor | 1      | 0      | 10    | [[1] * 2] * 10     |
-        | 2       | private-private xor | 1      | 1      | 10    | [[0] * 2] * 10     |
+        | 5       | private-private xor | 0      | 0      | 10    | [[0] * 5] * 10     |
+        | 5       | private-private xor | 0      | 1      | 10    | [[1] * 5] * 10     |
+        | 5       | private-private xor | 1      | 0      | 10    | [[1] * 5] * 10     |
+        | 5       | private-private xor | 1      | 1      | 10    | [[0] * 5] * 10     |
 
 
     Scenario Outline: Shamir Logical Or
@@ -163,10 +157,10 @@ Feature: Shamir Protocol
 
         Examples:
         | players | operation          | a      | b      | count | result             |
-        | 2       | private-private or | 0      | 0      | 10    | [[0] * 2] * 10     |
-        | 2       | private-private or | 0      | 1      | 10    | [[1] * 2] * 10     |
-        | 2       | private-private or | 1      | 0      | 10    | [[1] * 2] * 10     |
-        | 2       | private-private or | 1      | 1      | 10    | [[1] * 2] * 10     |
+        | 5       | private-private or | 0      | 0      | 10    | [[0] * 5] * 10     |
+        | 5       | private-private or | 0      | 1      | 10    | [[1] * 5] * 10     |
+        | 5       | private-private or | 1      | 0      | 10    | [[1] * 5] * 10     |
+        | 5       | private-private or | 1      | 1      | 10    | [[1] * 5] * 10     |
 
 
     Scenario Outline: Shamir Max
@@ -205,16 +199,16 @@ Feature: Shamir Protocol
 
     Scenario Outline: Random Bitwise Shamir Secret
         Given <players> players
-        Then generating <bits> shamir random bits with players <src> and seed <seed> produces a valid result
+        Then generating <bits> shamir random bits with players <src> and seed <seed> produces a valid result revealed with players <subset>
 
         Examples:
-        | players | bits  | src       | seed |
-        | 2       | 1     | None      | 1234 |
-        | 2       | 2     | None      | 1235 |
-        | 2       | 4     | None      | 1236 |
-        | 2       | 8     | None      | 1237 |
-        | 3       | 8     | None      | 1238 |
-        | 3       | 8     | None      | 1239 |
+        | players | bits  | src       | seed | subset  |
+        | 4       | 1     | None      | 1234 | [0,2,3] |
+        | 4       | 2     | None      | 1235 | [0,2,3] | 
+        | 4       | 4     | None      | 1236 | [0,2,3] |  
+        | 4       | 8     | None      | 1237 | [0,2,3] |
+        | 3       | 8     | None      | 1238 | [0,1,2] |
+        | 3       | 8     | None      | 1239 | [0,1,2] |
 
 
     Scenario Outline: Shamir Multiplication
@@ -226,11 +220,11 @@ Feature: Shamir Protocol
 
         Examples:
         | players | operation                      | a   | b    | count | result                |
-        | 2       | private-private multiplication | 5   | 2    | 10    | [[10] * 2] * 10       |
-        | 2       | private-private multiplication | 5   | 2.5  | 10    | [[12.5] * 2] * 10     |
-        | 2       | private-private multiplication | 5   | -2.5 | 10    | [[-12.5] * 2] * 10    |
-        | 2       | private-private multiplication | -5  | -2.5 | 10    | [[12.5] * 2] * 10     |
-        | 2       | private-private multiplication | [5, 3.5]   | [2, 4]  | 10    | [[[10, 14]] * 2] * 10       |
+        | 6       | private-private multiplication | 5   | 2    | 10    | [[10] * 6] * 10       |
+        | 6       | private-private multiplication | 5   | 2.5  | 10    | [[12.5] * 6] * 10     |
+        | 6       | private-private multiplication | 5   | -2.5 | 10    | [[-12.5] * 6] * 10    |
+        | 6       | private-private multiplication | -5  | -2.5 | 10    | [[12.5] * 6] * 10     |
+        | 6       | private-private multiplication | [5, 3.5]   | [2, 4]  | 10    | [[[10, 14]] * 6] * 10       |
         | 3       | private-private multiplication | 5   | 2    | 10    | [[10] * 3] * 10       |
         | 3       | private-private multiplication | 5   | 2.5  | 10    | [[12.5] * 3] * 10     |
         | 3       | private-private multiplication | 5   | -2.5 | 10    | [[-12.5] * 3] * 10    |
@@ -257,11 +251,11 @@ Feature: Shamir Protocol
 
         Examples:
         | players | operation | a             | count | result               |
-        | 2       | floor     | 1             | 10    | [[1] * 2] * 10       |
-        | 2       | floor     | 1.1           | 10    | [[1] * 2] * 10       |
-        | 2       | floor     | -2            | 10    | [[-2] * 2] * 10      |
-        | 2       | floor     | -2.1          | 10    | [[-3] * 2] * 10      |
-        | 2       | floor     | [1.2, -3.4]   | 10    | [[[1, -4]] * 2] * 10 |
+        | 4       | floor     | 1             | 10    | [[1] * 4] * 10       |
+        | 4       | floor     | 1.1           | 10    | [[1] * 4] * 10       |
+        | 4       | floor     | -2            | 10    | [[-2] * 4] * 10      |
+        | 4       | floor     | -2.1          | 10    | [[-3] * 4] * 10      |
+        | 4       | floor     | [1.2, -3.4]   | 10    | [[[1, -4]] * 4] * 10 |
         | 3       | floor     | 1             | 10    | [[1] * 3] * 10       |
         | 3       | floor     | 1.1           | 10    | [[1] * 3] * 10       |
         | 3       | floor     | -2            | 10    | [[-2] * 3] * 10      |
@@ -278,19 +272,19 @@ Feature: Shamir Protocol
 
         Examples:
         | players  | a                 | b                | count | result                        |
-        | 2        | 2                 | 2                | 10    | [[1] * 2] * 10                |
-        | 2        | 2                 | 3                | 10    | [[0] * 2] * 10                |
-        | 2        | 2                 | 2.1              | 10    | [[0] * 2] * 10                |
-        | 2        | 2.1               | 2.1              | 10    | [[1] * 2] * 10                |
-        | 2        | -2                | -2               | 10    | [[1] * 2] * 10                |
-        | 2        | -2                | -3               | 10    | [[0] * 2] * 10                |
-        | 2        | -2                | -2.1             | 10    | [[0] * 2] * 10                |
-        | 2        | -2.1              | -2.1             | 10    | [[1] * 2] * 10                |
-        | 2        | -2                | 2                | 10    | [[0] * 2] * 10                |
+        | 5        | 2                 | 2                | 10    | [[1] * 5] * 10                |
+        | 5        | 2                 | 3                | 10    | [[0] * 5] * 10                |
+        | 5        | 2                 | 2.1              | 10    | [[0] * 5] * 10                |
+        | 5        | 2.1               | 2.1              | 10    | [[1] * 5] * 10                |
+        | 5        | -2                | -2               | 10    | [[1] * 5] * 10                |
+        | 5        | -2                | -3               | 10    | [[0] * 5] * 10                |
+        | 5        | -2                | -2.1             | 10    | [[0] * 5] * 10                |
+        | 5        | -2.1              | -2.1             | 10    | [[1] * 5] * 10                |
+        | 5        | -2                | 2                | 10    | [[0] * 5] * 10                |
         | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | 10    | [[[1,0,1,1]] * 3] * 10        |
 
 
-    @wip
+  @wip
     Scenario Outline: Shamir Modulus
         Given <players> players
         And binary operation shamir private-public modulus
@@ -300,16 +294,16 @@ Feature: Shamir Protocol
 
         Examples:
         | players  | a                 | b                | count | result                          |
-        | 3        | 144409            | 117              | 10    | [[144409 % 117] * 2] * 10       |
-        | 3        | 144409            | 118              | 10    | [[144409 % 118] * 2] * 10       |
-        | 3        | 144409            | 119              | 10    | [[144409 % 119] * 2] * 10       |
-        | 3        | 144409            | 120              | 10    | [[144409 % 120] * 2] * 10       |
-        | 3        | 144409            | 121              | 10    | [[144409 % 121] * 2] * 10       |
-        | 3        | 144409            | 122              | 10    | [[144409 % 122] * 2] * 10       |
-        | 3        | 144409            | 123              | 10    | [[144409 % 123] * 2] * 10       |
-        | 3        | 144409            | 124              | 10    | [[144409 % 124] * 2] * 10       |
-        | 3        | 144409            | 125              | 10    | [[144409 % 125] * 2] * 10       |
-        | 3        | 144409            | 126              | 10    | [[144409 % 126] * 2] * 10       |
+        | 3        | 144409            | 117              | 10    | [[144409 % 117] * 3] * 10       |
+        | 3        | 144409            | 118              | 10    | [[144409 % 118] * 3] * 10       |
+        | 3        | 144409            | 119              | 10    | [[144409 % 119] * 3] * 10       |
+        | 3        | 144409            | 120              | 10    | [[144409 % 120] * 3] * 10       |
+        | 3        | 144409            | 121              | 10    | [[144409 % 121] * 3] * 10       |
+        | 3        | 144409            | 122              | 10    | [[144409 % 122] * 3] * 10       |
+        | 3        | 144409            | 123              | 10    | [[144409 % 123] * 3] * 10       |
+        | 3        | 144409            | 124              | 10    | [[144409 % 124] * 3] * 10       |
+        | 3        | 144409            | 125              | 10    | [[144409 % 125] * 3] * 10       |
+        | 3        | 144409            | 126              | 10    | [[144409 % 126] * 3] * 10       |
 
     Scenario Outline: Shamir Multiplicative Inverse
         Given <players> players
@@ -320,11 +314,11 @@ Feature: Shamir Protocol
 
         Examples:
         | players | operation               | a                                 | count | result                      |
-        | 2       | multiplicative_inverse  | 2                                 | 10    | [[1] * 2] * 10              |
-        | 2       | multiplicative_inverse  | 100                               | 10    | [[1] * 2] * 10              |
-        | 2       | multiplicative_inverse  | -75                               | 10    | [[1] * 2] * 10              |
-        | 2       | multiplicative_inverse  | -1000                             | 10    | [[1] * 2] * 10              |
-        | 2       | multiplicative_inverse  | [[35.125,65.25],[73.5, -3.0625]]  | 10    | [[[[1,1],[1,1]]] * 2] * 10  |
+        | 4       | multiplicative_inverse  | 2                                 | 10    | [[1] * 4] * 10              |
+        | 4       | multiplicative_inverse  | 100                               | 10    | [[1] * 4] * 10              |
+        | 4       | multiplicative_inverse  | -75                               | 10    | [[1] * 4] * 10              |
+        | 4       | multiplicative_inverse  | -1000                             | 10    | [[1] * 4] * 10              |
+        | 4       | multiplicative_inverse  | [[35.125,65.25],[73.5, -3.0625]]  | 10    | [[[[1,1],[1,1]]] * 4] * 10  |
         | 3       | multiplicative_inverse  | 2                                 | 10    | [[1] * 3] * 10              |
         | 3       | multiplicative_inverse  | 100                               | 10    | [[1] * 3] * 10              |
         | 3       | multiplicative_inverse  | -75                               | 10    | [[1] * 3] * 10              |
@@ -363,11 +357,11 @@ Feature: Shamir Protocol
 
         Examples:
         | players | operation | a                       | count | result                          |
-        | 2       | relu      | 1                       | 10    | [[1] * 2] * 10                  |
-        | 2       | relu      | 1.1                     | 10    | [[1.1] * 2] * 10                |
-        | 2       | relu      | -2                      | 10    | [[0] * 2] * 10                  |
-        | 2       | relu      | -2.1                    | 10    | [[0] * 2] * 10                  |
-        | 2       | relu      | [[0, 3.4],[-1234,1234]] | 10    | [[[[0,3.4],[0,1234]]] * 2] * 10 |
+        | 4       | relu      | 1                       | 10    | [[1] * 4] * 10                  |
+        | 4       | relu      | 1.1                     | 10    | [[1.1] * 4] * 10                |
+        | 4       | relu      | -2                      | 10    | [[0] * 4] * 10                  |
+        | 4       | relu      | -2.1                    | 10    | [[0] * 4] * 10                  |
+        | 4       | relu      | [[0, 3.4],[-1234,1234]] | 10    | [[[[0,3.4],[0,1234]]] * 4] * 10 |
         | 3       | relu      | 1                       | 10    | [[1] * 3] * 10                  |
         | 3       | relu      | 1.1                     | 10    | [[1.1] * 3] * 10                |
         | 3       | relu      | -2                      | 10    | [[0] * 3] * 10                  |
@@ -385,15 +379,15 @@ Feature: Shamir Protocol
 
         Examples:
         | players | operation | a                       | count | result                          |
-        | 2       | zigmoid   | 1                       | 10    | [[1] * 2] * 10                  |
-        | 2       | zigmoid   | 1.1                     | 10    | [[1] * 2] * 10                  |
-        | 2       | zigmoid   | -2                      | 10    | [[0] * 2] * 10                  |
-        | 2       | zigmoid   | -2.1                    | 10    | [[0] * 2] * 10                  |
-        | 2       | zigmoid   | 0.25                    | 10    | [[.75] * 2] * 10                |
-        | 2       | zigmoid   | 0.75                    | 10    | [[1] * 2] * 10                  |
-        | 2       | zigmoid   | -.0625                  | 10    | [[.4375] * 2] * 10              |
-        | 2       | zigmoid   | -.5                     | 10    | [[0] * 2] * 10                  |
-        | 2       | zigmoid   | [[0, 3.4],[-1234,1234]] | 10    | [[[[0.5,1],[0,1]]] * 2] * 10 |
+        | 4       | zigmoid   | 1                       | 10    | [[1] * 4] * 10                  |
+        | 4       | zigmoid   | 1.1                     | 10    | [[1] * 4] * 10                  |
+        | 4       | zigmoid   | -2                      | 10    | [[0] * 4] * 10                  |
+        | 4       | zigmoid   | -2.1                    | 10    | [[0] * 4] * 10                  |
+        | 4       | zigmoid   | 0.25                    | 10    | [[.75] * 4] * 10                |
+        | 4       | zigmoid   | 0.75                    | 10    | [[1] * 4] * 10                  |
+        | 4       | zigmoid   | -.0625                  | 10    | [[.4375] * 4] * 10              |
+        | 4       | zigmoid   | -.5                     | 10    | [[0] * 4] * 10                  |
+        | 4       | zigmoid   | [[0, 3.4],[-1234,1234]] | 10    | [[[[0.5,1],[0,1]]] * 4] * 10 |
         | 3       | zigmoid   | 1                       | 10    | [[1] * 3] * 10                  |
         | 3       | zigmoid   | 1.1                     | 10    | [[1] * 3] * 10                |
         | 3       | zigmoid   | -2                      | 10    | [[0] * 3] * 10                  |
@@ -413,7 +407,7 @@ Feature: Shamir Protocol
 
         Examples:
         | players | secret  | local       | player | result                                    |
-        | 2       | 5       | 1           | 1      | [4] * 2                                   |
+        | 5       | 5       | 1           | 1      | [4] * 5                                   |
         | 3       | 5       | 1.1         | 1      | [3.9] * 3                                 |
         | 4       | 5       | 1.5         | 1      | [3.5] * 4                                 |
         | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |

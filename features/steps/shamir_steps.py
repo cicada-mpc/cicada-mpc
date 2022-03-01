@@ -91,7 +91,7 @@ def step_impl(context, player):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape, dst=communicator.ranks)
         protocol.encoder.inplace_add(share.storage, protocol.encoder.encode(local))
-        return protocol.encoder.decode(protocol.reveal(share, protocol.communicator.ranks))
+        return protocol.encoder.decode(protocol.reveal(share))
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
@@ -104,7 +104,7 @@ def step_impl(context, player):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape, dst=protocol.communicator.ranks)
         protocol.encoder.inplace_subtract(share.storage, protocol.encoder.encode(local))
-        return protocol.encoder.decode(protocol.reveal(share, protocol.communicator.ranks))
+        return protocol.encoder.decode(protocol.reveal(share))
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
@@ -142,7 +142,7 @@ def step_impl(context):
         b = protocol.share(src=0, secret=b, shape=b.shape, dst=protocol.communicator.ranks)
         c = protocol.public_private_add(a, b)
 
-        return protocol.encoder.decode(protocol.reveal(c, protocol.communicator.ranks))
+        return protocol.encoder.decode(protocol.reveal(c))
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
@@ -157,7 +157,7 @@ def step_impl(context):
         b = protocol.share(src=1, secret=b, shape=b.shape, dst=protocol.communicator.ranks)
         c = protocol.add(a, b)
 
-        return protocol.encoder.decode(protocol.reveal(c, protocol.communicator.ranks))
+        return protocol.encoder.decode(protocol.reveal(c))
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
@@ -326,34 +326,34 @@ def step_impl(context, player, count, subset):
     count = eval(count)
     subset = eval(subset)
 
-    def operation(communicator, secret):
+    def operation(communicator, secret, subset):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         share = protocol.share(src=player, secret=protocol.encoder.encode(numpy.array(secret)), shape=())
-        return protocol.encoder.decode(protocol.reveal(share))
+        return protocol.encoder.decode(protocol.reveal(share, src=subset))
 
     for index in range(count):
         secret = numpy.array(numpy.random.uniform(-100000, 100000))
-        results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(secret,))
+        results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(secret,subset))
         for result in results:
             numpy.testing.assert_almost_equal(secret, result, decimal=4)
 
-@then(u'generating {bits} shamir random bits with players {src} and seed {seed} produces a valid result with {subset} players')
-def step_impl(context, bits, src, seed):
+@then(u'generating {bits} shamir random bits with players {src} and seed {seed} produces a valid result revealed with players {subset}')
+def step_impl(context, bits, src, seed, subset):
     bits = eval(bits)
     src = eval(src)
     seed = eval(seed)
     subset = eval(subset)
 
-    def operation(communicator, bits, src, seed):
+    def operation(communicator, bits, src, seed, subset):
         protocol = cicada.shamir.ShamirProtocol(communicator)
         generator = numpy.random.default_rng(seed + communicator.rank)
         bit_share, secret_share = protocol.random_bitwise_secret(generator=generator, bits=bits, src=src)
 
-        bits = protocol.reveal(bit_share)
-        secret = protocol.reveal(secret_share)
+        bits = protocol.reveal(bit_share, src=subset)
+        secret = protocol.reveal(secret_share, src=subset)
         return bits, secret
 
-    result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(bits, src, seed))
+    result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(bits, src, seed, subset))
     for bits, secret in result:
         test.assert_equal(secret, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
 

@@ -797,10 +797,9 @@ class ShamirProtocol(object):
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
             rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
             tmp = ShamirArrayShare(lhse)
-            it_ans = self.share(src = 0, secret=numpy.full(lhs.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhs.storage.shape)
+            it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhse.shape)
             limit = len(rhsbits)-1
-            for i, bit in enumerate(rhsbits):
-                if bit:
+            for i, bit in enumerate(rhsbits) bit:
                     it_ans = self.untruncated_multiply(it_ans, tmp)
                     it_ans = self.truncate(it_ans)
                 if i < limit:
@@ -1106,7 +1105,7 @@ class ShamirProtocol(object):
         return nltz_parts
 
 
-    def reveal(self, share, src, dst=None):
+    def reveal(self, share,*, src=None, dst=None):
         """Reveals a secret shared value to a subset of players.
 
         Note
@@ -1140,6 +1139,9 @@ class ShamirProtocol(object):
         if dst is None:
             dst = self.communicator.ranks
 
+        if src is None:
+            src = self.communicator.ranks
+
         # Send data to the other players.
         secret = None
         for recipient in dst:
@@ -1155,11 +1157,11 @@ class ShamirProtocol(object):
         if secret is None:
             return secret
         else:
-            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share.storage.shape).T
+            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share.storage.shape) #transpose
             return ret
 
 
-    def share(self, *, src, secret, shape, dst, k=None):
+    def share(self, *, src, secret, shape, dst=None, k=None):
         """Convert a private array to an additive secret share.
 
         Note
@@ -1214,6 +1216,9 @@ class ShamirProtocol(object):
         if k is None:
             k=self.k
 
+        if dst is None:
+            dst=self.communicator.ranks
+
         shares = []
         sharesn = numpy.zeros(shape+(len(dst),))
         if self.communicator.rank == src:
@@ -1227,8 +1232,9 @@ class ShamirProtocol(object):
             for index in numpy.ndindex(shape):
                 for x in dst:
                     shares.append(numpy.dot(numpy.power(numpy.full((k,), x+1),numpy.arange(1, k+1)), coef[index])+secret[index])
-            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),)).T
-        share = numpy.array(self.communicator.scatterv(src=src, dst=dst, values=sharesn), dtype=self.encoder.dtype)
+            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),)).T# transpose .T
+            #print(self.communicator.rank, sharesn.shape)
+        share = numpy.array(self.communicator.scatterv(src=src, dst=dst, values=sharesn), dtype=self.encoder.dtype).T
         return ShamirArrayShare(share)
 
 
@@ -1412,11 +1418,11 @@ class ShamirProtocol(object):
         X = [] # Storage for shares received from other players.
         Y = [] # Storage for shares received from other players.
         lc = self.lagrange_coef(self.communicator.ranks)
-        dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.encoder.dtype)
+        dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.encoder.dtype) 
         #print(f'dubdeg shape: {dubdeg.shape}\t xy shape: {xy.shape}\t dubdeg first shape: {dubdeg[0].shape}')
         # Distribute terms to the other players.
         for i, src in enumerate(self.communicator.ranks):
-            dubdeg[i]=numpy.transpose(self.share(src=src, secret=xy, shape=xy.shape, dst=self.communicator.ranks, k=self.k).storage)
+            dubdeg[i]=self.share(src=src, secret=xy, shape=xy.shape, dst=self.communicator.ranks, k=self.k).storage #transpose
             # Send terms to the other players.
         sharray = numpy.zeros(lhs.storage.shape, dtype=self.encoder.dtype)
         for i in range(len(self.communicator.ranks)):
