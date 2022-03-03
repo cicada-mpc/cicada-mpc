@@ -20,6 +20,8 @@ import pickle
 import socket
 import urllib.parse
 
+import numpy
+
 from cicada import Logger
 from cicada.additive import AdditiveProtocol
 from cicada.communicator import SocketCommunicator
@@ -83,6 +85,30 @@ def step_impl(context, world_size):
                 if command[0] == "create":
                     if command[1] == "AdditiveProtocol":
                         protocol_stack.append(AdditiveProtocol(communicator))
+                elif command[0] == "share":
+                    protocol = protocol_stack[-1]
+                    player = command[1]
+                    secret = command[2]
+                    shape = command[3]
+                    share = protocol.share(src=player, secret=protocol.encoder.encode(secret), shape=shape)
+                    argument_stack.append(share)
+                elif command[0] == "private-private-add":
+                    protocol = protocol_stack[-1]
+                    b = argument_stack.pop()
+                    a = argument_stack.pop()
+                    share = protocol.add(a, b)
+                    argument_stack.append(share)
+                elif command[0] == "reveal":
+                    protocol = protocol_stack[-1]
+                    share = argument_stack.pop()
+                    secret = protocol.encoder.decode(protocol.reveal(share))
+                    argument_stack.append(secret)
+                elif command[0] == "compare":
+                    rhs = command[1]
+                    lhs = argument_stack[-1]
+                    assert(lhs == rhs)
+                else:
+                    log.error(f"Player {rank} unknown command: {command}")
                 client.sendall(pickle.dumps("OK"))
 
             communicator.free()
@@ -175,8 +201,8 @@ def step_impl(context):
 @when(u'player {player} secret shares operand {operand}')
 def step_impl(context, player, operand):
     player = eval(player)
-    operand = eval(operand)
-    command = [("share", player, operand) if player == rank else ("share", player, None) for rank in context.service_ranks]
+    operand = numpy.array(eval(operand))
+    command = [("share", player, operand, operand.shape) if player == rank else ("share", player, None, operand.shape) for rank in context.service_ranks]
     service_command(context, command=command)
 
 
