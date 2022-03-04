@@ -168,9 +168,11 @@ subparsers = parser.add_subparsers(title="commands (choose one)", dest="command"
 
 # player-keygen
 player_keygen_subparser = subparsers.add_parser("player-keygen", help="Generate player key and certificate for TLS encryption.")
+player_keygen_subparser.add_argument("--certificate", default="player-{rank}.cert", help="Output certificate file. Default: %(default)s")
 player_keygen_subparser.add_argument("--country", default="US", help="Certificate country. Default: %(default)s")
 player_keygen_subparser.add_argument("--days", type=int, default=365, help="Length of time the certificate will be valid. Default: %(default)s")
 player_keygen_subparser.add_argument("--email", default=None, help="Certificate email. Default: %(default)s")
+player_keygen_subparser.add_argument("--identity", default="player-{rank}.pem", help="Output identity (private key and certificate) file. Default: %(default)s")
 player_keygen_subparser.add_argument("--locality", default="Albuquerque", help="Certificate locality. Default: %(default)s")
 player_keygen_subparser.add_argument("--name", default=None, help="Common name. Default: based on player rank.")
 player_keygen_subparser.add_argument("--organization", default="Cicada", help="Certificate organization. Default: %(default)s")
@@ -234,14 +236,20 @@ if __name__ == "__main__":
         subj += f"/emailAddress={arguments.email}" if arguments.email else ""
         subj += f"/CN={arguments.name}"
 
-        subprocess.check_call(["openssl", "genrsa", "-out", f"player-{rank}.key", "2048"])
-        subprocess.check_call(["openssl", "req", "-new", "-key", f"player-{rank}.key", "-x509", "-subj", subj, "-out", f"player-{rank}.cert", "-days", str(arguments.days)])
-        with open(f"player-{rank}.pem", "wb") as output:
-            with open(f"player-{rank}.key", "rb") as input:
-                output.write(input.read())
-            with open(f"player-{rank}.cert", "rb") as input:
-                output.write(input.read())
-        os.remove(f"player-{rank}.key")
+        certificate_path = arguments.certificate.format(rank=rank)
+        identity_path = arguments.identity.format(rank=rank)
+
+        fd, key_path = tempfile.mkstemp()
+        os.close(fd)
+
+        subprocess.check_call(["openssl", "genrsa", "-out", key_path, "2048"])
+        subprocess.check_call(["openssl", "req", "-new", "-key", key_path, "-x509", "-subj", subj, "-out", certificate_path, "-days", str(arguments.days)])
+        with open(identity_path, "wb") as target:
+            with open(key_path, "rb") as source:
+                target.write(source.read())
+            with open(certificate_path, "rb") as source:
+                target.write(source.read())
+        os.remove(key_path)
 
 
     # run
