@@ -308,7 +308,7 @@ class SocketCommunicator(Communicator):
                 player = self._players[dst]
                 player.send(raw_message)
             except Exception as e: # pragma: no cover
-                self._log.error(f"send exception: {e}")
+                self._log.error(f"exception sending to {dst}: {e}")
 
 
     def all_gather(self, value):
@@ -675,7 +675,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, args=(), kwargs={}, name="world", timeout=5, startup_timeout=5):
+    def run(*, world_size, fn, identities=None, peers=None, args=(), kwargs={}, name="world", timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -693,6 +693,10 @@ class SocketCommunicator(Communicator):
             The number of players that will run the function.
         fn: :func:`callable`, required
             The function to execute in parallel.
+        identities: sequence of :class:`str`, optional
+            Path to files in PEM format each containing a private key and a certificate, one per player.
+        peers: sequence of :class:`str`, optional
+            Path to files in PEM format containing certificates.
         args: :class:`tuple`, optional
             Positional arguments to pass to `fn` when it is executed.
         kwargs: :class:`dict`, optional
@@ -718,7 +722,7 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, parent_queue, child_queue, rank, fn, args, kwargs, name, timeout, startup_timeout):
+        def launch(*, parent_queue, child_queue, rank, fn, identity, peers, args, kwargs, name, timeout, startup_timeout):
             # Run the work function.
             try:
                 # Create a socket with a randomly-assigned port number.
@@ -732,7 +736,27 @@ class SocketCommunicator(Communicator):
                 # Get all addresses from the parent process.
                 addresses = child_queue.get()
 
-                sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer)
+                # Optionally setup TLS.
+                if identity and peers:
+                    server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                    server.load_cert_chain(certfile=identity)
+                    for peer in peers:
+                        server.load_verify_locations(peer)
+                    server.check_hostname=False
+                    server.verify_mode = ssl.CERT_REQUIRED
+
+                    client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                    client.load_cert_chain(certfile=identity)
+                    for peer in peers:
+                        client.load_verify_locations(peer)
+                    client.check_hostname = False
+                    client.verify_mode = ssl.CERT_REQUIRED
+
+                    tls = (server, client)
+                else:
+                    tls = None
+
+                sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer, tls=tls)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
                 result = fn(communicator, *args, **kwargs)
                 communicator.free()
@@ -752,9 +776,10 @@ class SocketCommunicator(Communicator):
         # Create per-player processes.
         processes = []
         for rank in range(world_size):
+            identity = None if identities is None else identities[rank]
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, args=args, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, peers=peers, args=args, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
@@ -1015,7 +1040,7 @@ class SocketCommunicator(Communicator):
             "sent": {"bytes": 0, "messages": 0},
             "received": {"bytes": 0, "messages": 0},
         }
-        for player in self._players.values():
+        for rank, player in sorted(list(self._players.items())):
             stats = player.stats
             totals["sent"]["bytes"] += stats["sent"]["bytes"]
             totals["sent"]["messages"] += stats["sent"]["messages"]
