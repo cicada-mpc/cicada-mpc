@@ -1040,8 +1040,9 @@ class SocketCommunicator(Communicator):
             "sent": {"bytes": 0, "messages": 0},
             "received": {"bytes": 0, "messages": 0},
         }
-        for rank, player in sorted(list(self._players.items())):
+        for rank, player in self._players.items():
             stats = player.stats
+            totals[rank] = stats
             totals["sent"]["bytes"] += stats["sent"]["bytes"]
             totals["sent"]["messages"] += stats["sent"]["messages"]
             totals["received"]["bytes"] += stats["received"]["bytes"]
