@@ -18,12 +18,22 @@ import logging
 
 from cicada.communicator import SocketCommunicator
 
-
 logging.basicConfig(level=logging.INFO)
-logging.getLogger("cicada.communicator").setLevel(logging.INFO)
+#logging.getLogger("cicada.communicator").setLevel(logging.INFO)
 
-with SocketCommunicator.connect(startup_timeout=300) as communicator:
-    value = communicator.broadcast(src=0, value="Hello!")
-    print(f"Player {communicator.rank} received: {value}")
+def main(communicator):
+    others = range(1, communicator.world_size)
+    for i in range(10000):
+        try:
+            result = communicator.scatterv(src=0, values=others, dst=others)
+        except Exception as e:
+            print(f"Player {communicator.rank} exception: {e}")
+            break
+    print(f"Player {communicator.rank} stats: {communicator.stats}")
+
+world_size = 3
+identities = [f"player-{rank}.pem" for rank in range(world_size)]
+peers = [f"player-{rank}.cert" for rank in range(world_size)]
+SocketCommunicator.run(world_size=world_size, fn=main, identities=identities, peers=peers)
 
 
