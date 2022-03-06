@@ -205,6 +205,8 @@ def connect(*, address, rank, name="world", tls=None):
     else:
         raise ValueError(f"address.scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
 
+    sock.setblocking(True)
+
     # Optionally setup TLS.
     if tls is not None:
         sock = tls[1].wrap_socket(sock, server_side=False)
