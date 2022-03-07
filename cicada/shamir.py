@@ -799,9 +799,9 @@ class ShamirProtocol(object):
             tmp = ShamirArrayShare(lhse)
             it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhse.shape)
             limit = len(rhsbits)-1
-            for i, bit in enumerate(rhsbits) bit:
-                    it_ans = self.untruncated_multiply(it_ans, tmp)
-                    it_ans = self.truncate(it_ans)
+            for i, bit in enumerate(rhsbits):
+                it_ans = self.untruncated_multiply(it_ans, tmp)
+                it_ans = self.truncate(it_ans)
                 if i < limit:
                     tmp = self.untruncated_multiply(tmp,tmp)
                     tmp = self.truncate(tmp)
