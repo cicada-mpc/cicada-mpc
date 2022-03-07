@@ -795,13 +795,14 @@ class ShamirProtocol(object):
             rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
         ans=[]
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
-            rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
+            rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
             tmp = ShamirArrayShare(lhse)
             it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhse.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
-                it_ans = self.untruncated_multiply(it_ans, tmp)
-                it_ans = self.truncate(it_ans)
+                if bit:
+                    it_ans = self.untruncated_multiply(it_ans, tmp)
+                    it_ans = self.truncate(it_ans)
                 if i < limit:
                     tmp = self.untruncated_multiply(tmp,tmp)
                     tmp = self.truncate(tmp)
