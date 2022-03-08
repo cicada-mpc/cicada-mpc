@@ -17,6 +17,7 @@
 """Functionality for communicating using the builtin :mod:`socket` module.
 """
 
+import json
 import logging
 import numbers
 import os
@@ -168,7 +169,43 @@ class TokenMismatch(Exception):
     pass
 
 
-def connect(*, address, rank, name="world", tls=None):
+#{'issuer': ((('countryName', 'US'),),
+#            (('stateOrProvinceName', 'New Mexico'),),
+#            (('localityName', 'Albuquerque'),),
+#            (('organizationName', 'Cicada'),),
+#            (('commonName', 'Player 0'),)),
+# 'notAfter': 'Mar  5 00:03:57 2023 GMT',
+# 'notBefore': 'Mar  5 00:03:57 2022 GMT',
+# 'serialNumber': '5B2BA78C2698CBCB473AC136D1E1B820A137BA0E',
+# 'subject': ((('countryName', 'US'),),
+#             (('stateOrProvinceName', 'New Mexico'),),
+#             (('localityName', 'Albuquerque'),),
+#             (('organizationName', 'Cicada'),),
+#             (('commonName', 'Player 0'),)),
+# 'version': 3}
+
+
+def certformat(cert):
+    mapping = {"countryName": "C", "stateOrProvinceName": "ST", "localityName": "L", "organizationName": "O", "commonName": "CN"}
+
+    issuer = [b for a in cert.get("issuer") for b in a]
+    issuer = [f"{mapping.get(item[0], item[0])}={item[1]}" for item in issuer]
+    issuer = ", ".join(issuer)
+
+    subject = [b for a in cert.get("subject") for b in a]
+    subject = [f"{mapping.get(item[0], item[0])}={item[1]}" for item in subject]
+    subject = ", ".join(subject)
+
+    return f"""  Version: {cert.get("version")}
+  Serial Number: {cert.get("serialNumber")}
+  Issuer: {issuer}
+  Subject: {subject}
+  Validity:
+    Not Before: {cert.get("notBefore")}
+    Not After: {cert.get("notAfter")}"""
+
+
+def connect(*, address, rank, other_rank, name="world", tls=None):
     """Given an address, create a socket and make a connection.
 
     Parameters
@@ -177,6 +214,8 @@ def connect(*, address, rank, name="world", tls=None):
         The address URL.
     rank: :class:`int`, required
         Rank of the calling player.
+    other_rank: :class:`int`, required
+        Rank of the other player (the one we're connecting to).
     name: :class:`str`, optional
         Human readable label used for logging and error messages. Typically,
         this should be the same name that will be eventually used by a
@@ -207,10 +246,13 @@ def connect(*, address, rank, name="world", tls=None):
 
     sock.setblocking(True)
 
+
     # Optionally setup TLS.
     if tls is not None:
         sock = tls[1].wrap_socket(sock, server_side=False)
-        log.info(f"connected to player:\n{pprint.pformat(sock.getpeercert())}")
+        log.info(f"{geturl(sock)} connected to player {other_rank} {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert())}")
+    else:
+        log.info(f"{geturl(sock)} connected to player {other_rank} {getpeerurl(sock)}")
 
     return NetstringSocket(sock)
 
@@ -304,14 +346,14 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
                 try:
                     ready = select.select([listen_socket], [], [], 0.1)
                     if ready:
-                        other_player, _ = listen_socket.accept()
+                        sock, _ = listen_socket.accept()
                         if tls is not None:
-                            other_player = tls[0].wrap_socket(other_player, server_side=True)
-                            log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
+                            sock = tls[0].wrap_socket(sock, server_side=True)
+                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert())}")
                         else:
-                            log.debug(f"accepted connection from player.")
-                        other_player = NetstringSocket(other_player)
-                        other_players.append(other_player)
+                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}")
+                        sock = NetstringSocket(sock)
+                        other_players.append(sock)
                 except ssl.SSLError as e:
                     # There was a problem setting up an encrypted connection with
                     # the other player, so there's no point in continuing.
@@ -340,7 +382,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener], rank=rank, name=name, tls=tls)
+                    players[listener] = connect(address=addresses[listener], rank=rank, other_rank=listener, name=name, tls=tls)
                     break
                 except ssl.SSLCertVerificationError as e:
                     # If this happens it means we couldn't verify the other
@@ -365,9 +407,33 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
 
     return players
 
+def getpeerurl(sock):
+    """Return a socket's peer address as a URL.
+
+    Parameters
+    ----------
+    sock: :class:`socket.socket`, required
+
+    Returns
+    -------
+    url: :class:`str`
+        The socket's local address as a URL.  For example:
+        `"tcp://127.0.0.1:59678"` for TCP sockets, or `"file:///path/to/foo"` for
+        Unix domain sockets.
+    """
+    if sock.family == socket.AF_UNIX:
+        path = sock.getpeername()
+        return f"file://{path}"
+
+    if sock.family == socket.AF_INET:
+        host, port = sock.getpeername()
+        return f"tcp://{host}:{port}"
+
+    raise ValueError(f"Unknown address family: {sock.family}") # pragma: no cover
+
 
 def geturl(sock):
-    """Return a socket's address as a URL.
+    """Return a socket's local address as a URL.
 
     Parameters
     ----------
@@ -560,7 +626,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     if rank != 0:
         while not timer.expired:
             try:
-                players[0] = connect(address=root_address, rank=rank, name=name, tls=tls)
+                players[0] = connect(address=root_address, rank=rank, other_rank=0, name=name, tls=tls)
                 break
             except ConnectionRefusedError as e: # pragma: no cover
                 # This happens regularly, particularly when starting on
@@ -603,14 +669,14 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             try:
                 ready = select.select([listen_socket], [], [], 0.1)
                 if ready:
-                    other_player, _ = listen_socket.accept()
+                    sock, _ = listen_socket.accept()
                     if tls is not None:
-                        other_player = tls[0].wrap_socket(other_player, server_side=True)
-                        log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
+                        sock = tls[0].wrap_socket(sock, server_side=True)
+                        log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert())}")
                     else:
-                        log.debug(f"accepted connection from player.")
-                    other_player = NetstringSocket(other_player)
-                    other_players.append(other_player)
+                        log.debug(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}.")
+                    sock = NetstringSocket(sock)
+                    other_players.append(sock)
             except ssl.SSLError as e:
                 # There was a problem setting up an encrypted connection with
                 # the other player, so there's no point in continuing.
@@ -690,14 +756,14 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                 try:
                     ready = select.select([listen_socket], [], [], 0.1)
                     if ready:
-                        other_player, _ = listen_socket.accept()
+                        sock, _ = listen_socket.accept()
                         if tls is not None:
-                            other_player = tls[0].wrap_socket(other_player, server_side=True)
-                            log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
+                            sock = tls[0].wrap_socket(sock, server_side=True)
+                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}:\n{certformat(sock.getpeercert())}")
                         else:
-                            log.debug(f"accepted connection from player.")
-                        other_player = NetstringSocket(other_player)
-                        other_players.append(other_player)
+                            log.debug(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}.")
+                        sock = NetstringSocket(sock)
+                        other_players.append(sock)
                 except ssl.SSLError as e:
                     # There was a problem setting up an encrypted connection with
                     # the other player, so there's no point in continuing.
@@ -726,7 +792,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener][0], rank=rank, name=name, tls=tls)
+                    players[listener] = connect(address=addresses[listener][0], rank=rank, other_rank=listener, name=name, tls=tls)
                     break
                 except ssl.SSLCertVerificationError as e:
                     # If this happens it means we couldn't verify the other
