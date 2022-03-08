@@ -14,18 +14,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import logging
 
 from cicada.communicator import SocketCommunicator
 
+
+parser = argparse.ArgumentParser(description="Cicada TLS tester.")
+parser.add_argument("--debug", action="store_true", help="Enable verbose output.")
+parser.add_argument("--iterations", "-n", type=int, default=10000, help="Iterations. Default: %(default)s")
+parser.add_argument("--send-hack", action="store_true", help="Enable the send hack.")
+
+arguments = parser.parse_args()
+
 logging.basicConfig(level=logging.INFO)
-#logging.getLogger("cicada.communicator").setLevel(logging.INFO)
+if arguments.debug:
+    logging.getLogger("cicada.communicator").setLevel(logging.INFO)
 
 def main(communicator):
-    others = range(1, communicator.world_size)
-    for i in range(10000):
+    if arguments.send_hack:
+        for rank in communicator.ranks:
+            result = communicator.broadcast(src=rank, value="bar")
+
+    for index in range(arguments.iterations):
         try:
-            result = communicator.scatterv(src=0, values=others, dst=others)
+            for rank in [0]:
+                result = communicator.broadcast(src=rank, value="foo")
         except Exception as e:
             print(f"Player {communicator.rank} exception: {e}")
             break
