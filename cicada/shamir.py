@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Functionality for creating, manipulating, and revealing additive-shared secrets."""
+"""Functionality for creating, manipulating, and revealing shamir-shared secrets."""
 
 import logging
 from math import ceil
@@ -25,12 +25,12 @@ from cicada.communicator.interface import Communicator
 import cicada.encoder
 
 class ShamirArrayShare(object):
-    """Stores the local share of an additive-shared secret array.
+    """Stores the local share of an shamir-shared secret array.
 
     Parameters
     ----------
     storage: :class:`numpy.ndarray`, required
-        Local additive share of a secret array, which *must* have been encoded
+        Local shamir share of a secret array, which *must* have been encoded
         using :class:`cicada.encoder.fixedfield.FixedFieldEncoder`.
     """
     def __init__(self, storage):
@@ -38,7 +38,7 @@ class ShamirArrayShare(object):
 
 
     def __repr__(self):
-        return f"cicada.additive.ShamirArrayShare(storage={self._storage})" # pragma: no cover
+        return f"cicada.shamir.ShamirArrayShare(storage={self._storage})" # pragma: no cover
 
 
     def __getitem__(self, index):
@@ -47,12 +47,12 @@ class ShamirArrayShare(object):
 
     @property
     def storage(self):
-        """Local share of an additive-shared secret array.
+        """Local share of an shamir-shared secret array.
 
         Returns
         -------
         storage: :class:`numpy.ndarray`
-            The local additive share of the secret array.  The share is encoded
+            The local shamir share of the secret array.  The share is encoded
             using an instance of
             :class:`cicada.encoder.fixedfield.FixedFieldEncoder` which is owned
             by an instance of :class:`ShamirProtocol`, and **must** be used
@@ -69,7 +69,7 @@ class ShamirArrayShare(object):
 
 
 class ShamirProtocol(object):
-    """MPC protocol that uses a communicator to share and manipulate additive-shared secrets.
+    """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
 
     Note
     ----
@@ -895,7 +895,7 @@ class ShamirProtocol(object):
 
         Returns
         -------
-        an additive shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
+        a shamir shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
         """
         if lhspub.shape != rhs.storage.shape[:-1]:
             raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension')
@@ -1163,7 +1163,7 @@ class ShamirProtocol(object):
 
 
     def share(self, *, src, secret, shape, dst=None, k=None):
-        """Convert a private array to an additive secret share.
+        """Convert a private array to an shamir secret share.
 
         Note
         ----
@@ -1372,7 +1372,6 @@ class ShamirProtocol(object):
 
         return ShamirArrayShare(self.encoder.uniform(size=shape, generator=generator)) 
 
-#TODO
     def untruncated_multiply(self, lhs, rhs):
         """Element-wise multiplication of two shared arrays.
 
@@ -1400,31 +1399,16 @@ class ShamirProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
-        # To multiply using additive shares X and Y, we need to compute the
-        # following polynomial:
-        #
-        #    (X0 + X1 + ... Xn-1)(Y0 + Y1 + ... Yn-1)
-        #
-        # To do so, we carefully share the terms of the polynomial with the
-        # other players while ensuring that no one player receives every share
-        # of either secret.  Each player multiplies and sums the terms that
-        # they have on hand, producing an additive share of the result.
-
         rank = self.communicator.rank
         world_size = self.communicator.world_size
         count = ceil((world_size - 1) / 2)
         x = lhs.storage
         y = rhs.storage
         xy=numpy.array((x*y)%self.encoder.modulus, dtype=self.encoder.dtype)
-        X = [] # Storage for shares received from other players.
-        Y = [] # Storage for shares received from other players.
         lc = self.lagrange_coef(self.communicator.ranks)
         dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.encoder.dtype) 
-        #print(f'dubdeg shape: {dubdeg.shape}\t xy shape: {xy.shape}\t dubdeg first shape: {dubdeg[0].shape}')
-        # Distribute terms to the other players.
         for i, src in enumerate(self.communicator.ranks):
             dubdeg[i]=self.share(src=src, secret=xy, shape=xy.shape, dst=self.communicator.ranks, k=self.k).storage #transpose
-            # Send terms to the other players.
         sharray = numpy.zeros(lhs.storage.shape, dtype=self.encoder.dtype)
         for i in range(len(self.communicator.ranks)):
             sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self.encoder.modulus, dtype=self.encoder.dtype)
