@@ -100,18 +100,6 @@ class ShamirProtocol(object):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
-        # Setup a pseudo-random sharing of zero, using code drawn from
-        # https://github.com/facebookresearch/CrypTen/blob/master/crypten/__init__.py
-
-        # Generate random seeds for Generators
-        # NOTE: Chosen seed can be any number, but we choose a random 64-bit
-        # integer here so other players cannot guess its value.
-
-        # We sometimes get here from a forked process, which causes all players
-        # to have the same RNG state. Reset the seed to make sure RNG streams
-        # are different for all the players. We use numpy's random generator
-        # here since initializing it without a seed will produce different
-        # seeds even from forked processes.
         if seed is None:
             seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
         else:
@@ -119,29 +107,13 @@ class ShamirProtocol(object):
                 seed_offset = communicator.rank
             seed += seed_offset
 
-        # Send random seed to next party, receive random seed from prev party
-        if communicator.world_size >= 2:  # Otherwise sending seeds will segfault.
-            next_rank = (communicator.rank + 1) % communicator.world_size
-            prev_rank = (communicator.rank - 1) % communicator.world_size
-
-            request = communicator.isend(value=seed, dst=next_rank)
-            result = communicator.irecv(src=prev_rank)
-
-            request.wait()
-            result.wait()
-
-            prev_seed = result.value
-        else:
-            prev_seed = seed
+        self._prng = numpy.random.default_rng(seed=seed)
         if k is None:
             self.k = 1
         else:
             self.k=k
         if communicator.world_size < 2*self.k+1:
             raise ValueError('k incompatible with worldsize, multiplications will not be feasible.')
-        # Setup random number generators
-        self._g0 = numpy.random.default_rng(seed=seed)
-        self._g1 = numpy.random.default_rng(seed=prev_seed)
 
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
@@ -1147,18 +1119,15 @@ class ShamirProtocol(object):
         secret = None
         for recipient in dst:
             received_shares = numpy.array(self.communicator.gatherv(src=src, value=share.storage, dst=recipient))
-            # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
                 revc = self.lagrange_coef(src)
                 secret=[]
                 for index in numpy.ndindex(received_shares[0].shape):
                     secret.append(sum([revc[i]*received_shares[i][index] for i in range(len(revc))]))
-                #for received_share in received_shares[1:]:
-                #    self.encoder.inplace_add(secret, received_share)
         if secret is None:
             return secret
         else:
-            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share.storage.shape) #transpose
+            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share.storage.shape)
             return ret
 
 
@@ -1187,30 +1156,6 @@ class ShamirProtocol(object):
         share: :class:`ShamirArrayShare`
             The local share of the secret shared array.
         """
-        #if not isinstance(shape, tuple):
-        #    shape = (shape,)
-
-        #if self.communicator.rank == src:
-        #    if not isinstance(secret, numpy.ndarray):
-        #        raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
-        #    if secret.dtype != self.encoder.dtype:
-        #        raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
-        #    if secret.shape != shape:
-        #        raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
-
-        ## Generate a pseudo-random zero sharing ...
-        #v0 = self._g0
-        #v1 = self._g1
-        #przs = self.encoder.uniform(size=shape, generator=v0)
-        #self.encoder.inplace_subtract(przs, self.encoder.uniform(size=shape, generator=v1))
-
-        #print(f'rank: {self.communicator.rank}, v0: {v0} v1: {v1}')
-        ## Add the private secret to the PRZS
-        #if self.communicator.rank == src:
-        #    self.encoder.inplace_add(przs, secret)
-
-        ## Package the result.
-        #return ShamirArrayShare(przs)
         if not isinstance(shape, tuple):
             shape = (shape,)
 
@@ -1229,12 +1174,11 @@ class ShamirProtocol(object):
                 raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
             if secret.shape != shape:
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
-            coef = self.encoder.uniform(size=shape+(k,), generator=self._g0)
+            coef = self.encoder.uniform(size=shape+(k,), generator=self._prng)
             for index in numpy.ndindex(shape):
                 for x in dst:
                     shares.append(numpy.dot(numpy.power(numpy.full((k,), x+1),numpy.arange(1, k+1)), coef[index])+secret[index])
-            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),)).T# transpose .T
-            #print(self.communicator.rank, sharesn.shape)
+            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),)).T
         share = numpy.array(self.communicator.scatterv(src=src, dst=dst, values=sharesn), dtype=self.encoder.dtype).T
         return ShamirArrayShare(share)
 
@@ -1399,7 +1343,6 @@ class ShamirProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
-        rank = self.communicator.rank
         world_size = self.communicator.world_size
         count = ceil((world_size - 1) / 2)
         x = lhs.storage
