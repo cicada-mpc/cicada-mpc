@@ -47,7 +47,7 @@ def main(communicator):
 
 world_size = 3
 identities = [f"player-{rank}.pem" for rank in range(world_size)]
-peers = [f"player-{rank}.cert" for rank in range(world_size)]
-SocketCommunicator.run(world_size=world_size, fn=main, identities=identities, peers=peers)
+trusted = [f"player-{rank}.cert" for rank in range(world_size)]
+SocketCommunicator.run(world_size=world_size, fn=main, identities=identities, trusted=trusted)
 
 

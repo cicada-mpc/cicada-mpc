@@ -371,7 +371,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def connect(*, world_size=None, rank=None, address=None, root_address=None, identity=None, peers=None, name="world", timeout=5, startup_timeout=5):
+    def connect(*, world_size=None, rank=None, address=None, root_address=None, identity=None, trusted=None, name="world", timeout=5, startup_timeout=5):
         """High level function to create a SocketCommunicator.
 
         This is a high level convenience function that can be used to create a
@@ -404,9 +404,9 @@ class SocketCommunicator(Communicator):
             Path to a private key and certificate in PEM format.  Defaults to
             the value of the CICADA_IDENTITY environment variable, which is
             automatically set by the :ref:`cicada` command.
-        peers: sequence of :class:`str`, optional
+        trusted: sequence of :class:`str`, optional
             Path to certificates in PEM format.  Defaults to
-            the value of the CICADA_PEERS environment variable, which is
+            the value of the CICADA_TRUSTED environment variable, which is
             automatically set by the :ref:`cicada` command.
         name: :class:`str`, optional
             Human-readable name for the new communicator.  Defaults to "world".
@@ -440,21 +440,21 @@ class SocketCommunicator(Communicator):
             root_address = os.environ.get("CICADA_ROOT_ADDRESS")
         if identity is None:
             identity = os.environ.get("CICADA_IDENTITY", "")
-        if peers is None:
-            peers = [peer for peer in os.environ.get("CICADA_PEERS", "").split(",") if peer]
+        if trusted is None:
+            trusted = [trust for trust in os.environ.get("CICADA_TRUSTED", "").split(",") if trust]
 
-        if identity and peers:
+        if identity and trusted:
             server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             server.load_cert_chain(certfile=identity)
-            for peer in peers:
-                server.load_verify_locations(peer)
+            for trust in trusted:
+                server.load_verify_locations(trust)
             server.check_hostname=False
             server.verify_mode = ssl.CERT_REQUIRED
 
             client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             client.load_cert_chain(certfile=identity)
-            for peer in peers:
-                client.load_verify_locations(peer)
+            for trust in trusted:
+                client.load_verify_locations(trust)
             client.check_hostname = False
             client.verify_mode = ssl.CERT_REQUIRED
 
@@ -675,7 +675,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, identities=None, peers=None, args=(), kwargs={}, name="world", timeout=5, startup_timeout=5):
+    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, name="world", timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -695,7 +695,7 @@ class SocketCommunicator(Communicator):
             The function to execute in parallel.
         identities: sequence of :class:`str`, optional
             Path to files in PEM format each containing a private key and a certificate, one per player.
-        peers: sequence of :class:`str`, optional
+        trusted: sequence of :class:`str`, optional
             Path to files in PEM format containing certificates.
         args: :class:`tuple`, optional
             Positional arguments to pass to `fn` when it is executed.
@@ -722,7 +722,7 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, parent_queue, child_queue, rank, fn, identity, peers, args, kwargs, name, timeout, startup_timeout):
+        def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, name, timeout, startup_timeout):
             # Run the work function.
             try:
                 # Create a socket with a randomly-assigned port number.
@@ -737,18 +737,18 @@ class SocketCommunicator(Communicator):
                 addresses = child_queue.get()
 
                 # Optionally setup TLS.
-                if identity and peers:
+                if identity and trusted:
                     server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                     server.load_cert_chain(certfile=identity)
-                    for peer in peers:
-                        server.load_verify_locations(peer)
+                    for trust in trusted:
+                        server.load_verify_locations(trust)
                     server.check_hostname=False
                     server.verify_mode = ssl.CERT_REQUIRED
 
                     client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
                     client.load_cert_chain(certfile=identity)
-                    for peer in peers:
-                        client.load_verify_locations(peer)
+                    for trust in trusted:
+                        client.load_verify_locations(trust)
                     client.check_hostname = False
                     client.verify_mode = ssl.CERT_REQUIRED
 
@@ -779,7 +779,7 @@ class SocketCommunicator(Communicator):
             identity = None if identities is None else identities[rank]
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, peers=peers, args=args, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
