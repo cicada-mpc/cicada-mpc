@@ -43,9 +43,9 @@ class LoggerAdapter(logging.LoggerAdapter):
 
     logger: :class:`logging.Logger`, required
         Python logger to wrap.
-    name: class:`str`, required
+    name: :class:`str`, required
         Communicator name.
-    rank: class:`int`, required
+    rank: :class:`int`, required
         Communicator rank
     """
     def __init__(self, logger, name, rank):
