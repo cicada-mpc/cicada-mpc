@@ -382,7 +382,7 @@ class SocketCommunicator(Communicator):
 
         Parameters
         ----------
-        world_size: :class:`int, optional
+        world_size: :class:`int`, optional
             Number of players.  Defaults to the value of the CICADA_WORLD_SIZE
             environment variable, which is automatically set by the :ref:`cicada` command.
         rank: :class:`int`, optional
