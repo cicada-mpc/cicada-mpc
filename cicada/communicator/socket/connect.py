@@ -366,6 +366,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
                             other_rank = pickle.loads(raw_message)
                             players[other_rank] = other_player
                             log.debug(f"received rank from player {other_rank}.")
+                            other_player.send(pickle.dumps("OK"))
                             break
                     except Exception as e: # pragma: no cover
                         log.warning("exception receiving player rank.")
@@ -399,6 +400,21 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
                     time.sleep(0.5)
             else: # pragma: no cover
                 raise Timeout(message(name, rank, f"timeout sending rank to player {listener}."))
+
+            # Receive a response from the listener.
+            while not timer.expired:
+                try:
+                    raw_message = players[listener].next_message(timeout=0.1)
+                    if raw_message is not None:
+                        response = pickle.loads(raw_message)
+                        log.debug(f"received response from player {listener}.")
+                        break
+                except Exception as e: # pragma: no cover
+                    log.warning(f"exception waiting for response from player {listener}: {e}")
+                    time.sleep(0.1)
+            else: # pragma: no cover
+                raise Timeout(message(name, rank, f"timeout waiting for response from player {listener}."))
+
 
     return players
 
