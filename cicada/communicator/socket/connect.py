@@ -169,23 +169,21 @@ class TokenMismatch(Exception):
     pass
 
 
-#{'issuer': ((('countryName', 'US'),),
-#            (('stateOrProvinceName', 'New Mexico'),),
-#            (('localityName', 'Albuquerque'),),
-#            (('organizationName', 'Cicada'),),
-#            (('commonName', 'Player 0'),)),
-# 'notAfter': 'Mar  5 00:03:57 2023 GMT',
-# 'notBefore': 'Mar  5 00:03:57 2022 GMT',
-# 'serialNumber': '5B2BA78C2698CBCB473AC136D1E1B820A137BA0E',
-# 'subject': ((('countryName', 'US'),),
-#             (('stateOrProvinceName', 'New Mexico'),),
-#             (('localityName', 'Albuquerque'),),
-#             (('organizationName', 'Cicada'),),
-#             (('commonName', 'Player 0'),)),
-# 'version': 3}
+def certformat(cert, indent=""):
+    """Format an X509 certificate for easy reading.
 
+    Parameters
+    ----------
+    cert: :class:`dict`, required
+        X509 certificate returned from :meth:`ssl.SSLSocket.getpeercert` or similar.
+    indent: :class:`str`, optional
+        Optional indenting to be added to the output.
 
-def certformat(cert):
+    Returns
+    -------
+    prettycert: :class:`str`
+        The contents of the certificate, formatted for easy reading by humans.
+    """
     mapping = {"countryName": "C", "stateOrProvinceName": "ST", "localityName": "L", "organizationName": "O", "commonName": "CN"}
 
     issuer = [b for a in cert.get("issuer") for b in a]
@@ -196,13 +194,10 @@ def certformat(cert):
     subject = [f"{mapping.get(item[0], item[0])}={item[1]}" for item in subject]
     subject = ", ".join(subject)
 
-    return f"""  Version: {cert.get("version")}
-  Serial Number: {cert.get("serialNumber")}
-  Issuer: {issuer}
-  Subject: {subject}
-  Validity:
-    Not Before: {cert.get("notBefore")}
-    Not After: {cert.get("notAfter")}"""
+    return f"""{indent}Serial: {cert.get("serialNumber")}
+{indent}Issuer: {issuer}
+{indent}Subject: {subject}
+{indent}Valid From: {cert.get("notBefore")} Until: {cert.get("notAfter")}"""
 
 
 def connect(*, address, rank, other_rank, name="world", tls=None):
@@ -250,7 +245,7 @@ def connect(*, address, rank, other_rank, name="world", tls=None):
     # Optionally setup TLS.
     if tls is not None:
         sock = tls[1].wrap_socket(sock, server_side=False)
-        log.info(f"{geturl(sock)} connected to player {other_rank} {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert())}")
+        log.info(f"{geturl(sock)} connected to player {other_rank} {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert(), indent='    ')}")
     else:
         log.info(f"{geturl(sock)} connected to player {other_rank} {getpeerurl(sock)}")
 
@@ -349,7 +344,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
                         sock, _ = listen_socket.accept()
                         if tls is not None:
                             sock = tls[0].wrap_socket(sock, server_side=True)
-                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert())}")
+                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert(), indent='    ')}")
                         else:
                             log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}")
                         sock = NetstringSocket(sock)
@@ -672,7 +667,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                     sock, _ = listen_socket.accept()
                     if tls is not None:
                         sock = tls[0].wrap_socket(sock, server_side=True)
-                        log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert())}")
+                        log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert(), indent='    ')}")
                     else:
                         log.debug(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}.")
                     sock = NetstringSocket(sock)
@@ -759,7 +754,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                         sock, _ = listen_socket.accept()
                         if tls is not None:
                             sock = tls[0].wrap_socket(sock, server_side=True)
-                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}:\n{certformat(sock.getpeercert())}")
+                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}:\n{certformat(sock.getpeercert(), indent='    ')}")
                         else:
                             log.debug(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}.")
                         sock = NetstringSocket(sock)
