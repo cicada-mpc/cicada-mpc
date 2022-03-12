@@ -41,9 +41,21 @@ Feature: SocketCommunicator
         | 10      | [None] * 10 |
 
 
-    Scenario Outline: Connect Via Environment Variables
+    Scenario Outline: Environment Connect
         Given <players> players
         When the players create a new communicator with connect using environment variables.
+        Then the group should return <result>
+
+        Examples:
+        | players | result      |
+        | 2       | [None] * 2  |
+        | 3       | [None] * 3  |
+        | 10      | [None] * 10 |
+
+
+    Scenario Outline: Environment Connect With TLS
+        Given <players> players
+        When the players create a new communicator with connect using environment variables and tls.
         Then the group should return <result>
 
         Examples:

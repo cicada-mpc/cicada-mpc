@@ -430,3 +430,17 @@ def step_impl(context):
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
+@when(u'the players create a new communicator with connect using environment variables and tls.')
+def step_impl(context):
+    def operation(communicator, identities, trusted):
+        os.environ["CICADA_WORLD_SIZE"] = str(communicator.world_size)
+        os.environ["CICADA_RANK"] = str(communicator.rank)
+        os.environ["CICADA_ADDRESS"] = "tcp://127.0.0.1:25252" if communicator.rank == 0 else "tcp://127.0.0.1"
+        os.environ["CICADA_ROOT_ADDRESS"] = "tcp://127.0.0.1:25252"
+        os.environ["CICADA_IDENTITY"] = identities[communicator.rank]
+        os.environ["CICADA_TRUSTED"] = ",".join(trusted)
+
+        comm = communicator.connect()
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.identities, context.trusted), identities=context.identities, trusted=context.trusted)
+
