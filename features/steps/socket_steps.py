@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import logging
+import os
 import sys
 import tempfile
 import time
@@ -403,4 +404,29 @@ def step_impl(context, timeouts):
     timeouts = eval(timeouts)
     numpy.testing.assert_array_equal(timeouts, context.timeouts[:, -1])
 
+
+@when(u'the players create a new communicator with connect.')
+def step_impl(context):
+    def operation(communicator):
+        comm = communicator.connect(
+            world_size=communicator.world_size,
+            rank=communicator.rank,
+            address="tcp://127.0.0.1:25252" if communicator.rank == 0 else "tcp://127.0.0.1",
+            root_address="tcp://127.0.0.1:25252",
+            )
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
+
+
+@when(u'the players create a new communicator with connect using environment variables.')
+def step_impl(context):
+    def operation(communicator):
+        os.environ["CICADA_WORLD_SIZE"] = str(communicator.world_size)
+        os.environ["CICADA_RANK"] = str(communicator.rank)
+        os.environ["CICADA_ADDRESS"] = "tcp://127.0.0.1:25252" if communicator.rank == 0 else "tcp://127.0.0.1"
+        os.environ["CICADA_ROOT_ADDRESS"] = "tcp://127.0.0.1:25252"
+
+        comm = communicator.connect()
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 

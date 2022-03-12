@@ -29,6 +29,30 @@ Feature: SocketCommunicator
         | 3       | 1        | 4.02    | [4.02, 4.02, 4.02] |
 
 
+    Scenario Outline: Connect
+        Given <players> players
+        When the players create a new communicator with connect.
+        Then the group should return <result>
+
+        Examples:
+        | players | result      |
+        | 2       | [None] * 2  |
+        | 3       | [None] * 3  |
+        | 10      | [None] * 10 |
+
+
+    Scenario Outline: Connect Via Environment Variables
+        Given <players> players
+        When the players create a new communicator with connect using environment variables.
+        Then the group should return <result>
+
+        Examples:
+        | players | result      |
+        | 2       | [None] * 2  |
+        | 3       | [None] * 3  |
+        | 10      | [None] * 10 |
+
+
     Scenario: Freed Communicator
         Given 3 players
         When player 1 broadcasts 1.23 after the communicator has been freed
