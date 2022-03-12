@@ -39,7 +39,7 @@ def step_impl(context, count):
 
     context.shares = []
     for i in range(count):
-        context.shares.append(cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation))
+        context.shares.append(cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted))
     context.shares = numpy.array(context.shares)
 
 
@@ -52,7 +52,7 @@ def step_impl(context, count):
         shares = [protocol.share(src=0, k=context.k, secret=numpy.array(5))._storage for i in range(count)]
         return shares
 
-    context.shares = numpy.column_stack(cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(count,)))
+    context.shares = numpy.column_stack(cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, args=(count,), identities=context.identities, trusted=context.trusted))
 
 
 @when(u'player {player} shamir shares {secret} with {recipients} and {senders} reveal their shares to {destinations}')
@@ -68,6 +68,6 @@ def step_impl(context, player, secret, recipients, senders, destinations):
         share = protocol.share(src=player, k=context.k, secret=secret)
         return protocol.reveal(src=senders, share=share, dst=destinations)
 
-    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
+    context.results = cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
 
