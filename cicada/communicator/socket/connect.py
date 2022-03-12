@@ -529,7 +529,7 @@ def listen(*, address, rank, name="world", timer=None):
                 address = urllib.parse.urlparse(geturl(listen_socket)) # Recreate the address in case the port was assigned at random.
             elif address.scheme == "file":
                 if os.path.exists(address.path):
-                    os.unlink(address.path)
+                    os.unlink(address.path) # pragma: no cover
                 listen_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 listen_socket.bind(address.path)
             listen_socket.setblocking(False)
