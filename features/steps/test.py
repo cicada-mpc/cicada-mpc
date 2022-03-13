@@ -34,6 +34,9 @@ def assert_is_instance(obj, cls, msg=None):
 def assert_is_none(expr, msg=None):
     return unittest.TestCase().assertIsNone(expr, msg)
 
+def assert_logs(logger=None, level=None):
+    return unittest.TestCase().assertLogs(logger, level)
+
 def assert_raises(exception, *, msg=None):
     return unittest.TestCase().assertRaises(exception, msg)
 

@@ -16,7 +16,10 @@
 
 """Functionality to make logging from multiple processes easier."""
 
+import logging
+
 from cicada.communicator.interface import Communicator
+
 
 class Logger(object):
     """Wrap a normal Python logger with a Cicada communicator to synchronize player output.
@@ -55,53 +58,109 @@ class Logger(object):
         self._sync = sync
 
 
-    def _log(self, fn, src, *args, **kwargs):
-        for i in range(self.communicator.world_size):
-            if self.communicator.rank == i:
-                if src is None or self.communicator.rank == src:
-                    fn(*args, **kwargs)
+    def critical(self, msg, *args, src=None, **kwargs):
+        """Log a critical message, with optionally synchronized output among players.
+
+        .. note::
+
+             This is a collective operation that *must* be called by all players that are members of the communicator.
+
+        The arguments match those of meth:`logging.Logger.critical`, with the addition of the following:
+
+        Parameters
+        ----------
+        src: :class:`int`, optional
+            If specified, only the given player will produce log output.
+        """
+        self.log(logging.CRITICAL, msg, *args, src=src, **kwargs)
+
+
+    def debug(self, msg, *args, src=None, **kwargs):
+        """Log a debug message, with optionally synchronized output among players.
+
+        .. note::
+
+             This is a collective operation that *must* be called by all players that are members of the communicator.
+
+        The arguments match those of :meth:`logging.Logger.debug`, with the addition of the following:
+
+        Parameters
+        ----------
+        src: :class:`int`, optional
+            If specified, only the given player will produce log output.
+        """
+        self.log(logging.DEBUG, msg, *args, src=src, **kwargs)
+
+
+    def error(self, msg, *args, src=None, **kwargs):
+        """Log an error message, with optionally synchronized output among players.
+
+        .. note::
+
+             This is a collective operation that *must* be called by all players that are members of the communicator.
+
+        The arguments match those of :meth:`logging.Logger.error`, with the addition of the following:
+
+        Parameters
+        ----------
+        src: :class:`int`, optional
+            If specified, only the given player will produce log output.
+        """
+        self.log(logging.ERROR, msg, *args, src=src, **kwargs)
+
+
+    def info(self, msg, *args, src=None, **kwargs):
+        """Log an info message, with optionally synchronized output among players.
+
+        .. note::
+
+             This is a collective operation that *must* be called by all players that are members of the communicator.
+
+        The arguments match those of :meth:`logging.Logger.info`, with the addition of the following:
+
+        Parameters
+        ----------
+        src: :class:`int`, optional
+            If specified, only the given player will produce log output.
+        """
+        self.log(logging.INFO, msg, *args, src=src, **kwargs)
+
+
+    def log(self, level, msg, *args, src=None, **kwargs):
+        """Log a message, with optionally synchronized output among players.
+
+        .. note::
+
+             This is a collective operation that *must* be called by all players that are members of the communicator.
+
+        The arguments match those of :meth:`logging.Logger.log`, with the addition of the following:
+
+        Parameters
+        ----------
+        src: :class:`int`, optional
+            If specified, only the given player will produce log output.
+        """
+        for i in range(self._communicator.world_size):
+            if self._communicator.rank == i:
+                if src is None or self._communicator.rank == src:
+                    self._logger.log(level, msg, *args, **kwargs)
             if self._sync:
                 self._communicator.barrier()
 
 
-    @property
-    def communicator(self):
-        """Returns the :class:`cicada.communicator.interface.Communicator` used by this logger."""
-        return self._communicator
-
-
-    def debug(self, *args, src=None, **kwargs):
-        """Log a debug message, with optionally synchronized output among players.
-
-        Note that this is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-        """
-        self._log(self._logger.debug, src, *args, **kwargs)
-
-
-    def error(self, *args, src=None, **kwargs):
-        """Log an error message, with optionally synchronized output among players.
-
-        Note that this is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-        """
-        self._log(self._logger.error, src, *args, **kwargs)
-
-
-    def info(self, *args, src=None, **kwargs):
-        """Log an info message, with optionally synchronized output among players.
-
-        Note that this is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-        """
-        self._log(self._logger.info, src, *args, **kwargs)
-
-
-    def warning(self, *args, src=None, **kwargs):
+    def warning(self, msg, *args, src=None, **kwargs):
         """Log a warning message, with optionally synchronized output among players.
 
-        Note that this is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
+        .. note::
+
+             This is a collective operation that *must* be called by all players that are members of the communicator.
+
+        The arguments match those of :meth:`logging.Logger.warning`, with the addition of the following:
+
+        Parameters
+        ----------
+        src: :class:`int`, optional
+            If specified, only the given player will produce log output.
         """
-        self._log(self._logger.warning, src, *args, **kwargs)
+        self.log(logging.WARNING, msg, *args, src=src, **kwargs)
 
