@@ -431,6 +431,7 @@ def step_impl(context):
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
+
 @when(u'the players create a new communicator with connect using environment variables and tls.')
 def step_impl(context):
     def operation(communicator, identities, trusted):
@@ -446,3 +447,44 @@ def step_impl(context):
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.identities, context.trusted), identities=context.identities, trusted=context.trusted)
 
+
+@when(u'player {src} asynchronously sends {value} to player {dst} who waits')
+def step_impl(context, src, value, dst):
+    src = eval(src)
+    value = eval(value)
+    dst = eval(dst)
+
+    def operation(communicator, src, value, dst):
+        if communicator.rank == src:
+            time.sleep(0.5)
+            result = communicator.isend(value=value, dst=dst)
+            assert(result.is_completed)
+            result.wait()
+        elif communicator.rank == dst:
+            result = communicator.irecv(src=src)
+            result.wait()
+            return result.value
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst), identities=context.identities, trusted=context.trusted)
+
+
+@when(u'player {src} asynchronously sends {value} to player {dst}')
+def step_impl(context, src, value, dst):
+    src = eval(src)
+    value = eval(value)
+    dst = eval(dst)
+
+    def operation(communicator, src, value, dst):
+        if communicator.rank == src:
+            time.sleep(0.5)
+            result = communicator.isend(value=value, dst=dst)
+            assert(result.is_completed)
+            result.wait()
+        elif communicator.rank == dst:
+            result = communicator.irecv(src=src)
+            while True:
+                if result.is_completed:
+                    return result.value
+                time.sleep(0.1)
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst), identities=context.identities, trusted=context.trusted)

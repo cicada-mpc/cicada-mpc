@@ -546,6 +546,7 @@ class SocketCommunicator(Communicator):
                 self._sender = sender
                 self._message = None
 
+            @property
             def is_completed(self):
                 if self._message is None:
                     try:
@@ -557,7 +558,7 @@ class SocketCommunicator(Communicator):
             @property
             def value(self):
                 if self._message is None:
-                    raise RuntimeError("Call not completed.")
+                    raise RuntimeError("Call not completed.") # pragma: no cover
                 return self._message.payload
 
             def wait(self):
@@ -581,6 +582,7 @@ class SocketCommunicator(Communicator):
         # nothing the caller can do to the value will have unexpected
         # side-effects.
         class Result:
+            @property
             def is_completed(self):
                 return True
             def wait(self):

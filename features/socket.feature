@@ -6,7 +6,7 @@ Feature: SocketCommunicator
         Then the players should exit the barrier at roughly the same time
 
 
-    Scenario Outline: AllGather
+    Scenario Outline: Allgather
         Given <players> players
         When the players allgather <values>
         Then the group should return <result>
@@ -15,6 +15,26 @@ Feature: SocketCommunicator
         | players | values             | result             |
         | 2       | [0, 1]             | [[0, 1]] * 2       |
         | 3       | [1, 2, "c"]        | [[1, 2, "c"]] * 3  |
+
+
+    Scenario Outline: Asynchronous Send
+        Given <players> players
+        When player <source> asynchronously sends <value> to player <destination>
+        Then the group should return <result>
+
+        Examples:
+        | players | source | value | destination | result              |
+        | 3       | 1      | "foo" | 2           | [None, None, "foo"] |
+
+
+    Scenario Outline: Asynchronous Send and Wait
+        Given <players> players
+        When player <source> asynchronously sends <value> to player <destination> who waits
+        Then the group should return <result>
+
+        Examples:
+        | players | source | value | destination | result              |
+        | 3       | 1      | "bar" | 2           | [None, None, "bar"] |
 
 
     Scenario Outline: Broadcast
