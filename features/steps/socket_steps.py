@@ -426,7 +426,8 @@ def step_impl(context):
         os.environ["CICADA_ADDRESS"] = "tcp://127.0.0.1:25252" if communicator.rank == 0 else "tcp://127.0.0.1"
         os.environ["CICADA_ROOT_ADDRESS"] = "tcp://127.0.0.1:25252"
 
-        comm = communicator.connect()
+        with communicator.connect() as comm:
+            pass
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
@@ -440,7 +441,8 @@ def step_impl(context):
         os.environ["CICADA_IDENTITY"] = identities[communicator.rank]
         os.environ["CICADA_TRUSTED"] = ",".join(trusted)
 
-        comm = communicator.connect()
+        with communicator.connect() as comm:
+            pass
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.identities, context.trusted), identities=context.identities, trusted=context.trusted)
 
