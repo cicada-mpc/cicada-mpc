@@ -305,3 +305,15 @@ Feature: SocketCommunicator
         | players | timeout | initial | temporary | final   |
         | 3       | 10      | [5] * 3 | [10] * 3  | [5] * 3 |
 
+
+    Scenario Outline: Trust
+        Given <players> players
+        When the players create a new communicator with connect, but only the player <trusted> certificates are trusted.
+        Then the group should raise exceptions <result>
+
+        Examples:
+        | players | trusted   | result                                |
+        | 2       | [1]       | [EncryptionFailed, EncryptionFailed]  |
+        | 2       | [0]       | [EncryptionFailed, Timeout]  |
+
+

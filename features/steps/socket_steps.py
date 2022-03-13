@@ -25,7 +25,7 @@ import numpy.testing
 import test
 
 from cicada.communicator.socket import Failed, NotRunning, Revoked, SocketCommunicator
-from cicada.communicator.socket.connect import Timeout, TokenMismatch, direct, listen, rendezvous
+from cicada.communicator.socket.connect import EncryptionFailed, Timeout, TokenMismatch, direct, listen, rendezvous
 
 
 @given(u'{} players')
@@ -488,3 +488,36 @@ def step_impl(context, src, value, dst):
                 time.sleep(0.1)
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst), identities=context.identities, trusted=context.trusted)
+
+
+@when(u'the players create a new communicator with connect, but only the player {trusted} certificates are trusted.')
+def step_impl(context, trusted):
+    trusted = eval(trusted)
+
+    def operation(communicator, identities, trusted):
+        comm = communicator.connect(
+            world_size=communicator.world_size,
+            rank=communicator.rank,
+            address="tcp://127.0.0.1:25252" if communicator.rank == 0 else "tcp://127.0.0.1",
+            root_address="tcp://127.0.0.1:25252",
+            identity=identities[communicator.rank],
+            trusted=trusted,
+            )
+
+    identities = context.identities
+    trusted = [context.trusted[index] for index in trusted]
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(identities, trusted), identities=context.identities, trusted=context.trusted)
+
+
+@then(u'the group should raise exceptions {exceptions}')
+def step_impl(context, exceptions):
+    exceptions = eval(exceptions)
+
+    test.assert_equal(len(context.results), len(exceptions))
+    for lhs, rhs in zip(context.results, exceptions):
+        if rhs is None:
+            test.assert_equal(lhs, rhs)
+        else:
+            test.assert_is_instance(lhs, Failed)
+            test.assert_is_instance(lhs.exception, rhs)
+
