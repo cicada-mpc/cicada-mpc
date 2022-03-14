@@ -490,11 +490,15 @@ def step_impl(context, src, value, dst):
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst), identities=context.identities, trusted=context.trusted)
 
 
-@when(u'the players create a new communicator with connect, but only the player {trusted} certificates are trusted.')
-def step_impl(context, trusted):
-    trusted = eval(trusted)
+@when(u"the players create a new communicator with connect, but player {a} doesn't trust player {b}")
+def step_impl(context, a, b):
+    a = eval(a)
+    b = eval(b)
 
-    def operation(communicator, identities, trusted):
+    def operation(communicator, identities, trusted, a, b):
+        if a == communicator.rank:
+            del trusted[b]
+
         comm = communicator.connect(
             world_size=communicator.world_size,
             rank=communicator.rank,
@@ -504,14 +508,14 @@ def step_impl(context, trusted):
             trusted=trusted,
             )
 
-    identities = context.identities
-    trusted = [context.trusted[index] for index in trusted]
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(identities, trusted), identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.identities, context.trusted, a, b), identities=context.identities, trusted=context.trusted)
 
 
 @then(u'the group should raise exceptions {exceptions}')
 def step_impl(context, exceptions):
     exceptions = eval(exceptions)
+
+    print(context.results)
 
     test.assert_equal(len(context.results), len(exceptions))
     for lhs, rhs in zip(context.results, exceptions):

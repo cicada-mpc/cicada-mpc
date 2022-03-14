@@ -308,12 +308,16 @@ Feature: SocketCommunicator
 
     Scenario Outline: Trust
         Given <players> players
-        When the players create a new communicator with connect, but only the player <trusted> certificates are trusted.
+        When the players create a new communicator with connect, but player <a> doesn't trust player <b>
         Then the group should raise exceptions <result>
 
         Examples:
-        | players | trusted   | result                                |
-        | 2       | [1]       | [EncryptionFailed, EncryptionFailed]  |
-        | 2       | [0]       | [EncryptionFailed, Timeout]  |
+        | players | a         | b     | result                                         |
+        | 2       | 0         | 1     | [EncryptionFailed, EncryptionFailed]           |
+        | 2       | 1         | 0     | [EncryptionFailed, EncryptionFailed]           |
+        | 3       | 0         | 1     | [EncryptionFailed, EncryptionFailed, Timeout]  |
+        | 3       | 1         | 0     | [EncryptionFailed, EncryptionFailed, Timeout]  |
+        | 3       | 1         | 2     | [None, EncryptionFailed, None]                 |
+        | 3       | 2         | 1     | [None, EncryptionFailed, EncryptionFailed]     |
 
 

@@ -738,6 +738,10 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                     addresses = pickle.loads(raw_message)
                     log.debug(f"received addresses from player 0.")
                     break
+            except ssl.SSLError as e:
+                # There was a problem setting up an encrypted connection with
+                # the other player, so there's no point in continuing.
+                raise EncryptionFailed(message(name, rank, f"failed getting addresses from player 0: {e}"))
             except Exception as e: # pragma: no cover
                 log.warning(f"exception getting addresses from player 0: {e}")
                 time.sleep(0.1)
