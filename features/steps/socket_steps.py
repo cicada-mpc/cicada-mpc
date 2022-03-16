@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import logging
+import os
 import sys
 import tempfile
 import time
@@ -24,7 +25,7 @@ import numpy.testing
 import test
 
 from cicada.communicator.socket import Failed, NotRunning, Revoked, SocketCommunicator
-from cicada.communicator.socket.connect import Timeout, TokenMismatch, direct, listen, rendezvous
+from cicada.communicator.socket.connect import EncryptionFailed, Timeout, TokenMismatch, direct, listen, rendezvous
 
 
 @given(u'{} players')
@@ -42,7 +43,7 @@ def step_impl(context):
 
         return enter, exit
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
 
 @then(u'the players should exit the barrier at roughly the same time')
@@ -60,7 +61,7 @@ def step_impl(context, values):
     def operation(communicator, values):
         return communicator.all_gather(value=values[communicator.rank])
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(values,))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(values,), identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {src} broadcasts {value} after the communicator has been freed')
@@ -72,7 +73,7 @@ def step_impl(context, src, value):
         communicator.free()
         return communicator.broadcast(src=src, value=value)
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value), identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {} broadcasts {}')
@@ -83,7 +84,7 @@ def step_impl(context, src, value):
     def operation(communicator, src, value):
         return communicator.broadcast(src=src, value=value)
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value), identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {dst} gathers {values} from {src}')
@@ -95,7 +96,7 @@ def step_impl(context, src, values, dst):
     def operation(communicator):
         return communicator.gatherv(src=src, value=values[communicator.rank], dst=dst)
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {dst} gathers {values}')
@@ -106,7 +107,7 @@ def step_impl(context, dst, values):
     def operation(communicator, values, dst):
         return communicator.gather(value=values[communicator.rank], dst=dst)
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(values, dst))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(values, dst), identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {src} scatters messages to the other players {count} times')
@@ -121,7 +122,7 @@ def step_impl(context, src, count):
         communicator.free()
         return communicator.stats
 
-    context.stats = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, count))
+    context.stats = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, count), identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {} scatters {} to {}')
@@ -135,7 +136,7 @@ def step_impl(context, src, values, dst):
             values = None
         return communicator.scatterv(src=src, values=values, dst=dst)
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values, dst))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values, dst), identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {} scatters {}')
@@ -148,7 +149,7 @@ def step_impl(context, src, values):
             values = None
         return communicator.scatter(src=src, values=values)
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, values), identities=context.identities, trusted=context.trusted)
 
 
 @then(u'player {} can send {} to player {}')
@@ -164,7 +165,7 @@ def step_impl(context, src, value, dst):
             result = communicator.recv(src=src)
             numpy.testing.assert_almost_equal(value, result, decimal=4)
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst), identities=context.identities, trusted=context.trusted)
 
 
 @then(u'player {src} should have sent exactly {sent} messages')
@@ -181,7 +182,7 @@ def step_impl(context, src, received):
 
     stats = [player for index, player in enumerate(context.stats) if index != src]
     for player, expected in zip(stats, received):
-        test.assert_equal(player["received"]["messages"], expected)
+        numpy.testing.assert_equal(player["received"]["messages"], expected)
 
 
 @then(u'it should be possible to start and stop a communicator {count} times')
@@ -192,7 +193,7 @@ def step_impl(context, count):
         pass
 
     for i in range(count):
-        SocketCommunicator.run(world_size=context.players, fn=operation)
+        SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
 
 @when(u'the players split the communicator with names {names}')
@@ -206,7 +207,7 @@ def step_impl(context, names):
         else:
             return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names,))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names,), identities=context.identities, trusted=context.trusted)
 
 
 @then(u'the new communicator names should match {names}')
@@ -238,7 +239,7 @@ def step_impl(context, group, world_size, name, token):
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, world_size, name, token))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, world_size, name, token), identities=context.identities, trusted=context.trusted)
 
 
 @when(u'players {group} create a new communicator with world size {world_size} and name {name} and tokens {tokens}')
@@ -258,7 +259,7 @@ def step_impl(context, group, world_size, name, tokens):
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, world_size, name))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, world_size, name), identities=context.identities, trusted=context.trusted)
 
 
 @when(u'players {group} create a new communicator with name {name} and direct addresses {addresses}')
@@ -275,7 +276,7 @@ def step_impl(context, group, name, addresses):
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name, addresses))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name, addresses), identities=context.identities, trusted=context.trusted)
 
 
 @then(u'players {players} should timeout')
@@ -302,7 +303,7 @@ def step_impl(context):
         comm, newranks = communicator.shrink(name="split")
         return(newranks)
 
-    results = SocketCommunicator.run(world_size=context.players, fn=operation)
+    results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
     for result in results:
         test.assert_equal(result, list(range(context.players)))
 
@@ -317,7 +318,7 @@ def step_impl(context, group, name):
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name), identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {player} revokes the communicator')
@@ -336,7 +337,7 @@ def step_impl(context, player):
                 logging.error(f"Player {communicator.rank} exception: {e}")
                 raise e
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player,))
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player,), identities=context.identities, trusted=context.trusted)
 
 
 @then(u'players {players} should fail with NotRunning errors')
@@ -368,7 +369,7 @@ def step_impl(context, timeout):
 
         return [timeout1, timeout2]
 
-    context.timeouts = numpy.array(SocketCommunicator.run(world_size=context.players, fn=operation, args=(timeout,)))
+    context.timeouts = numpy.array(SocketCommunicator.run(world_size=context.players, fn=operation, args=(timeout,), identities=context.identities, trusted=context.trusted))
 
 
 @when(u'the communicator timeout is temporarily changed to {timeout}')
@@ -383,7 +384,7 @@ def step_impl(context, timeout):
 
         return [timeout1, timeout2, timeout3]
 
-    context.timeouts = numpy.array(SocketCommunicator.run(world_size=context.players, fn=operation, args=(timeout,)))
+    context.timeouts = numpy.array(SocketCommunicator.run(world_size=context.players, fn=operation, args=(timeout,), identities=context.identities, trusted=context.trusted))
 
 
 @then(u'the initial communicator timeouts should match {timeouts}')
@@ -403,4 +404,124 @@ def step_impl(context, timeouts):
     timeouts = eval(timeouts)
     numpy.testing.assert_array_equal(timeouts, context.timeouts[:, -1])
 
+
+@when(u'the players create a new communicator with connect.')
+def step_impl(context):
+    def operation(communicator):
+        comm = communicator.connect(
+            world_size=communicator.world_size,
+            rank=communicator.rank,
+            address="tcp://127.0.0.1:25252" if communicator.rank == 0 else "tcp://127.0.0.1",
+            root_address="tcp://127.0.0.1:25252",
+            )
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
+
+
+@when(u'the players create a new communicator with connect using environment variables.')
+def step_impl(context):
+    def operation(communicator):
+        os.environ["CICADA_WORLD_SIZE"] = str(communicator.world_size)
+        os.environ["CICADA_RANK"] = str(communicator.rank)
+        os.environ["CICADA_ADDRESS"] = "tcp://127.0.0.1:25252" if communicator.rank == 0 else "tcp://127.0.0.1"
+        os.environ["CICADA_ROOT_ADDRESS"] = "tcp://127.0.0.1:25252"
+
+        with communicator.connect() as comm:
+            pass
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
+
+
+@when(u'the players create a new communicator with connect using environment variables and tls.')
+def step_impl(context):
+    def operation(communicator, identities, trusted):
+        os.environ["CICADA_WORLD_SIZE"] = str(communicator.world_size)
+        os.environ["CICADA_RANK"] = str(communicator.rank)
+        os.environ["CICADA_ADDRESS"] = "tcp://127.0.0.1:25252" if communicator.rank == 0 else "tcp://127.0.0.1"
+        os.environ["CICADA_ROOT_ADDRESS"] = "tcp://127.0.0.1:25252"
+        os.environ["CICADA_IDENTITY"] = identities[communicator.rank]
+        os.environ["CICADA_TRUSTED"] = ",".join(trusted)
+
+        with communicator.connect() as comm:
+            pass
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.identities, context.trusted), identities=context.identities, trusted=context.trusted)
+
+
+@when(u'player {src} asynchronously sends {value} to player {dst} who waits')
+def step_impl(context, src, value, dst):
+    src = eval(src)
+    value = eval(value)
+    dst = eval(dst)
+
+    def operation(communicator, src, value, dst):
+        if communicator.rank == src:
+            time.sleep(0.5)
+            result = communicator.isend(value=value, dst=dst)
+            assert(result.is_completed)
+            result.wait()
+        elif communicator.rank == dst:
+            result = communicator.irecv(src=src)
+            result.wait()
+            return result.value
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst), identities=context.identities, trusted=context.trusted)
+
+
+@when(u'player {src} asynchronously sends {value} to player {dst}')
+def step_impl(context, src, value, dst):
+    src = eval(src)
+    value = eval(value)
+    dst = eval(dst)
+
+    def operation(communicator, src, value, dst):
+        if communicator.rank == src:
+            time.sleep(0.5)
+            result = communicator.isend(value=value, dst=dst)
+            assert(result.is_completed)
+            result.wait()
+        elif communicator.rank == dst:
+            result = communicator.irecv(src=src)
+            while True:
+                if result.is_completed:
+                    return result.value
+                time.sleep(0.1)
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(src, value, dst), identities=context.identities, trusted=context.trusted)
+
+
+@when(u"the players create a new communicator with connect, but player {a} doesn't trust player {b}")
+def step_impl(context, a, b):
+    a = eval(a)
+    b = eval(b)
+
+    def operation(communicator, identities, trusted, a, b):
+        if a == communicator.rank:
+            del trusted[b]
+
+        comm = communicator.connect(
+            world_size=communicator.world_size,
+            rank=communicator.rank,
+            address="tcp://127.0.0.1:25252" if communicator.rank == 0 else "tcp://127.0.0.1",
+            root_address="tcp://127.0.0.1:25252",
+            identity=identities[communicator.rank],
+            trusted=trusted,
+            )
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.identities, context.trusted, a, b), identities=context.identities, trusted=context.trusted)
+
+
+@then(u'the group should raise exceptions {exceptions}')
+def step_impl(context, exceptions):
+    exceptions = eval(exceptions)
+
+    print(context.results)
+
+    test.assert_equal(len(context.results), len(exceptions))
+    for lhs, rhs in zip(context.results, exceptions):
+        if rhs is None:
+            test.assert_equal(lhs, rhs)
+        else:
+            test.assert_is_instance(lhs, Failed)
+            test.assert_is_instance(lhs.exception, rhs)
 

@@ -17,6 +17,7 @@
 """Functionality for communicating using the builtin :mod:`socket` module.
 """
 
+import json
 import logging
 import numbers
 import os
@@ -42,9 +43,9 @@ class LoggerAdapter(logging.LoggerAdapter):
 
     logger: :class:`logging.Logger`, required
         Python logger to wrap.
-    name: class:`str`, required
+    name: :class:`str`, required
         Communicator name.
-    rank: class:`int`, required
+    rank: :class:`int`, required
         Communicator rank
     """
     def __init__(self, logger, name, rank):
@@ -168,7 +169,38 @@ class TokenMismatch(Exception):
     pass
 
 
-def connect(*, address, rank, name="world", tls=None):
+def certformat(cert, indent=""):
+    """Format an X509 certificate for easy reading.
+
+    Parameters
+    ----------
+    cert: :class:`dict`, required
+        X509 certificate returned from :meth:`ssl.SSLSocket.getpeercert` or similar.
+    indent: :class:`str`, optional
+        Optional indenting to be added to the output.
+
+    Returns
+    -------
+    prettycert: :class:`str`
+        The contents of the certificate, formatted for easy reading by humans.
+    """
+    mapping = {"countryName": "C", "stateOrProvinceName": "ST", "localityName": "L", "organizationName": "O", "commonName": "CN"}
+
+    issuer = [b for a in cert.get("issuer") for b in a]
+    issuer = [f"{mapping.get(item[0], item[0])}={item[1]}" for item in issuer]
+    issuer = ", ".join(issuer)
+
+    subject = [b for a in cert.get("subject") for b in a]
+    subject = [f"{mapping.get(item[0], item[0])}={item[1]}" for item in subject]
+    subject = ", ".join(subject)
+
+    return f"""{indent}Serial: {cert.get("serialNumber")}
+{indent}Issuer: {issuer}
+{indent}Subject: {subject}
+{indent}Valid From: {cert.get("notBefore")} Until: {cert.get("notAfter")}"""
+
+
+def connect(*, address, rank, other_rank, name="world", tls=None):
     """Given an address, create a socket and make a connection.
 
     Parameters
@@ -177,6 +209,8 @@ def connect(*, address, rank, name="world", tls=None):
         The address URL.
     rank: :class:`int`, required
         Rank of the calling player.
+    other_rank: :class:`int`, required
+        Rank of the other player (the one we're connecting to).
     name: :class:`str`, optional
         Human readable label used for logging and error messages. Typically,
         this should be the same name that will be eventually used by a
@@ -205,10 +239,15 @@ def connect(*, address, rank, name="world", tls=None):
     else:
         raise ValueError(f"address.scheme must be file or tcp, got {address.scheme} instead.") # pragma: no cover
 
+    sock.setblocking(True)
+
+
     # Optionally setup TLS.
     if tls is not None:
         sock = tls[1].wrap_socket(sock, server_side=False)
-        log.info(f"connected to player:\n{pprint.pformat(sock.getpeercert())}")
+        log.info(f"{geturl(sock)} connected to player {other_rank} {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert(), indent='    ')}")
+    else:
+        log.info(f"{geturl(sock)} connected to player {other_rank} {getpeerurl(sock)}")
 
     return NetstringSocket(sock)
 
@@ -302,14 +341,14 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
                 try:
                     ready = select.select([listen_socket], [], [], 0.1)
                     if ready:
-                        other_player, _ = listen_socket.accept()
+                        sock, _ = listen_socket.accept()
                         if tls is not None:
-                            other_player = tls[0].wrap_socket(other_player, server_side=True)
-                            log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
+                            sock = tls[0].wrap_socket(sock, server_side=True)
+                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert(), indent='    ')}")
                         else:
-                            log.debug(f"accepted connection from player.")
-                        other_player = NetstringSocket(other_player)
-                        other_players.append(other_player)
+                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}")
+                        sock = NetstringSocket(sock)
+                        other_players.append(sock)
                 except ssl.SSLError as e:
                     # There was a problem setting up an encrypted connection with
                     # the other player, so there's no point in continuing.
@@ -327,6 +366,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
                             other_rank = pickle.loads(raw_message)
                             players[other_rank] = other_player
                             log.debug(f"received rank from player {other_rank}.")
+                            other_player.send(pickle.dumps("OK"))
                             break
                     except Exception as e: # pragma: no cover
                         log.warning("exception receiving player rank.")
@@ -338,7 +378,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener], rank=rank, name=name, tls=tls)
+                    players[listener] = connect(address=addresses[listener], rank=rank, other_rank=listener, name=name, tls=tls)
                     break
                 except ssl.SSLCertVerificationError as e:
                     # If this happens it means we couldn't verify the other
@@ -361,11 +401,50 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
             else: # pragma: no cover
                 raise Timeout(message(name, rank, f"timeout sending rank to player {listener}."))
 
+            # Receive a response from the listener.
+            while not timer.expired:
+                try:
+                    raw_message = players[listener].next_message(timeout=0.1)
+                    if raw_message is not None:
+                        response = pickle.loads(raw_message)
+                        log.debug(f"received response from player {listener}.")
+                        break
+                except Exception as e: # pragma: no cover
+                    log.warning(f"exception waiting for response from player {listener}: {e}")
+                    time.sleep(0.1)
+            else: # pragma: no cover
+                raise Timeout(message(name, rank, f"timeout waiting for response from player {listener}."))
+
+
     return players
+
+def getpeerurl(sock):
+    """Return a socket's peer address as a URL.
+
+    Parameters
+    ----------
+    sock: :class:`socket.socket`, required
+
+    Returns
+    -------
+    url: :class:`str`
+        The socket's local address as a URL.  For example:
+        `"tcp://127.0.0.1:59678"` for TCP sockets, or `"file:///path/to/foo"` for
+        Unix domain sockets.
+    """
+    if sock.family == socket.AF_UNIX:
+        path = sock.getpeername()
+        return f"file://{path}"
+
+    if sock.family == socket.AF_INET:
+        host, port = sock.getpeername()
+        return f"tcp://{host}:{port}"
+
+    raise ValueError(f"Unknown address family: {sock.family}") # pragma: no cover
 
 
 def geturl(sock):
-    """Return a socket's address as a URL.
+    """Return a socket's local address as a URL.
 
     Parameters
     ----------
@@ -450,7 +529,7 @@ def listen(*, address, rank, name="world", timer=None):
                 address = urllib.parse.urlparse(geturl(listen_socket)) # Recreate the address in case the port was assigned at random.
             elif address.scheme == "file":
                 if os.path.exists(address.path):
-                    os.unlink(address.path)
+                    os.unlink(address.path) # pragma: no cover
                 listen_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 listen_socket.bind(address.path)
             listen_socket.setblocking(False)
@@ -558,7 +637,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
     if rank != 0:
         while not timer.expired:
             try:
-                players[0] = connect(address=root_address, rank=rank, name=name, tls=tls)
+                players[0] = connect(address=root_address, rank=rank, other_rank=0, name=name, tls=tls)
                 break
             except ConnectionRefusedError as e: # pragma: no cover
                 # This happens regularly, particularly when starting on
@@ -601,14 +680,14 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             try:
                 ready = select.select([listen_socket], [], [], 0.1)
                 if ready:
-                    other_player, _ = listen_socket.accept()
+                    sock, _ = listen_socket.accept()
                     if tls is not None:
-                        other_player = tls[0].wrap_socket(other_player, server_side=True)
-                        log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
+                        sock = tls[0].wrap_socket(sock, server_side=True)
+                        log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}, received certificate:\n{certformat(sock.getpeercert(), indent='    ')}")
                     else:
-                        log.debug(f"accepted connection from player.")
-                    other_player = NetstringSocket(other_player)
-                    other_players.append(other_player)
+                        log.debug(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}.")
+                    sock = NetstringSocket(sock)
+                    other_players.append(sock)
             except ssl.SSLError as e:
                 # There was a problem setting up an encrypted connection with
                 # the other player, so there's no point in continuing.
@@ -659,6 +738,10 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                     addresses = pickle.loads(raw_message)
                     log.debug(f"received addresses from player 0.")
                     break
+            except ssl.SSLError as e:
+                # There was a problem setting up an encrypted connection with
+                # the other player, so there's no point in continuing.
+                raise EncryptionFailed(message(name, rank, f"failed getting addresses from player 0: {e}"))
             except Exception as e: # pragma: no cover
                 log.warning(f"exception getting addresses from player 0: {e}")
                 time.sleep(0.1)
@@ -688,14 +771,14 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                 try:
                     ready = select.select([listen_socket], [], [], 0.1)
                     if ready:
-                        other_player, _ = listen_socket.accept()
+                        sock, _ = listen_socket.accept()
                         if tls is not None:
-                            other_player = tls[0].wrap_socket(other_player, server_side=True)
-                            log.info(f"accepted connection from player:\n{pprint.pformat(other_player.getpeercert())}")
+                            sock = tls[0].wrap_socket(sock, server_side=True)
+                            log.info(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}:\n{certformat(sock.getpeercert(), indent='    ')}")
                         else:
-                            log.debug(f"accepted connection from player.")
-                        other_player = NetstringSocket(other_player)
-                        other_players.append(other_player)
+                            log.debug(f"{geturl(sock)} accepted connection from {getpeerurl(sock)}.")
+                        sock = NetstringSocket(sock)
+                        other_players.append(sock)
                 except ssl.SSLError as e:
                     # There was a problem setting up an encrypted connection with
                     # the other player, so there's no point in continuing.
@@ -724,7 +807,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
             # Make a connection to the listener.
             while not timer.expired:
                 try:
-                    players[listener] = connect(address=addresses[listener][0], rank=rank, name=name, tls=tls)
+                    players[listener] = connect(address=addresses[listener][0], rank=rank, other_rank=listener, name=name, tls=tls)
                     break
                 except ssl.SSLCertVerificationError as e:
                     # If this happens it means we couldn't verify the other

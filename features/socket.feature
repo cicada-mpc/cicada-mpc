@@ -6,7 +6,7 @@ Feature: SocketCommunicator
         Then the players should exit the barrier at roughly the same time
 
 
-    Scenario Outline: AllGather
+    Scenario Outline: Allgather
         Given <players> players
         When the players allgather <values>
         Then the group should return <result>
@@ -15,6 +15,26 @@ Feature: SocketCommunicator
         | players | values             | result             |
         | 2       | [0, 1]             | [[0, 1]] * 2       |
         | 3       | [1, 2, "c"]        | [[1, 2, "c"]] * 3  |
+
+
+    Scenario Outline: Asynchronous Send
+        Given <players> players
+        When player <source> asynchronously sends <value> to player <destination>
+        Then the group should return <result>
+
+        Examples:
+        | players | source | value | destination | result              |
+        | 3       | 1      | "foo" | 2           | [None, None, "foo"] |
+
+
+    Scenario Outline: Asynchronous Send and Wait
+        Given <players> players
+        When player <source> asynchronously sends <value> to player <destination> who waits
+        Then the group should return <result>
+
+        Examples:
+        | players | source | value | destination | result              |
+        | 3       | 1      | "bar" | 2           | [None, None, "bar"] |
 
 
     Scenario Outline: Broadcast
@@ -27,6 +47,42 @@ Feature: SocketCommunicator
         | 2       | 0        | 1.23    | [1.23, 1.23]       |
         | 2       | 1        | 2.34    | [2.34, 2.34]       |
         | 3       | 1        | 4.02    | [4.02, 4.02, 4.02] |
+
+
+    Scenario Outline: Connect
+        Given <players> players
+        When the players create a new communicator with connect.
+        Then the group should return <result>
+
+        Examples:
+        | players | result      |
+        | 2       | [None] * 2  |
+        | 3       | [None] * 3  |
+        | 10      | [None] * 10 |
+
+
+    Scenario Outline: Environment Connect
+        Given <players> players
+        When the players create a new communicator with connect using environment variables.
+        Then the group should return <result>
+
+        Examples:
+        | players | result      |
+        | 2       | [None] * 2  |
+        | 3       | [None] * 3  |
+        | 10      | [None] * 10 |
+
+
+    Scenario Outline: Environment Connect With TLS
+        Given <players> players
+        When the players create a new communicator with connect using environment variables and tls.
+        Then the group should return <result>
+
+        Examples:
+        | players | result      |
+        | 2       | [None] * 2  |
+        | 3       | [None] * 3  |
+        | 10      | [None] * 10 |
 
 
     Scenario: Freed Communicator
@@ -69,14 +125,14 @@ Feature: SocketCommunicator
 
         Examples:
         | players | src       | count   | sent    | received           |
-        | 2       | 0         | 100     | 100     | [100]              |
-        | 3       | 0         | 100     | 200     | [101, 100]         |
-        | 2       | 0         | 1000    | 1000    | [1000]             |
-        | 3       | 0         | 1000    | 2000    | [1001, 1000]       |
-        | 2       | 0         | 10000   | 10000   | [10000]            |
-        | 3       | 0         | 10000   | 20000   | [10001, 10000]     |
-        | 2       | 0         | 100000  | 100000  | [100000]           |
-        | 3       | 0         | 100000  | 200000  | [100001, 100000]   |
+        | 2       | 0         | 100     | 101     | [101]              |
+        | 3       | 0         | 100     | 202     | [102, 102]         |
+        | 2       | 0         | 1000    | 1001    | [1001]             |
+        | 3       | 0         | 1000    | 2002    | [1002, 1002]       |
+        | 2       | 0         | 10000   | 10001   | [10001]            |
+        | 3       | 0         | 10000   | 20002   | [10002, 10002]     |
+        | 2       | 0         | 100000  | 100001  | [100001]           |
+        | 3       | 0         | 100000  | 200002  | [100002, 100002]   |
 
 
     Scenario Outline: New Communicator
@@ -248,4 +304,20 @@ Feature: SocketCommunicator
         Examples:
         | players | timeout | initial | temporary | final   |
         | 3       | 10      | [5] * 3 | [10] * 3  | [5] * 3 |
+
+
+    Scenario Outline: Trust
+        Given <players> players
+        When the players create a new communicator with connect, but player <a> doesn't trust player <b>
+        Then the group should raise exceptions <result>
+
+        Examples:
+        | players | a         | b     | result                                         |
+        | 2       | 0         | 1     | [EncryptionFailed, EncryptionFailed]           |
+        | 2       | 1         | 0     | [EncryptionFailed, EncryptionFailed]           |
+        | 3       | 0         | 1     | [EncryptionFailed, EncryptionFailed, Timeout]  |
+        | 3       | 1         | 0     | [EncryptionFailed, EncryptionFailed, Timeout]  |
+        | 3       | 1         | 2     | [None, EncryptionFailed, None]                 |
+        | 3       | 2         | 1     | [None, EncryptionFailed, EncryptionFailed]     |
+
 
