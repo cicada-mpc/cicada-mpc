@@ -205,7 +205,7 @@ def connect(*, address, rank, other_rank, name="world", tls=None):
 
     Parameters
     ----------
-    address: :class:`str`, required
+    address: :class:`urllib.parse.ParseResult`, required
         The address URL.
     rank: :class:`int`, required
         Rank of the calling player.

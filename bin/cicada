@@ -166,19 +166,19 @@ frontends = {
 parser = argparse.ArgumentParser(description="Cicada MPC tools.")
 subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
 
-# player-keygen
-player_keygen_subparser = subparsers.add_parser("player-keygen", help="Generate player key and certificate for TLS encryption.")
-player_keygen_subparser.add_argument("--certificate", default="player-{rank}.cert", help="Output certificate file. Default: %(default)s")
-player_keygen_subparser.add_argument("--country", default="US", help="Certificate country. Default: %(default)s")
-player_keygen_subparser.add_argument("--days", type=int, default=365, help="Length of time the certificate will be valid. Default: %(default)s")
-player_keygen_subparser.add_argument("--email", default=None, help="Certificate email. Default: %(default)s")
-player_keygen_subparser.add_argument("--identity", default="player-{rank}.pem", help="Output identity (private key and certificate) file. Default: %(default)s")
-player_keygen_subparser.add_argument("--locality", default="Albuquerque", help="Certificate locality. Default: %(default)s")
-player_keygen_subparser.add_argument("--name", default=None, help="Common name. Default: based on player rank.")
-player_keygen_subparser.add_argument("--organization", default="Cicada", help="Certificate organization. Default: %(default)s")
-player_keygen_subparser.add_argument("--rank", required=True, help="Player rank.")
-player_keygen_subparser.add_argument("--state", default="New Mexico", help="Certificate state. Default: %(default)s")
-player_keygen_subparser.add_argument("--unit", default=None, help="Certificate organizational unit. Default: %(default)s")
+# credentials
+credentials_subparser = subparsers.add_parser("credentials", help="Generate player credentials for TLS encryption.")
+credentials_subparser.add_argument("--certificate", default="player-{rank}.cert", help="Output certificate file. Default: %(default)s")
+credentials_subparser.add_argument("--country", default="US", help="Certificate country. Default: %(default)s")
+credentials_subparser.add_argument("--days", type=int, default=365, help="Length of time the certificate will be valid. Default: %(default)s")
+credentials_subparser.add_argument("--email", default=None, help="Certificate email. Default: %(default)s")
+credentials_subparser.add_argument("--identity", default="player-{rank}.pem", help="Output identity (private key and certificate) file. Default: %(default)s")
+credentials_subparser.add_argument("--locality", default="Albuquerque", help="Certificate locality. Default: %(default)s")
+credentials_subparser.add_argument("--name", default=None, help="Common name. Default: based on player rank.")
+credentials_subparser.add_argument("--organization", default="Cicada", help="Certificate organization. Default: %(default)s")
+credentials_subparser.add_argument("--rank", required=True, help="Player rank.")
+credentials_subparser.add_argument("--state", default="New Mexico", help="Certificate state. Default: %(default)s")
+credentials_subparser.add_argument("--unit", default=None, help="Certificate organizational unit. Default: %(default)s")
 
 # run
 run_subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
@@ -220,8 +220,8 @@ if __name__ == "__main__":
     log = logging.getLogger()
     log.name = os.path.basename(sys.argv[0])
 
-    # player-keygen
-    if arguments.command == "player-keygen":
+    # credentials
+    if arguments.command == "credentials":
         rank = arguments.rank
 
         if arguments.name is None:

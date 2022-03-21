@@ -17,7 +17,6 @@
 import logging
 import os
 import pickle
-import ssl
 
 from cicada.communicator import SocketCommunicator
 from cicada.communicator.socket import connect

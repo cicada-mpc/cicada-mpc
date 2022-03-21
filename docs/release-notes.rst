@@ -7,6 +7,17 @@
 Release Notes
 =============
 
+Cicada 0.4.0 - March 21st, 2022
+-------------------------------
+
+* SocketCommunicator supports TLS encryption.
+* SocketCommunicator supports Unix domain sockets.
+* Moved SocketCommuniator initialization into a separate module.
+* Fixed problems with AdditiveProtocol.private_public_power.
+* Reduced default log output, and made log output more consistent.
+* Raise an exception trying to use a communicator that's been freed.
+* Removed the cicada.bind module.
+
 Cicada 0.3.0 - February 1st, 2022
 ---------------------------------
 
