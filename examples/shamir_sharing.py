@@ -26,22 +26,24 @@ logging.basicConfig(level=logging.INFO)
 
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
-    shamir = cicada.shamir.ShamirProtocol(communicator)
-    encoder = cicada.encoder.FixedFieldEncoder()
+    shamir = cicada.shamir.ShamirProtocol(communicator)#, modulus=101)
+    encoder = cicada.encoder.FixedFieldEncoder()#modulus=101, precision=2)
+
+    print(f'indicies: {shamir.indicies}')
 
     # Player 0 will provide a secret.
     secret = numpy.arange(24).reshape((2,3,4))
     log.info(f"Player {communicator.rank} secret: {secret}")
 
-    # Generate shares for four out of five players.
-    share = shamir.share(src=0, k=2, secret=encoder.encode(secret),shape=secret.shape)#, dst=[0, 1, 2, 3, 4])
+    share = shamir.share(src=0, secret=encoder.encode(secret),shape=secret.shape)
     log.info(f"Player {communicator.rank} share shape: {share.storage.shape}, secret shape: {secret.shape}")
 
     # Reveal the secret to player one, using just three shares.
+    #log.info(f"Player {communicator.rank} share: {share}")
     tmp = shamir.reveal(share)#, src=[0, 2, 3], dst=[0])
     #log.info(f"Player {communicator.rank} encoded: {tmp}")
     revealed = encoder.decode(tmp)
-    log.info(f"Player {communicator.rank} revealed: {revealed}", src=0)
+    log.info(f"Player {communicator.rank} revealed: {revealed}")#, src=0)
 
     summation = shamir.add(share, share)
 

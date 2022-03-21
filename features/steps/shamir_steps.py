@@ -44,7 +44,7 @@ def step_impl(context, count):
 
     def operation(communicator):
         protocol = cicada.shamir.ShamirProtocol(communicator)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=(), dst=communicator.ranks, k=protocol.k)
+        share = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=())
         return int(share.storage)
 
     context.shares = []
