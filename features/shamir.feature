@@ -29,9 +29,8 @@ Feature: Shamir Protocol
         Examples:
         | players | player | count      | subset  |
         | 3       | 0      | 100        | [1,2]   |
-        | 4       | 0      | 100        | [1,2,3] |
-        | 5       | 0      | 100        | [1,2,3] |
-
+        | 4       | 0      | 100        | [0,2,3] |
+        | 5       | 0      | 100        | [1,3,4] |
 
     Scenario Outline: Local Shamir Addition
         Given <players> players
