@@ -241,9 +241,9 @@ class SocketCommunicator(Communicator):
             return self._receive_queues[tag][sender].get(block=block, timeout=self._timeout)
         except queue.Empty:
             if block:
-                raise Timeout(f"Tag {tag!r} from sender {sender} timed-out after {self._timeout}s")
+                raise Timeout(f"Tag {tag.name} from sender {sender} timed-out after {self._timeout}s")
             else: # pragma: no cover
-                raise TryAgain(f"Tag {tag!r} from sender {sender} try again.")
+                raise TryAgain(f"Tag {tag.name} from sender {sender} try again.")
 
 
     def _require_rank(self, rank):
@@ -626,7 +626,7 @@ class SocketCommunicator(Communicator):
 
         src = self._require_rank(src)
 
-        return self._receive(tag="send", sender=src, block=True)
+        return self._receive(tag=SocketCommunicator.Tags.SEND, sender=src, block=True)
 
 
     def revoke(self):
