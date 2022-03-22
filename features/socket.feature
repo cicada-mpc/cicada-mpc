@@ -254,20 +254,22 @@ Feature: SocketCommunicator
 
     Scenario Outline: Shrink Communicator
         Given <players> players
+        And <family> addressing
         When players <group> shrink the communicator with name <name>
         Then the new communicator names should match <names>
         And the new communicator world sizes should match <world_sizes>
 
         Examples:
-        | players | group       | name      | names         | world_sizes |
-        | 2       | range(2)    | "red"     | ["red"] * 2   | [2] * 2     |
-        | 3       | range(3)    | "green"   | ["green"] * 3 | [3] * 3     |
-        | 10      | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
+        | players | family   | group       | name      | names         | world_sizes |
+        | 2       | "tcp"    | range(2)    | "red"     | ["red"] * 2   | [2] * 2     |
+        | 3       | "tcp"    | range(3)    | "green"   | ["green"] * 3 | [3] * 3     |
+        | 10      | "tcp"    | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
+        | 10      | "file"   | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
 
         @wip
         Examples:
-        | players | group       | name      | names         | world_sizes |
-        | 3       | [0, 1]      | "green"   | ["green"] * 3 | [3] * 3     |
+        | players | family   | group       | name      | names         | world_sizes |
+        | 3       | "tcp"    | [0, 1]      | "green"   | ["green"] * 3 | [3] * 3     |
 
     Scenario Outline: Split Communicator
         Given <players> players

@@ -926,20 +926,31 @@ class SocketCommunicator(Communicator):
         world_size=len(remaining_ranks)
         rank = remaining_ranks.index(self.rank)
 
-        # Create a new socket with a randomly-assigned port number.
-        address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
-        if address.scheme != "tcp":
-            raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can shrink.") # pragma: no cover
+        # Generate a random new listening address.
+        for sock in self._players.values():
+            address = urllib.parse.urlparse(geturl(sock))
+            break
+        if address.scheme == "file":
+            fd, path = tempfile.mkstemp()
+            os.close(fd)
+            address = f"file://{path}"
+        elif address.scheme == "tcp":
+            address = f"tcp://{address.hostname}"
+        else:
+            raise ValueError(f"Comm {self.name!r} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
 
-        listen_socket = socket.create_server((address.hostname, 0))
+        # Create a new listening socket and update the address to match
+        timer = Timer(threshold=startup_timeout)
+        listen_socket = listen(address=address, rank=self.rank, name=self.name, timer=timer)
         address = geturl(listen_socket)
 
+        # Send new connection info to the remaining players.
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
                 self._send(tag=SocketCommunicator.Tags.SHRINK, payload=address, dst=remaining_rank)
         root_address = self._receive(tag=SocketCommunicator.Tags.SHRINK, sender=remaining_ranks[0], block=True)
 
-        timer = Timer(threshold=startup_timeout)
+        # Return a new communicator.
         sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer)
         return SocketCommunicator(sockets=sockets, name=name, timeout=timeout), remaining_ranks
 
@@ -981,7 +992,7 @@ class SocketCommunicator(Communicator):
 
         timer = Timer(threshold=startup_timeout)
 
-        # Generate a new listening address at random.
+        # Generate a random new listening address.
         address = None
         if name is not None:
             for sock in self._players.values():

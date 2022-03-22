@@ -317,7 +317,7 @@ def step_impl(context, group, name):
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name), identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name), family=context.family, identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {player} revokes the communicator')
