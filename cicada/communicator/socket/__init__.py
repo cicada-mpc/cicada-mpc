@@ -30,6 +30,7 @@ import queue
 import select
 import socket
 import ssl
+import tempfile
 import threading
 import time
 import traceback
@@ -969,21 +970,33 @@ class SocketCommunicator(Communicator):
         if not isinstance(name, (str, type(None))):
             raise ValueError(f"Comm {self.name!r} player {self.rank} name must be a string or None, got {name} instead.") # pragma: no cover
 
-        # Create a new socket with a randomly-assigned port number.
-        if name is not None:
-            address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
-            if address.scheme != "tcp":
-                raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can be split.") # pragma: no cover
+        timer = Timer(threshold=startup_timeout)
 
-            listen_socket = socket.create_server((address.hostname, 0))
+        # Generate a new listening address at random.
+        address = None
+        if name is not None:
+            for sock in self._players.values():
+                address = urllib.parse.urlparse(geturl(sock))
+                break
+            if address.scheme == "file":
+                fd, path = tempfile.mkstemp()
+                os.close(fd)
+                address = f"file://{path}"
+            elif address.scheme == "tcp":
+                address = f"tcp://{address.hostname}"
+            else:
+                raise ValueError(f"Comm {self.name!r} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
+
+        # Create a new listening socket and update the address to match.
+        if address is not None:
+            listen_socket = listen(address=address, rank=self.rank, name=self.name, timer=timer)
             address = geturl(listen_socket)
-        else:
-            address = None
 
         # Send names and addresses to rank 0.
         addresses = self.gather(value=(name, address), dst=0)
 
         # Compute new communicator parameters.
+        players = None
         if self.rank == 0:
             groups = collections.defaultdict(list)
             for rank, (name, address) in enumerate(addresses):
@@ -994,15 +1007,12 @@ class SocketCommunicator(Communicator):
                 group = sorted(groups[name])
                 ranks, addresses = zip(*group)
                 players.append((name, len(group), ranks.index(rank), addresses))
-        else:
-            players = None
 
         # Send new connection info to all players.
         group_name, group_world_size, group_rank, group_addresses = self.scatter(src=0, values=players)
 
         # Return a new communicator.
         if group_name is not None:
-            timer = Timer(threshold=startup_timeout)
             sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timer=timer)
             return SocketCommunicator(sockets=sockets, name=group_name, timeout=timeout)
 
