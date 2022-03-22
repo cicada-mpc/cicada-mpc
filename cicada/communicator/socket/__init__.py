@@ -909,11 +909,17 @@ class SocketCommunicator(Communicator):
 
         self._require_running()
 
+        ##################################################################################
+        # Phase 1: Determine which players are still alive.
+
         # By default, we assume that everyone is alive.
-        remaining_ranks = self.ranks
+        remaining_ranks = set(self.ranks)
+
+        ##################################################################################
+        # Phase 2: Use the list of remaining players to generate new network parameters.
 
         # Sort the remaining ranks; the lowest rank will become rank 0 in the new communicator.
-        remaining_ranks = sorted(remaining_ranks)
+        remaining_ranks = sorted(list(remaining_ranks))
 
         # Generate a token based on a hash of the remaining ranks that we can
         # use to ensure that every player is in agreement on who's remaining.
@@ -943,6 +949,9 @@ class SocketCommunicator(Communicator):
         timer = Timer(threshold=startup_timeout)
         listen_socket = listen(address=address, rank=self.rank, name=self.name, timer=timer)
         address = geturl(listen_socket)
+
+        ##################################################################################
+        # Phase 3: Send new network parameters to the remaining players.
 
         # Send new connection info to the remaining players.
         if self.rank == remaining_ranks[0]:
