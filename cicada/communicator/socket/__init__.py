@@ -40,10 +40,6 @@ import pynetstring
 from ..interface import Communicator
 from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, rendezvous
 
-Message = collections.namedtuple("Message", ["serial", "tag", "sender", "payload"])
-Message.__doc__ = """
-Wrapper class for messages sent between processes.
-"""
 
 class Failed(Exception):
     """Used to indicate that a player process raised an exception."""
@@ -150,7 +146,6 @@ class SocketCommunicator(Communicator):
         self._players = sockets
 
         # Begin normal operation.
-        self._send_serial = 0
         self._running = True
 
         # Setup queues for incoming messages.
@@ -184,35 +179,26 @@ class SocketCommunicator(Communicator):
 
             # Drop messages with missing attributes or unexpected values.
             try:
-                if not hasattr(message, "payload"):
-                    raise RuntimeError(f"Message missing payload.") # pragma: no cover
-                if not hasattr(message, "sender"):
-                    raise RuntimeError(f"Message missing sender.") # pragma: no cover
-                if not hasattr(message, "serial"):
-                    raise RuntimeError(f"Message missing serial number.") # pragma: no cover
-                if not hasattr(message, "tag"):
-                    raise RuntimeError(f"Message missing tag.") # pragma: no cover
-                if message.tag not in self._tags:
-                    raise RuntimeError(f"Unknown tag: {message.tag}") # pragma: no cover
-                if message.sender not in self.ranks:
-                    raise RuntimeError(f"Unexpected sender: {message.sender}") # pragma: no cover
+                src, tag, payload = message
+                if tag not in self._tags:
+                    raise RuntimeError(f"Unknown tag: {tag}") # pragma: no cover
             except Exception as e: # pragma: no cover
                 self._log.warning(f"ignoring message: {message} exception: {e}")
                 continue
 
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
-                self._log.debug(f"<-- player {message.sender} {message.tag}#{message.serial:04}") # pragma: no cover
+                self._log.debug(f"<-- player {src} {tag}") # pragma: no cover
 
             # Revoke messages don't get queued because they receive special handling.
-            if message.tag == "revoke":
+            if tag == "revoke":
                 if not self._revoked:
                     self._revoked = True
-                    self._log.warning(f"revoked by player {message.sender}")
+                    self._log.warning(f"revoked by player {src}")
                 continue
 
-            # Insert the message into the correct queue.
-            self._receive_queues[message.tag][message.sender].put(message, block=True, timeout=None)
+            # Insert the payload into the correct queue.
+            self._receive_queues[tag][src].put(payload, block=True, timeout=None)
 
         self._log.debug(f"queueing thread closed.")
 
@@ -230,19 +216,19 @@ class SocketCommunicator(Communicator):
                 # we iterate over every player, not just the ones that
                 # were selected above, because there might be a few
                 # messages left from the startup process.
-                for player in self._players.values():
+                for src, player in self._players.items():
                     for raw_message in player.messages():
                         # Ignore unparsable messages.
                         try:
-                            message = pickle.loads(raw_message)
+                            tag, payload = pickle.loads(raw_message)
                         except Exception as e: # pragma: no cover
                             self._log.warning(f"ignoring unparsable message: {e}")
                             continue
 
-                        self._log.debug(f"received {message}")
+                        self._log.debug(f"received {tag, payload}")
 
                         # Insert the message into the incoming queue.
-                        self._incoming.put(message, block=True, timeout=None)
+                        self._incoming.put((src, tag, payload), block=True, timeout=None)
             except Exception as e: # pragma: no cover
                 self._log.warning(f"receive exception: {e}")
 
@@ -292,19 +278,16 @@ class SocketCommunicator(Communicator):
         if dst not in self.ranks:
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
 
-        message = Message(self._send_serial, tag, self._rank, payload)
-        self._send_serial += 1
-
         if self._log.isEnabledFor(logging.DEBUG):
-            self._log.debug(f"--> player {dst} {message.tag}#{message.serial:04}") # pragma: no cover
+            self._log.debug(f"--> player {dst} {tag}") # pragma: no cover
 
         # As a special-case, route messages sent to ourself directly to the incoming queue.
         if dst == self.rank:
-            self._incoming.put(message, block=True, timeout=None)
+            self._incoming.put((self.rank, tag, payload), block=True, timeout=None)
         # Otherwise, send the message to the appropriate socket.
         else:
             try:
-                raw_message = pickle.dumps(message)
+                raw_message = pickle.dumps((tag, payload))
                 player = self._players[dst]
                 player.send(raw_message)
             except Exception as e: # pragma: no cover
@@ -322,8 +305,7 @@ class SocketCommunicator(Communicator):
             self._send(tag="allgather", payload=value, dst=rank)
 
         # Receive messages.
-        messages = [self._receive(tag="allgather", sender=rank, block=True) for rank in self.ranks]
-        values = [message.payload for message in messages]
+        values = [self._receive(tag="allgather", sender=rank, block=True) for rank in self.ranks]
         return values
 
 
@@ -366,8 +348,7 @@ class SocketCommunicator(Communicator):
                 self._send(tag="broadcast", payload=value, dst=rank)
 
         # Receive the broadcast value.
-        message = self._receive(tag="broadcast", sender=src, block=True)
-        return message.payload
+        return self._receive(tag="broadcast", sender=src, block=True)
 
 
     @staticmethod
@@ -502,8 +483,7 @@ class SocketCommunicator(Communicator):
         # Receive data from all ranks.
         if self.rank == dst:
             # Messages could arrive out of order.
-            messages = [self._receive(tag="gather", sender=rank, block=True) for rank in self.ranks]
-            values = [message.payload for message in messages]
+            values = [self._receive(tag="gather", sender=rank, block=True) for rank in self.ranks]
             return values
 
         return None
@@ -525,8 +505,7 @@ class SocketCommunicator(Communicator):
         # Receive data from the other players.
         if self.rank == dst:
             # Messages could arrive out of order.
-            messages = [self._receive(tag="gatherv", sender=rank, block=True) for rank in src]
-            values = [message.payload for message in messages]
+            values = [self._receive(tag="gatherv", sender=rank, block=True) for rank in src]
             return values
 
         return None
@@ -544,26 +523,26 @@ class SocketCommunicator(Communicator):
             def __init__(self, communicator, sender):
                 self._communicator = communicator
                 self._sender = sender
-                self._message = None
+                self._payload = None
 
             @property
             def is_completed(self):
-                if self._message is None:
+                if self._payload is None:
                     try:
-                        self._message = self._communicator._receive(tag="send", sender=self._sender, block=False)
+                        self._payload = self._communicator._receive(tag="send", sender=self._sender, block=False)
                     except TryAgain:
                         pass
-                return self._message is not None
+                return self._payload is not None
 
             @property
             def value(self):
-                if self._message is None:
+                if self._payload is None:
                     raise RuntimeError("Call not completed.") # pragma: no cover
-                return self._message.payload
+                return self._payload
 
             def wait(self):
-                if self._message is None:
-                    self._message = self._communicator._receive(tag="send", sender=self._sender, block=True)
+                if self._payload is None:
+                    self._payload = self._communicator._receive(tag="send", sender=self._sender, block=True)
 
         return Result(self, src)
 
@@ -648,8 +627,7 @@ class SocketCommunicator(Communicator):
 
         src = self._require_rank(src)
 
-        message = self._receive(tag="send", sender=src, block=True)
-        return message.payload
+        return self._receive(tag="send", sender=src, block=True)
 
 
     def revoke(self):
@@ -856,8 +834,7 @@ class SocketCommunicator(Communicator):
                 self._send(tag="scatter", payload=value, dst=rank)
 
         # Receive data from the sender.
-        message = self._receive(tag="scatter", sender=src, block=True)
-        return message.payload
+        return self._receive(tag="scatter", sender=src, block=True)
 
 
     def scatterv(self, *, src, values, dst):
@@ -881,8 +858,7 @@ class SocketCommunicator(Communicator):
 
         # Receive data from the sender.
         if self.rank in dst:
-            message = self._receive(tag="scatterv", sender=src, block=True)
-            return message.payload
+            return self._receive(tag="scatterv", sender=src, block=True)
 
         return None
 
@@ -953,7 +929,7 @@ class SocketCommunicator(Communicator):
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
                 self._send(tag="shrink-end", payload=address, dst=remaining_rank)
-        root_address = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
+        root_address = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True)
 
         timer = Timer(threshold=startup_timeout)
         sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer)
