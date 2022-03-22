@@ -654,7 +654,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, name="world", timeout=5, startup_timeout=5):
+    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -680,6 +680,9 @@ class SocketCommunicator(Communicator):
             Positional arguments to pass to `fn` when it is executed.
         kwargs: :class:`dict`, optional
             Keyword arguments to pass to `fn` when it is executed.
+        family: :class:`str`, optional
+            Address family that matches the scheme used in address URLs
+            elsewhere in the API.  Allowed values are "tcp" and "file".
         name: :class:`str`, optional
             Human-readable name for the communicator created by this function.
             Defaults to "world".
@@ -701,12 +704,18 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, name, timeout, startup_timeout):
+        def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, family, name, timeout, startup_timeout):
             # Run the work function.
             try:
-                # Create a socket with a randomly-assigned port number.
+                # Create a socket with a randomly-assigned address.
+                if family == "file":
+                    fd, path = tempfile.mkstemp()
+                    os.close(fd)
+                    address = f"file://{path}"
+                elif family == "tcp":
+                    address = "tcp://127.0.0.1"
                 timer = Timer(threshold=startup_timeout)
-                listen_socket = listen(name=name, rank=rank, address="tcp://127.0.0.1", timer=timer)
+                listen_socket = listen(name=name, rank=rank, address=address, timer=timer)
                 address = geturl(listen_socket)
 
                 # Send our address to the parent process.
@@ -758,7 +767,7 @@ class SocketCommunicator(Communicator):
             identity = None if identities is None else identities[rank]
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, family=family, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
