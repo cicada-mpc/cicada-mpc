@@ -206,7 +206,7 @@ def step_impl(context, names):
         else:
             return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names,), identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names,), family=context.family, identities=context.identities, trusted=context.trusted)
 
 
 @then(u'the new communicator names should match {names}')
@@ -523,4 +523,11 @@ def step_impl(context, exceptions):
         else:
             test.assert_is_instance(lhs, Failed)
             test.assert_is_instance(lhs.exception, rhs)
+
+
+@given(u'{family} addressing')
+def step_impl(context, family):
+    family = eval(family)
+    context.family = family
+
 

@@ -271,16 +271,18 @@ Feature: SocketCommunicator
 
     Scenario Outline: Split Communicator
         Given <players> players
+        And <family> addressing
         When the players split the communicator with names <names>
         Then the new communicator names should match <names>
         And the new communicator world sizes should match <world_sizes>
 
         Examples:
-        | players | names                             | world_sizes      |
-        | 2       | ["a", "b"]                        | [1, 1]           |
-        | 3       | ["a", "b", "a"]                   | [2, 1, 2]        |
-        | 4       | ["red", "red", "red", "blue"]     | [3, 3, 3, 1]     |
-        | 4       | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
+        | players | family   | names                             | world_sizes      |
+        | 2       | "tcp"    | ["a", "b"]                        | [1, 1]           |
+        | 3       | "tcp"    | ["a", "b", "a"]                   | [2, 1, 2]        |
+        | 4       | "tcp"    | ["red", "red", "red", "blue"]     | [3, 3, 3, 1]     |
+        | 4       | "tcp"    | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
+        | 4       | "file"   | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
 
 
     Scenario Outline: Permanent Timeout Changes
