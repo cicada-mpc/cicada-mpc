@@ -40,7 +40,12 @@ import numpy
 import pynetstring
 
 from ..interface import Communicator
-from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, rendezvous
+from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, message, rendezvous
+
+
+class BrokenPipe(Exception):
+    """Raised trying to send to another player that no longer exists."""
+    pass
 
 
 class Failed(Exception):
@@ -175,17 +180,17 @@ class SocketCommunicator(Communicator):
         while self._running:
             # Wait for the next incoming message.
             try:
-                message = self._incoming.get(block=True, timeout=0.1)
+                raw_message = self._incoming.get(block=True, timeout=0.1)
             except queue.Empty:
                 continue
 
             # Drop messages with missing attributes or unexpected values.
             try:
-                src, tag, payload = message
+                src, tag, payload = raw_message
                 if tag not in SocketCommunicator.Tags:
                     raise RuntimeError(f"Unknown tag: {tag}") # pragma: no cover
             except Exception as e: # pragma: no cover
-                self._log.warning(f"ignoring message: {message} exception: {e}")
+                self._log.warning(f"ignoring message: {raw_message} exception: {e}")
                 continue
 
             # Log queued messages.
@@ -236,6 +241,9 @@ class SocketCommunicator(Communicator):
 
                         # Insert the message into the incoming queue.
                         self._incoming.put((src, SocketCommunicator.Tags(tag), payload), block=True, timeout=None)
+            except ConnectionResetError as e: # pragma: no cover
+                # These are pretty common, log them at a lower priority to streamline outputs.
+                self._log.info(f"receive exception: {e}")
             except Exception as e: # pragma: no cover
                 self._log.warning(f"receive exception: {e}")
 
@@ -297,8 +305,8 @@ class SocketCommunicator(Communicator):
                 raw_message = pickle.dumps((tag.value, payload))
                 player = self._players[dst]
                 player.send(raw_message)
-            except Exception as e: # pragma: no cover
-                self._log.error(f"exception sending to {dst}: {e}")
+            except BrokenPipeError as e: # pragma: no cover
+                raise BrokenPipe(message(self.name, self.rank, f"broken pipe sending to player {dst}."))
 
 
     def all_gather(self, value):
@@ -654,11 +662,9 @@ class SocketCommunicator(Communicator):
         for rank in self.ranks:
             try:
                 self._send(tag=SocketCommunicator.Tags.REVOKE, payload=None, dst=rank)
-            except Exception as e: # pragma: no cover
-                # We handle this here instead of propagating it to the
-                # application layer because we expect some recipients to be
-                # missing; otherwise, there'd be no reason to call revoke().
-                self._log.error(f"timeout revoking player {rank}.")
+            # Ignore BrokenPipe errors, they're to be expected under the circumstances.
+            except BrokenPipe as e: # pragma: no cover
+                pass
 
 
     @staticmethod
@@ -927,7 +933,10 @@ class SocketCommunicator(Communicator):
         while not timer.expired:
             # Send beacons to the other players (including ourself).
             for rank in self.ranks:
-                self._send(tag=SocketCommunicator.Tags.BEACON, payload=None, dst=rank)
+                try:
+                    self._send(tag=SocketCommunicator.Tags.BEACON, payload=None, dst=rank)
+                except BrokenPipe: # Ignore broken pipe errors, they're to be expected under the circumstances.
+                    pass
 
             # Wait for received beacons (including our own).
             while self._beacons:
