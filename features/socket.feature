@@ -85,6 +85,19 @@ Feature: SocketCommunicator
         | 10      | [None] * 10 |
 
 
+    Scenario Outline: Failure Recovery
+        Given <players> players
+        When player <slacker> fails and the others revoke and shrink the communicator, the new communicator should include the remaining players
+
+        Examples:
+        | players | slacker |
+        | 2       | 0       |
+        | 2       | 1       |
+        | 4       | 0       |
+        | 4       | 2       |
+        | 8       | 6       |
+
+
     Scenario: Freed Communicator
         Given 3 players
         When player 1 broadcasts 1.23 after the communicator has been freed
@@ -270,6 +283,7 @@ Feature: SocketCommunicator
         | players | family   | group       | name    | names                    | world_sizes      |
         | 3       | "tcp"    | [0, 1]      | "red"   | ["red", "red", None]     | [2, 2, None]     |
         | 3       | "tcp"    | [1, 2]      | "red"   | [None, "red", "red"]     | [None, 2, 2]     |
+
 
     Scenario Outline: Split Communicator
         Given <players> players

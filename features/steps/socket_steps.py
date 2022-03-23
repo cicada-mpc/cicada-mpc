@@ -514,8 +514,6 @@ def step_impl(context, a, b):
 def step_impl(context, exceptions):
     exceptions = eval(exceptions)
 
-    print(context.results)
-
     test.assert_equal(len(context.results), len(exceptions))
     for lhs, rhs in zip(context.results, exceptions):
         if rhs is None:
@@ -531,3 +529,11 @@ def step_impl(context, family):
     context.family = family
 
 
+@when(u'player {slacker} fails and the others revoke and shrink the communicator, the new communicator should include the remaining players')
+def step_impl(context, slacker):
+    slacker = eval(slacker)
+
+    def operation(communicator, slacker):
+        pass
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(slacker,), identities=context.identities, trusted=context.trusted)
