@@ -1,4 +1,4 @@
-name: Delete old runs
+name: Automatically delete old runs
 on:
   schedule:
     - cron: '0 0 1 * *'
