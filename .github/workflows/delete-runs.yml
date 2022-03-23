@@ -1,4 +1,4 @@
-name: Delete old workflow runs
+name: Delete old runs
 on:
   schedule:
     - cron: '0 0 1 * *'

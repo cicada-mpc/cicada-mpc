@@ -1,4 +1,4 @@
-name: Manually delete old workflow runs
+name: Manually delete old runs
 on:
   workflow_dispatch:
     inputs:
