@@ -30,48 +30,51 @@ import cicada.shamir
 logging.basicConfig(level=logging.INFO)
 
 def main(communicator):
-    with contextlib.ExitStack() as resources:
-        log = cicada.Logger(logging.getLogger(), communicator)
-        shamir = cicada.shamir.ShamirProtocol(communicator)
-        encoder = cicada.encoder.FixedFieldEncoder()
-        generator = numpy.random.default_rng(seed=communicator.rank)
+    log = cicada.Logger(logging.getLogger(), communicator)
+    shamir = cicada.shamir.ShamirProtocol(communicator)
+    encoder = cicada.encoder.FixedFieldEncoder()
+    generator = numpy.random.default_rng(seed=communicator.rank)
 
-        communicator_index = itertools.count(2)
+    communicator_index = itertools.count(2)
 
-        # Player 0 will provide a secret.
-        secret = numpy.array(numpy.pi) if communicator.rank == 0 else None
-        log.info(f"Comm {communicator.name} player {communicator.rank} secret: {secret}")
+    # Player 0 will provide a secret.
+    secret = numpy.array(numpy.pi) if communicator.rank == 0 else None
+    #log.info(f"Comm {communicator.name} player {communicator.rank} secret: {secret}")
 
-        # Generate shares for all players.
-        share = shamir.share(src=0, k=3, secret=encoder.encode(secret))
-        log.info(f"Comm {communicator.name} player {communicator.rank} share: {share}")
+    # Generate shares for all players.
+    share = shamir.share(src=0, k=3, secret=encoder.encode(secret))
+    #log.info(f"Comm {communicator.name} player {communicator.rank} share: {share}")
 
-        while True:
-            try: # Do computation in this block.
-                revealed = encoder.decode(shamir.reveal(share))
-                log.info("-" * 60, src=0)
-                log.info(f"Comm {communicator.name} player {communicator.rank} revealed: {revealed}")
-            except Exception as e: # Implement failure recovery in this block.
-                logging.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
-                # Something went wrong.  Revoke the current communicator to
-                # ensure that all players are aware of it.
-                communicator.revoke()
-                # Obtain a new communicator that contains the remaining players.
-                name = f"world-{next(communicator_index)}"
-                communicator, old_ranks = communicator.shrink(name=name)
-                # Ensure that the newly created communicator gets cleaned-up.
-                resources.enter_context(communicator)
-                # These objects must be recreated from scratch since they use
-                # the communicator that was revoked.
-                log = cicada.Logger(logging.getLogger(), communicator)
-                shamir = cicada.shamir.ShamirProtocol(communicator)
-            finally:
-                time.sleep(1.0)
+    while True:
+        try: # Do computation in this block.
+            revealed = encoder.decode(shamir.reveal(share))
+            log.info("-" * 60, src=0)
+            log.info(f"Comm {communicator.name} player {communicator.rank} revealed: {revealed}")
+        except Exception as e: # Implement failure recovery in this block.
+            logging.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
+            # Something went wrong.  Revoke the current communicator to
+            # ensure that all players are aware of it.
+            communicator.revoke()
+            # Obtain a new communicator that contains the remaining players.
+            name = f"world-{next(communicator_index)}"
+            newcommunicator, old_ranks = communicator.shrink(name=name)
 
-            # Our processes are remarkably failure-prone.
-            if generator.uniform() < 0.05:
-                logging.error(f"Comm {communicator.name} player {communicator.rank} dying!")
-                os.kill(os.getpid(), signal.SIGKILL)
+            # These objects must be recreated from scratch since they use
+            # the communicator that was revoked.
+            log = cicada.Logger(logging.getLogger(), newcommunicator)
+            shamir = cicada.shamir.ShamirProtocol(newcommunicator)
+            log.info("-" * 60, src=0)
+            log.info(f"Comm {communicator.name} player {communicator.rank} shrunk to {newcommunicator.name} {newcommunicator.rank}.")
+            communicator.free()
+            communicator = newcommunicator
+        finally:
+            time.sleep(0.1)
+
+        # Our processes are remarkably failure-prone.
+        if generator.uniform() < 0.0001:
+            logging.info("-" * 60)
+            logging.error(f"Comm {communicator.name} player {communicator.rank} dying!")
+            os.kill(os.getpid(), signal.SIGKILL)
 
 
-SocketCommunicator.run(world_size=8, fn=main)
+SocketCommunicator.run(world_size=32, fn=main)
