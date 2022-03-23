@@ -105,14 +105,15 @@ class SocketCommunicator(Communicator):
     class Tags(enum.Enum):
         ALLGATHER = 1
         BARRIER = 2
-        BROADCAST = 3
-        GATHER = 4
-        GATHERV = 5
-        REVOKE = 6
-        SCATTER = 7
-        SCATTERV = 8
-        SEND = 9
-        SHRINK = 10
+        BEACON = 3
+        BROADCAST = 4
+        GATHER = 5
+        GATHERV = 6
+        REVOKE = 7
+        SCATTER = 8
+        SCATTERV = 9
+        SEND = 10
+        SHRINK = 11
 
 
     def __init__(self, *, sockets, name="world", timeout=5):
@@ -151,10 +152,12 @@ class SocketCommunicator(Communicator):
         self._incoming = queue.Queue()
         self._receive_queues = {}
         for tag in SocketCommunicator.Tags:
-            if tag not in [SocketCommunicator.Tags.REVOKE]:
+            if tag not in [SocketCommunicator.Tags.BEACON, SocketCommunicator.Tags.REVOKE]:
                 self._receive_queues[tag] = {}
                 for rank in self.ranks:
                     self._receive_queues[tag][rank] = queue.Queue()
+
+        self._beacons = []
 
         # Start queueing incoming messages.
         self._queueing_thread = threading.Thread(name="Queueing", target=self._queue_messages, daemon=True)
@@ -188,6 +191,11 @@ class SocketCommunicator(Communicator):
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
                 self._log.debug(f"<-- player {src} {tag}") # pragma: no cover
+
+            # Beacon messages don't get queued because they receive special handling.
+            if tag == SocketCommunicator.Tags.BEACON:
+                self._beacons.append((src, payload))
+                continue
 
             # Revoke messages don't get queued because they receive special handling.
             if tag == SocketCommunicator.Tags.REVOKE:
@@ -912,8 +920,25 @@ class SocketCommunicator(Communicator):
         ##################################################################################
         # Phase 1: Determine which players are still alive.
 
-        # By default, we assume that everyone is alive.
-        remaining_ranks = set(self.ranks)
+        # By default, we assume that no-one is alive.
+        remaining_ranks = set()
+
+        timer = Timer(threshold=self._timeout)
+        while not timer.expired:
+            # Send beacons to the other players (including ourself).
+            for rank in self.ranks:
+                self._send(tag=SocketCommunicator.Tags.BEACON, payload=None, dst=rank)
+
+            # Wait for received beacons (including our own).
+            while self._beacons:
+                src, payload = self._beacons.pop(0)
+                remaining_ranks.add(src)
+
+            # If every player is accounted for, we don't need to keep waiting.
+            if remaining_ranks == set(self.ranks):
+                break
+
+            time.sleep(0.5)
 
         ##################################################################################
         # Phase 2: Use the list of remaining players to generate new network parameters.

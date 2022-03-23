@@ -266,10 +266,10 @@ Feature: SocketCommunicator
         | 10      | "tcp"    | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
         | 10      | "file"   | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
 
-        @wip
         Examples:
-        | players | family   | group       | name      | names         | world_sizes |
-        | 3       | "tcp"    | [0, 1]      | "green"   | ["green"] * 3 | [3] * 3     |
+        | players | family   | group       | name    | names                    | world_sizes      |
+        | 3       | "tcp"    | [0, 1]      | "red"   | ["red", "red", None]     | [2, 2, None]     |
+        | 3       | "tcp"    | [1, 2]      | "red"   | [None, "red", "red"]     | [None, 2, 2]     |
 
     Scenario Outline: Split Communicator
         Given <players> players
