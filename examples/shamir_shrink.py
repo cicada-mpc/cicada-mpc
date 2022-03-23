@@ -21,13 +21,12 @@ import signal
 
 import numpy
 
-import cicada.communicator
+from cicada.communicator import SocketCommunicator
 import cicada.encoder
 import cicada.shamir
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.NNGCommunicator.run(world_size=5)
 def main(communicator):
     with contextlib.ExitStack() as resources:
         log = cicada.Logger(logging.getLogger(), communicator)
@@ -57,7 +56,7 @@ def main(communicator):
             # ensure that all players are aware of it.
             communicator.revoke()
             # Obtain a new communicator that contains the remaining players.
-            communicator, old_ranks = communicator.shrink()
+            communicator, old_ranks = communicator.shrink(name="smallworld")
             # run() automatically cleans-up the old communicator, this
             # will ensure that we properly cleanup the new one.
             resources.enter_context(communicator)
@@ -72,5 +71,5 @@ def main(communicator):
         revealed = encoder.decode(shamir.reveal(share))
         log.info(f"Player {communicator.rank} (formerly {old_ranks[communicator.rank]}) revealed: {revealed}")
 
-main()
 
+SocketCommunicator.run(world_size=5, fn=main)

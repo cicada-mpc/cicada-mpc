@@ -23,13 +23,12 @@ import time
 
 import numpy
 
-import cicada.communicator
+from cicada.communicator import SocketCommunicator
 import cicada.encoder
 import cicada.shamir
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.NNGCommunicator.run(world_size=8)
 def main(communicator):
     with contextlib.ExitStack() as resources:
         log = cicada.Logger(logging.getLogger(), communicator)
@@ -74,5 +73,5 @@ def main(communicator):
                 logging.error(f"Comm {communicator.name} player {communicator.rank} dying!")
                 os.kill(os.getpid(), signal.SIGKILL)
 
-main()
 
+SocketCommunicator.run(world_size=8, fn=main)
