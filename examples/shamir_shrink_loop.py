@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import contextlib
 import itertools
 import logging
@@ -29,21 +30,29 @@ import cicada.shamir
 
 logging.basicConfig(level=logging.INFO)
 
+
+parser = argparse.ArgumentParser(description="Failure recovery tester.")
+parser.add_argument("--debug", action="store_true", help="Enable verbose output.")
+parser.add_argument("--mtbf", "-m", type=float, default="10", help="Mean time between failure in iterations. Default: %(default)s")
+parser.add_argument("--seed", type=int, default=1234, help="Random seed. Default: %(default)s")
+parser.add_argument("--world-size", "-n", type=int, default=32, help="Number of players. Default: %(default)s")
+arguments = parser.parse_args()
+
+lam = 1.0 / arguments.mtbf
+
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     shamir = cicada.shamir.ShamirProtocol(communicator)
     encoder = cicada.encoder.FixedFieldEncoder()
-    generator = numpy.random.default_rng(seed=communicator.rank)
+    generator = numpy.random.default_rng(seed=arguments.seed)
 
-    communicator_index = itertools.count(2)
+    communicator_index = itertools.count(1)
 
     # Player 0 will provide a secret.
     secret = numpy.array(numpy.pi) if communicator.rank == 0 else None
-    #log.info(f"Comm {communicator.name} player {communicator.rank} secret: {secret}")
 
     # Generate shares for all players.
     share = shamir.share(src=0, k=3, secret=encoder.encode(secret))
-    #log.info(f"Comm {communicator.name} player {communicator.rank} share: {share}")
 
     while True:
         try: # Do computation in this block.
@@ -64,17 +73,23 @@ def main(communicator):
             log = cicada.Logger(logging.getLogger(), newcommunicator)
             shamir = cicada.shamir.ShamirProtocol(newcommunicator)
             log.info("-" * 60, src=0)
-            log.info(f"Comm {communicator.name} player {communicator.rank} shrunk to {newcommunicator.name} {newcommunicator.rank}.")
+            log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} {newcommunicator.rank}.")
             communicator.free()
             communicator = newcommunicator
         finally:
             time.sleep(0.1)
 
-        # Our processes are remarkably failure-prone.
-        if generator.uniform() < 0.0001:
+        # Figure-out how many processes will fail on this round.
+        failures = generator.poisson(lam)
+
+        # Decide which processes will fail.
+        failures = generator.choice(communicator.world_size, size=failures, replace=False)
+
+        # If we're one of the lambs, bail-out.
+        if communicator.rank in failures:
             logging.info("-" * 60)
             logging.error(f"Comm {communicator.name} player {communicator.rank} dying!")
             os.kill(os.getpid(), signal.SIGKILL)
 
 
-SocketCommunicator.run(world_size=32, fn=main)
+SocketCommunicator.run(world_size=arguments.world_size, fn=main, name="world-0")
