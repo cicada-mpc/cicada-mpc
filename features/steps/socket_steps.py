@@ -329,14 +329,12 @@ def step_impl(context, player):
                 value = communicator.broadcast(src=0, value="foo")
                 if communicator.rank == player:
                     communicator.revoke()
-            except Timeout as e:
-                logging.error(f"Player {communicator.rank} exception: {e}")
-                continue
+            except Revoked as e:
+                raise e
             except Exception as e:
                 logging.error(f"Player {communicator.rank} exception: {e}")
-                raise e
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player,), identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player,))
 
 
 @then(u'players {players} should fail with NotRunning errors')

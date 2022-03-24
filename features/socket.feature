@@ -200,7 +200,6 @@ Feature: SocketCommunicator
         | 2       | range(2)     | "blue"     | ["file:///tmp/cicada0", "file:///tmp/cicada1"]     | ["blue"] * 2 | [2] * 2       |
 
 
-    @wip
     Scenario Outline: Revoke Communicator
         Given <players> players
         When player <player> revokes the communicator
@@ -214,6 +213,7 @@ Feature: SocketCommunicator
         | 3       | 1      | range(3)    |
         | 3       | 2      | range(3)    |
         | 10      | 8      | range(10)   |
+        | 32      | 11     | range(32)   |
 
 
     Scenario Outline: Scatter
