@@ -218,34 +218,34 @@ class SocketCommunicator(Communicator):
     def _receive_messages(self):
         # Parse and queue incoming messages as they arrive.
         while self._running:
-            try:
-                # Wait for data to arrive from the other players.
-                ready, _, _ = select.select(self._players.values(), [], [], 0.01)
-                for player in ready:
+            # Wait for data to arrive from the other players.
+            ready, _, _ = select.select(self._players.values(), [], [], 0.01)
+            for player in ready:
+                try:
                     player.feed()
+                except ConnectionResetError as e: # pragma: no cover
+                    # These are pretty common, log them at a lower priority to streamline outputs.
+                    self._log.info(f"exception reading from socket: {e}")
+                except Exception as e: # pragma: no cover
+                    self._log.warning(f"exception reading from socket: {e}")
 
-                # Process any messages that were received. Note that
-                # we iterate over every player, not just the ones that
-                # were selected above, because there might be a few
-                # messages left from the startup process.
-                for src, player in self._players.items():
-                    for raw_message in player.messages():
-                        # Ignore unparsable messages.
-                        try:
-                            tag, payload = pickle.loads(raw_message)
-                        except Exception as e: # pragma: no cover
-                            self._log.warning(f"ignoring unparsable message: {e}")
-                            continue
+            # Process any messages that were received. Note that
+            # we iterate over every player, not just the ones that
+            # were selected above, because there might be a few
+            # messages left from the startup process.
+            for src, player in self._players.items():
+                for raw_message in player.messages():
+                    # Ignore unparsable messages.
+                    try:
+                        tag, payload = pickle.loads(raw_message)
+                    except Exception as e: # pragma: no cover
+                        self._log.warning(f"ignoring unparsable message: {e}")
+                        continue
 
-                        self._log.debug(f"received {tag, payload}")
+                    self._log.debug(f"received {tag, payload}")
 
-                        # Insert the message into the incoming queue.
-                        self._incoming.put((src, SocketCommunicator.Tags(tag), payload), block=True, timeout=None)
-            except ConnectionResetError as e: # pragma: no cover
-                # These are pretty common, log them at a lower priority to streamline outputs.
-                self._log.info(f"receive exception: {e}")
-            except Exception as e: # pragma: no cover
-                self._log.warning(f"receive exception: {e}")
+                    # Insert the message into the incoming queue.
+                    self._incoming.put((src, SocketCommunicator.Tags(tag), payload), block=True, timeout=None)
 
         # The communicator has been freed, so exit the thread.
         self._log.debug(f"receive thread closed.")
