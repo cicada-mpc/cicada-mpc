@@ -73,7 +73,7 @@ def main(communicator):
             log = cicada.Logger(logging.getLogger(), newcommunicator)
             shamir = cicada.shamir.ShamirProtocol(newcommunicator)
             log.info("-" * 60, src=0)
-            log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} {newcommunicator.rank}.")
+            log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} player {newcommunicator.rank}.")
             communicator.free()
             communicator = newcommunicator
         finally:
