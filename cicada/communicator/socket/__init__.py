@@ -220,14 +220,15 @@ class SocketCommunicator(Communicator):
         while self._running:
             # Wait for data to arrive from the other players.
             ready, _, _ = select.select(self._players.values(), [], [], 0.01)
-            for player in ready:
-                try:
-                    player.feed()
-                except ConnectionResetError as e: # pragma: no cover
-                    # These are pretty common, log them at a lower priority to streamline outputs.
-                    self._log.info(f"exception reading from socket: {e}")
-                except Exception as e: # pragma: no cover
-                    self._log.warning(f"exception reading from socket: {e}")
+            for src, player in self._players.items():
+                if player in ready:
+                    try:
+                        player.feed()
+                    except ConnectionResetError as e: # pragma: no cover
+                        # These are pretty common, log them at a lower priority to streamline outputs.
+                        self._log.info(f"exception reading from player {src} socket: {e}")
+                    except Exception as e: # pragma: no cover
+                        self._log.warning(f"exception reading from player {src} socket: {e}")
 
             # Process any messages that were received. Note that
             # we iterate over every player, not just the ones that
@@ -917,7 +918,13 @@ class SocketCommunicator(Communicator):
 
         Returns
         -------
-        communicator: a new :class:`SocketCommunicator` instance.
+        communicator: :class:`SocketCommunicator`
+            New communicator containing the remaining players.
+
+        oldranks: sequence of :class:`int`
+            Previous ranks of the remaining players, in rank order.
+            Use this if you need to know the original rank of any member of
+            `communicator`.
         """
         self._log.debug(f"shrink()")
 
