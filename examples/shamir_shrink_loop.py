@@ -29,7 +29,6 @@ import cicada.shamir
 
 logging.basicConfig(level=logging.INFO)
 
-@cicada.communicator.NNGCommunicator.run(world_size=8)
 def main(communicator):
     with contextlib.ExitStack() as resources:
         log = cicada.Logger(logging.getLogger(), communicator)
@@ -40,11 +39,11 @@ def main(communicator):
         communicator_index = itertools.count(2)
 
         # Player 0 will provide a secret.
-        secret = numpy.array(numpy.pi) if communicator.rank == 0 else None
+        secret = numpy.array(numpy.pi)# if communicator.rank == 0 else None
         log.info(f"Comm {communicator.name} player {communicator.rank} secret: {secret}")
 
         # Generate shares for all players.
-        share = shamir.share(src=0, k=3, secret=encoder.encode(secret))
+        share = shamir.share(src=0, secret=encoder.encode(secret), shape=secret.shape)
         log.info(f"Comm {communicator.name} player {communicator.rank} share: {share}")
 
         while True:
@@ -74,5 +73,6 @@ def main(communicator):
                 logging.error(f"Comm {communicator.name} player {communicator.rank} dying!")
                 os.kill(os.getpid(), signal.SIGKILL)
 
-main()
+cicada.communicator.SocketCommunicator.run(world_size=8, fn=main)
+
 
