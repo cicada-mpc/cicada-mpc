@@ -38,7 +38,7 @@ def main(communicator):
         log.info(f"Player {communicator.rank} secret: {secret}")
 
         # Generate shares for all players.
-        share = shamir.share(src=0, k=3, secret=encoder.encode(secret))
+        share = shamir.share(src=0, secret=encoder.encode(secret), shape=())
         log.info(f"Player {communicator.rank} share: {share}")
 
         # Nice player ya got there.  It'd be a real shame
@@ -56,14 +56,16 @@ def main(communicator):
             # ensure that all players are aware of it.
             communicator.revoke()
             # Obtain a new communicator that contains the remaining players.
-            communicator, old_ranks = communicator.shrink(name="smallworld")
+            newcommunicator, old_ranks = communicator.shrink(name="smallworld")
+            log.info('#'*10+'\nold_ranks: '+str(old_ranks)+'\nold indicies: '+str(shamir.indicies)+'\nnew indicies: '+str([shamir.indicies[x] for x in old_ranks]), src=0)
             # run() automatically cleans-up the old communicator, this
             # will ensure that we properly cleanup the new one.
             resources.enter_context(communicator)
             # These objects must be recreated from scratch since they use
             # the communicator that was revoked.
-            log = cicada.Logger(logging.getLogger(), communicator)
-            shamir = cicada.shamir.ShamirProtocol(communicator)
+            log = cicada.Logger(logging.getLogger(), newcommunicator)
+            shamir = cicada.shamir.ShamirProtocol(newcommunicator, indicies=[shamir.indicies[x] for x in old_ranks])
+            log.info('#'*10+'current indicies: '+str(shamir.indicies), src=0)
 
         # Now we can continue on with our work ...
 

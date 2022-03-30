@@ -67,13 +67,13 @@ def main(communicator):
             # Obtain a new communicator that contains the remaining players.
             name = f"world-{next(communicator_index)}"
             newcommunicator, old_ranks = communicator.shrink(name=name)
-            log.info('#'*10+str(old_ranks), src=0)
+            log.info('#'*10+'\nold_ranks: '+str(old_ranks)+'\nold indicies: '+str(shamir.indicies)+'\nnew indicies: '+str([shamir.indicies[x] for x in old_ranks]), src=0)
             
 
             # These objects must be recreated from scratch since they use
             # the communicator that was revoked.
             log = cicada.Logger(logging.getLogger(), newcommunicator)
-            shamir = cicada.shamir.ShamirProtocol(newcommunicator, indicies=[x+1 for x in old_ranks])
+            shamir = cicada.shamir.ShamirProtocol(newcommunicator, indicies=[shamir.indicies[x] for x in old_ranks])
             log.info("-" * 60, src=0)
             log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} player {newcommunicator.rank}.")
             communicator.free()

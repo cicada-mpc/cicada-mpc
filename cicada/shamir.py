@@ -91,7 +91,7 @@ class ShamirProtocol(object):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator,*, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, d=None, index=None, indicies=None):
+    def __init__(self, communicator,*, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, d=None, indicies=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
@@ -113,14 +113,12 @@ class ShamirProtocol(object):
             raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
-        if index is None:
-            self.index = communicator.rank + 1 
-        else:
-            self.index=index
         if indicies is None:
             self.indicies = [x+1 for x in communicator.ranks]
         else:
             self.indicies = indicies
+        self.revc = self.lagrange_coef()
+        print(f'init revc: {self.revc}')
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -358,12 +356,10 @@ class ShamirProtocol(object):
         from math import prod
         if src is None:
             src = self.indicies
-        else:
-            src = [x+1 for x in src]
         ls = len(src)
         coefs=numpy.zeros(ls, dtype=self.encoder.dtype)
-        for i in ls:
-            coefs[i]=prod([-j*pow(src[i]-j, self.encoder.modulus-2, self.encoder.modulus) for j in src if j != src[i]])
+        for i in range(ls):
+            coefs[i]=prod([-src[j]*pow(src[i]-src[j], self.encoder.modulus-2, self.encoder.modulus) for j in range(ls) if src[j] != src[i]])%self.encoder.modulus
         return coefs 
 
     def less(self, lhs, rhs):
@@ -1122,16 +1118,20 @@ class ShamirProtocol(object):
         if src is None:
             src = self.communicator.ranks
         n=len(src)
+        if n == len(self.indicies):
+            revc = self.revc
+        else:
+            revc = None
         # Send data to the other players.
         secret = None
-        revc = []
         for recipient in dst:
             received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
             if received_shares: 
                 received_storage = numpy.array([x.storage for x in received_shares], dtype=self.encoder.dtype)
                 #print(f'recipient: {recipient} rs shape: {received_storage.shape}')
                 if self.communicator.rank == recipient:
-                    revc = self.lagrange_coef(src)
+                    if revc is None:
+                        revc = self.lagrange_coef([self.indicies[x] for x in src])
                     secret = []
                     for index in numpy.ndindex(received_storage[0].shape):
                         secret.append(sum([revc[i]*received_storage[i][index] for i in range(len(revc))]))
@@ -1186,7 +1186,7 @@ class ShamirProtocol(object):
             coef = self.encoder.uniform(size=shape+(self.d,), generator=self._prng)
             for index in numpy.ndindex(shape):
                 for x in self.indicies:
-                    shares.append(numpy.dot(numpy.power(numpy.full((self.d,), x+1),numpy.arange(1, self.d+1)), coef[index])+secret[index])
+                    shares.append(numpy.dot(numpy.power(numpy.full((self.d,), x),numpy.arange(1, self.d+1)), coef[index])+secret[index])
             sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),)).T
         share = numpy.array(self.communicator.scatterv(src=src, dst=dst, values=sharesn), dtype=self.encoder.dtype).T
         return ShamirArrayShare(share)
@@ -1356,7 +1356,7 @@ class ShamirProtocol(object):
         x = lhs.storage
         y = rhs.storage
         xy=numpy.array((x*y)%self.encoder.modulus, dtype=self.encoder.dtype)
-        lc = self.lagrange_coef(self.communicator.ranks)
+        lc = self.lagrange_coef()
         dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.encoder.dtype) 
         for i, src in enumerate(self.communicator.ranks):
             dubdeg[i]=self.share(src=src, secret=xy, shape=xy.shape).storage #transpose

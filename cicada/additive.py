@@ -338,6 +338,29 @@ class AdditiveProtocol(object):
         diff = self.subtract(lhs, rhs)
         return self.logical_not(self.private_public_power_field(diff, self.encoder.modulus-1))
 
+    def equaldiff(self, lhs, rhs):
+        """Return an elementwise probabilistic equality comparison between secret shared arrays.
+
+        The result is the secret shared elementwise comparison `lhs` == `rhs`.
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared result of computing `lhs` == `rhs` elementwise.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        diff = self.subtract(lhs, rhs)
+        diffdiff = self.subtract(rhs, lhs)
+        return self.logical_not(self.logical_xor(self.less_than_zero(diff), self.less_than_zero(diffdiff)))
 
     def floor(self, operand):
         """Remove the `bits` least significant bits from each element in a secret shared array
