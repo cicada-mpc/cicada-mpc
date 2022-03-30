@@ -19,6 +19,7 @@
 
 import collections
 import contextlib
+import enum
 import hashlib
 import logging
 import multiprocessing
@@ -29,6 +30,7 @@ import queue
 import select
 import socket
 import ssl
+import tempfile
 import threading
 import time
 import traceback
@@ -38,12 +40,13 @@ import numpy
 import pynetstring
 
 from ..interface import Communicator
-from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, rendezvous
+from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, message, rendezvous
 
-Message = collections.namedtuple("Message", ["serial", "tag", "sender", "payload"])
-Message.__doc__ = """
-Wrapper class for messages sent between processes.
-"""
+
+class BrokenPipe(Exception):
+    """Raised trying to send to another player that no longer exists."""
+    pass
+
 
 class Failed(Exception):
     """Used to indicate that a player process raised an exception."""
@@ -104,20 +107,18 @@ class SocketCommunicator(Communicator):
         Maximum time to wait for communication to complete, in seconds.
     """
 
-    _tags = [
-        "allgather",
-        "barrier-enter",
-        "barrier-exit",
-        "broadcast",
-        "gather",
-        "gatherv",
-        "revoke",
-        "scatter",
-        "scatterv",
-        "send",
-        "shrink-begin",
-        "shrink-end",
-        ]
+    class Tags(enum.Enum):
+        ALLGATHER = 1
+        BARRIER = 2
+        BEACON = 3
+        BROADCAST = 4
+        GATHER = 5
+        GATHERV = 6
+        REVOKE = 7
+        SCATTER = 8
+        SCATTERV = 9
+        SEND = 10
+        SHRINK = 11
 
 
     def __init__(self, *, sockets, name="world", timeout=5):
@@ -150,17 +151,18 @@ class SocketCommunicator(Communicator):
         self._players = sockets
 
         # Begin normal operation.
-        self._send_serial = 0
         self._running = True
 
         # Setup queues for incoming messages.
         self._incoming = queue.Queue()
         self._receive_queues = {}
-        for tag in self._tags:
-            if tag not in ["revoke"]:
+        for tag in SocketCommunicator.Tags:
+            if tag not in [SocketCommunicator.Tags.BEACON, SocketCommunicator.Tags.REVOKE]:
                 self._receive_queues[tag] = {}
                 for rank in self.ranks:
                     self._receive_queues[tag][rank] = queue.Queue()
+
+        self._beacons = []
 
         # Start queueing incoming messages.
         self._queueing_thread = threading.Thread(name="Queueing", target=self._queue_messages, daemon=True)
@@ -178,41 +180,37 @@ class SocketCommunicator(Communicator):
         while self._running:
             # Wait for the next incoming message.
             try:
-                message = self._incoming.get(block=True, timeout=0.1)
+                raw_message = self._incoming.get(block=True, timeout=0.1)
             except queue.Empty:
                 continue
 
             # Drop messages with missing attributes or unexpected values.
             try:
-                if not hasattr(message, "payload"):
-                    raise RuntimeError(f"Message missing payload.") # pragma: no cover
-                if not hasattr(message, "sender"):
-                    raise RuntimeError(f"Message missing sender.") # pragma: no cover
-                if not hasattr(message, "serial"):
-                    raise RuntimeError(f"Message missing serial number.") # pragma: no cover
-                if not hasattr(message, "tag"):
-                    raise RuntimeError(f"Message missing tag.") # pragma: no cover
-                if message.tag not in self._tags:
-                    raise RuntimeError(f"Unknown tag: {message.tag}") # pragma: no cover
-                if message.sender not in self.ranks:
-                    raise RuntimeError(f"Unexpected sender: {message.sender}") # pragma: no cover
+                src, tag, payload = raw_message
+                if tag not in SocketCommunicator.Tags:
+                    raise RuntimeError(f"Unknown tag: {tag}") # pragma: no cover
             except Exception as e: # pragma: no cover
-                self._log.warning(f"ignoring message: {message} exception: {e}")
+                self._log.warning(f"ignoring message: {raw_message} exception: {e}")
                 continue
 
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
-                self._log.debug(f"<-- player {message.sender} {message.tag}#{message.serial:04}") # pragma: no cover
+                self._log.debug(f"<-- player {src} {tag}") # pragma: no cover
 
-            # Revoke messages don't get queued because they receive special handling.
-            if message.tag == "revoke":
-                if not self._revoked:
-                    self._revoked = True
-                    self._log.warning(f"revoked by player {message.sender}")
+            # Beacon messages don't get queued because they receive special handling.
+            if tag == SocketCommunicator.Tags.BEACON:
+                self._beacons.append((src, payload))
                 continue
 
-            # Insert the message into the correct queue.
-            self._receive_queues[message.tag][message.sender].put(message, block=True, timeout=None)
+            # Revoke messages don't get queued because they receive special handling.
+            if tag == SocketCommunicator.Tags.REVOKE:
+                if not self._revoked:
+                    self._revoked = True
+                    self._log.warning(f"revoked by player {src}")
+                continue
+
+            # Insert the payload into the correct queue.
+            self._receive_queues[tag][src].put(payload, block=True, timeout=None)
 
         self._log.debug(f"queueing thread closed.")
 
@@ -220,31 +218,35 @@ class SocketCommunicator(Communicator):
     def _receive_messages(self):
         # Parse and queue incoming messages as they arrive.
         while self._running:
-            try:
-                # Wait for data to arrive from the other players.
-                ready, _, _ = select.select(self._players.values(), [], [], 0.01)
-                for player in ready:
-                    player.feed()
+            # Wait for data to arrive from the other players.
+            ready, _, _ = select.select(self._players.values(), [], [], 0.01)
+            for src, player in self._players.items():
+                if player in ready:
+                    try:
+                        player.feed()
+                    except ConnectionResetError as e: # pragma: no cover
+                        # These are pretty common, log them at a lower priority to streamline outputs.
+                        self._log.info(f"exception reading from player {src} socket: {e}")
+                    except Exception as e: # pragma: no cover
+                        self._log.warning(f"exception reading from player {src} socket: {e}")
 
-                # Process any messages that were received. Note that
-                # we iterate over every player, not just the ones that
-                # were selected above, because there might be a few
-                # messages left from the startup process.
-                for player in self._players.values():
-                    for raw_message in player.messages():
-                        # Ignore unparsable messages.
-                        try:
-                            message = pickle.loads(raw_message)
-                        except Exception as e: # pragma: no cover
-                            self._log.warning(f"ignoring unparsable message: {e}")
-                            continue
+            # Process any messages that were received. Note that
+            # we iterate over every player, not just the ones that
+            # were selected above, because there might be a few
+            # messages left from the startup process.
+            for src, player in self._players.items():
+                for raw_message in player.messages():
+                    # Ignore unparsable messages.
+                    try:
+                        tag, payload = pickle.loads(raw_message)
+                    except Exception as e: # pragma: no cover
+                        self._log.warning(f"ignoring unparsable message: {e}")
+                        continue
 
-                        self._log.debug(f"received {message}")
+                    self._log.debug(f"received {tag, payload}")
 
-                        # Insert the message into the incoming queue.
-                        self._incoming.put(message, block=True, timeout=None)
-            except Exception as e: # pragma: no cover
-                self._log.warning(f"receive exception: {e}")
+                    # Insert the message into the incoming queue.
+                    self._incoming.put((src, SocketCommunicator.Tags(tag), payload), block=True, timeout=None)
 
         # The communicator has been freed, so exit the thread.
         self._log.debug(f"receive thread closed.")
@@ -256,9 +258,9 @@ class SocketCommunicator(Communicator):
             return self._receive_queues[tag][sender].get(block=block, timeout=self._timeout)
         except queue.Empty:
             if block:
-                raise Timeout(f"Tag {tag!r} from sender {sender} timed-out after {self._timeout}s")
+                raise Timeout(f"Tag {tag.name} from sender {sender} timed-out after {self._timeout}s")
             else: # pragma: no cover
-                raise TryAgain(f"Tag {tag!r} from sender {sender} try again.")
+                raise TryAgain(f"Tag {tag.name} from sender {sender} try again.")
 
 
     def _require_rank(self, rank):
@@ -287,28 +289,25 @@ class SocketCommunicator(Communicator):
 
 
     def _send(self, *, tag, payload, dst):
-        if tag not in self._tags:
+        if tag not in SocketCommunicator.Tags:
             raise ValueError(f"Unknown tag: {tag}") # pragma: no cover
         if dst not in self.ranks:
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
 
-        message = Message(self._send_serial, tag, self._rank, payload)
-        self._send_serial += 1
-
         if self._log.isEnabledFor(logging.DEBUG):
-            self._log.debug(f"--> player {dst} {message.tag}#{message.serial:04}") # pragma: no cover
+            self._log.debug(f"--> player {dst} {tag}") # pragma: no cover
 
         # As a special-case, route messages sent to ourself directly to the incoming queue.
         if dst == self.rank:
-            self._incoming.put(message, block=True, timeout=None)
+            self._incoming.put((self.rank, tag, payload), block=True, timeout=None)
         # Otherwise, send the message to the appropriate socket.
         else:
             try:
-                raw_message = pickle.dumps(message)
+                raw_message = pickle.dumps((tag.value, payload))
                 player = self._players[dst]
                 player.send(raw_message)
-            except Exception as e: # pragma: no cover
-                self._log.error(f"exception sending to {dst}: {e}")
+            except BrokenPipeError as e: # pragma: no cover
+                raise BrokenPipe(message(self.name, self.rank, f"broken pipe sending to player {dst}."))
 
 
     def all_gather(self, value):
@@ -319,11 +318,10 @@ class SocketCommunicator(Communicator):
 
         # Send messages.
         for rank in self.ranks:
-            self._send(tag="allgather", payload=value, dst=rank)
+            self._send(tag=SocketCommunicator.Tags.ALLGATHER, payload=value, dst=rank)
 
         # Receive messages.
-        messages = [self._receive(tag="allgather", sender=rank, block=True) for rank in self.ranks]
-        values = [message.payload for message in messages]
+        values = [self._receive(tag=SocketCommunicator.Tags.ALLGATHER, sender=rank, block=True) for rank in self.ranks]
         return values
 
 
@@ -338,18 +336,18 @@ class SocketCommunicator(Communicator):
         self._require_running()
 
         # Notify rank 0 that we've entered the barrier.
-        self._send(tag="barrier-enter", payload=None, dst=0)
+        self._send(tag=SocketCommunicator.Tags.BARRIER, payload=None, dst=0)
 
         if self.rank == 0:
             # Wait until every player enters the barrier.
             for rank in self.ranks:
-                self._receive(tag="barrier-enter", sender=rank, block=True)
+                self._receive(tag=SocketCommunicator.Tags.BARRIER, sender=rank, block=True)
             # Notify every player that it's time to exit the barrier.
             for rank in self.ranks:
-                self._send(tag="barrier-exit", payload=None, dst=rank)
+                self._send(tag=SocketCommunicator.Tags.BARRIER, payload=None, dst=rank)
 
         # Wait until we're told to exit.
-        self._receive(tag="barrier-exit", sender=0, block=True)
+        self._receive(tag=SocketCommunicator.Tags.BARRIER, sender=0, block=True)
 
 
     def broadcast(self, *, src, value):
@@ -363,11 +361,10 @@ class SocketCommunicator(Communicator):
         # Broadcast the value to all players.
         if self.rank == src:
             for rank in self.ranks:
-                self._send(tag="broadcast", payload=value, dst=rank)
+                self._send(tag=SocketCommunicator.Tags.BROADCAST, payload=value, dst=rank)
 
         # Receive the broadcast value.
-        message = self._receive(tag="broadcast", sender=src, block=True)
-        return message.payload
+        return self._receive(tag=SocketCommunicator.Tags.BROADCAST, sender=src, block=True)
 
 
     @staticmethod
@@ -497,13 +494,12 @@ class SocketCommunicator(Communicator):
         dst = self._require_rank(dst)
 
         # Send local data to the destination.
-        self._send(tag="gather", payload=value, dst=dst)
+        self._send(tag=SocketCommunicator.Tags.GATHER, payload=value, dst=dst)
 
         # Receive data from all ranks.
         if self.rank == dst:
             # Messages could arrive out of order.
-            messages = [self._receive(tag="gather", sender=rank, block=True) for rank in self.ranks]
-            values = [message.payload for message in messages]
+            values = [self._receive(tag=SocketCommunicator.Tags.GATHER, sender=rank, block=True) for rank in self.ranks]
             return values
 
         return None
@@ -520,13 +516,12 @@ class SocketCommunicator(Communicator):
 
         # Send local data to the destination.
         if self.rank in src:
-            self._send(tag="gatherv", payload=value, dst=dst)
+            self._send(tag=SocketCommunicator.Tags.GATHERV, payload=value, dst=dst)
 
         # Receive data from the other players.
         if self.rank == dst:
             # Messages could arrive out of order.
-            messages = [self._receive(tag="gatherv", sender=rank, block=True) for rank in src]
-            values = [message.payload for message in messages]
+            values = [self._receive(tag=SocketCommunicator.Tags.GATHERV, sender=rank, block=True) for rank in src]
             return values
 
         return None
@@ -544,26 +539,26 @@ class SocketCommunicator(Communicator):
             def __init__(self, communicator, sender):
                 self._communicator = communicator
                 self._sender = sender
-                self._message = None
+                self._payload = None
 
             @property
             def is_completed(self):
-                if self._message is None:
+                if self._payload is None:
                     try:
-                        self._message = self._communicator._receive(tag="send", sender=self._sender, block=False)
+                        self._payload = self._communicator._receive(tag=SocketCommunicator.Tags.SEND, sender=self._sender, block=False)
                     except TryAgain:
                         pass
-                return self._message is not None
+                return self._payload is not None
 
             @property
             def value(self):
-                if self._message is None:
+                if self._payload is None:
                     raise RuntimeError("Call not completed.") # pragma: no cover
-                return self._message.payload
+                return self._payload
 
             def wait(self):
-                if self._message is None:
-                    self._message = self._communicator._receive(tag="send", sender=self._sender, block=True)
+                if self._payload is None:
+                    self._payload = self._communicator._receive(tag=SocketCommunicator.Tags.SEND, sender=self._sender, block=True)
 
         return Result(self, src)
 
@@ -576,7 +571,7 @@ class SocketCommunicator(Communicator):
 
         dst = self._require_rank(dst)
 
-        self._send(tag="send", payload=value, dst=dst)
+        self._send(tag=SocketCommunicator.Tags.SEND, payload=value, dst=dst)
 
         # This is safe, because we pickle the value before returning; thus,
         # nothing the caller can do to the value will have unexpected
@@ -648,8 +643,7 @@ class SocketCommunicator(Communicator):
 
         src = self._require_rank(src)
 
-        message = self._receive(tag="send", sender=src, block=True)
-        return message.payload
+        return self._receive(tag=SocketCommunicator.Tags.SEND, sender=src, block=True)
 
 
     def revoke(self):
@@ -668,16 +662,14 @@ class SocketCommunicator(Communicator):
         # Notify all players that the communicator is revoked.
         for rank in self.ranks:
             try:
-                self._send(tag="revoke", payload=None, dst=rank)
-            except Exception as e: # pragma: no cover
-                # We handle this here instead of propagating it to the
-                # application layer because we expect some recipients to be
-                # missing, else there'd be no reason to call revoke().
-                self._log.error(f"timeout revoking player {rank}.")
+                self._send(tag=SocketCommunicator.Tags.REVOKE, payload=None, dst=rank)
+            # Ignore BrokenPipe errors, they're to be expected under the circumstances.
+            except BrokenPipe as e: # pragma: no cover
+                pass
 
 
     @staticmethod
-    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, name="world", timeout=5, startup_timeout=5):
+    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -703,6 +695,9 @@ class SocketCommunicator(Communicator):
             Positional arguments to pass to `fn` when it is executed.
         kwargs: :class:`dict`, optional
             Keyword arguments to pass to `fn` when it is executed.
+        family: :class:`str`, optional
+            Address family that matches the scheme used in address URLs
+            elsewhere in the API.  Allowed values are "tcp" and "file".
         name: :class:`str`, optional
             Human-readable name for the communicator created by this function.
             Defaults to "world".
@@ -724,12 +719,18 @@ class SocketCommunicator(Communicator):
             :class:`Failed`, which can be used to access the Python exception
             and a traceback of the failing code.
         """
-        def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, name, timeout, startup_timeout):
+        def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, family, name, timeout, startup_timeout):
             # Run the work function.
             try:
-                # Create a socket with a randomly-assigned port number.
+                # Create a socket with a randomly-assigned address.
+                if family == "file":
+                    fd, path = tempfile.mkstemp()
+                    os.close(fd)
+                    address = f"file://{path}"
+                elif family == "tcp":
+                    address = "tcp://127.0.0.1"
                 timer = Timer(threshold=startup_timeout)
-                listen_socket = listen(name=name, rank=rank, address="tcp://127.0.0.1", timer=timer)
+                listen_socket = listen(name=name, rank=rank, address=address, timer=timer)
                 address = geturl(listen_socket)
 
                 # Send our address to the parent process.
@@ -781,7 +782,7 @@ class SocketCommunicator(Communicator):
             identity = None if identities is None else identities[rank]
             processes.append(context.Process(
                 target=launch,
-                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, family=family, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
 
         # Start per-player processes.
@@ -853,11 +854,10 @@ class SocketCommunicator(Communicator):
         # Send data to every player.
         if self.rank == src:
             for value, rank in zip(values, self.ranks):
-                self._send(tag="scatter", payload=value, dst=rank)
+                self._send(tag=SocketCommunicator.Tags.SCATTER, payload=value, dst=rank)
 
         # Receive data from the sender.
-        message = self._receive(tag="scatter", sender=src, block=True)
-        return message.payload
+        return self._receive(tag=SocketCommunicator.Tags.SCATTER, sender=src, block=True)
 
 
     def scatterv(self, *, src, values, dst):
@@ -877,12 +877,11 @@ class SocketCommunicator(Communicator):
         # Send data to every destination.
         if self.rank == src:
             for value, rank in zip(values, dst):
-                self._send(tag="scatterv", payload=value, dst=rank)
+                self._send(tag=SocketCommunicator.Tags.SCATTERV, payload=value, dst=rank)
 
         # Receive data from the sender.
         if self.rank in dst:
-            message = self._receive(tag="scatterv", sender=src, block=True)
-            return message.payload
+            return self._receive(tag=SocketCommunicator.Tags.SCATTERV, sender=src, block=True)
 
         return None
 
@@ -895,7 +894,7 @@ class SocketCommunicator(Communicator):
 
         dst = self._require_rank(dst)
 
-        self._send(tag="send", payload=value, dst=dst)
+        self._send(tag=SocketCommunicator.Tags.SEND, payload=value, dst=dst)
 
 
     def shrink(self, *, name, timeout=5, startup_timeout=5):
@@ -919,17 +918,49 @@ class SocketCommunicator(Communicator):
 
         Returns
         -------
-        communicator: a new :class:`SocketCommunicator` instance.
+        communicator: :class:`SocketCommunicator`
+            New communicator containing the remaining players.
+
+        oldranks: sequence of :class:`int`
+            Previous ranks of the remaining players, in rank order.
+            Use this if you need to know the original rank of any member of
+            `communicator`.
         """
         self._log.debug(f"shrink()")
 
         self._require_running()
 
-        # By default, we assume that everyone is alive.
-        remaining_ranks = self.ranks
+        ##################################################################################
+        # Phase 1: Determine which players are still alive.
+
+        # By default, we assume that no-one is alive.
+        remaining_ranks = set()
+
+        timer = Timer(threshold=self._timeout)
+        while not timer.expired:
+            # Send beacons to the other players (including ourself).
+            for rank in self.ranks:
+                try:
+                    self._send(tag=SocketCommunicator.Tags.BEACON, payload=None, dst=rank)
+                except BrokenPipe: # Ignore broken pipe errors, they're to be expected under the circumstances.
+                    pass
+
+            # Wait for received beacons (including our own).
+            while self._beacons:
+                src, payload = self._beacons.pop(0)
+                remaining_ranks.add(src)
+
+            # If every player is accounted for, we don't need to keep waiting.
+            if remaining_ranks == set(self.ranks):
+                break
+
+            time.sleep(0.5)
+
+        ##################################################################################
+        # Phase 2: Use the list of remaining players to generate new network parameters.
 
         # Sort the remaining ranks; the lowest rank will become rank 0 in the new communicator.
-        remaining_ranks = sorted(remaining_ranks)
+        remaining_ranks = sorted(list(remaining_ranks))
 
         # Generate a token based on a hash of the remaining ranks that we can
         # use to ensure that every player is in agreement on who's remaining.
@@ -942,20 +973,34 @@ class SocketCommunicator(Communicator):
         world_size=len(remaining_ranks)
         rank = remaining_ranks.index(self.rank)
 
-        # Create a new socket with a randomly-assigned port number.
-        address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
-        if address.scheme != "tcp":
-            raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can shrink.") # pragma: no cover
+        # Generate a random new listening address.
+        for sock in self._players.values():
+            address = urllib.parse.urlparse(geturl(sock))
+            break
+        if address.scheme == "file":
+            fd, path = tempfile.mkstemp()
+            os.close(fd)
+            address = f"file://{path}"
+        elif address.scheme == "tcp":
+            address = f"tcp://{address.hostname}"
+        else:
+            raise ValueError(f"Comm {self.name!r} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
 
-        listen_socket = socket.create_server((address.hostname, 0))
+        # Create a new listening socket and update the address to match
+        timer = Timer(threshold=startup_timeout)
+        listen_socket = listen(address=address, rank=self.rank, name=self.name, timer=timer)
         address = geturl(listen_socket)
 
+        ##################################################################################
+        # Phase 3: Send new network parameters to the remaining players.
+
+        # Send new connection info to the remaining players.
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
-                self._send(tag="shrink-end", payload=address, dst=remaining_rank)
-        root_address = self._receive(tag="shrink-end", sender=remaining_ranks[0], block=True).payload
+                self._send(tag=SocketCommunicator.Tags.SHRINK, payload=address, dst=remaining_rank)
+        root_address = self._receive(tag=SocketCommunicator.Tags.SHRINK, sender=remaining_ranks[0], block=True)
 
-        timer = Timer(threshold=startup_timeout)
+        # Return a new communicator.
         sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer)
         return SocketCommunicator(sockets=sockets, name=name, timeout=timeout), remaining_ranks
 
@@ -995,21 +1040,33 @@ class SocketCommunicator(Communicator):
         if not isinstance(name, (str, type(None))):
             raise ValueError(f"Comm {self.name!r} player {self.rank} name must be a string or None, got {name} instead.") # pragma: no cover
 
-        # Create a new socket with a randomly-assigned port number.
-        if name is not None:
-            address = urllib.parse.urlparse(geturl(next(iter(self._players.values()))))
-            if address.scheme != "tcp":
-                raise ValueError(f"Comm {self.name!r} player {self.rank} only communicators using TCP sockets can be split.") # pragma: no cover
+        timer = Timer(threshold=startup_timeout)
 
-            listen_socket = socket.create_server((address.hostname, 0))
+        # Generate a random new listening address.
+        address = None
+        if name is not None:
+            for sock in self._players.values():
+                address = urllib.parse.urlparse(geturl(sock))
+                break
+            if address.scheme == "file":
+                fd, path = tempfile.mkstemp()
+                os.close(fd)
+                address = f"file://{path}"
+            elif address.scheme == "tcp":
+                address = f"tcp://{address.hostname}"
+            else:
+                raise ValueError(f"Comm {self.name!r} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
+
+        # Create a new listening socket and update the address to match.
+        if address is not None:
+            listen_socket = listen(address=address, rank=self.rank, name=self.name, timer=timer)
             address = geturl(listen_socket)
-        else:
-            address = None
 
         # Send names and addresses to rank 0.
         addresses = self.gather(value=(name, address), dst=0)
 
         # Compute new communicator parameters.
+        players = None
         if self.rank == 0:
             groups = collections.defaultdict(list)
             for rank, (name, address) in enumerate(addresses):
@@ -1020,15 +1077,12 @@ class SocketCommunicator(Communicator):
                 group = sorted(groups[name])
                 ranks, addresses = zip(*group)
                 players.append((name, len(group), ranks.index(rank), addresses))
-        else:
-            players = None
 
         # Send new connection info to all players.
         group_name, group_world_size, group_rank, group_addresses = self.scatter(src=0, values=players)
 
         # Return a new communicator.
         if group_name is not None:
-            timer = Timer(threshold=startup_timeout)
             sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timer=timer)
             return SocketCommunicator(sockets=sockets, name=group_name, timeout=timeout)
 

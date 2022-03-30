@@ -85,6 +85,19 @@ Feature: SocketCommunicator
         | 10      | [None] * 10 |
 
 
+    Scenario Outline: Failure Recovery
+        Given <players> players
+        When player <slacker> fails and the others revoke and shrink the communicator, the new communicator should include the remaining players
+
+        Examples:
+        | players | slacker |
+        | 2       | 0       |
+        | 2       | 1       |
+        | 4       | 0       |
+        | 4       | 2       |
+        | 8       | 6       |
+
+
     Scenario: Freed Communicator
         Given 3 players
         When player 1 broadcasts 1.23 after the communicator has been freed
@@ -200,6 +213,7 @@ Feature: SocketCommunicator
         | 3       | 1      | range(3)    |
         | 3       | 2      | range(3)    |
         | 10      | 8      | range(10)   |
+        | 32      | 11     | range(32)   |
 
 
     Scenario Outline: Scatter
@@ -254,33 +268,38 @@ Feature: SocketCommunicator
 
     Scenario Outline: Shrink Communicator
         Given <players> players
+        And <family> addressing
         When players <group> shrink the communicator with name <name>
         Then the new communicator names should match <names>
         And the new communicator world sizes should match <world_sizes>
 
         Examples:
-        | players | group       | name      | names         | world_sizes |
-        | 2       | range(2)    | "red"     | ["red"] * 2   | [2] * 2     |
-        | 3       | range(3)    | "green"   | ["green"] * 3 | [3] * 3     |
-        | 10      | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
+        | players | family   | group       | name      | names         | world_sizes |
+        | 2       | "tcp"    | range(2)    | "red"     | ["red"] * 2   | [2] * 2     |
+        | 3       | "tcp"    | range(3)    | "green"   | ["green"] * 3 | [3] * 3     |
+        | 10      | "tcp"    | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
+        | 10      | "file"   | range(10)   | "blue"    | ["blue"] * 10 | [10] * 10   |
 
-        @wip
         Examples:
-        | players | group       | name      | names         | world_sizes |
-        | 3       | [0, 1]      | "green"   | ["green"] * 3 | [3] * 3     |
+        | players | family   | group       | name    | names                    | world_sizes      |
+        | 3       | "tcp"    | [0, 1]      | "red"   | ["red", "red", None]     | [2, 2, None]     |
+        | 3       | "tcp"    | [1, 2]      | "red"   | [None, "red", "red"]     | [None, 2, 2]     |
+
 
     Scenario Outline: Split Communicator
         Given <players> players
+        And <family> addressing
         When the players split the communicator with names <names>
         Then the new communicator names should match <names>
         And the new communicator world sizes should match <world_sizes>
 
         Examples:
-        | players | names                             | world_sizes      |
-        | 2       | ["a", "b"]                        | [1, 1]           |
-        | 3       | ["a", "b", "a"]                   | [2, 1, 2]        |
-        | 4       | ["red", "red", "red", "blue"]     | [3, 3, 3, 1]     |
-        | 4       | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
+        | players | family   | names                             | world_sizes      |
+        | 2       | "tcp"    | ["a", "b"]                        | [1, 1]           |
+        | 3       | "tcp"    | ["a", "b", "a"]                   | [2, 1, 2]        |
+        | 4       | "tcp"    | ["red", "red", "red", "blue"]     | [3, 3, 3, 1]     |
+        | 4       | "tcp"    | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
+        | 4       | "file"   | ["red", None, "red", "blue"]      | [2, None, 2, 1]  |
 
 
     Scenario Outline: Permanent Timeout Changes

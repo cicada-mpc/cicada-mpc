@@ -23,18 +23,18 @@ import time
 
 import numpy
 
-import cicada.communicator.nng
+from cicada.communicator import SocketCommunicator
 
 
 parser = argparse.ArgumentParser(description="Demonstrate recovering from a failure.")
 parser.add_argument("--debug", action="store_true", help="Enable debugging output.")
 parser.add_argument("-n", "--players", type=int, default=5, help="Number of players. Default: %(default)s")
-parser.add_argument("-p", "--pfail", type=float, default=0.05, help="Probability of player failure. Default: %(default)s")
+parser.add_argument("-p", "--pfail", type=float, default=0.01, help="Probability of player failure. Default: %(default)s")
 arguments = parser.parse_args()
 
 logging.basicConfig(level=logging.DEBUG if arguments.debug else logging.INFO)
+#logging.getLogger("cicada.communicator").setLevel(logging.DEBUG if arguments.debug else logging.INFO)
 
-@cicada.communicator.NNGCommunicator.run(world_size=arguments.players)
 def main(communicator):
     numpy.random.seed()
 
@@ -53,7 +53,7 @@ def main(communicator):
             communicator.send(value=value, dst=next_rank)
             value = communicator.recv(src=prev_rank)
             logging.info(f"Player {communicator.rank} received value: {value}")
-            time.sleep(0.1)
+            time.sleep(0.5)
         except Exception as e:
             logging.error(f"Player {communicator.rank} exception: {type(e)} {e}")
             break
@@ -61,12 +61,11 @@ def main(communicator):
     # Something went wrong, so revoke the communicator and try to recover.
     try:
         communicator.revoke()
-        communicator.shrink()
+        newcommunicator, old_ranks = communicator.shrink(name="world")
+        print(newcommunicator.world_size)
     except Exception as e:
         logging.error(f"Player {communicator.rank} exception during shrink: {type(e)} {e}")
         #traceback.print_exc()
 
-    communicator.log_stats()
-
-main()
+SocketCommunicator.run(world_size=arguments.players, fn=main)
 

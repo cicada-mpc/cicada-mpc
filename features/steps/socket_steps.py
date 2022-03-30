@@ -17,7 +17,6 @@
 import logging
 import os
 import sys
-import tempfile
 import time
 
 from behave import *
@@ -207,7 +206,7 @@ def step_impl(context, names):
         else:
             return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names,), identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names,), family=context.family, identities=context.identities, trusted=context.trusted)
 
 
 @then(u'the new communicator names should match {names}')
@@ -318,7 +317,7 @@ def step_impl(context, group, name):
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name), identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name), family=context.family, identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {player} revokes the communicator')
@@ -330,14 +329,12 @@ def step_impl(context, player):
                 value = communicator.broadcast(src=0, value="foo")
                 if communicator.rank == player:
                     communicator.revoke()
-            except Timeout as e:
-                logging.error(f"Player {communicator.rank} exception: {e}")
-                continue
+            except Revoked as e:
+                raise e
             except Exception as e:
                 logging.error(f"Player {communicator.rank} exception: {e}")
-                raise e
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player,), identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(player,))
 
 
 @then(u'players {players} should fail with NotRunning errors')
@@ -515,8 +512,6 @@ def step_impl(context, a, b):
 def step_impl(context, exceptions):
     exceptions = eval(exceptions)
 
-    print(context.results)
-
     test.assert_equal(len(context.results), len(exceptions))
     for lhs, rhs in zip(context.results, exceptions):
         if rhs is None:
@@ -525,3 +520,18 @@ def step_impl(context, exceptions):
             test.assert_is_instance(lhs, Failed)
             test.assert_is_instance(lhs.exception, rhs)
 
+
+@given(u'{family} addressing')
+def step_impl(context, family):
+    family = eval(family)
+    context.family = family
+
+
+@when(u'player {slacker} fails and the others revoke and shrink the communicator, the new communicator should include the remaining players')
+def step_impl(context, slacker):
+    slacker = eval(slacker)
+
+    def operation(communicator, slacker):
+        pass
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(slacker,), identities=context.identities, trusted=context.trusted)

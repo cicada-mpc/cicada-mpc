@@ -91,7 +91,7 @@ class ShamirProtocol(object):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, d=None, index=None, indicies=None):
+    def __init__(self, communicator,*, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, d=None, index=None, indicies=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
@@ -362,7 +362,7 @@ class ShamirProtocol(object):
             src = [x+1 for x in src]
         ls = len(src)
         coefs=numpy.zeros(ls, dtype=self.encoder.dtype)
-        for i in range(ls):
+        for i in ls:
             coefs[i]=prod([-j*pow(src[i]-j, self.encoder.modulus-2, self.encoder.modulus) for j in src if j != src[i]])
         return coefs 
 
@@ -1185,7 +1185,7 @@ class ShamirProtocol(object):
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
             coef = self.encoder.uniform(size=shape+(self.d,), generator=self._prng)
             for index in numpy.ndindex(shape):
-                for x in dst:
+                for x in self.indicies:
                     shares.append(numpy.dot(numpy.power(numpy.full((self.d,), x+1),numpy.arange(1, self.d+1)), coef[index])+secret[index])
             sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),)).T
         share = numpy.array(self.communicator.scatterv(src=src, dst=dst, values=sharesn), dtype=self.encoder.dtype).T
