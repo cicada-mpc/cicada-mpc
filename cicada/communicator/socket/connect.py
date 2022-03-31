@@ -27,7 +27,6 @@ import select
 import socket
 import ssl
 import time
-import traceback
 import urllib.parse
 
 import pynetstring
