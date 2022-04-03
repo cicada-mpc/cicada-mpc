@@ -947,9 +947,14 @@ class SocketCommunicator(Communicator):
                 except BrokenPipe: # Ignore broken pipe errors, they're to be expected under the circumstances.
                     pass
 
-            # Wait for received beacons (including our own).
+            # Get any received beacons (including our own).
+            beacons = []
             while self._beacons:
-                src, payload = self._beacons.pop(0)
+                beacons.append(self._beacons.pop(0))
+
+            # If we received a beacon, the player is alive.
+            while beacons:
+                src, payload = beacons.pop(0)
                 remaining_ranks.add(src)
 
             # If every player is accounted for, we don't need to keep waiting.
