@@ -66,7 +66,7 @@ def main(communicator):
             communicator.revoke()
             # Obtain a new communicator that contains the remaining players.
             name = f"world-{next(communicator_index)}"
-            newcommunicator, old_ranks = communicator.shrink(name=name)
+            newcommunicator, old_ranks = communicator.shrink(name=name, shrink_timeout=20, startup_timeout=10, timeout=5)
 
             # These objects must be recreated from scratch since they use
             # the communicator that was revoked.

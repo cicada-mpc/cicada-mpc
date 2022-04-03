@@ -897,7 +897,7 @@ class SocketCommunicator(Communicator):
         self._send(tag=SocketCommunicator.Tags.SEND, payload=value, dst=dst)
 
 
-    def shrink(self, *, name, timeout=5, startup_timeout=5):
+    def shrink(self, *, name, shrink_timeout=5, startup_timeout=5, timeout=5):
         """Create a new communicator containing surviving players.
 
         This method should be called as part of a failure-recovery phase by as
@@ -911,10 +911,12 @@ class SocketCommunicator(Communicator):
         ----------
         name: :class:`str`, required
             New communicator name.
-        timeout: :class:`numbers.Number`, optional
-            Maximum time to wait for communication, in seconds.
+        shrink_timeout: :class:`numbers.Number`, optional
+            Maximum amount of time to spend identifying remaining members.
         startup_timeout: :class:`numbers.Number`, optional
             Maximum time to wait for communicator_setup, in seconds.
+        timeout: :class:`numbers.Number`, optional
+            Maximum time to wait for communication, in seconds.
 
         Returns
         -------
@@ -936,7 +938,7 @@ class SocketCommunicator(Communicator):
         # By default, we assume that no-one is alive.
         remaining_ranks = set()
 
-        timer = Timer(threshold=self._timeout)
+        timer = Timer(threshold=shrink_timeout)
         while not timer.expired:
             # Send beacons to the other players (including ourself).
             for rank in self.ranks:
