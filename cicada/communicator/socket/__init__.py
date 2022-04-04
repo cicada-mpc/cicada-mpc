@@ -953,11 +953,11 @@ class SocketCommunicator(Communicator):
                 beacons.append(self._beacons.pop(0))
 
             # If we received a beacon, the player is alive.
-            while beacons:
-                src, payload = beacons.pop(0)
-                remaining_ranks.add(src)
+            for src, payload in beacons:
+                if src not in remaining_ranks:
+                    remaining_ranks.add(src)
 
-            # If every player is accounted for, we don't need to keep waiting.
+            # If every player is accounted for, we're done.
             if remaining_ranks == set(self.ranks):
                 break
 
