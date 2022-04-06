@@ -50,8 +50,12 @@ def main(communicator):
             # This is a placeholder that represents whatever
             # computation we happened to be performing at the
             # time of the failure.
-            communicator.barrier()
+            revealed = encoder.decode(shamir.reveal(share))
+            log.info("-" * 60, src=0)
+            log.info(f"Player {communicator.rank} revealed: {revealed}")
+            log.info(f"Player {communicator.rank} made it!")
         except Exception as e:
+            log.info(f"Player {communicator.rank} in the exception: {e}")
             # Something went wrong.  Revoke our communicator to
             # ensure that all players are aware of it.
             communicator.revoke()
@@ -66,6 +70,10 @@ def main(communicator):
             log = cicada.Logger(logging.getLogger(), newcommunicator)
             shamir = cicada.shamir.ShamirProtocol(newcommunicator, indicies=[shamir.indicies[x] for x in old_ranks])
             log.info('#'*10+'current indicies: '+str(shamir.indicies), src=0)
+        finally:
+            log.info(f"Player {communicator.rank} in final block")
+
+
 
         # Now we can continue on with our work ...
 
