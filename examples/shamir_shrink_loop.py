@@ -35,7 +35,7 @@ parser = argparse.ArgumentParser(description="Failure recovery tester.")
 parser.add_argument("--debug", action="store_true", help="Enable verbose output.")
 parser.add_argument("--mtbf", "-m", type=float, default="10", help="Mean time between failure in iterations. Default: %(default)s")
 parser.add_argument("--seed", type=int, default=1234, help="Random seed. Default: %(default)s")
-parser.add_argument("--world-size", "-n", type=int, default=64, help="Number of players. Default: %(default)s")
+parser.add_argument("--world-size", "-n", type=int, default=32, help="Number of players. Default: %(default)s")
 arguments = parser.parse_args()
 
 lam = 1.0 / arguments.mtbf
@@ -49,13 +49,16 @@ def main(communicator):
     communicator_index = itertools.count(1)
 
     # Player 0 will provide a secret.
-    secret = numpy.array(numpy.pi) if communicator.rank == 0 else None
+    secret = numpy.array(0) if communicator.rank == 0 else None
+    one = numpy.array(1) if communicator.rank == 0 else None
 
     # Generate shares for all players.
     share = shamir.share(src=0, secret=encoder.encode(secret), shape=())
+    one_share = shamir.share(src=0, secret=encoder.encode(one), shape=())
     while True:
         try: # Do computation in this block.
             revealed = encoder.decode(shamir.reveal(share))
+            share = shamir.add(one_share, share)
             log.info("-" * 60, src=0)
             log.info(f"Comm {communicator.name} player {communicator.rank} original rank {shamir.indicies[communicator.rank]-1} revealed: {revealed}")
         except Exception as e: # Implement failure recovery in this block.
