@@ -35,7 +35,7 @@ parser = argparse.ArgumentParser(description="Failure recovery tester.")
 parser.add_argument("--debug", action="store_true", help="Enable verbose output.")
 parser.add_argument("--mtbf", "-m", type=float, default="10", help="Mean time between failure in iterations. Default: %(default)s")
 parser.add_argument("--seed", type=int, default=1234, help="Random seed. Default: %(default)s")
-parser.add_argument("--world-size", "-n", type=int, default=16, help="Number of players. Default: %(default)s")
+parser.add_argument("--world-size", "-n", type=int, default=64, help="Number of players. Default: %(default)s")
 arguments = parser.parse_args()
 
 lam = 1.0 / arguments.mtbf
@@ -53,31 +53,34 @@ def main(communicator):
 
     # Generate shares for all players.
     share = shamir.share(src=0, secret=encoder.encode(secret), shape=())
-
     while True:
         try: # Do computation in this block.
             revealed = encoder.decode(shamir.reveal(share))
             log.info("-" * 60, src=0)
-            log.info(f"Comm {communicator.name} player {communicator.rank} revealed: {revealed}")
+            log.info(f"Comm {communicator.name} player {communicator.rank} original rank {shamir.indicies[communicator.rank]-1} revealed: {revealed}")
         except Exception as e: # Implement failure recovery in this block.
-            logging.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
-            # Something went wrong.  Revoke the current communicator to
-            # ensure that all players are aware of it.
-            communicator.revoke()
-            # Obtain a new communicator that contains the remaining players.
-            name = f"world-{next(communicator_index)}"
-            newcommunicator, old_ranks = communicator.shrink(name=name)
-            log.info('#'*10+'\nold_ranks: '+str(old_ranks)+'\nold indicies: '+str(shamir.indicies)+'\nnew indicies: '+str([shamir.indicies[x] for x in old_ranks]), src=0)
-            
+            try:
+                logging.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
+                # Something went wrong.  Revoke the current communicator to
+                # ensure that all players are aware of it.
+                communicator.revoke()
+                # Obtain a new communicator that contains the remaining players.
+                name = f"world-{next(communicator_index)}"
+                newcommunicator, old_ranks = communicator.shrink(name=name)
+                #logging.info('#'*10+'\nold_ranks: '+str(old_ranks)+'\nold indicies: '+str(shamir.indicies)+'\nnew indicies: '+str([shamir.indicies[x] for x in old_ranks]))
+                
 
-            # These objects must be recreated from scratch since they use
-            # the communicator that was revoked.
-            log = cicada.Logger(logging.getLogger(), newcommunicator)
-            shamir = cicada.shamir.ShamirProtocol(newcommunicator, indicies=[shamir.indicies[x] for x in old_ranks])
-            log.info("-" * 60, src=0)
-            log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} player {newcommunicator.rank}.")
-            communicator.free()
-            communicator = newcommunicator
+                # These objects must be recreated from scratch since they use
+                # the communicator that was revoked.
+                log = cicada.Logger(logging.getLogger(), newcommunicator)
+                shamir = cicada.shamir.ShamirProtocol(newcommunicator, indicies=[shamir.indicies[x] for x in old_ranks])
+                log.info("-" * 60, src=0)
+                log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} player {newcommunicator.rank}.")
+                communicator.free()
+                communicator = newcommunicator
+            except ValueError as e:
+                print('World has shrunk too small to continue, cleaning up experiment')
+                break
         finally:
             time.sleep(0.1)
 

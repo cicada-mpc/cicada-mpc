@@ -51,27 +51,27 @@ def main(communicator):
             # computation we happened to be performing at the
             # time of the failure.
             revealed = encoder.decode(shamir.reveal(share))
-            log.info("-" * 60, src=0)
-            log.info(f"Player {communicator.rank} revealed: {revealed}")
-            log.info(f"Player {communicator.rank} made it!")
+            logging.info("-" * 60, src=0)
+            logging.info(f"Player {communicator.rank} revealed: {revealed}")
+            logging.info(f"Player {communicator.rank} made it!")
         except Exception as e:
-            log.info(f"Player {communicator.rank} in the exception: {e}")
+            logging.info(f"Player {communicator.rank} in the exception: {e}")
             # Something went wrong.  Revoke our communicator to
             # ensure that all players are aware of it.
             communicator.revoke()
             # Obtain a new communicator that contains the remaining players.
             newcommunicator, old_ranks = communicator.shrink(name="smallworld")
-            log.info('#'*10+'\nold_ranks: '+str(old_ranks)+'\nold indicies: '+str(shamir.indicies)+'\nnew indicies: '+str([shamir.indicies[x] for x in old_ranks]), src=0)
+            logging.info('#'*10+'\nold_ranks: '+str(old_ranks)+'\nold indicies: '+str(shamir.indicies)+'\nnew indicies: '+str([shamir.indicies[x] for x in old_ranks]))
             # run() automatically cleans-up the old communicator, this
             # will ensure that we properly cleanup the new one.
-            resources.enter_context(communicator)
+            resources.enter_context(newcommunicator)
             # These objects must be recreated from scratch since they use
             # the communicator that was revoked.
             log = cicada.Logger(logging.getLogger(), newcommunicator)
             shamir = cicada.shamir.ShamirProtocol(newcommunicator, indicies=[shamir.indicies[x] for x in old_ranks])
-            log.info('#'*10+'current indicies: '+str(shamir.indicies), src=0)
+            logging.info('#'*10+'current indicies: '+str(shamir.indicies)+' current ranks: '+str(newcommunicator.ranks))
         finally:
-            log.info(f"Player {communicator.rank} in final block")
+            logging.info(f"Player {communicator.rank} in final block")
 
 
 
@@ -79,7 +79,7 @@ def main(communicator):
 
         # Reveal the secret to all players.
         revealed = encoder.decode(shamir.reveal(share))
-        log.info(f"Player {communicator.rank} (formerly {old_ranks[communicator.rank]}) revealed: {revealed}")
+        log.info(f"Player {newcommunicator.rank} (formerly {old_ranks[newcommunicator.rank]}) revealed: {revealed}")
 
 
 SocketCommunicator.run(world_size=5, fn=main)

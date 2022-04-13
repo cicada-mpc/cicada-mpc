@@ -118,7 +118,6 @@ class ShamirProtocol(object):
         else:
             self.indicies = indicies
         self.revc = self.lagrange_coef()
-        print(f'init revc: {self.revc}')
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -1128,14 +1127,12 @@ class ShamirProtocol(object):
             received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
             if received_shares: 
                 received_storage = numpy.array([x.storage for x in received_shares], dtype=self.encoder.dtype)
-                #print(f'recipient: {recipient} rs shape: {received_storage.shape}')
                 if self.communicator.rank == recipient:
                     if revc is None:
                         revc = self.lagrange_coef([self.indicies[x] for x in src])
                     secret = []
                     for index in numpy.ndindex(received_storage[0].shape):
                         secret.append(sum([revc[i]*received_storage[i][index] for i in range(len(revc))]))
-        #print(secret)
         if secret is None:
             return secret
         else:
