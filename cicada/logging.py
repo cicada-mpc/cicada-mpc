@@ -39,27 +39,17 @@ class Logger(object):
         The Python logger to be used for output.
     communicator: :class:`cicada.communicator.interface.Communicator`, required
         The communicator that will be used to synchronize output among players.
-    sync: :class:`bool`, optional
-        Controls whether log output is synchronized among players.  In general,
-        you should enable synchronization (the default) when multiple players
-        are logging to the same console, for example during local debugging and
-        regression tests.
     """
-    def __init__(self, logger, communicator, sync=None):
+    def __init__(self, logger, communicator):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
-        if sync is None:
-            sync = True
-        sync = bool(sync)
-
         self._logger = logger
         self._communicator = communicator
-        self._sync = sync
 
 
     def critical(self, msg, *args, src=None, **kwargs):
-        """Log a critical message, with optionally synchronized output among players.
+        """Log a critical message, synchronized between players.
 
         .. note::
 
@@ -76,7 +66,7 @@ class Logger(object):
 
 
     def debug(self, msg, *args, src=None, **kwargs):
-        """Log a debug message, with optionally synchronized output among players.
+        """Log a debug message, synchronized between players.
 
         .. note::
 
@@ -93,7 +83,7 @@ class Logger(object):
 
 
     def error(self, msg, *args, src=None, **kwargs):
-        """Log an error message, with optionally synchronized output among players.
+        """Log an error message, synchronized between players.
 
         .. note::
 
@@ -110,7 +100,7 @@ class Logger(object):
 
 
     def info(self, msg, *args, src=None, **kwargs):
-        """Log an info message, with optionally synchronized output among players.
+        """Log an info message, synchronized between players.
 
         .. note::
 
@@ -127,7 +117,7 @@ class Logger(object):
 
 
     def log(self, level, msg, *args, src=None, **kwargs):
-        """Log a message, with optionally synchronized output among players.
+        """Log a message, synchronized between players.
 
         .. note::
 
@@ -144,12 +134,11 @@ class Logger(object):
             if self._communicator.rank == i:
                 if src is None or self._communicator.rank == src:
                     self._logger.log(level, msg, *args, **kwargs)
-            if self._sync:
-                self._communicator.barrier()
+            self._communicator.barrier()
 
 
     def warning(self, msg, *args, src=None, **kwargs):
-        """Log a warning message, with optionally synchronized output among players.
+        """Log a warning message, synchronized between players.
 
         .. note::
 
