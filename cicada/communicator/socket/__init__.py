@@ -154,7 +154,7 @@ class SocketCommunicator(Communicator):
         self._running = True
 
         # Setup queues for incoming messages.
-        self._incoming = queue.Queue()
+        self._incoming_queue = queue.Queue()
         self._receive_queues = {}
         for tag in SocketCommunicator.Tags:
             if tag not in [SocketCommunicator.Tags.BEACON, SocketCommunicator.Tags.REVOKE]:
@@ -180,7 +180,7 @@ class SocketCommunicator(Communicator):
         while self._running:
             # Wait for the next incoming message.
             try:
-                raw_message = self._incoming.get(block=True, timeout=0.1)
+                raw_message = self._incoming_queue.get(block=True, timeout=0.1)
             except queue.Empty:
                 continue
 
@@ -246,7 +246,7 @@ class SocketCommunicator(Communicator):
                     self._log.debug(f"received {tag, payload}")
 
                     # Insert the message into the incoming queue.
-                    self._incoming.put((src, SocketCommunicator.Tags(tag), payload), block=True, timeout=None)
+                    self._incoming_queue.put((src, SocketCommunicator.Tags(tag), payload), block=True, timeout=None)
 
         # The communicator has been freed, so exit the thread.
         self._log.debug(f"receive thread closed.")
@@ -299,7 +299,7 @@ class SocketCommunicator(Communicator):
 
         # As a special-case, route messages sent to ourself directly to the incoming queue.
         if dst == self.rank:
-            self._incoming.put((self.rank, tag, payload), block=True, timeout=None)
+            self._incoming_queue.put((self.rank, tag, payload), block=True, timeout=None)
         # Otherwise, send the message to the appropriate socket.
         else:
             try:
