@@ -107,18 +107,18 @@ class SocketCommunicator(Communicator):
         Maximum time to wait for communication to complete, in seconds.
     """
 
-    class Tags(enum.Enum):
-        ALLGATHER = 1
-        BARRIER = 2
-        BEACON = 3
-        BROADCAST = 4
-        GATHER = 5
-        GATHERV = 6
-        REVOKE = 7
-        SCATTER = 8
-        SCATTERV = 9
-        SEND = 10
-        SHRINK = 11
+    class Tags(enum.IntEnum):
+        ALLGATHER = -1
+        BARRIER = -2
+        BEACON = -3
+        BROADCAST = -4
+        GATHER = -5
+        GATHERV = -6
+        REVOKE = -7
+        SCATTER = -8
+        SCATTERV = -9
+        SEND = -10
+        SHRINK = -11
 
 
     def __init__(self, *, sockets, name="world", timeout=5):
@@ -303,7 +303,7 @@ class SocketCommunicator(Communicator):
         # Otherwise, send the message to the appropriate socket.
         else:
             try:
-                raw_message = pickle.dumps((tag.value, payload))
+                raw_message = pickle.dumps((int(tag), payload))
                 player = self._players[dst]
                 player.send(raw_message)
             except BrokenPipeError as e: # pragma: no cover
