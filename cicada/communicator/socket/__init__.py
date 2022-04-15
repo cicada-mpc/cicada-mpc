@@ -270,14 +270,32 @@ class SocketCommunicator(Communicator):
                 for message in self._message_queue[rank]:
                     if tag is not None and tag != message[1]:
                         misses.append(message)
-                        continue
-                    matches.append(message)
-            self._message_queue[rank] = misses
+                    else:
+                        matches.append(message)
+                self._message_queue[rank] = misses
         return matches
 
 
-    def _wait_next_message(self, *, src, tag):
-        """Block until the next message matching the given src and tag is received.
+    def _next_message(self, *, src, tag):
+        """Return the next message (if any) matching the given src and tag.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            Return the next matching message from the given player.
+        tag: :class:`int`, required
+            Return the next matching message with the given tag.
+        """
+        with self._message_queue_lock:
+            for index, message in enumerate(self._message_queues[src]):
+                if tag == message[1]: # tag
+                    del self._message_queues[src][index]
+                    return message
+        return None
+
+
+    def _wait_next_payload(self, *, src, tag):
+        """Return the next payload matching the given src and tag, blocking if necessary.
 
         Parameters
         ----------
@@ -288,11 +306,9 @@ class SocketCommunicator(Communicator):
         """
         timer = Timer(threshold=self._timeout)
         while not timer.expired:
-            with self._message_queue_lock:
-                for index, message in enumerate(self._message_queues[src]):
-                    if tag == message[1]: # tag
-                        del self._message_queues[src][index]
-                        return message[2] # payload
+            message = self._next_message(src=src, tag=tag)
+            if message is not None:
+                return message[2] # payload
             time.sleep(0.01)
         raise Timeout(f"Tag {tag.name} from player {src} timed-out after {self._timeout}s")
 
@@ -355,7 +371,7 @@ class SocketCommunicator(Communicator):
             self._send(tag=SocketCommunicator.Tags.ALLGATHER, payload=value, dst=rank)
 
         # Receive messages.
-        values = [self._wait_next_message(src=rank, tag=SocketCommunicator.Tags.ALLGATHER) for rank in self.ranks]
+        values = [self._wait_next_payload(src=rank, tag=SocketCommunicator.Tags.ALLGATHER) for rank in self.ranks]
         return values
 
 
@@ -375,13 +391,13 @@ class SocketCommunicator(Communicator):
         if self.rank == 0:
             # Wait until every player enters the barrier.
             for rank in self.ranks:
-                self._wait_next_message(src=rank, tag=SocketCommunicator.Tags.BARRIER)
+                self._wait_next_payload(src=rank, tag=SocketCommunicator.Tags.BARRIER)
             # Notify every player that it's time to exit the barrier.
             for rank in self.ranks:
                 self._send(tag=SocketCommunicator.Tags.BARRIER, payload=None, dst=rank)
 
         # Wait until we're told to exit.
-        self._wait_next_message(src=0, tag=SocketCommunicator.Tags.BARRIER)
+        self._wait_next_payload(src=0, tag=SocketCommunicator.Tags.BARRIER)
 
 
     def broadcast(self, *, src, value):
@@ -398,7 +414,7 @@ class SocketCommunicator(Communicator):
                 self._send(tag=SocketCommunicator.Tags.BROADCAST, payload=value, dst=rank)
 
         # Receive the broadcast value.
-        return self._wait_next_message(src=src, tag=SocketCommunicator.Tags.BROADCAST)
+        return self._wait_next_payload(src=src, tag=SocketCommunicator.Tags.BROADCAST)
 
 
     @staticmethod
@@ -533,7 +549,7 @@ class SocketCommunicator(Communicator):
         # Receive data from all ranks.
         if self.rank == dst:
             # Messages could arrive out of order.
-            values = [self._wait_next_message(src=rank, tag=SocketCommunicator.Tags.GATHER) for rank in self.ranks]
+            values = [self._wait_next_payload(src=rank, tag=SocketCommunicator.Tags.GATHER) for rank in self.ranks]
             return values
 
         return None
@@ -555,7 +571,7 @@ class SocketCommunicator(Communicator):
         # Receive data from the other players.
         if self.rank == dst:
             # Messages could arrive out of order.
-            values = [self._wait_next_message(src=rank, tag=SocketCommunicator.Tags.GATHERV) for rank in src]
+            values = [self._wait_next_payload(src=rank, tag=SocketCommunicator.Tags.GATHERV) for rank in src]
             return values
 
         return None
@@ -579,7 +595,7 @@ class SocketCommunicator(Communicator):
             @property
             def is_completed(self):
                 if self._payload is None:
-                    message = self._communicator._next_message(src=self._src, tag=self._tag)
+                    message = self._communicator._next_payload(src=self._src, tag=self._tag)
                     if message is not None:
                         src, tag, payload = message
                         self._payload = payload
@@ -593,7 +609,7 @@ class SocketCommunicator(Communicator):
 
             def wait(self):
                 if self._payload is None:
-                    self._payload = self._communicator._wait_next_message(src=self._src, tag=self._tag)
+                    self._payload = self._communicator._wait_next_payload(src=self._src, tag=self._tag)
 
         return Result(communicator=self, src=src, tag=SocketCommunicator.Tags.SEND)
 
@@ -678,7 +694,7 @@ class SocketCommunicator(Communicator):
 
         src = self._require_rank(src)
 
-        return self._wait_next_message(src=src, tag=SocketCommunicator.Tags.SEND)
+        return self._wait_next_payload(src=src, tag=SocketCommunicator.Tags.SEND)
 
 
     def revoke(self):
@@ -892,7 +908,7 @@ class SocketCommunicator(Communicator):
                 self._send(tag=SocketCommunicator.Tags.SCATTER, payload=value, dst=rank)
 
         # Receive data from the sender.
-        return self._wait_next_message(src=src, tag=SocketCommunicator.Tags.SCATTER)
+        return self._wait_next_payload(src=src, tag=SocketCommunicator.Tags.SCATTER)
 
 
     def scatterv(self, *, src, values, dst):
@@ -916,7 +932,7 @@ class SocketCommunicator(Communicator):
 
         # Receive data from the sender.
         if self.rank in dst:
-            return self._wait_next_message(src=src, tag=SocketCommunicator.Tags.SCATTERV)
+            return self._wait_next_payload(src=src, tag=SocketCommunicator.Tags.SCATTERV)
 
         return None
 
@@ -1037,7 +1053,7 @@ class SocketCommunicator(Communicator):
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
                 self._send(tag=SocketCommunicator.Tags.SHRINK, payload=address, dst=remaining_rank)
-        root_address = self._wait_next_message(src=remaining_ranks[0], tag=SocketCommunicator.Tags.SHRINK)
+        root_address = self._wait_next_payload(src=remaining_ranks[0], tag=SocketCommunicator.Tags.SHRINK)
 
         # Return a new communicator.
         sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer)
