@@ -333,7 +333,6 @@ Feature: SocketCommunicator
         Examples:
         | players | a         | b     | result                                         |
         | 2       | 1         | 0     | [EncryptionFailed, EncryptionFailed]           |
-        | 3       | 0         | 1     | [EncryptionFailed, EncryptionFailed, Timeout]  |
         | 3       | 1         | 0     | [EncryptionFailed, EncryptionFailed, Timeout]  |
         | 3       | 1         | 2     | [None, EncryptionFailed, None]                 |
         | 3       | 2         | 1     | [None, EncryptionFailed, EncryptionFailed]     |
@@ -343,3 +342,4 @@ Feature: SocketCommunicator
         Examples:
         | players | a         | b     | result                                         |
         | 2       | 0         | 1     | [EncryptionFailed, EncryptionFailed]           |
+        | 3       | 0         | 1     | [EncryptionFailed, EncryptionFailed, Timeout]  |

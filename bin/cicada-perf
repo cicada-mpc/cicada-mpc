@@ -107,7 +107,7 @@ if __name__ == "__main__":
                 value = communicator.broadcast(src=src, value=value)
             return timer.elapsed()
 
-        case = f"{arguments.world_size} players broadcast {arguments.count} x {arguments.size} byte messages"
+        case = f"{arguments.world_size} players broadcast {arguments.count} times using {arguments.size} byte messages"
         times = SocketCommunicator.run(world_size=arguments.world_size, fn=implementation, identities=identities(arguments), trusted=trusted(arguments), kwargs=dict(count=arguments.count, seed=arguments.seed, size=arguments.size, src=arguments.src))
         print_times(case, times)
 
@@ -122,7 +122,7 @@ if __name__ == "__main__":
                 value = communicator.gather(dst=dst, value=value)
             return timer.elapsed()
 
-        case = f"{arguments.world_size} players gather {arguments.count} x {arguments.size} byte messages"
+        case = f"{arguments.world_size} players gather {arguments.count} times using {arguments.size} byte messages"
         times = SocketCommunicator.run(world_size=arguments.world_size, fn=implementation, identities=identities(arguments), trusted=trusted(arguments), kwargs=dict(count=arguments.count, seed=arguments.seed, size=arguments.size, dst=arguments.dst))
         print_times(case, times)
 
