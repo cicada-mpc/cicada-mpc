@@ -155,7 +155,7 @@ class SocketCommunicator(Communicator):
 
         # Setup queues for incoming messages.
         self._incoming_queue = queue.SimpleQueue()
-        self._message_queue = []
+        self._message_queues = [[]] * self._world_size
         self._message_queue_lock = threading.Lock()
 
         # Start queueing incoming messages.
@@ -198,9 +198,9 @@ class SocketCommunicator(Communicator):
                     self._log.warning(f"revoked by player {src}")
                 continue
 
-            # Insert the payload into the correct queue.
+            # Insert the message into the correct queue.
             with self._message_queue_lock:
-                self._message_queue.append((src, tag, payload))
+                self._message_queues[src].append(raw_message)
 
         self._log.debug(f"queueing thread closed.")
 
@@ -242,46 +242,57 @@ class SocketCommunicator(Communicator):
         self._log.debug(f"receive thread closed.")
 
 
-    def _messages(self, *, src, tag):
-        """Return every message that matches the given src and tag."""
-        misses = []
+    def _messages(self, *, src=None, tag=None):
+        """Return every message that matches the given src and tag.
+
+        Parameters
+        ----------
+        src: :class:`int` or sequence of :class:`int`, optional
+            Return messages from the given player(s).  If :any:`None` (the
+            default), return matching messages from every player.
+        tag: :class:`int`, optional
+            Return messages that match the given tag.  If :any:`None` (the
+            default), return messages with any tag.
+
+        Returns
+        -------
+        messages: :class:`list` of (src, tag, payload) tuples.
+        """
+        if src is None:
+            src = self.ranks
+        if not isinstance(src, list):
+            src = [src]
+
         matches = []
         with self._message_queue_lock:
-            for message in self._message_queue:
-                if src is not None and src != message[0]:
-                    misses.append(message)
-                    continue
-                if tag is not None and tag != message[1]:
-                    misses.append(message)
-                    continue
-                matches.append(message)
-
-        self._message_queue = misses
+            for rank in src:
+                misses = []
+                for message in self._message_queue[rank]:
+                    if tag is not None and tag != message[1]:
+                        misses.append(message)
+                        continue
+                    matches.append(message)
+            self._message_queue[rank] = misses
         return matches
 
 
-    def _next_message(self, *, src, tag):
-        """Return one message (if any) that matches the given src and tag."""
-        with self._message_queue_lock:
-            for index, message in enumerate(self._message_queue):
-                if src is not None and src != message[0]:
-                    continue
-                if tag is not None and tag != message[1]:
-                    continue
-                del self._message_queue[index]
-                return message
-
-        return None
-
-
     def _wait_next_message(self, *, src, tag):
-        """Block until the next message matching the given src and tag is received."""
+        """Block until the next message matching the given src and tag is received.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            Return the next matching message from the given player.
+        tag: :class:`int`, required
+            Return the next matching message with the given tag.
+        """
         timer = Timer(threshold=self._timeout)
         while not timer.expired:
-            message = self._next_message(src=src, tag=tag)
-            if message is not None:
-                src, tag, payload = message
-                return payload
+            with self._message_queue_lock:
+                for index, message in enumerate(self._message_queues[src]):
+                    if tag == message[1]: # tag
+                        del self._message_queues[src][index]
+                        return message[2] # payload
             time.sleep(0.01)
         raise Timeout(f"Tag {tag.name} from player {src} timed-out after {self._timeout}s")
 
