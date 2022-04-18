@@ -210,7 +210,6 @@ class SocketCommunicator(Communicator):
             # Insert the message into the correct queue.
             with self._message_queue_lock:
                 self._message_queues[src].append(raw_message)
-                print(f"Player {self.rank} queues: {self._message_queues}")
 
         self._log.debug(f"queueing thread closed.")
 
