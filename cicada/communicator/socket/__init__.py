@@ -121,6 +121,15 @@ class SocketCommunicator(Communicator):
         SHRINK = -11
 
 
+    @staticmethod
+    def taglabel(tag):
+        try:
+            tag = SocketCommunicator.Tags(tag)
+            return tag.name
+        except:
+            return tag
+
+
     def __init__(self, *, sockets, name="world", timeout=5):
         if not isinstance(sockets, dict):
             raise ValueError("sockets must be a dict, got {sockets} instead.") # pragma: no cover
@@ -155,7 +164,7 @@ class SocketCommunicator(Communicator):
 
         # Setup queues for incoming messages.
         self._incoming_queue = queue.SimpleQueue()
-        self._message_queues = [[]] * self._world_size
+        self._message_queues = [[] for rank in range(self.world_size)]
         self._message_queue_lock = threading.Lock()
 
         # Start queueing incoming messages.
@@ -189,7 +198,7 @@ class SocketCommunicator(Communicator):
 
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
-                self._log.debug(f"<-- player {src} {tag}") # pragma: no cover
+                self._log.debug(f"<-- player {src} {SocketCommunicator.taglabel(tag)}") # pragma: no cover
 
             # Revoke messages don't get queued because they receive special handling.
             if tag == SocketCommunicator.Tags.REVOKE:
@@ -201,6 +210,7 @@ class SocketCommunicator(Communicator):
             # Insert the message into the correct queue.
             with self._message_queue_lock:
                 self._message_queues[src].append(raw_message)
+                print(f"Player {self.rank} queues: {self._message_queues}")
 
         self._log.debug(f"queueing thread closed.")
 
@@ -233,7 +243,7 @@ class SocketCommunicator(Communicator):
                         self._log.warning(f"ignoring unparsable message: {e}")
                         continue
 
-                    self._log.debug(f"received {tag, payload}")
+                    #self._log.debug(f"received {SocketCommunicator.taglabel(tag), payload}")
 
                     # Insert the message into the incoming queue.
                     self._incoming_queue.put((src, SocketCommunicator.Tags(tag), payload), block=True, timeout=None)
@@ -267,12 +277,12 @@ class SocketCommunicator(Communicator):
         with self._message_queue_lock:
             for rank in src:
                 misses = []
-                for message in self._message_queue[rank]:
+                for message in self._message_queues[rank]:
                     if tag is not None and tag != message[1]:
                         misses.append(message)
                     else:
                         matches.append(message)
-                self._message_queue[rank] = misses
+                self._message_queues[rank] = misses
         return matches
 
 
@@ -345,7 +355,7 @@ class SocketCommunicator(Communicator):
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
 
         if self._log.isEnabledFor(logging.DEBUG):
-            self._log.debug(f"--> player {dst} {tag}") # pragma: no cover
+            self._log.debug(f"--> player {dst} {SocketCommunicator.taglabel(tag)}") # pragma: no cover
 
         # As a special-case, route messages sent to ourself directly to the incoming queue.
         if dst == self.rank:
@@ -595,7 +605,7 @@ class SocketCommunicator(Communicator):
             @property
             def is_completed(self):
                 if self._payload is None:
-                    message = self._communicator._next_payload(src=self._src, tag=self._tag)
+                    message = self._communicator._next_message(src=self._src, tag=self._tag)
                     if message is not None:
                         src, tag, payload = message
                         self._payload = payload
