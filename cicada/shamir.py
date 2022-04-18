@@ -91,7 +91,7 @@ class ShamirProtocol(object):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator,*, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, d=None, indicies=None):
+    def __init__(self, communicator,*, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16,  indices=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
@@ -103,21 +103,21 @@ class ShamirProtocol(object):
             seed += seed_offset
 
         self._prng = numpy.random.default_rng(seed=seed)
-        if d is None:
-            self.d = 1
-        else:
-            self.d=d
+        if threshold < 2:
+            raise ValueError('threshold is too small. Privacy is not tenable with threshold < 2.')
+        self.d=threshold-1
+        self.threshold = threshold
         if communicator.world_size < 2*self.d+1:
-            raise ValueError('d incompatible with worldsize, multiplications will not be feasible.')
-        if communicator.world_size < self.d+1:
-            raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
+            raise ValueError('threshold incompatible with worldsize, multiplications will not be feasible. Multiplications with this threshold would require worldsize at least {2*self.d+1}. Increase worldsize or decrease threshold.')
+        #if communicator.world_size < self.d+1:
+        #    raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
-        if indicies is None:
-            self.indicies = [x+1 for x in communicator.ranks]
+        if indices is None:
+            self.indices = [x+1 for x in communicator.ranks]
         else:
-            self.indicies = indicies
-        self.revc = self.lagrange_coef()
+            self.indices = indices
+        self.revealing_coef = self._lagrange_coef()
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -349,12 +349,12 @@ class ShamirProtocol(object):
         sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
 
-    def lagrange_coef(self, src=None):
+    def _lagrange_coef(self, src=None):
         # Given a set of indices, it returns an array containing the lagrange coefficients
         # with respect to each index given, keyed by those indices
         from math import prod
         if src is None:
-            src = self.indicies
+            src = self.indices
         ls = len(src)
         coefs=numpy.zeros(ls, dtype=self.encoder.dtype)
         for i in range(ls):
@@ -582,7 +582,7 @@ class ShamirProtocol(object):
         lop = ShamirArrayShare(storage = operand.storage.flatten())
         tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=lop.storage.shape)
         maskedlop = self.add(lhs=lop, rhs=tmp)
-        c = self.reveal(maskedlop, src=self.communicator.ranks)
+        c = self.reveal(maskedlop)
         # gotta sort the next function call first
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
@@ -1080,7 +1080,7 @@ class ShamirProtocol(object):
         return nltz_parts
 
 
-    def reveal(self, share,*, src=None, dst=None):
+    def reveal(self, share,*, dst=None):
         """Reveals a secret shared value to a subset of players.
 
         Note
@@ -1114,13 +1114,12 @@ class ShamirProtocol(object):
         if dst is None:
             dst = self.communicator.ranks
 
-        if src is None:
-            src = self.communicator.ranks
+        src = self.communicator.ranks
         n=len(src)
-        if n == len(self.indicies):
-            revc = self.revc
+        if n == len(self.indices):
+            revealing_coef = self.revealing_coef
         else:
-            revc = None
+            revealing_coef = None
         # Send data to the other players.
         secret = None
         for recipient in dst:
@@ -1128,11 +1127,11 @@ class ShamirProtocol(object):
             if received_shares: 
                 received_storage = numpy.array([x.storage for x in received_shares], dtype=self.encoder.dtype)
                 if self.communicator.rank == recipient:
-                    if revc is None:
-                        revc = self.lagrange_coef([self.indicies[x] for x in src])
+                    if revealing_coef is None:
+                        revealing_coef = self._lagrange_coef([self.indices[x] for x in src])
                     secret = []
                     for index in numpy.ndindex(received_storage[0].shape):
-                        secret.append(sum([revc[i]*received_storage[i][index] for i in range(len(revc))]))
+                        secret.append(sum([revealing_coef[i]*received_storage[i][index] for i in range(len(revealing_coef))]))
         if secret is None:
             return secret
         else:
@@ -1140,7 +1139,7 @@ class ShamirProtocol(object):
             return ret
 
 
-    def share(self, *, src, secret, shape, dst=None):
+    def share(self, *, src, secret, shape):
         """Convert a private array to an shamir secret share.
 
         Note
@@ -1168,11 +1167,11 @@ class ShamirProtocol(object):
         if not isinstance(shape, tuple):
             shape = (shape,)
 
-        if dst is None:
-            dst=self.communicator.ranks
+        dst=self.communicator.ranks
+        ldst=len(dst)
 
         shares = []
-        sharesn = numpy.zeros(shape+(len(dst),))
+        sharesn = numpy.zeros(shape+(ldst,))
         if self.communicator.rank == src:
             if not isinstance(secret, numpy.ndarray):
                 raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
@@ -1182,10 +1181,10 @@ class ShamirProtocol(object):
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
             coef = self.encoder.uniform(size=shape+(self.d,), generator=self._prng)
             for index in numpy.ndindex(shape):
-                for x in self.indicies:
+                for x in self.indices:
                     shares.append(numpy.dot(numpy.power(numpy.full((self.d,), x),numpy.arange(1, self.d+1)), coef[index])+secret[index])
-            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(len(dst),)).T
-        share = numpy.array(self.communicator.scatterv(src=src, dst=dst, values=sharesn), dtype=self.encoder.dtype).T
+            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(ldst,)).T
+        share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.encoder.dtype).T
         return ShamirArrayShare(share)
 
 
@@ -1353,7 +1352,7 @@ class ShamirProtocol(object):
         x = lhs.storage
         y = rhs.storage
         xy=numpy.array((x*y)%self.encoder.modulus, dtype=self.encoder.dtype)
-        lc = self.lagrange_coef()
+        lc = self._lagrange_coef()
         dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.encoder.dtype) 
         for i, src in enumerate(self.communicator.ranks):
             dubdeg[i]=self.share(src=src, secret=xy, shape=xy.shape).storage #transpose

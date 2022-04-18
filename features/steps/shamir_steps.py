@@ -32,7 +32,7 @@ def step_impl(context, count):
     count = eval(count)
 
     def operation(communicator):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
     for i in range(count):
         SocketCommunicator.run(world_size=context.players, fn=operation)
@@ -43,7 +43,7 @@ def step_impl(context, count):
     count = eval(count)
 
     def operation(communicator):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
         share = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=())
         return int(share.storage)
 
@@ -58,7 +58,7 @@ def step_impl(context, count):
     count = eval(count)
 
     def operation(communicator, count):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
         shares = [protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=()) for i in range(count)]
         return numpy.array([int(share.storage) for share in shares], dtype=numpy.object)
 
@@ -88,8 +88,8 @@ def step_impl(context, player):
     player = eval(player)
 
     def operation(communicator, secret, player, local):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape, dst=communicator.ranks)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
+        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
         protocol.encoder.inplace_add(share.storage, protocol.encoder.encode(local))
         return protocol.encoder.decode(protocol.reveal(share))
 
@@ -101,8 +101,8 @@ def step_impl(context, player):
     player = eval(player)
 
     def operation(communicator, secret, player, local):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape, dst=protocol.communicator.ranks)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
+        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
         protocol.encoder.inplace_subtract(share.storage, protocol.encoder.encode(local))
         return protocol.encoder.decode(protocol.reveal(share))
 
@@ -135,11 +135,11 @@ def step_impl(context, player):
 @given(u'binary operation shamir public-private addition')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = protocol.encoder.encode(numpy.array(a))
         b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=0, secret=b, shape=b.shape, dst=protocol.communicator.ranks)
+        b = protocol.share(src=0, secret=b, shape=b.shape)
         c = protocol.public_private_add(a, b)
 
         return protocol.encoder.decode(protocol.reveal(c))
@@ -149,12 +149,12 @@ def step_impl(context):
 @given(u'binary operation shamir private-private addition')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape, dst=protocol.communicator.ranks)
+        a = protocol.share(src=0, secret=a, shape=a.shape)
         b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=1, secret=b, shape=b.shape, dst=protocol.communicator.ranks)
+        b = protocol.share(src=1, secret=b, shape=b.shape)
         c = protocol.add(a, b)
 
         return protocol.encoder.decode(protocol.reveal(c))
@@ -164,7 +164,7 @@ def step_impl(context):
 @given(u'binary operation shamir private-private untruncated multiplication')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = protocol.encoder.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)
@@ -181,7 +181,7 @@ def step_impl(context):
 @given(u'binary operation shamir private-private xor')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = numpy.array(a, dtype=protocol.encoder.dtype)
         a = protocol.share(src=0, secret=a, shape=a.shape)
@@ -195,7 +195,7 @@ def step_impl(context):
 @given(u'binary operation shamir private-private or')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = numpy.array(a, dtype=protocol.encoder.dtype)
         a = protocol.share(src=0, secret=a, shape=a.shape)
@@ -209,7 +209,7 @@ def step_impl(context):
 @given(u'binary operation shamir max')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = numpy.array(a)
         a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
@@ -224,7 +224,7 @@ def step_impl(context):
 @given(u'binary operation shamir min')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = numpy.array(a)
         a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
@@ -239,7 +239,7 @@ def step_impl(context):
 @given(u'binary operation shamir private-private multiplication')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = protocol.encoder.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)
@@ -254,7 +254,7 @@ def step_impl(context):
 @given(u'binary operation shamir private-private equality')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = protocol.encoder.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)
@@ -268,7 +268,7 @@ def step_impl(context):
 @given(u'binary operation shamir private-public modulus')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = protocol.encoder.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)
@@ -301,7 +301,7 @@ def step_impl(context):
 @given(u'unary operation shamir floor')
 def step_impl(context):
     def operation(communicator, a):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = numpy.array(a)
         a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
@@ -320,40 +320,36 @@ def step_impl(context):
 
 
 
-@when(u'player {player} shamir shares and reveals {count} random secrets, the revealed secrets using a subset {subset} of players should match the originals')
-def step_impl(context, player, count, subset):
+@when(u'player {player} shamir shares and reveals random secrets, the revealed secrets should match the originals')
+def step_impl(context, player):
     player = eval(player)
-    count = eval(count)
-    subset = eval(subset)
 
-    def operation(communicator, secret, subset):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+    def operation(communicator, secret, player):
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
         share = protocol.share(src=player, secret=protocol.encoder.encode(numpy.array(secret)), shape=())
-        return protocol.encoder.decode(protocol.reveal(share, src=subset))
+        return protocol.encoder.decode(protocol.reveal(share))
 
-    for index in range(count):
+    for index in range(100):
         secret = numpy.array(numpy.random.uniform(-100000, 100000))
-        results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(secret,subset))
+        results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(secret, player))
         for result in results:
             numpy.testing.assert_almost_equal(secret, result, decimal=4)
 
-@then(u'generating {bits} shamir random bits with players {src} and seed {seed} produces a valid result revealed with players {subset}')
-def step_impl(context, bits, src, seed, subset):
+@then(u'generating {bits} shamir random bits with all players produces a valid result')
+def step_impl(context, bits):
     bits = eval(bits)
-    src = eval(src)
-    seed = eval(seed)
-    subset = eval(subset)
+    #seed = eval(seed)
 
-    def operation(communicator, bits, src, seed, subset):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
-        generator = numpy.random.default_rng(seed + communicator.rank)
-        bit_share, secret_share = protocol.random_bitwise_secret(generator=generator, bits=bits, src=src)
+    def operation(communicator, bits):
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
+        #generator = numpy.random.default_rng(seed + communicator.rank)
+        bit_share, secret_share = protocol.random_bitwise_secret(bits=bits)
 
-        bits = protocol.reveal(bit_share, src=subset)
-        secret = protocol.reveal(secret_share, src=subset)
+        bits = protocol.reveal(bit_share)
+        secret = protocol.reveal(secret_share)
         return bits, secret
 
-    result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(bits, src, seed, subset))
+    result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(bits,))
     for bits, secret in result:
         test.assert_equal(secret, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
 
@@ -361,7 +357,7 @@ def step_impl(context, bits, src, seed, subset):
 @given(u'unary operation shamir multiplicative_inverse')
 def step_impl(context):
     def operation(communicator, a):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = numpy.array(a)
         a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
@@ -374,7 +370,7 @@ def step_impl(context):
 @given(u'binary operation shamir less')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = protocol.encoder.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)
@@ -388,7 +384,7 @@ def step_impl(context):
 @given(u'unary operation shamir relu')
 def step_impl(context):
     def operation(communicator, a):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = numpy.array(a)
         a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
@@ -399,7 +395,7 @@ def step_impl(context):
 @given(u'unary operation shamir zigmoid')
 def step_impl(context):
     def operation(communicator, a):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = numpy.array(a)
         a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
@@ -412,7 +408,7 @@ def step_impl(context, player):
     player = eval(player)
 
     def operation(communicator, secret, player, local):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
         share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
         result = protocol.private_public_subtract(share, protocol.encoder.encode(local))
         return protocol.encoder.decode(protocol.reveal(result))
@@ -423,7 +419,7 @@ def step_impl(context, player):
 @given(u'binary operation shamir logical_and')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = numpy.array(a, dtype=object)
         a = protocol.share(src=0, secret=a, shape=a.shape)
@@ -437,7 +433,7 @@ def step_impl(context):
 @given(u'binary operation shamir private_public_power')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = protocol.encoder.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)
@@ -451,7 +447,7 @@ def step_impl(context):
 @given(u'binary operation shamir untruncated_private_divide')
 def step_impl(context):
     def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator)
+        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
 
         a = protocol.encoder.encode(numpy.array(a))
         a = protocol.share(src=0, secret=a, shape=a.shape)

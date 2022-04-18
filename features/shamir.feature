@@ -24,13 +24,13 @@ Feature: Shamir Protocol
 
     Scenario Outline: Random Round Trip Shamir Sharing
         Given <players> players 
-        When player <player> shamir shares and reveals <count> random secrets, the revealed secrets using a subset <subset> of players should match the originals
+        When player <player> shamir shares and reveals random secrets, the revealed secrets should match the originals
 
         Examples:
-        | players | player | count      | subset  |
-        | 3       | 0      | 100        | [1,2]   |
-        | 4       | 0      | 100        | [0,2,3] |
-        | 5       | 0      | 100        | [1,3,4] |
+        | players | player |
+        | 3       | 0      |
+        | 4       | 0      |
+        | 5       | 0      |
 
     Scenario Outline: Local Shamir Addition
         Given <players> players
@@ -196,18 +196,18 @@ Feature: Shamir Protocol
         | 3       | min                | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | 10    | [[[2, 1, -2, -4]] * 3] * 10    |
 
 
-    Scenario Outline: Random Bitwise Shamir Secret
+    Scenario Outline: Shamir Random Bitwise Secret
         Given <players> players
-        Then generating <bits> shamir random bits with players <src> and seed <seed> produces a valid result revealed with players <subset>
+        Then generating <bits> shamir random bits with all players produces a valid result
 
         Examples:
-        | players | bits  | src       | seed | subset  |
-        | 4       | 1     | None      | 1234 | [0,2,3] |
-        | 4       | 2     | None      | 1235 | [0,2,3] | 
-        | 4       | 4     | None      | 1236 | [0,2,3] |  
-        | 4       | 8     | None      | 1237 | [0,2,3] |
-        | 3       | 8     | None      | 1238 | [0,1,2] |
-        | 3       | 8     | None      | 1239 | [0,1,2] |
+        | players | bits  |
+        | 4       | 1     |
+        | 4       | 2     | 
+        | 4       | 4     |  
+        | 4       | 8     |
+        | 3       | 8     |
+        | 3       | 8     |
 
 
     Scenario Outline: Shamir Multiplication

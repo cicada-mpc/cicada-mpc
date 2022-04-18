@@ -70,9 +70,6 @@ def main(communicator):
                 # Obtain a new communicator that contains the remaining players.
                 name = f"world-{next(communicator_index)}"
                 newcommunicator, old_ranks = communicator.shrink(name=name)
-                #logging.info('#'*10+'\nold_ranks: '+str(old_ranks)+'\nold indicies: '+str(shamir.indicies)+'\nnew indicies: '+str([shamir.indicies[x] for x in old_ranks]))
-                
-
                 # These objects must be recreated from scratch since they use
                 # the communicator that was revoked.
                 log = cicada.Logger(logging.getLogger(), newcommunicator)
