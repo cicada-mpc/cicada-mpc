@@ -52,6 +52,7 @@ setup(
     },
     scripts=[
         "bin/cicada",
+        "bin/cicada-perf",
     ],
     version=re.search(
         r"^__version__ = ['\"]([^'\"]*)['\"]",
