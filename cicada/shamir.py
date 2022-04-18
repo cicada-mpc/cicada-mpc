@@ -62,8 +62,206 @@ class ShamirArrayShare(object):
             raise ValueError(f"Expected storage to be an instance of numpy.ndarray, got {type(storage)} instead.") # pragma: no cover
         self._storage = storage
 
+class ShamirKernel(object):
+    """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
 
-class ShamirProtocol(object):
+    Note
+    ----
+    Creating the protocol is a collective operation that *must*
+    be called by all players that are members of `communicator`.
+
+    Parameters
+    ----------
+    communicator: :class:`cicada.communicator.interface.Communicator`, required
+        The communicator that this protocol will use for communication.
+    seed: :class:`int`, optional
+        Seed used to initialize random number generators.  For privacy, this
+        value should be different for each player.  By default, the seed will
+        be chosen at random, and is guaranteed to be different even on forked
+        processes.  If you specify `seed` yourself, the actual seed used will
+        be the sum of this value and the value of `seed_offset`.
+    seed_offset: :class:`int`, optional
+        Value added to the value of `seed`.  This value defaults to the player's
+        rank.
+    modulus: :class:`int`, optional
+        Field size for storing encoded values.  Defaults to the largest prime
+        less than 2^64 (2**64-59).
+    precision: :class:`int`, optional
+        The number of bits for storing fractions in encoded values.  Defaults
+        to 16.
+    """
+    def __init__(self, communicator,*, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16,  indices=None):
+        if not isinstance(communicator, Communicator):
+            raise ValueError("A Cicada communicator is required.") # pragma: no cover
+
+        if seed is None:
+            seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
+        else:
+            if seed_offset is None:
+                seed_offset = communicator.rank
+            seed += seed_offset
+
+        self._prng = numpy.random.default_rng(seed=seed)
+        if threshold < 2:
+            raise ValueError('threshold is too small. Privacy is not tenable with threshold < 2.')
+        self.d=threshold-1
+        self.threshold = threshold
+        if communicator.world_size < self.d+1:
+            raise ValueError('threshold incompatible with worldsize, recovery impossible. Increase worldsize or decrease threshold.')
+        #if communicator.world_size < self.d+1:
+        #    raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
+        self._communicator = communicator
+        self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
+        if indices is None:
+            self.indices = [x+1 for x in communicator.ranks]
+        else:
+            self.indices = indices
+        self.revealing_coef = self._lagrange_coef()
+
+
+    def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
+        self._assert_unary_compatible(lhs, lhslabel)
+        self._assert_unary_compatible(rhs, rhslabel)
+        if lhs.storage.shape != rhs.storage.shape:
+            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.")
+
+    def _assert_unary_compatible(self, share, label):
+        if not isinstance(share, ShamirArrayShare):
+            raise ValueError(f"{label} must be an instance of ShamirArrayShare, got {type(share)} instead.")
+
+    def _lagrange_coef(self, src=None):
+        # Given a set of indices, it returns an array containing the lagrange coefficients
+        # with respect to each index given, keyed by those indices
+        from math import prod
+        if src is None:
+            src = self.indices
+        ls = len(src)
+        coefs=numpy.zeros(ls, dtype=self.encoder.dtype)
+        for i in range(ls):
+            coefs[i]=prod([-src[j]*pow(src[i]-src[j], self.encoder.modulus-2, self.encoder.modulus) for j in range(ls) if src[j] != src[i]])%self.encoder.modulus
+        return coefs 
+
+    @property
+    def communicator(self):
+        """Return the :class:`cicada.communicator.interface.Communicator` used by this protocol."""
+        return self._communicator
+
+
+    @property
+    def encoder(self):
+        """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
+        return self._encoder
+
+
+    def reveal(self, share,*, dst=None):
+        """Reveals a secret shared value to a subset of players.
+
+        Note
+        ----
+        In most cases the revealed secret needs to be decoded with this
+        protocol's :attr:`encoder` to reveal the actual value.
+
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`ShamirArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            Encoded representation of the revealed secret, if this player is a
+            member of `dst`, or :any:`None`.
+        """
+
+        if not isinstance(share, ShamirArrayShare):
+            raise ValueError("share must be an instance of ShamirArrayShare.") # pragma: no cover
+
+        # Identify who will be receiving shares.
+        if dst is None:
+            dst = self.communicator.ranks
+
+        src = self.communicator.ranks
+        n=len(src)
+        if n == len(self.indices):
+            revealing_coef = self.revealing_coef
+        else:
+            revealing_coef = None
+        # Send data to the other players.
+        secret = None
+        for recipient in dst:
+            received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
+            if received_shares: 
+                received_storage = numpy.array([x.storage for x in received_shares], dtype=self.encoder.dtype)
+                if self.communicator.rank == recipient:
+                    if revealing_coef is None:
+                        revealing_coef = self._lagrange_coef([self.indices[x] for x in src])
+                    secret = []
+                    for index in numpy.ndindex(received_storage[0].shape):
+                        secret.append(sum([revealing_coef[i]*received_storage[i][index] for i in range(len(revealing_coef))]))
+        if secret is None:
+            return secret
+        else:
+            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share.storage.shape)
+            return ret
+
+
+    def share(self, *, src, secret, shape):
+        """Convert a private array to an shamir secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        src: integer, required
+            The player providing the private array to be secret shared.
+        secret: :class:`numpy.ndarray` or :any:`None`, required
+            The secret array to be shared, which must be encoded with this
+            object's :attr:`encoder`.  This value is ignored for all players
+            except `src`.
+        shape: :class:`tuple`, required
+            The shape of the secret.  Note that the shape must be consistently
+            specified by all players.
+
+        Returns
+        -------
+        share: :class:`ShamirArrayShare`
+            The local share of the secret shared array.
+        """
+        if not isinstance(shape, tuple):
+            shape = (shape,)
+
+        dst=self.communicator.ranks
+        ldst=len(dst)
+
+        shares = []
+        sharesn = numpy.zeros(shape+(ldst,))
+        if self.communicator.rank == src:
+            if not isinstance(secret, numpy.ndarray):
+                raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
+            if secret.dtype != self.encoder.dtype:
+                raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
+            if secret.shape != shape:
+                raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
+            coef = self.encoder.uniform(size=shape+(self.d,), generator=self._prng)
+            for index in numpy.ndindex(shape):
+                for x in self.indices:
+                    shares.append(numpy.dot(numpy.power(numpy.full((self.d,), x),numpy.arange(1, self.d+1)), coef[index])+secret[index])
+            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(ldst,)).T
+        share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.encoder.dtype).T
+        return ShamirArrayShare(share)
+
+
+class ShamirProtocol(ShamirKernel):
     """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
 
     Note
@@ -280,18 +478,6 @@ class ShamirProtocol(object):
         return ShamirArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
 
 
-    @property
-    def communicator(self):
-        """Return the :class:`cicada.communicator.interface.Communicator` used by this protocol."""
-        return self._communicator
-
-
-    @property
-    def encoder(self):
-        """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
-        return self._encoder
-
-
     def equal(self, lhs, rhs):
         """Return an elementwise probabilistic equality comparison between secret shared arrays.
 
@@ -349,17 +535,6 @@ class ShamirProtocol(object):
         sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
 
-    def _lagrange_coef(self, src=None):
-        # Given a set of indices, it returns an array containing the lagrange coefficients
-        # with respect to each index given, keyed by those indices
-        from math import prod
-        if src is None:
-            src = self.indices
-        ls = len(src)
-        coefs=numpy.zeros(ls, dtype=self.encoder.dtype)
-        for i in range(ls):
-            coefs[i]=prod([-src[j]*pow(src[i]-src[j], self.encoder.modulus-2, self.encoder.modulus) for j in range(ls) if src[j] != src[i]])%self.encoder.modulus
-        return coefs 
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
@@ -1079,113 +1254,6 @@ class ShamirProtocol(object):
         nltz_parts = self.untruncated_multiply(nltz, operand)
         return nltz_parts
 
-
-    def reveal(self, share,*, dst=None):
-        """Reveals a secret shared value to a subset of players.
-
-        Note
-        ----
-        In most cases the revealed secret needs to be decoded with this
-        protocol's :attr:`encoder` to reveal the actual value.
-
-        This is a collective operation that *must* be called by all players
-        that are members of :attr:`communicator`, whether they are receiving
-        the revealed secret or not.
-
-        Parameters
-        ----------
-        share: :class:`ShamirArrayShare`, required
-            The local share of the secret to be revealed.
-        dst: sequence of :class:`int`, optional
-            List of players who will receive the revealed secret.  If :any:`None`
-            (the default), the secret will be revealed to all players.
-
-        Returns
-        -------
-        value: :class:`numpy.ndarray` or :any:`None`
-            Encoded representation of the revealed secret, if this player is a
-            member of `dst`, or :any:`None`.
-        """
-
-        if not isinstance(share, ShamirArrayShare):
-            raise ValueError("share must be an instance of ShamirArrayShare.") # pragma: no cover
-
-        # Identify who will be receiving shares.
-        if dst is None:
-            dst = self.communicator.ranks
-
-        src = self.communicator.ranks
-        n=len(src)
-        if n == len(self.indices):
-            revealing_coef = self.revealing_coef
-        else:
-            revealing_coef = None
-        # Send data to the other players.
-        secret = None
-        for recipient in dst:
-            received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
-            if received_shares: 
-                received_storage = numpy.array([x.storage for x in received_shares], dtype=self.encoder.dtype)
-                if self.communicator.rank == recipient:
-                    if revealing_coef is None:
-                        revealing_coef = self._lagrange_coef([self.indices[x] for x in src])
-                    secret = []
-                    for index in numpy.ndindex(received_storage[0].shape):
-                        secret.append(sum([revealing_coef[i]*received_storage[i][index] for i in range(len(revealing_coef))]))
-        if secret is None:
-            return secret
-        else:
-            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share.storage.shape)
-            return ret
-
-
-    def share(self, *, src, secret, shape):
-        """Convert a private array to an shamir secret share.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        src: integer, required
-            The player providing the private array to be secret shared.
-        secret: :class:`numpy.ndarray` or :any:`None`, required
-            The secret array to be shared, which must be encoded with this
-            object's :attr:`encoder`.  This value is ignored for all players
-            except `src`.
-        shape: :class:`tuple`, required
-            The shape of the secret.  Note that the shape must be consistently
-            specified by all players.
-
-        Returns
-        -------
-        share: :class:`ShamirArrayShare`
-            The local share of the secret shared array.
-        """
-        if not isinstance(shape, tuple):
-            shape = (shape,)
-
-        dst=self.communicator.ranks
-        ldst=len(dst)
-
-        shares = []
-        sharesn = numpy.zeros(shape+(ldst,))
-        if self.communicator.rank == src:
-            if not isinstance(secret, numpy.ndarray):
-                raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
-            if secret.dtype != self.encoder.dtype:
-                raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
-            if secret.shape != shape:
-                raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
-            coef = self.encoder.uniform(size=shape+(self.d,), generator=self._prng)
-            for index in numpy.ndindex(shape):
-                for x in self.indices:
-                    shares.append(numpy.dot(numpy.power(numpy.full((self.d,), x),numpy.arange(1, self.d+1)), coef[index])+secret[index])
-            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(ldst,)).T
-        share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.encoder.dtype).T
-        return ShamirArrayShare(share)
 
 
     def subtract(self, lhs, rhs):
