@@ -318,7 +318,7 @@ class SocketCommunicator(Communicator):
             message = self._next_message(src=src, tag=tag)
             if message is not None:
                 return message[2] # payload
-            time.sleep(0.01)
+            time.sleep(0.0001)
         raise Timeout(f"Tag {tag.name} from player {src} timed-out after {self._timeout}s")
 
 
