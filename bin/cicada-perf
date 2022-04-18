@@ -8,7 +8,7 @@ import time
 
 import numpy
 
-import cicada
+import cicada.additive
 from cicada.communicator import SocketCommunicator
 
 
@@ -71,6 +71,14 @@ broadcast_subparser.add_argument("--src", default=0, type=nonnegative_integer, h
 broadcast_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
 broadcast_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 
+# floor
+floor_subparser = subparsers.add_parser("floor", help="Test floor() performance on the local machine.")
+floor_subparser.add_argument("--count", default=1, type=positive_integer, help="Number of floor() operations. Default: %(default)s")
+floor_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
+floor_subparser.add_argument("--seed", default=1234, type=positive_integer, help="Random seed. Default: %(default)s")
+floor_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
+floor_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+
 # gather
 gather_subparser = subparsers.add_parser("gather", help="Test gather performance on the local machine.")
 gather_subparser.add_argument("--count", default=10000, type=positive_integer, help="Number of gather operations. Default: %(default)s")
@@ -109,6 +117,23 @@ if __name__ == "__main__":
 
         case = f"{arguments.world_size} players broadcast {arguments.count} times using {arguments.size} byte messages"
         times = SocketCommunicator.run(world_size=arguments.world_size, fn=implementation, identities=identities(arguments), trusted=trusted(arguments), kwargs=dict(count=arguments.count, seed=arguments.seed, size=arguments.size, src=arguments.src))
+        print_times(case, times)
+
+    # floor
+    if arguments.command == "floor":
+
+        def implementation(communicator, count, seed):
+            protocol = cicada.additive.AdditiveProtocol(communicator=communicator)
+            generator = numpy.random.default_rng(seed=seed)
+            timer = Timer()
+            for index in range(count):
+                value = generator.uniform(low=-5, high=5, size=()) if communicator.rank == 0 else None
+                value_share = protocol.share(src=0, secret=protocol.encoder.encode(value), shape=())
+                floor_share = protocol.floor(value_share)
+            return timer.elapsed()
+
+        case = f"{arguments.world_size} players compute floor() {arguments.count} times"
+        times = SocketCommunicator.run(world_size=arguments.world_size, fn=implementation, identities=identities(arguments), trusted=trusted(arguments), kwargs=dict(count=arguments.count, seed=arguments.seed))
         print_times(case, times)
 
     # gather
