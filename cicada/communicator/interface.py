@@ -156,7 +156,7 @@ class Communicator(metaclass=ABCMeta):
         pass # pragma: no cover
 
     @abstractmethod
-    def irecv(self, *, src):
+    def irecv(self, *, src, tag):
         """Non-blocking one-to-one communication.
 
         One player (the sender) sends an object to one player (the destination).
@@ -175,6 +175,8 @@ class Communicator(metaclass=ABCMeta):
         ----------
         src: :class:`int`, required
             Rank of the sending player.
+        tag: :class:`int` or :class:`Tags`, required
+            User- or library-defined tag identifying the message type to match.
 
         Returns
         -------
@@ -190,7 +192,7 @@ class Communicator(metaclass=ABCMeta):
         pass # pragma: no cover
 
     @abstractmethod
-    def isend(self, *, value, dst):
+    def isend(self, *, value, dst, tag):
         """Non-blocking one-to-one communication.
 
         One player (the sender) sends an object to one player (the destination).
@@ -211,6 +213,8 @@ class Communicator(metaclass=ABCMeta):
             Value to be sent.
         dst: :class:`int`, required
             Rank of the destination player.
+        tag: :class:`int` or :class:`Tags`, required
+            User- or library-defined tag identifying the message type.
 
         Returns
         -------
@@ -248,7 +252,7 @@ class Communicator(metaclass=ABCMeta):
 
 
     @abstractmethod
-    def recv(self, *, src):
+    def recv(self, *, src, tag):
         """Blocking one-to-one communication.
 
         One player (the sender) sends an object to one player (the destination).
@@ -267,6 +271,8 @@ class Communicator(metaclass=ABCMeta):
         ----------
         src: :class:`int`, required
             Rank of the sending player.
+        tag: :class:`int` or :class:`Tags`, required
+            User- or library-defined tag identifying the message type to match.
 
         Returns
         -------
@@ -329,7 +335,7 @@ class Communicator(metaclass=ABCMeta):
         pass # pragma: no cover
 
     @abstractmethod
-    def send(self, value, dst):
+    def send(self, value, dst, tag):
         """Blocking one-to-one communication.
 
         One player (the sender) sends an object to one player (the destination).
@@ -350,6 +356,8 @@ class Communicator(metaclass=ABCMeta):
             Value to be sent.
         dst: :class:`int`, required
             Rank of the destination player.
+        tag: :class:`int` or :class:`Tags`, required
+            User- or library-defined tag identifying the message type.
         """
         pass # pragma: no cover
 
@@ -367,6 +375,14 @@ class Communicator(metaclass=ABCMeta):
 
 
 class Tags(enum.IntEnum):
+    """Message tags used internally by the library.
+
+    Callers can use these tags, or any other integer tag value, when calling
+    :meth:`Communicator.send`, :meth:`Communicator.recv`,
+    :meth:`Communicator.isend`, and :meth:`Communicator.irecv`.
+    """
+
+    # Collective operations.
     ALLGATHER = -1
     BARRIER = -2
     BEACON = -3
@@ -376,23 +392,23 @@ class Tags(enum.IntEnum):
     REVOKE = -7
     SCATTER = -8
     SCATTERV = -9
-    SEND = -10
-    SHRINK = -11
+    SHRINK = -10
 
-
-def tagconvert(tag):
-    try:
-        tag = Tags(tag)
-    except:
-        tag = int(tag)
-    return tag
+    # Protocol-specific operations.
+    PRSZ = -11
 
 
 def tagname(tag):
+    """Return a human-readable name for a tag.
+
+    Parameters
+    ----------
+    tag: :class:`int` or :class:`Tags`, required
+    """
     try:
         tag = Tags(tag)
         return tag.name
     except:
-        return tag
+        return str(tag)
 
 

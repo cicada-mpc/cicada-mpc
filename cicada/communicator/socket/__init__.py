@@ -38,7 +38,7 @@ import urllib.parse
 import numpy
 import pynetstring
 
-from ..interface import Communicator, Tags, tagconvert, tagname
+from ..interface import Communicator, Tags, tagname
 from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, message, rendezvous
 
 
@@ -219,7 +219,7 @@ class SocketCommunicator(Communicator):
                     #self._log.debug(f"received {taglabel(tag), payload}")
 
                     # Insert the message into the incoming queue.
-                    self._incoming_queue.put((src, tagconvert(tag), payload), block=True, timeout=None)
+                    self._incoming_queue.put((src, tag, payload), block=True, timeout=None)
 
         # The communicator has been freed, so exit the thread.
         self._log.debug(f"receive thread closed.")
@@ -558,8 +558,8 @@ class SocketCommunicator(Communicator):
         return None
 
 
-    def irecv(self, *, src):
-        self._log.debug(f"irecv(src={src})")
+    def irecv(self, *, src, tag):
+        self._log.debug(f"irecv(src={src}, tag={tag})")
 
         self._require_unrevoked()
         self._require_running()
@@ -592,20 +592,20 @@ class SocketCommunicator(Communicator):
                 if self._payload is None:
                     self._payload = self._communicator._wait_next_payload(src=self._src, tag=self._tag)
 
-        return Result(communicator=self, src=src, tag=Tags.SEND)
+        return Result(communicator=self, src=src, tag=tag)
 
 
-    def isend(self, *, value, dst):
-        self._log.debug(f"isend(dst={dst})")
+    def isend(self, *, value, dst, tag):
+        self._log.debug(f"isend(dst={dst}, tag={tag})")
 
         self._require_unrevoked()
         self._require_running()
 
         dst = self._require_rank(dst)
 
-        self._send(tag=Tags.SEND, payload=value, dst=dst)
+        self._send(tag=tag, payload=value, dst=dst)
 
-        # This is safe, because we pickle the value before returning; thus,
+        # This is safe because we pickle the value before returning; thus,
         # nothing the caller can do to the value will have unexpected
         # side-effects.
         class Result:
@@ -667,15 +667,15 @@ class SocketCommunicator(Communicator):
         return self._rank
 
 
-    def recv(self, *, src):
-        self._log.debug(f"recv(src={src})")
+    def recv(self, *, src, tag):
+        self._log.debug(f"recv(src={src}, tag={tag})")
 
         self._require_unrevoked()
         self._require_running()
 
         src = self._require_rank(src)
 
-        return self._wait_next_payload(src=src, tag=Tags.SEND)
+        return self._wait_next_payload(src=src, tag=tag)
 
 
     def revoke(self):
@@ -918,15 +918,15 @@ class SocketCommunicator(Communicator):
         return None
 
 
-    def send(self, *, value, dst):
-        self._log.debug(f"send(dst={dst})")
+    def send(self, *, value, dst, tag):
+        self._log.debug(f"send(dst={dst}, tag={tag})")
 
         self._require_unrevoked()
         self._require_running()
 
         dst = self._require_rank(dst)
 
-        self._send(tag=Tags.SEND, payload=value, dst=dst)
+        self._send(tag=tag, payload=value, dst=dst)
 
 
     def shrink(self, *, name, shrink_timeout=5, startup_timeout=5, timeout=5):
