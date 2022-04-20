@@ -141,17 +141,29 @@ class Logger(object):
         if isinstance(src, numbers.Integral):
             src = [src]
 
-        if self._sync and self._communicator.rank:
-            payload = self._communicator.recv(src=self._communicator.rank-1, tag=Tags.LOGSYNC)
+        communicator = self._communicator
 
-        if src is None or self._communicator.rank in src:
+        # Wait for our turn to generate output.
+        if self._sync and communicator.rank:
+            communicator.recv(src=communicator.rank-1, tag=Tags.LOGSYNC)
+
+        # Generate output.
+        if src is None or communicator.rank in src:
             self._logger.log(level, msg, *args, **kwargs)
 
-        if self._sync and self._communicator.rank < self._communicator.world_size-1:
-            self._communicator.send(dst=self._communicator.rank+1, value=None, tag=Tags.LOGSYNC)
+        # Notify the next player that it's their turn.
+        if self._sync and communicator.rank < communicator.world_size-1:
+            communicator.send(dst=communicator.rank+1, value=None, tag=Tags.LOGSYNC)
 
+        # The last player notifies the group that the output is complete.
+        if self._sync and communicator.rank == communicator.world_size-1:
+            for rank in communicator.ranks:
+                communicator.send(dst=rank, value=None, tag=Tags.LOGSYNC)
+
+        # Wait until output is complete before we return.
         if self._sync:
-            self._communicator.barrier()
+            communicator.recv(src=communicator.world_size-1, tag=Tags.LOGSYNC)
+
 
     @property
     def logger(self):
