@@ -60,7 +60,8 @@ def main(communicator):
             log.info("-" * 60, src=0)
             log.info(f"Comm {communicator.name} player {communicator.rank} revealed: {revealed}")
         except Exception as e: # Implement failure recovery in this block.
-            logging.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
+            log.sync = False
+            log.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
             # Something went wrong.  Revoke the current communicator to
             # ensure that all players are aware of it.
             communicator.revoke()

@@ -150,6 +150,8 @@ class Logger(object):
         if self._sync and self._communicator.rank < self._communicator.world_size-1:
             self._communicator.send(dst=self._communicator.rank+1, value=None, tag=Tags.LOGSYNC)
 
+        if self._sync:
+            self._communicator.barrier()
 
     @property
     def logger(self):
