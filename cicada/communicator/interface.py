@@ -17,6 +17,7 @@
 """Defines abstract interfaces for network communication."""
 
 from abc import ABCMeta, abstractmethod
+import enum
 
 
 class Communicator(metaclass=ABCMeta):
@@ -363,4 +364,35 @@ class Communicator(metaclass=ABCMeta):
             The number of players sharing this communicator.
         """
         pass # pragma: no cover
+
+
+class Tags(enum.IntEnum):
+    ALLGATHER = -1
+    BARRIER = -2
+    BEACON = -3
+    BROADCAST = -4
+    GATHER = -5
+    GATHERV = -6
+    REVOKE = -7
+    SCATTER = -8
+    SCATTERV = -9
+    SEND = -10
+    SHRINK = -11
+
+
+def tagconvert(tag):
+    try:
+        tag = Tags(tag)
+    except:
+        tag = int(tag)
+    return tag
+
+
+def tagname(tag):
+    try:
+        tag = Tags(tag)
+        return tag.name
+    except:
+        return tag
+
 
