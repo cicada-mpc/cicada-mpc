@@ -293,7 +293,7 @@ class SocketCommunicator(Communicator):
             if message is not None:
                 return message[2] # payload
             time.sleep(0.0001)
-        raise Timeout(f"Tag {tag.name} from player {src} timed-out after {self._timeout}s")
+        raise Timeout(f"Tag {tagname(tag)} from player {src} timed-out after {self._timeout}s")
 
 
     def _require_rank(self, rank):
