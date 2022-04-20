@@ -394,8 +394,11 @@ class Tags(enum.IntEnum):
     SCATTERV = -9
     SHRINK = -10
 
+    # Logging operations.
+    LOGSYNC = -20
+
     # Protocol-specific operations.
-    PRSZ = -11
+    PRSZ = -30
 
 
 def tagname(tag):

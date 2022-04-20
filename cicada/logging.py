@@ -18,7 +18,7 @@
 
 import logging
 
-from cicada.communicator.interface import Communicator
+from cicada.communicator.interface import Communicator, Tags
 
 
 class Logger(object):
@@ -130,11 +130,14 @@ class Logger(object):
         src: :class:`int`, optional
             If specified, only the given player will produce log output.
         """
-        for i in range(self._communicator.world_size):
-            if self._communicator.rank == i:
-                if src is None or self._communicator.rank == src:
-                    self._logger.log(level, msg, *args, **kwargs)
-            self._communicator.barrier()
+        if self._communicator.rank:
+            payload = self._communicator.recv(src=self._communicator.rank-1, tag=Tags.LOGSYNC)
+
+        if src is None or self._communicator.rank == src:
+            self._logger.log(level, msg, *args, **kwargs)
+
+        if self._communicator.rank < self._communicator.world_size-1:
+            self._communicator.send(dst=self._communicator.rank+1, value=None, tag=Tags.LOGSYNC)
 
 
     def warning(self, msg, *args, src=None, **kwargs):
