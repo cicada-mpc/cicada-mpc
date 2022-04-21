@@ -63,7 +63,7 @@ class ShamirArrayShare(object):
             raise ValueError(f"Expected storage to be an instance of numpy.ndarray, got {type(storage)} instead.") # pragma: no cover
         self._storage = storage
 
-class ShamirBasic(object):
+class ShamirBasicProtocol(object):
     """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
 
     Note
@@ -208,6 +208,38 @@ class ShamirBasic(object):
 
         return self.public_private_subtract(numpy.full(operand.storage.shape, self.encoder.modulus, dtype=self.encoder.dtype), operand)
 
+
+    def bit_compose(self, operand):
+        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in big-endian order.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Shared secret to be truncated.
+
+        Returns
+        -------
+        array: :class:`ShamirArrayShare`
+            Share of the bit decomposed secret.
+        """
+        if not isinstance(operand, ShamirArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
+        outer_shape = operand.storage.shape[:-1]
+        last_dimension = operand.storage.shape[-1]
+        idx = numpy.ndindex(outer_shape)
+        composed = []
+        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self.encoder.dtype)[::-1])
+        for x in idx:
+            shifted = self.encoder.untruncated_multiply(operand.storage[x], shift)
+            val_share = numpy.sum(shifted) % self.encoder.modulus
+            composed.append(val_share)
+        return ShamirArrayShare(numpy.array([x for x in composed], dtype=self.encoder.dtype).reshape(outer_shape))
 
     def private_public_subtract(self, lhs, rhs):
         """Return the elementwise difference between public and secret shared arrays.
@@ -477,7 +509,7 @@ class ShamirBasic(object):
         return share
 
 
-class ShamirProtocol(ShamirBasic):
+class ShamirProtocol(ShamirBasicProtocol):
     """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
 
     Note
@@ -570,38 +602,6 @@ class ShamirProtocol(ShamirBasic):
         ltz_parts = self.untruncated_multiply(ltz, addinvop)
         nltz_parts = self.untruncated_multiply(nltz, operand)
         return self.add(ltz_parts, nltz_parts)
-
-    def bit_compose(self, operand):
-        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
-
-        Note
-        ----
-        The operand *must* be encoded with FixedFieldEncoder.  The result will
-        have one more dimension than the operand, containing the returned bits
-        in big-endian order.
-
-        Parameters
-        ----------
-        operand: :class:`ShamirArrayShare`, required
-            Shared secret to be truncated.
-
-        Returns
-        -------
-        array: :class:`ShamirArrayShare`
-            Share of the bit decomposed secret.
-        """
-        if not isinstance(operand, ShamirArrayShare):
-            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
-        outer_shape = operand.storage.shape[:-1]
-        last_dimension = operand.storage.shape[-1]
-        idx = numpy.ndindex(outer_shape)
-        composed = []
-        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self.encoder.dtype)[::-1])
-        for x in idx:
-            shifted = self.encoder.untruncated_multiply(operand.storage[x], shift)
-            val_share = numpy.sum(shifted) % self.encoder.modulus
-            composed.append(val_share)
-        return ShamirArrayShare(numpy.array([x for x in composed], dtype=self.encoder.dtype).reshape(outer_shape))
 
     def bit_decompose(self, operand, num_bits=None):
         """Decompose operand into shares of its bitwise representation.

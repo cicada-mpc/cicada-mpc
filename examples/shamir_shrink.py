@@ -43,7 +43,7 @@ def main(communicator):
 
         # Nice player ya got there.  It'd be a real shame
         # if they had a most unfortunate and unexpected accident.
-        if communicator.rank == 3:
+        if communicator.rank == 2:
             os.kill(os.getpid(), signal.SIGKILL)
 
         try:
