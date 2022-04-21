@@ -42,7 +42,7 @@ lam = 1.0 / arguments.mtbf
 
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
-    shamir = cicada.shamir.ShamirProtocol(communicator)
+    shamir = cicada.shamir.ShamirProtocol(communicator, threshold=2)
     encoder = cicada.encoder.FixedFieldEncoder()
     generator = numpy.random.default_rng(seed=arguments.seed)
 
@@ -60,7 +60,7 @@ def main(communicator):
             revealed = encoder.decode(shamir.reveal(share))
             share = shamir.add(one_share, share)
             log.info("-" * 60, src=0)
-            log.info(f"Comm {communicator.name} player {communicator.rank} original rank {shamir.indicies[communicator.rank]-1} revealed: {revealed}")
+            log.info(f"Comm {communicator.name} player {communicator.rank} original rank {shamir.indices[communicator.rank]-1} revealed: {revealed}")
         except Exception as e: # Implement failure recovery in this block.
             try:
                 logging.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
@@ -73,7 +73,7 @@ def main(communicator):
                 # These objects must be recreated from scratch since they use
                 # the communicator that was revoked.
                 log = cicada.Logger(logging.getLogger(), newcommunicator)
-                shamir = cicada.shamir.ShamirProtocol(newcommunicator, indicies=[shamir.indicies[x] for x in old_ranks])
+                shamir = cicada.shamir.ShamirProtocol(newcommunicator, threshold=2, indices=[shamir.indices[x] for x in old_ranks])
                 log.info("-" * 60, src=0)
                 log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} player {newcommunicator.rank}.")
                 communicator.free()

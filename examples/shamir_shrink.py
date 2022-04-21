@@ -30,7 +30,7 @@ logging.basicConfig(level=logging.INFO)
 def main(communicator):
     with contextlib.ExitStack() as resources:
         log = cicada.Logger(logging.getLogger(), communicator)
-        shamir = cicada.shamir.ShamirProtocol(communicator)
+        shamir = cicada.shamir.ShamirProtocol(communicator, threshold=2)
         encoder = cicada.encoder.FixedFieldEncoder()
 
         # Player 0 will provide a secret.
@@ -61,15 +61,15 @@ def main(communicator):
             communicator.revoke()
             # Obtain a new communicator that contains the remaining players.
             newcommunicator, old_ranks = communicator.shrink(name="smallworld")
-            logging.info('#'*10+'\nold_ranks: '+str(old_ranks)+'\nold indicies: '+str(shamir.indicies)+'\nnew indicies: '+str([shamir.indicies[x] for x in old_ranks]))
+            logging.info('#'*10+'\nold_ranks: '+str(old_ranks)+'\nold indices: '+str(shamir.indices)+'\nnew indices: '+str([shamir.indices[x] for x in old_ranks]))
             # run() automatically cleans-up the old communicator, this
             # will ensure that we properly cleanup the new one.
             resources.enter_context(newcommunicator)
             # These objects must be recreated from scratch since they use
             # the communicator that was revoked.
             log = cicada.Logger(logging.getLogger(), newcommunicator)
-            shamir = cicada.shamir.ShamirProtocol(newcommunicator, indicies=[shamir.indicies[x] for x in old_ranks])
-            logging.info('#'*10+'current indicies: '+str(shamir.indicies)+' current ranks: '+str(newcommunicator.ranks))
+            shamir = cicada.shamir.ShamirProtocol(newcommunicator, threshold=2, indices=[shamir.indices[x] for x in old_ranks])
+            logging.info('#'*10+'current indices: '+str(shamir.indices)+' current ranks: '+str(newcommunicator.ranks))
         finally:
             logging.info(f"Player {communicator.rank} in final block")
 

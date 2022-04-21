@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     encoder = cicada.encoder.FixedFieldEncoder()#modulus=11311, precision=2)
-    shamirk = cicada.shamir.ShamirKernel(communicator, threshold=2)#, modulus=11311, precision=2)
+    shamirk = cicada.shamir.ShamirBasic(communicator, threshold=2)#, modulus=11311, precision=2)
     shamir = cicada.shamir.ShamirProtocol(communicator, threshold=2)#, modulus=11311, precision=2)
 
     print(f'indicies: {shamir.indices}')
@@ -78,6 +78,13 @@ def main(communicator):
     #log.info(f"Player {communicator.rank} encoded: {tmp}")
     revealed = encoder.decode(tmp)
     log.info(f"Player {communicator.rank} revealed product: {revealed}", src=0)
+
+    rand = shamir.uniform(shape=(2,2))
+
+    tmp = shamir.reveal(rand)
+    #log.info(f"Player {communicator.rank} encoded: {tmp}")
+    revealed = encoder.decode(tmp)
+    log.info(f"Player {communicator.rank} revealed uniform: {revealed}")
 
 cicada.communicator.SocketCommunicator.run(world_size=5, fn=main)
 

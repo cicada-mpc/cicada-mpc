@@ -18,6 +18,7 @@
 
 import logging
 from math import ceil
+from random import randrange
 
 import numpy
 
@@ -62,7 +63,7 @@ class ShamirArrayShare(object):
             raise ValueError(f"Expected storage to be an instance of numpy.ndarray, got {type(storage)} instead.") # pragma: no cover
         self._storage = storage
 
-class ShamirKernel(object):
+class ShamirBasic(object):
     """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
 
     Note
@@ -151,6 +152,157 @@ class ShamirKernel(object):
     def encoder(self):
         """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
         return self._encoder
+
+
+    def add(self, lhs, rhs):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ShamirArrayShare(self.encoder.add(lhs.storage, rhs.storage))
+
+
+    def additive_inverse(self, operand):
+        """Return an elementwise additive inverse of a shared array 
+        in the context of the underlying finite field. Explicitly, this 
+        function returns a same shape array which, when added 
+        elementwise with operand, will return a same shape array comprised
+        entirely of zeros (the additive identity).
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+        This function does not take into account any field-external symantics.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared array to be additively inverted.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret additive inverse of operand on an elementwise basis.
+        """
+        self._assert_unary_compatible(operand, "operand")
+
+        return self.public_private_subtract(numpy.full(operand.storage.shape, self.encoder.modulus, dtype=self.encoder.dtype), operand)
+
+
+    def private_public_subtract(self, lhs, rhs):
+        """Return the elementwise difference between public and secret shared arrays.
+
+        All players *must* supply the same value of `lhs` when calling this
+        method.  The result will be the secret shared elementwise difference
+        between the public (known to all players) `lhs` array and the private
+        (secret shared) `rhs` array.  If revealed, the result will need to be
+        decoded to obtain the actual difference.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared value from which rhs should be subtracted.
+        rhs: :class:`numpy.ndarray`, required
+            Public value, which must have been encoded with this protocol's
+            :attr:`encoder`.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret shared difference `lhs` - `rhs`.
+        """
+        self._assert_unary_compatible(lhs, "lhs")
+
+        return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs))
+
+
+    def public_private_add(self, lhs, rhs):
+        """Return the elementwise sum of public and secret shared arrays.
+
+        All players *must* supply the same value of `lhs` when calling this
+        method.  The result will be the secret shared elementwise sum of the
+        public (known to all players) `lhs` array and the private (secret
+        shared) `rhs` array.  If revealed, the result will need to be decoded
+        to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`numpy.ndarray`, required
+            Public value to be added, which must have been encoded
+            with this protocol's :attr:`encoder`.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret shared sum of `lhs` and `rhs`.
+        """
+        self._assert_unary_compatible(rhs, "rhs")
+
+        return ShamirArrayShare(self.encoder.add(lhs, rhs.storage))
+
+
+    def public_private_subtract(self, lhs, rhs):
+        """Return the elementwise difference between public and secret shared arrays.
+
+        All players *must* supply the same value of `lhs` when calling this
+        method.  The result will be the secret shared elementwise difference
+        between the public (known to all players) `lhs` array and the private
+        (secret shared) `rhs` array.  If revealed, the result will need to be
+        decoded to obtain the actual difference.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`numpy.ndarray`, required
+            Public value, which must have been encoded with this protocol's
+            :attr:`encoder`.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be subtracted.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret shared difference `lhs` - `rhs`.
+        """
+        self._assert_unary_compatible(rhs, "rhs")
+
+        return ShamirArrayShare(self.encoder.subtract(lhs, rhs.storage))
 
 
     def reveal(self, share,*, dst=None):
@@ -261,7 +413,71 @@ class ShamirKernel(object):
         return ShamirArrayShare(share)
 
 
-class ShamirProtocol(ShamirKernel):
+    def subtract(self, lhs, rhs):
+        """Subtract a secret shared value from a secret shared value.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Shared value.
+        rhs: :class:`ShamirArrayShare`, required
+            Shared value to be subtracted.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The difference `lhs` - `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
+
+
+    def uniform(self, *, shape=None, generator=None):
+        """Return a ShamirSharedArray with the specified shape and filled with random field elements
+
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random field elements which are then added together
+        elementwise.  Computation costs increase with the number of elements to
+        generate and the number of players, while security increases with the
+        number of players.
+
+        Parameters
+        ----------
+        shape: :class:`tuple`, optional
+            Shape of the array to populate. By default, 
+            a shapeless array of one random element will be generated.
+        src: sequence of :class:`int`, optional
+            Players that will contribute to random array generation.  By default,
+            all players contribute.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        secret: :class:`ShamirArrayShare`
+            A share of the random generated value.
+        """
+
+        if shape==None:
+            shape=()
+        if generator is None:
+            generator = self._prng
+        
+        rand_ints = self.encoder.uniform(size=shape, generator=generator)
+        share = ShamirArrayShare(numpy.zeros(shape, dtype=self.encoder.dtype))
+        for i in self.communicator.ranks:
+            share = self.add(self.share(src=i, secret=rand_ints, shape=rand_ints.shape), share)
+        return share
+
+
+class ShamirProtocol(ShamirBasic):
     """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
 
     Note
@@ -354,61 +570,6 @@ class ShamirProtocol(ShamirKernel):
         ltz_parts = self.untruncated_multiply(ltz, addinvop)
         nltz_parts = self.untruncated_multiply(nltz, operand)
         return self.add(ltz_parts, nltz_parts)
-
-
-    def add(self, lhs, rhs):
-        """Return the elementwise sum of two secret shared arrays.
-
-        The result is the secret shared elementwise sum of the operands.  If
-        revealed, the result will need to be decoded to obtain the actual sum.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`ShamirArrayShare`, required
-            Secret shared value to be added.
-        rhs: :class:`ShamirArrayShare`, required
-            Secret shared value to be added.
-
-        Returns
-        -------
-        value: :class:`ShamirArrayShare`
-            Secret-shared sum of `lhs` and `rhs`.
-        """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ShamirArrayShare(self.encoder.add(lhs.storage, rhs.storage))
-
-
-    def additive_inverse(self, operand):
-        """Return an elementwise additive inverse of a shared array 
-        in the context of the underlying finite field. Explicitly, this 
-        function returns a same shape array which, when added 
-        elementwise with operand, will return a same shape array comprised
-        entirely of zeros (the additive identity).
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-        This function does not take into account any field-external symantics.
-
-        Parameters
-        ----------
-        operand: :class:`ShamirArrayShare`, required
-            Secret shared array to be additively inverted.
-
-        Returns
-        -------
-        value: :class:`ShamirArrayShare`
-            The secret additive inverse of operand on an elementwise basis.
-        """
-        self._assert_unary_compatible(operand, "operand")
-
-        return self.public_private_subtract(numpy.full(operand.storage.shape, self.encoder.modulus, dtype=self.encoder.dtype), operand)
 
     def bit_compose(self, operand):
         """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
@@ -992,38 +1153,6 @@ class ShamirProtocol(ShamirKernel):
             ans.append(it_ans)
         return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
 
-    def private_public_subtract(self, lhs, rhs):
-        """Return the elementwise difference between public and secret shared arrays.
-
-        All players *must* supply the same value of `lhs` when calling this
-        method.  The result will be the secret shared elementwise difference
-        between the public (known to all players) `lhs` array and the private
-        (secret shared) `rhs` array.  If revealed, the result will need to be
-        decoded to obtain the actual difference.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`ShamirArrayShare`, required
-            Secret shared value from which rhs should be subtracted.
-        rhs: :class:`numpy.ndarray`, required
-            Public value, which must have been encoded with this protocol's
-            :attr:`encoder`.
-
-        Returns
-        -------
-        value: :class:`ShamirArrayShare`
-            The secret shared difference `lhs` - `rhs`.
-        """
-        self._assert_unary_compatible(lhs, "lhs")
-
-        return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs))
-
-
     def _public_bitwise_less_than(self,*, lhspub, rhs):
         """Comparison Operator
 
@@ -1086,70 +1215,6 @@ class ShamirProtocol(ShamirKernel):
                 result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
         return ShamirArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.encoder.dtype).reshape(rhs.storage.shape[:-1]))
-
-    def public_private_add(self, lhs, rhs):
-        """Return the elementwise sum of public and secret shared arrays.
-
-        All players *must* supply the same value of `lhs` when calling this
-        method.  The result will be the secret shared elementwise sum of the
-        public (known to all players) `lhs` array and the private (secret
-        shared) `rhs` array.  If revealed, the result will need to be decoded
-        to obtain the actual sum.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            Public value to be added, which must have been encoded
-            with this protocol's :attr:`encoder`.
-        rhs: :class:`ShamirArrayShare`, required
-            Secret shared value to be added.
-
-        Returns
-        -------
-        value: :class:`ShamirArrayShare`
-            The secret shared sum of `lhs` and `rhs`.
-        """
-        self._assert_unary_compatible(rhs, "rhs")
-
-        return ShamirArrayShare(self.encoder.add(lhs, rhs.storage))
-
-
-    def public_private_subtract(self, lhs, rhs):
-        """Return the elementwise difference between public and secret shared arrays.
-
-        All players *must* supply the same value of `lhs` when calling this
-        method.  The result will be the secret shared elementwise difference
-        between the public (known to all players) `lhs` array and the private
-        (secret shared) `rhs` array.  If revealed, the result will need to be
-        decoded to obtain the actual difference.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            Public value, which must have been encoded with this protocol's
-            :attr:`encoder`.
-        rhs: :class:`ShamirArrayShare`, required
-            Secret shared value to be subtracted.
-
-        Returns
-        -------
-        value: :class:`ShamirArrayShare`
-            The secret shared difference `lhs` - `rhs`.
-        """
-        self._assert_unary_compatible(rhs, "rhs")
-
-        return ShamirArrayShare(self.encoder.subtract(lhs, rhs.storage))
-
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
         """Return a vector of randomly generated bits.
@@ -1255,31 +1320,6 @@ class ShamirProtocol(ShamirKernel):
         return nltz_parts
 
 
-
-    def subtract(self, lhs, rhs):
-        """Subtract a secret shared value from a secret shared value.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`ShamirArrayShare`, required
-            Shared value.
-        rhs: :class:`ShamirArrayShare`, required
-            Shared value to be subtracted.
-
-        Returns
-        -------
-        value: :class:`ShamirArrayShare`
-            The difference `lhs` - `rhs`.
-        """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
-
-
     def truncate(self, operand, *, bits=None, src=None, generator=None):
         """Remove the `bits` least significant bits from each element in a secret shared array.
 
@@ -1352,42 +1392,6 @@ class ShamirProtocol(ShamirKernel):
         return ShamirArrayShare(result)
 
 
-
-    def uniform(self, *, shape=None, generator=None):
-        """Return a AdditiveSharedArray with the specified shape and filled with random field elements
-
-        This method is secure against non-colluding semi-honest adversaries.  A
-        subset of players (by default: all) generate and secret share vectors
-        of pseudo-random field elements which are then added together
-        elementwise.  Computation costs increase with the number of elements to
-        generate and the number of players, while security increases with the
-        number of players.
-
-        Parameters
-        ----------
-        shape: :class:`tuple`, optional
-            Shape of the array to populate. By default, 
-            a shapeless array of one random element will be generated.
-        src: sequence of :class:`int`, optional
-            Players that will contribute to random array generation.  By default,
-            all players contribute.
-        generator: :class:`numpy.random.Generator`, optional
-            A psuedorandom number generator for sampling.  By default,
-            `numpy.random.default_rng()` will be used.
-
-        Returns
-        -------
-        secret: :class:`ShamirArrayShare`
-            A share of the random generated value.
-        """
-
-        if shape==None:
-            shape=()
-
-        if generator is None:
-            generator = numpy.random.default_rng()
-
-        return ShamirArrayShare(self.encoder.uniform(size=shape, generator=generator)) 
 
     def untruncated_multiply(self, lhs, rhs):
         """Element-wise multiplication of two shared arrays.
