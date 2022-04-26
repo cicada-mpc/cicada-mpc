@@ -313,12 +313,12 @@ class SocketCommunicator(Communicator):
 
     def _require_running(self):
         if not self._running:
-            raise NotRunning(f"Comm {self.name!r} player {self.rank} is not running.")
+            raise NotRunning(f"Comm {self.name} player {self.rank} is not running.")
 
 
     def _require_unrevoked(self):
         if self._revoked:
-            raise Revoked(f"Comm {self.name!r} player {self.rank} has been revoked.")
+            raise Revoked(f"Comm {self.name} player {self.rank} has been revoked.")
 
 
     def _send(self, *, tag, payload, dst):
@@ -855,17 +855,17 @@ class SocketCommunicator(Communicator):
 
         for rank, result in enumerate(output):
             if isinstance(result, Failed):
-                log.warning(f"Comm {name!r} player {rank} failed: {result.exception!r}")
+                log.warning(f"Comm {name} player {rank} failed: {result.exception!r}")
             elif isinstance(result, Exception):
-                log.warning(f"Comm {name!r} player {rank} failed: {result!r}")
+                log.warning(f"Comm {name} player {rank} failed: {result!r}")
             else:
-                log.info(f"Comm {name!r} player {rank} result: {result}")
+                log.info(f"Comm {name} player {rank} result: {result}")
 
         # Print a traceback for players that failed.
         for rank, result in enumerate(output):
             if isinstance(result, Failed):
                 log.error("*" * 80)
-                log.error(f"Comm {name!r} player {rank} traceback:")
+                log.error(f"Comm {name} player {rank} traceback:")
                 log.error(result.traceback)
 
         return output
@@ -1020,7 +1020,7 @@ class SocketCommunicator(Communicator):
         elif address.scheme == "tcp":
             address = f"tcp://{address.hostname}"
         else:
-            raise ValueError(f"Comm {self.name!r} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
+            raise ValueError(f"Comm {self.name} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
 
         # Create a new listening socket and update the address to match
         timer = Timer(threshold=startup_timeout)
@@ -1074,7 +1074,7 @@ class SocketCommunicator(Communicator):
         self._require_running()
 
         if not isinstance(name, (str, type(None))):
-            raise ValueError(f"Comm {self.name!r} player {self.rank} name must be a string or None, got {name} instead.") # pragma: no cover
+            raise ValueError(f"Comm {self.name} player {self.rank} name must be a string or None, got {name} instead.") # pragma: no cover
 
         timer = Timer(threshold=startup_timeout)
 
@@ -1091,7 +1091,7 @@ class SocketCommunicator(Communicator):
             elif address.scheme == "tcp":
                 address = f"tcp://{address.hostname}"
             else:
-                raise ValueError(f"Comm {self.name!r} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
+                raise ValueError(f"Comm {self.name} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
 
         # Create a new listening socket and update the address to match.
         if address is not None:
