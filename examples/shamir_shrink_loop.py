@@ -24,11 +24,13 @@ import time
 
 import numpy
 
+
 from cicada.communicator import SocketCommunicator
 import cicada.encoder
 import cicada.shamir
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(message)s', datefmt="%H:%M:%S")
+#logging.getLogger("cicada.communicator").setLevel(logging.INFO)
 
 
 parser = argparse.ArgumentParser(description="Failure recovery tester.")
@@ -41,6 +43,9 @@ arguments = parser.parse_args()
 lam = 1.0 / arguments.mtbf
 
 def main(communicator):
+    import manhole
+    manhole.install()
+
     log = cicada.Logger(logging.getLogger(), communicator)
     shamir = cicada.shamir.ShamirProtocol(communicator)
     encoder = cicada.encoder.FixedFieldEncoder()
@@ -91,6 +96,5 @@ def main(communicator):
             logging.info("-" * 60)
             logging.error(f"Comm {communicator.name} player {communicator.rank} dying!")
             os.kill(os.getpid(), signal.SIGKILL)
-
 
 SocketCommunicator.run(world_size=arguments.world_size, fn=main, name="world-0")
