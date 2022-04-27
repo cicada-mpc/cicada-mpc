@@ -144,11 +144,11 @@ class SocketCommunicator(Communicator):
         self._message_queue_lock = threading.Lock()
 
         # Start queueing incoming messages.
-        self._queueing_thread = threading.Thread(name="Queueing", target=self._queue_messages, daemon=True)
+        self._queueing_thread = threading.Thread(name=f"Comm {name} player {rank} queueing thread", target=self._queue_messages, daemon=True)
         self._queueing_thread.start()
 
         # Start receiving incoming messages.
-        self._incoming_thread = threading.Thread(name="Incoming", target=self._receive_messages, daemon=True)
+        self._incoming_thread = threading.Thread(name=f"Comm {name} player {rank} incoming thread", target=self._receive_messages, daemon=True)
         self._incoming_thread.start()
 
         self._log.info(f"communicator ready.")
