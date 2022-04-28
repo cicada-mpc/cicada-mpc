@@ -7,6 +7,21 @@
 Release Notes
 =============
 
+Cicada 0.5.0 - April 28th, 2022
+-------------------------------
+
+* ShamirProtocol provides the same operations as AdditiveProtocol.
+* New ShamirBasicProtocol provides a subset of operations, but with relaxed constraints on share degree.
+* Reduced per-message SocketCommunicator overhead.
+* SocketCommunicator.run, SocketCommunicator.shrink, and SocketCommunicator.split support Unix domain sockets.
+* Rewrite the SocketCommunicator.shrink implementation for simplicity.
+* SocketCommunicator can raise exceptions while sending.
+* Rewrote the SocketCommunicator message queue for reduced resource consumption and greater flexibility.
+* Point-to-point SocketCommunicator operations support user-defined message tags.
+* Reduced the number of coordinating messages during logging.
+* Many improvements in library logging output.
+* Added a user guide article on logging.
+
 Cicada 0.4.0 - March 21st, 2022
 -------------------------------
 
