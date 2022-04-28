@@ -172,10 +172,10 @@ def step_impl(context):
         a = protocol.share(src=0, secret=a, shape=a.shape)
         b = protocol.encoder.encode(numpy.array(b))
         b = protocol.share(src=1, secret=b, shape=b.shape)
-        logging.debug(f"Comm {communicator.name!r} player {communicator.rank} untruncated_multiply")
+        logging.debug(f"Comm {communicator.name} player {communicator.rank} untruncated_multiply")
         c = protocol.untruncated_multiply(a, b)
 
-        logging.debug(f"Comm {communicator.name!r} player {communicator.rank} reveal")
+        logging.debug(f"Comm {communicator.name} player {communicator.rank} reveal")
         return protocol.encoder.decode(protocol.reveal(c))
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 

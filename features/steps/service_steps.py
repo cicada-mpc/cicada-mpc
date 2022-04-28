@@ -176,17 +176,17 @@ def step_impl(context, world_size):
 #
 #    for rank, result in enumerate(output):
 #        if isinstance(result, Failed):
-#            log.warning(f"Comm {name!r} player {rank} failed: {result.exception!r}")
+#            log.warning(f"Comm {name} player {rank} failed: {result.exception!r}")
 #        elif isinstance(result, Exception):
-#            log.warning(f"Comm {name!r} player {rank} failed: {result!r}")
+#            log.warning(f"Comm {name} player {rank} failed: {result!r}")
 #        else:
-#            log.info(f"Comm {name!r} player {rank} result: {result}")
+#            log.info(f"Comm {name} player {rank} result: {result}")
 #
 #    # Print a traceback for players that failed.
 #    for rank, result in enumerate(output):
 #        if isinstance(result, Failed):
 #            log.error("*" * 80)
-#            log.error(f"Comm {name!r} player {rank} traceback:")
+#            log.error(f"Comm {name} player {rank} traceback:")
 #            log.error(result.traceback)
 #
 #    return output

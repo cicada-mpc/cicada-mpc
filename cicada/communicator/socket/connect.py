@@ -546,7 +546,7 @@ def listen(*, address, rank, name="world", timer=None):
 
 def message(name, rank, msg):
     """Format a message for logging and error handling."""
-    return f"Comm {name!r} player {rank} {msg}"
+    return f"Comm {name} player {rank} {msg}"
 
 
 def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", token=0, timer=None, tls=None):

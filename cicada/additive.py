@@ -305,7 +305,7 @@ class AdditiveProtocol(object):
 
     @property
     def communicator(self):
-        """Return the :class:`cicada.communicator.interface.Communicator` used by this protocol."""
+        """Return the :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
         return self._communicator
 
 

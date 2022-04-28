@@ -144,7 +144,7 @@ class ShamirBasicProtocol(object):
 
     @property
     def communicator(self):
-        """Return the :class:`cicada.communicator.interface.Communicator` used by this protocol."""
+        """Return the :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
         return self._communicator
 
 
@@ -406,7 +406,7 @@ class ShamirBasicProtocol(object):
 
         Parameters
         ----------
-        src: integer, required
+        src: :class:`int`, required
             The player providing the private array to be secret shared.
         secret: :class:`numpy.ndarray` or :any:`None`, required
             The secret array to be shared, which must be encoded with this
@@ -501,7 +501,7 @@ class ShamirBasicProtocol(object):
             shape=()
         if generator is None:
             generator = self._prng
-        
+
         rand_ints = self.encoder.uniform(size=shape, generator=generator)
         share = ShamirArrayShare(numpy.zeros(shape, dtype=self.encoder.dtype))
         for i in self.communicator.ranks:
@@ -1090,7 +1090,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         ----------
         lhs: :class:`ShamirArrayShare`, required
             Shared secret to which floor should be applied.
-        rhspub: :class:`Int`, required 
+        rhspub: :class:`int`, required
             a publically known integer and the power to which each element in lhs should be raised 
 
         Returns
@@ -1127,7 +1127,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         ----------
         lhs: :class:`ShamirArrayShare`, required
             Shared secret to which floor should be applied.
-        rhspub: :class:`Int`, required 
+        rhspub: :class:`int`, required 
             a publically known integer and the power to which each element in lhs should be raised 
 
         Returns
