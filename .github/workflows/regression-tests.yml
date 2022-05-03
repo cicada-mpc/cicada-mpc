@@ -2,9 +2,9 @@ name: Regression tests
 
 on:
   push:
-    branches: [ main, tls ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, tls ]
+    branches: [ main ]
 
 jobs:
   build:

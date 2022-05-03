@@ -19,7 +19,6 @@
 
 import collections
 import contextlib
-import enum
 import hashlib
 import logging
 import multiprocessing
@@ -39,7 +38,7 @@ import urllib.parse
 import numpy
 import pynetstring
 
-from ..interface import Communicator
+from ..interface import Communicator, Tags, tagname
 from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, message, rendezvous
 
 
@@ -107,20 +106,6 @@ class SocketCommunicator(Communicator):
         Maximum time to wait for communication to complete, in seconds.
     """
 
-    class Tags(enum.IntEnum):
-        ALLGATHER = -1
-        BARRIER = -2
-        BEACON = -3
-        BROADCAST = -4
-        GATHER = -5
-        GATHERV = -6
-        REVOKE = -7
-        SCATTER = -8
-        SCATTERV = -9
-        SEND = -10
-        SHRINK = -11
-
-
     def __init__(self, *, sockets, name="world", timeout=5):
         if not isinstance(sockets, dict):
             raise ValueError("sockets must be a dict, got {sockets} instead.") # pragma: no cover
@@ -154,15 +139,9 @@ class SocketCommunicator(Communicator):
         self._running = True
 
         # Setup queues for incoming messages.
-        self._incoming_queue = queue.Queue()
-        self._receive_queues = {}
-        for tag in SocketCommunicator.Tags:
-            if tag not in [SocketCommunicator.Tags.BEACON, SocketCommunicator.Tags.REVOKE]:
-                self._receive_queues[tag] = {}
-                for rank in self.ranks:
-                    self._receive_queues[tag][rank] = queue.Queue()
-
-        self._beacons = []
+        self._incoming_queue = queue.SimpleQueue()
+        self._message_queues = [[] for rank in range(self.world_size)]
+        self._message_queue_lock = threading.Lock()
 
         # Start queueing incoming messages.
         self._queueing_thread = threading.Thread(name=f"Comm {name} player {rank} queueing thread", target=self._queue_messages, daemon=True)
@@ -187,30 +166,24 @@ class SocketCommunicator(Communicator):
             # Drop messages with missing attributes or unexpected values.
             try:
                 src, tag, payload = raw_message
-                if tag not in SocketCommunicator.Tags:
-                    raise RuntimeError(f"Unknown tag: {tag}") # pragma: no cover
             except Exception as e: # pragma: no cover
                 self._log.warning(f"ignoring message: {raw_message} exception: {e}")
                 continue
 
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
-                self._log.debug(f"<-- player {src} {tag}") # pragma: no cover
-
-            # Beacon messages don't get queued because they receive special handling.
-            if tag == SocketCommunicator.Tags.BEACON:
-                self._beacons.append((src, payload))
-                continue
+                self._log.debug(f"<-- player {src} {taglabel(tag)}") # pragma: no cover
 
             # Revoke messages don't get queued because they receive special handling.
-            if tag == SocketCommunicator.Tags.REVOKE:
+            if tag == Tags.REVOKE:
                 if not self._revoked:
                     self._revoked = True
                     self._log.warning(f"revoked by player {src}")
                 continue
 
-            # Insert the payload into the correct queue.
-            self._receive_queues[tag][src].put(payload, block=True, timeout=None)
+            # Insert the message into the correct queue.
+            with self._message_queue_lock:
+                self._message_queues[src].append(raw_message)
 
         self._log.debug(f"queueing thread closed.")
 
@@ -243,24 +216,84 @@ class SocketCommunicator(Communicator):
                         self._log.warning(f"ignoring unparsable message: {e}")
                         continue
 
-                    self._log.debug(f"received {tag, payload}")
+                    #self._log.debug(f"received {taglabel(tag), payload}")
 
                     # Insert the message into the incoming queue.
-                    self._incoming_queue.put((src, SocketCommunicator.Tags(tag), payload), block=True, timeout=None)
+                    self._incoming_queue.put((src, tag, payload), block=True, timeout=None)
 
         # The communicator has been freed, so exit the thread.
         self._log.debug(f"receive thread closed.")
 
 
+    def _messages(self, *, src=None, tag=None):
+        """Return every message that matches the given src and tag.
 
-    def _receive(self, *, tag, sender, block):
-        try:
-            return self._receive_queues[tag][sender].get(block=block, timeout=self._timeout)
-        except queue.Empty:
-            if block:
-                raise Timeout(f"Tag {tag.name} from sender {sender} timed-out after {self._timeout}s")
-            else: # pragma: no cover
-                raise TryAgain(f"Tag {tag.name} from sender {sender} try again.")
+        Parameters
+        ----------
+        src: :class:`int` or sequence of :class:`int`, optional
+            Return messages from the given player(s).  If :any:`None` (the
+            default), return matching messages from every player.
+        tag: :class:`int`, optional
+            Return messages that match the given tag.  If :any:`None` (the
+            default), return messages with any tag.
+
+        Returns
+        -------
+        messages: :class:`list` of (src, tag, payload) tuples.
+        """
+        if src is None:
+            src = self.ranks
+        if not isinstance(src, list):
+            src = [src]
+
+        matches = []
+        with self._message_queue_lock:
+            for rank in src:
+                misses = []
+                for message in self._message_queues[rank]:
+                    if tag is not None and tag != message[1]:
+                        misses.append(message)
+                    else:
+                        matches.append(message)
+                self._message_queues[rank] = misses
+        return matches
+
+
+    def _next_message(self, *, src, tag):
+        """Return the next message (if any) matching the given src and tag.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            Return the next matching message from the given player.
+        tag: :class:`int`, required
+            Return the next matching message with the given tag.
+        """
+        with self._message_queue_lock:
+            for index, message in enumerate(self._message_queues[src]):
+                if tag == message[1]: # tag
+                    del self._message_queues[src][index]
+                    return message
+        return None
+
+
+    def _wait_next_payload(self, *, src, tag):
+        """Return the next payload matching the given src and tag, blocking if necessary.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            Return the next matching message from the given player.
+        tag: :class:`int`, required
+            Return the next matching message with the given tag.
+        """
+        timer = Timer(threshold=self._timeout)
+        while not timer.expired:
+            message = self._next_message(src=src, tag=tag)
+            if message is not None:
+                return message[2] # payload
+            time.sleep(0.0001)
+        raise Timeout(f"Tag {tagname(tag)} from player {src} timed-out after {self._timeout}s")
 
 
     def _require_rank(self, rank):
@@ -289,13 +322,11 @@ class SocketCommunicator(Communicator):
 
 
     def _send(self, *, tag, payload, dst):
-        if tag not in SocketCommunicator.Tags:
-            raise ValueError(f"Unknown tag: {tag}") # pragma: no cover
         if dst not in self.ranks:
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
 
         if self._log.isEnabledFor(logging.DEBUG):
-            self._log.debug(f"--> player {dst} {tag}") # pragma: no cover
+            self._log.debug(f"--> player {dst} {taglabel(tag)}") # pragma: no cover
 
         # As a special-case, route messages sent to ourself directly to the incoming queue.
         if dst == self.rank:
@@ -318,10 +349,10 @@ class SocketCommunicator(Communicator):
 
         # Send messages.
         for rank in self.ranks:
-            self._send(tag=SocketCommunicator.Tags.ALLGATHER, payload=value, dst=rank)
+            self._send(tag=Tags.ALLGATHER, payload=value, dst=rank)
 
         # Receive messages.
-        values = [self._receive(tag=SocketCommunicator.Tags.ALLGATHER, sender=rank, block=True) for rank in self.ranks]
+        values = [self._wait_next_payload(src=rank, tag=Tags.ALLGATHER) for rank in self.ranks]
         return values
 
 
@@ -336,18 +367,18 @@ class SocketCommunicator(Communicator):
         self._require_running()
 
         # Notify rank 0 that we've entered the barrier.
-        self._send(tag=SocketCommunicator.Tags.BARRIER, payload=None, dst=0)
+        self._send(tag=Tags.BARRIER, payload=None, dst=0)
 
         if self.rank == 0:
             # Wait until every player enters the barrier.
             for rank in self.ranks:
-                self._receive(tag=SocketCommunicator.Tags.BARRIER, sender=rank, block=True)
+                self._wait_next_payload(src=rank, tag=Tags.BARRIER)
             # Notify every player that it's time to exit the barrier.
             for rank in self.ranks:
-                self._send(tag=SocketCommunicator.Tags.BARRIER, payload=None, dst=rank)
+                self._send(tag=Tags.BARRIER, payload=None, dst=rank)
 
         # Wait until we're told to exit.
-        self._receive(tag=SocketCommunicator.Tags.BARRIER, sender=0, block=True)
+        self._wait_next_payload(src=0, tag=Tags.BARRIER)
 
 
     def broadcast(self, *, src, value):
@@ -361,10 +392,10 @@ class SocketCommunicator(Communicator):
         # Broadcast the value to all players.
         if self.rank == src:
             for rank in self.ranks:
-                self._send(tag=SocketCommunicator.Tags.BROADCAST, payload=value, dst=rank)
+                self._send(tag=Tags.BROADCAST, payload=value, dst=rank)
 
         # Receive the broadcast value.
-        return self._receive(tag=SocketCommunicator.Tags.BROADCAST, sender=src, block=True)
+        return self._wait_next_payload(src=src, tag=Tags.BROADCAST)
 
 
     @staticmethod
@@ -494,12 +525,12 @@ class SocketCommunicator(Communicator):
         dst = self._require_rank(dst)
 
         # Send local data to the destination.
-        self._send(tag=SocketCommunicator.Tags.GATHER, payload=value, dst=dst)
+        self._send(tag=Tags.GATHER, payload=value, dst=dst)
 
         # Receive data from all ranks.
         if self.rank == dst:
             # Messages could arrive out of order.
-            values = [self._receive(tag=SocketCommunicator.Tags.GATHER, sender=rank, block=True) for rank in self.ranks]
+            values = [self._wait_next_payload(src=rank, tag=Tags.GATHER) for rank in self.ranks]
             return values
 
         return None
@@ -516,19 +547,19 @@ class SocketCommunicator(Communicator):
 
         # Send local data to the destination.
         if self.rank in src:
-            self._send(tag=SocketCommunicator.Tags.GATHERV, payload=value, dst=dst)
+            self._send(tag=Tags.GATHERV, payload=value, dst=dst)
 
         # Receive data from the other players.
         if self.rank == dst:
             # Messages could arrive out of order.
-            values = [self._receive(tag=SocketCommunicator.Tags.GATHERV, sender=rank, block=True) for rank in src]
+            values = [self._wait_next_payload(src=rank, tag=Tags.GATHERV) for rank in src]
             return values
 
         return None
 
 
-    def irecv(self, *, src):
-        self._log.debug(f"irecv(src={src})")
+    def irecv(self, *, src, tag):
+        self._log.debug(f"irecv(src={src}, tag={tagname(tag)})")
 
         self._require_unrevoked()
         self._require_running()
@@ -536,18 +567,19 @@ class SocketCommunicator(Communicator):
         src = self._require_rank(src)
 
         class Result:
-            def __init__(self, communicator, sender):
+            def __init__(self, *, communicator, src, tag):
                 self._communicator = communicator
-                self._sender = sender
+                self._src = src
+                self._tag = tag
                 self._payload = None
 
             @property
             def is_completed(self):
                 if self._payload is None:
-                    try:
-                        self._payload = self._communicator._receive(tag=SocketCommunicator.Tags.SEND, sender=self._sender, block=False)
-                    except TryAgain:
-                        pass
+                    message = self._communicator._next_message(src=self._src, tag=self._tag)
+                    if message is not None:
+                        src, tag, payload = message
+                        self._payload = payload
                 return self._payload is not None
 
             @property
@@ -558,22 +590,22 @@ class SocketCommunicator(Communicator):
 
             def wait(self):
                 if self._payload is None:
-                    self._payload = self._communicator._receive(tag=SocketCommunicator.Tags.SEND, sender=self._sender, block=True)
+                    self._payload = self._communicator._wait_next_payload(src=self._src, tag=self._tag)
 
-        return Result(self, src)
+        return Result(communicator=self, src=src, tag=tag)
 
 
-    def isend(self, *, value, dst):
-        self._log.debug(f"isend(dst={dst})")
+    def isend(self, *, value, dst, tag):
+        self._log.debug(f"isend(dst={dst}, tag={tagname(tag)})")
 
         self._require_unrevoked()
         self._require_running()
 
         dst = self._require_rank(dst)
 
-        self._send(tag=SocketCommunicator.Tags.SEND, payload=value, dst=dst)
+        self._send(tag=tag, payload=value, dst=dst)
 
-        # This is safe, because we pickle the value before returning; thus,
+        # This is safe because we pickle the value before returning; thus,
         # nothing the caller can do to the value will have unexpected
         # side-effects.
         class Result:
@@ -635,15 +667,15 @@ class SocketCommunicator(Communicator):
         return self._rank
 
 
-    def recv(self, *, src):
-        self._log.debug(f"recv(src={src})")
+    def recv(self, *, src, tag):
+        self._log.debug(f"recv(src={src}, tag={tagname(tag)})")
 
         self._require_unrevoked()
         self._require_running()
 
         src = self._require_rank(src)
 
-        return self._receive(tag=SocketCommunicator.Tags.SEND, sender=src, block=True)
+        return self._wait_next_payload(src=src, tag=tag)
 
 
     def revoke(self):
@@ -662,7 +694,7 @@ class SocketCommunicator(Communicator):
         # Notify all players that the communicator is revoked.
         for rank in self.ranks:
             try:
-                self._send(tag=SocketCommunicator.Tags.REVOKE, payload=None, dst=rank)
+                self._send(tag=Tags.REVOKE, payload=None, dst=rank)
             # Ignore BrokenPipe errors, they're to be expected under the circumstances.
             except BrokenPipe as e: # pragma: no cover
                 pass
@@ -877,24 +909,24 @@ class SocketCommunicator(Communicator):
         # Send data to every destination.
         if self.rank == src:
             for value, rank in zip(values, dst):
-                self._send(tag=SocketCommunicator.Tags.SCATTERV, payload=value, dst=rank)
+                self._send(tag=Tags.SCATTERV, payload=value, dst=rank)
 
         # Receive data from the sender.
         if self.rank in dst:
-            return self._receive(tag=SocketCommunicator.Tags.SCATTERV, sender=src, block=True)
+            return self._wait_next_payload(src=src, tag=Tags.SCATTERV)
 
         return None
 
 
-    def send(self, *, value, dst):
-        self._log.debug(f"send(dst={dst})")
+    def send(self, *, value, dst, tag):
+        self._log.debug(f"send(dst={dst}, tag={tagname(tag)})")
 
         self._require_unrevoked()
         self._require_running()
 
         dst = self._require_rank(dst)
 
-        self._send(tag=SocketCommunicator.Tags.SEND, payload=value, dst=dst)
+        self._send(tag=tag, payload=value, dst=dst)
 
 
     def shrink(self, *, name, shrink_timeout=5, startup_timeout=5, timeout=5):
@@ -943,21 +975,19 @@ class SocketCommunicator(Communicator):
             # Send beacons to the other players (including ourself).
             for rank in self.ranks:
                 try:
-                    self._send(tag=SocketCommunicator.Tags.BEACON, payload=None, dst=rank)
+                    self._send(tag=Tags.BEACON, payload=None, dst=rank)
                 except BrokenPipe: # Ignore broken pipe errors, they're to be expected under the circumstances.
                     pass
 
             # Get any received beacons (including our own).
-            beacons = []
-            while self._beacons:
-                beacons.append(self._beacons.pop(0))
+            beacons = self._messages(src=None, tag=Tags.BEACON)
 
             # If we received a beacon, the player is alive.
-            for src, payload in beacons:
+            for src, tag, payload in beacons:
                 if src not in remaining_ranks:
                     remaining_ranks.add(src)
 
-            # If every player is accounted for, we're done.
+            # If every player is accounted for, we can terminate early.
             if remaining_ranks == set(self.ranks):
                 break
 
@@ -1004,8 +1034,8 @@ class SocketCommunicator(Communicator):
         # Send new connection info to the remaining players.
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
-                self._send(tag=SocketCommunicator.Tags.SHRINK, payload=address, dst=remaining_rank)
-        root_address = self._receive(tag=SocketCommunicator.Tags.SHRINK, sender=remaining_ranks[0], block=True)
+                self._send(tag=Tags.SHRINK, payload=address, dst=remaining_rank)
+        root_address = self._wait_next_payload(src=remaining_ranks[0], tag=Tags.SHRINK)
 
         # Return a new communicator.
         sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer)
