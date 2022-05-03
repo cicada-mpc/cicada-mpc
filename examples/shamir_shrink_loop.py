@@ -28,7 +28,7 @@ from cicada.communicator import SocketCommunicator
 import cicada.encoder
 import cicada.shamir
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(message)s', datefmt="%H:%M:%S")
 
 
 parser = argparse.ArgumentParser(description="Failure recovery tester.")
@@ -41,6 +41,9 @@ arguments = parser.parse_args()
 lam = 1.0 / arguments.mtbf
 
 def main(communicator):
+    import manhole
+    manhole.install()
+
     log = cicada.Logger(logging.getLogger(), communicator)
     shamir = cicada.shamir.ShamirProtocol(communicator, threshold=2)
     encoder = cicada.encoder.FixedFieldEncoder()
@@ -63,10 +66,12 @@ def main(communicator):
             log.info(f"Comm {communicator.name} player {communicator.rank} original rank {shamir.indices[communicator.rank]-1} revealed: {revealed}")
         except Exception as e: # Implement failure recovery in this block.
             try:
-                logging.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
+                log.sync = False
+                log.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
                 # Something went wrong.  Revoke the current communicator to
                 # ensure that all players are aware of it.
                 communicator.revoke()
+                log(f"Comm {communicator.anem} player {communicator.rank} a")
                 # Obtain a new communicator that contains the remaining players.
                 name = f"world-{next(communicator_index)}"
                 newcommunicator, old_ranks = communicator.shrink(name=name)
