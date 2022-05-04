@@ -7,6 +7,11 @@
 Release Notes
 =============
 
+Cicada 0.5.1 - May 4th, 2022
+----------------------------
+
+* A botched merge left some changes out of the 0.5.0 release.
+
 Cicada 0.5.0 - April 28th, 2022
 -------------------------------
 
