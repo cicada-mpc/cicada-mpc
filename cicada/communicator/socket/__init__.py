@@ -886,10 +886,10 @@ class SocketCommunicator(Communicator):
         # Send data to every player.
         if self.rank == src:
             for value, rank in zip(values, self.ranks):
-                self._send(tag=SocketCommunicator.Tags.SCATTER, payload=value, dst=rank)
+                self._send(tag=Tags.SCATTER, payload=value, dst=rank)
 
         # Receive data from the sender.
-        return self._receive(tag=SocketCommunicator.Tags.SCATTER, sender=src, block=True)
+        return self._wait_next_payload(src=src, tag=Tags.SCATTER)
 
 
     def scatterv(self, *, src, values, dst):
@@ -984,8 +984,7 @@ class SocketCommunicator(Communicator):
 
             # If we received a beacon, the player is alive.
             for src, tag, payload in beacons:
-                if src not in remaining_ranks:
-                    remaining_ranks.add(src)
+                remaining_ranks.add(src)
 
             # If every player is accounted for, we can terminate early.
             if remaining_ranks == set(self.ranks):

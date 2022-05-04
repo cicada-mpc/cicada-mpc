@@ -17,7 +17,7 @@
 """Defines abstract interfaces for network communication."""
 
 from abc import ABCMeta, abstractmethod
-import enum 
+import enum
 
 class Communicator(metaclass=ABCMeta):
     """Abstract base class for objects that manage collective communications for secure multiparty computation.

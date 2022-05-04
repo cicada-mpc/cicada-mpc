@@ -454,11 +454,11 @@ def step_impl(context, src, value, dst):
     def operation(communicator, src, value, dst):
         if communicator.rank == src:
             time.sleep(0.5)
-            result = communicator.isend(value=value, dst=dst)
+            result = communicator.isend(value=value, dst=dst, tag=13)
             assert(result.is_completed)
             result.wait()
         elif communicator.rank == dst:
-            result = communicator.irecv(src=src)
+            result = communicator.irecv(src=src, tag=13)
             result.wait()
             return result.value
 
@@ -474,11 +474,11 @@ def step_impl(context, src, value, dst):
     def operation(communicator, src, value, dst):
         if communicator.rank == src:
             time.sleep(0.5)
-            result = communicator.isend(value=value, dst=dst)
+            result = communicator.isend(value=value, dst=dst, tag=13)
             assert(result.is_completed)
             result.wait()
         elif communicator.rank == dst:
-            result = communicator.irecv(src=src)
+            result = communicator.irecv(src=src, tag=13)
             while True:
                 if result.is_completed:
                     return result.value
