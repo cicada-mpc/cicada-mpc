@@ -376,7 +376,7 @@ class Communicator(metaclass=ABCMeta):
 class Tags(enum.IntEnum):
     """Message tags used internally by the library.
 
-    Callers can use these tags, or any other :class:`integer`, when calling
+    Callers can use these tags, or any other :class:`int`, when calling
     :meth:`Communicator.send`, :meth:`Communicator.recv`,
     :meth:`Communicator.isend`, and :meth:`Communicator.irecv`.  Note that
     negative integers are reserved for use by the library.
