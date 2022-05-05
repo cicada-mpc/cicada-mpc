@@ -329,7 +329,7 @@ def step_impl(context, player):
         share = protocol.share(src=player, secret=protocol.encoder.encode(numpy.array(secret)), shape=())
         return protocol.encoder.decode(protocol.reveal(share))
 
-    for index in range(100):
+    for index in range(10):
         secret = numpy.array(numpy.random.uniform(-100000, 100000))
         results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(secret, player))
         for result in results:
