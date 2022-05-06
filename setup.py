@@ -49,6 +49,7 @@ setup(
         "Issue Tracker": "https://github.com/cicada-mpc/cicada-mpc/issues",
         "Source": "https://github.com/cicada-mpc/cicada-mpc",
     },
+    python_requires=">=3.8",
     scripts=[
         "bin/cicada",
         "bin/cicada-perf",
