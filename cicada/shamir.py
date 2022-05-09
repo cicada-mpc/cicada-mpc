@@ -554,7 +554,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         self.d=threshold-1
         self.threshold = threshold
         if communicator.world_size < 2*self.d+1:
-            raise ValueError('threshold incompatible with worldsize, multiplications will not be feasible. Multiplications with this threshold would require worldsize at least {2*self.d+1}. Increase worldsize or decrease threshold.')
+            raise ValueError(f'Threshold incompatible with worldsize, multiplications will not be feasible. Multiplications with this threshold would require worldsize at least {2*self.d+1}. Increase worldsize or decrease threshold.')
         #if communicator.world_size < self.d+1:
         #    raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
         self._communicator = communicator
