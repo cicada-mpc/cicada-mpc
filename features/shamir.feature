@@ -283,27 +283,6 @@ Feature: Shamir Protocol
         | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | 1     | [[[1,0,1,1]] * 3]             |
 
 
-  @wip
-    Scenario Outline: Shamir Modulus
-        Given <players> players
-        And binary operation shamir private-public modulus
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players  | a                 | b                | count | result                          |
-        | 3        | 144409            | 117              | 1     | [[144409 % 117] * 3]            |
-        | 3        | 144409            | 118              | 1     | [[144409 % 118] * 3]            |
-        | 3        | 144409            | 119              | 1     | [[144409 % 119] * 3]            |
-        | 3        | 144409            | 120              | 1     | [[144409 % 120] * 3]            |
-        | 3        | 144409            | 121              | 1     | [[144409 % 121] * 3]            |
-        | 3        | 144409            | 122              | 1     | [[144409 % 122] * 3]            |
-        | 3        | 144409            | 123              | 1     | [[144409 % 123] * 3]            |
-        | 3        | 144409            | 124              | 1     | [[144409 % 124] * 3]            |
-        | 3        | 144409            | 125              | 1     | [[144409 % 125] * 3]            |
-        | 3        | 144409            | 126              | 1     | [[144409 % 126] * 3]            |
-
     Scenario Outline: Shamir Multiplicative Inverse
         Given <players> players
         And unary operation shamir <operation>
