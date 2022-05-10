@@ -135,6 +135,9 @@ class SocketCommunicator(Communicator):
         self._log = LoggerAdapter(logging.getLogger(__name__), name, rank)
         self._players = sockets
 
+        self._sent = {}
+        self._received = {}
+
         # Begin normal operation.
         self._running = True
 
@@ -173,6 +176,15 @@ class SocketCommunicator(Communicator):
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
                 self._log.debug(f"<-- player {src} {taglabel(tag)}") # pragma: no cover
+
+            try:
+                tag = Tags(tag)
+            except:
+                pass
+
+            if tag not in self._received:
+                self._received[tag] = {"messages": 0}
+            self._received[tag]["messages"] += 1
 
             # Revoke messages don't get queued because they receive special handling.
             if tag == Tags.REVOKE:
@@ -327,6 +339,10 @@ class SocketCommunicator(Communicator):
 
         if self._log.isEnabledFor(logging.DEBUG):
             self._log.debug(f"--> player {dst} {taglabel(tag)}") # pragma: no cover
+
+        if tag not in self._sent:
+            self._sent[tag] = {"messages": 0}
+        self._sent[tag]["messages"] += 1
 
         # As a special-case, route messages sent to ourself directly to the incoming queue.
         if dst == self.rank:
@@ -1128,18 +1144,31 @@ class SocketCommunicator(Communicator):
     @property
     def stats(self):
         """Nested dict containing communication statistics for logging / debugging."""
-        totals = {
-            "sent": {"bytes": 0, "messages": 0},
-            "received": {"bytes": 0, "messages": 0},
+        results = {
+            "player": {},
+            "tag": {},
+            "total": { "sent": {"bytes": 0, "messages": 0}, "received": {"bytes": 0, "messages": 0}},
         }
+
+        for tag, sent in self._sent.items():
+            if tag not in results["tag"]:
+                results["tag"][tag] = {}
+            results["tag"][tag]["sent"] = sent
+
+        for tag, received in self._received.items():
+            if tag not in results["tag"]:
+                results["tag"][tag] = {}
+            results["tag"][tag]["received"] = received
+
         for rank, player in self._players.items():
             stats = player.stats
-            totals[rank] = stats
-            totals["sent"]["bytes"] += stats["sent"]["bytes"]
-            totals["sent"]["messages"] += stats["sent"]["messages"]
-            totals["received"]["bytes"] += stats["received"]["bytes"]
-            totals["received"]["messages"] += stats["received"]["messages"]
-        return totals
+            results["player"][rank] = stats
+            results["total"]["sent"]["bytes"] += stats["sent"]["bytes"]
+            results["total"]["sent"]["messages"] += stats["sent"]["messages"]
+            results["total"]["received"]["bytes"] += stats["received"]["bytes"]
+            results["total"]["received"]["messages"] += stats["received"]["messages"]
+
+        return results
 
 
     @property

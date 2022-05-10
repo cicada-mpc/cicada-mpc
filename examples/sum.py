@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import logging
+import pprint
 
 import numpy
 
@@ -47,6 +48,7 @@ def main(communicator):
     sum = protocol.encoder.decode(protocol.reveal(sum_share))
 
     log.info(f"Player {communicator.rank} sum: {sum}")
+    log.info(f"Player {communicator.rank} stats: {pprint.pformat(communicator.stats)}")
 
 cicada.communicator.SocketCommunicator.run(world_size=3, fn=main)
 
