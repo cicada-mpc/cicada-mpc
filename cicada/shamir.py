@@ -113,10 +113,10 @@ class ShamirBasicProtocol(object):
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
 
         if indices is None:
-            indices = [x+1 for x in communicator.ranks]
-        self.indices = indices
+            indices = numpy.array(communicator.ranks) + 1
+        self._indices = numpy.array(indices)
 
-        self.revealing_coef = self._lagrange_coef()
+        self._revealing_coef = self._lagrange_coef()
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -134,12 +134,12 @@ class ShamirBasicProtocol(object):
         # with respect to each index given, keyed by those indices
         from math import prod
         if src is None:
-            src = self.indices
+            src = [int(value) for value in self._indices]
         ls = len(src)
         coefs=numpy.zeros(ls, dtype=self.encoder.dtype)
         for i in range(ls):
             coefs[i]=prod([-src[j]*pow(src[i]-src[j], self.encoder.modulus-2, self.encoder.modulus) for j in range(ls) if src[j] != src[i]])%self.encoder.modulus
-        return coefs 
+        return coefs
 
     @property
     def communicator(self):
@@ -151,6 +151,11 @@ class ShamirBasicProtocol(object):
     def encoder(self):
         """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
         return self._encoder
+
+
+    @property
+    def indices(self):
+        return self._indices
 
 
     def add(self, lhs, rhs):
@@ -372,19 +377,19 @@ class ShamirBasicProtocol(object):
 
         src = self.communicator.ranks
         n=len(src)
-        if n == len(self.indices):
-            revealing_coef = self.revealing_coef
+        if n == len(self._indices):
+            revealing_coef = self._revealing_coef
         else:
             revealing_coef = None
         # Send data to the other players.
         secret = None
         for recipient in dst:
             received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
-            if received_shares: 
+            if received_shares:
                 received_storage = numpy.array([x.storage for x in received_shares], dtype=self.encoder.dtype)
                 if self.communicator.rank == recipient:
                     if revealing_coef is None:
-                        revealing_coef = self._lagrange_coef([self.indices[x] for x in src])
+                        revealing_coef = self._lagrange_coef([self._indices[x] for x in src])
                     secret = []
                     for index in numpy.ndindex(received_storage[0].shape):
                         secret.append(sum([revealing_coef[i]*received_storage[i][index] for i in range(len(revealing_coef))]))
@@ -437,7 +442,7 @@ class ShamirBasicProtocol(object):
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
             coef = self.encoder.uniform(size=shape+(self._d,), generator=self._generator)
             for index in numpy.ndindex(shape):
-                for x in self.indices:
+                for x in self._indices:
                     shares.append(numpy.dot(numpy.power(numpy.full((self._d,), x),numpy.arange(1, self._d+1)), coef[index])+secret[index])
             sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(ldst,)).T
         share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.encoder.dtype).T
