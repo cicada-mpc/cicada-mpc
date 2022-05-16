@@ -94,6 +94,13 @@ class ShamirBasicProtocol(object):
     def __init__(self, communicator, *, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, indices=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
+        self._communicator = communicator
+
+        if threshold < 2:
+            raise ValueError("threshold must be >= 2")
+        if threshold > communicator.world_size:
+            raise ValueError("threshold must be <= world_size")
+        self._d = threshold-1
 
         if seed is None:
             seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
@@ -101,23 +108,14 @@ class ShamirBasicProtocol(object):
             if seed_offset is None:
                 seed_offset = communicator.rank
             seed += seed_offset
-
-        if threshold < 2:
-            raise ValueError("threshold must be >= 2")
-        self._d = threshold-1
-
         self._generator = numpy.random.default_rng(seed=seed)
 
-        if communicator.world_size < self._d+1:
-            raise ValueError('threshold incompatible with worldsize, recovery impossible. Increase worldsize or decrease threshold.')
-        #if communicator.world_size < self._d+1:
-        #    raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
-        self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
+
         if indices is None:
-            self.indices = [x+1 for x in communicator.ranks]
-        else:
-            self.indices = indices
+            indices = [x+1 for x in communicator.ranks]
+        self.indices = indices
+
         self.revealing_coef = self._lagrange_coef()
 
 
@@ -539,31 +537,12 @@ class ShamirProtocol(ShamirBasicProtocol):
         to 16.
     """
     def __init__(self, communicator, *, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, indices=None):
-        if not isinstance(communicator, Communicator):
-            raise ValueError("A Cicada communicator is required.") # pragma: no cover
+        super().__init__(communicator=communicator, threshold=threshold, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision, indices=indices)
 
-        if seed is None:
-            seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
-        else:
-            if seed_offset is None:
-                seed_offset = communicator.rank
-            seed += seed_offset
-
-        self._generator = numpy.random.default_rng(seed=seed)
-        if threshold < 2:
-            raise ValueError('threshold is too small. Privacy is not tenable with threshold < 2.')
-        self._d=threshold-1
-        if communicator.world_size < 2*self._d+1:
-            raise ValueError(f'Threshold incompatible with worldsize, multiplications will not be feasible. Multiplications with this threshold would require worldsize at least {2*self._d+1}. Increase worldsize or decrease threshold.')
-        #if communicator.world_size < self._d+1:
-        #    raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
-        self._communicator = communicator
-        self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
-        if indices is None:
-            self.indices = [x+1 for x in communicator.ranks]
-        else:
-            self.indices = indices
-        self.revealing_coef = self._lagrange_coef()
+        max_threshold = int(numpy.ceil(communicator.world_size / 2))
+        if threshold > max_threshold:
+            min_world_size = (2 * threshold) - 1
+            raise ValueError(f"threshold must be <= {max_threshold}, or world_size must be >= {min_world_size}")
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
