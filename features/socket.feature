@@ -331,6 +331,7 @@ Feature: SocketCommunicator
         When the players create a new communicator with connect, but player <a> doesn't trust player <b>
         Then the group should raise exceptions <result>
 
+        @wip
         Examples:
         | players | a         | b     | result                                         |
         | 2       | 1         | 0     | [EncryptionFailed, EncryptionFailed]           |
