@@ -91,7 +91,7 @@ class ShamirBasicProtocol(object):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator,*, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16,  indices=None):
+    def __init__(self, communicator, *, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, indices=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
@@ -102,14 +102,15 @@ class ShamirBasicProtocol(object):
                 seed_offset = communicator.rank
             seed += seed_offset
 
-        self._prng = numpy.random.default_rng(seed=seed)
         if threshold < 2:
-            raise ValueError('threshold is too small. Privacy is not tenable with threshold < 2.')
-        self.d=threshold-1
-        self.threshold = threshold
-        if communicator.world_size < self.d+1:
+            raise ValueError("threshold must be >= 2")
+        self._d = threshold-1
+
+        self._generator = numpy.random.default_rng(seed=seed)
+
+        if communicator.world_size < self._d+1:
             raise ValueError('threshold incompatible with worldsize, recovery impossible. Increase worldsize or decrease threshold.')
-        #if communicator.world_size < self.d+1:
+        #if communicator.world_size < self._d+1:
         #    raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
@@ -436,10 +437,10 @@ class ShamirBasicProtocol(object):
                 raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
             if secret.shape != shape:
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
-            coef = self.encoder.uniform(size=shape+(self.d,), generator=self._prng)
+            coef = self.encoder.uniform(size=shape+(self._d,), generator=self._generator)
             for index in numpy.ndindex(shape):
                 for x in self.indices:
-                    shares.append(numpy.dot(numpy.power(numpy.full((self.d,), x),numpy.arange(1, self.d+1)), coef[index])+secret[index])
+                    shares.append(numpy.dot(numpy.power(numpy.full((self._d,), x),numpy.arange(1, self._d+1)), coef[index])+secret[index])
             sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(ldst,)).T
         share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.encoder.dtype).T
         return ShamirArrayShare(share)
@@ -500,7 +501,7 @@ class ShamirBasicProtocol(object):
         if shape==None:
             shape=()
         if generator is None:
-            generator = self._prng
+            generator = self._generator
 
         rand_ints = self.encoder.uniform(size=shape, generator=generator)
         share = ShamirArrayShare(numpy.zeros(shape, dtype=self.encoder.dtype))
@@ -537,7 +538,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator,*, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16,  indices=None):
+    def __init__(self, communicator, *, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, indices=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
@@ -548,14 +549,13 @@ class ShamirProtocol(ShamirBasicProtocol):
                 seed_offset = communicator.rank
             seed += seed_offset
 
-        self._prng = numpy.random.default_rng(seed=seed)
+        self._generator = numpy.random.default_rng(seed=seed)
         if threshold < 2:
             raise ValueError('threshold is too small. Privacy is not tenable with threshold < 2.')
-        self.d=threshold-1
-        self.threshold = threshold
-        if communicator.world_size < 2*self.d+1:
-            raise ValueError(f'Threshold incompatible with worldsize, multiplications will not be feasible. Multiplications with this threshold would require worldsize at least {2*self.d+1}. Increase worldsize or decrease threshold.')
-        #if communicator.world_size < self.d+1:
+        self._d=threshold-1
+        if communicator.world_size < 2*self._d+1:
+            raise ValueError(f'Threshold incompatible with worldsize, multiplications will not be feasible. Multiplications with this threshold would require worldsize at least {2*self._d+1}. Increase worldsize or decrease threshold.')
+        #if communicator.world_size < self._d+1:
         #    raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
