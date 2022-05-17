@@ -1040,7 +1040,7 @@ class SocketCommunicator(Communicator):
 
         # Create a new listening socket and update the address to match
         timer = Timer(threshold=startup_timeout)
-        listen_socket = listen(address=address, rank=self.rank, name=self.name, timer=timer)
+        listen_socket = listen(address=address, rank=rank, name=name, timer=timer)
         address = geturl(listen_socket)
 
         ##################################################################################
