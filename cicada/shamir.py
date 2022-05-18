@@ -544,7 +544,7 @@ class ShamirProtocol(ShamirBasicProtocol):
     def __init__(self, communicator, *, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, indices=None):
         super().__init__(communicator=communicator, threshold=threshold, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision, indices=indices)
 
-        max_threshold = int(numpy.ceil(communicator.world_size / 2))
+        max_threshold = (communicator.world_size+1) // 2
         if threshold > max_threshold:
             min_world_size = (2 * threshold) - 1
             raise ValueError(f"threshold must be <= {max_threshold}, or world_size must be >= {min_world_size}")
