@@ -175,7 +175,7 @@ class SocketCommunicator(Communicator):
 
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
-                self._log.debug(f"<-- player {src} {taglabel(tag)}") # pragma: no cover
+                self._log.debug(f"<-- player {src} {tagname(tag)}") # pragma: no cover
 
             try:
                 tag = Tags(tag)
@@ -228,7 +228,7 @@ class SocketCommunicator(Communicator):
                         self._log.warning(f"ignoring unparsable message: {e}")
                         continue
 
-                    #self._log.debug(f"received {taglabel(tag), payload}")
+                    #self._log.debug(f"received {tagname(tag), payload}")
 
                     # Insert the message into the incoming queue.
                     self._incoming_queue.put((src, tag, payload), block=True, timeout=None)
@@ -338,7 +338,7 @@ class SocketCommunicator(Communicator):
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
 
         if self._log.isEnabledFor(logging.DEBUG):
-            self._log.debug(f"--> player {dst} {taglabel(tag)}") # pragma: no cover
+            self._log.debug(f"--> player {dst} {tagname(tag)}") # pragma: no cover
 
         if tag not in self._sent:
             self._sent[tag] = {"messages": 0}
@@ -903,6 +903,7 @@ class SocketCommunicator(Communicator):
         if self.rank == src:
             for value, rank in zip(values, self.ranks):
                 self._send(tag=Tags.SCATTER, payload=value, dst=rank)
+
 
         # Receive data from the sender.
         return self._wait_next_payload(src=src, tag=Tags.SCATTER)
