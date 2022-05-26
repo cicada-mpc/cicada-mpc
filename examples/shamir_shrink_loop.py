@@ -18,6 +18,7 @@ import argparse
 import contextlib
 import itertools
 import logging
+import multiprocessing
 import os
 import signal
 import time
@@ -30,6 +31,8 @@ import cicada.shamir
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(message)s', datefmt="%H:%M:%S")
 
+logger = multiprocessing.log_to_stderr()
+logger.setLevel(multiprocessing.SUBDEBUG)
 
 parser = argparse.ArgumentParser(description="Failure recovery tester.")
 parser.add_argument("--debug", action="store_true", help="Enable verbose output.")
