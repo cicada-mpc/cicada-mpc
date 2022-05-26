@@ -829,6 +829,7 @@ class SocketCommunicator(Communicator):
         for rank in range(world_size):
             identity = None if identities is None else identities[rank]
             processes.append(context.Process(
+                name=f"Player{rank}Process",
                 target=launch,
                 kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, family=family, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
