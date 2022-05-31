@@ -345,3 +345,19 @@ Feature: SocketCommunicator
         | players | a         | b     | result                                         |
         | 2       | 0         | 1     | [EncryptionFailed, EncryptionFailed]           |
         | 3       | 0         | 1     | [EncryptionFailed, EncryptionFailed, Timeout]  |
+
+
+    Scenario Outline: SocketCommunicator.run Exception Handling
+
+        Given <players> players
+        When every player raises <exception>
+        Then SocketCommunicator.run should catch <exception> from every player
+
+        Examples:
+        | players  | exception            |
+        | 2        | RuntimeError("boo!") |
+        | 4        | RuntimeError("boo!") |
+        | 8        | RuntimeError("boo!") |
+        | 16       | RuntimeError("boo!") |
+        | 32       | RuntimeError("boo!") |
+        | 64       | RuntimeError("boo!") |

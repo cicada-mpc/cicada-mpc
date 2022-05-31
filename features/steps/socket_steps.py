@@ -535,3 +535,23 @@ def step_impl(context, slacker):
         pass
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(slacker,), identities=context.identities, trusted=context.trusted)
+
+
+@when(u'every player raises {exception}')
+def step_impl(context, exception):
+    exception = eval(exception)
+
+    def operation(communicator, exception):
+        communicator.barrier()
+        raise exception
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(exception,), identities=None, trusted=None, startup_timeout=10)
+
+
+@then(u'SocketCommunicator.run should catch {exception} from every player')
+def step_impl(context, exception):
+    exception = eval(exception)
+
+    lhs = [repr(exception)] * context.players
+    rhs = [repr(result.exception) for result in context.results]
+    test.assert_equal(lhs, rhs)
