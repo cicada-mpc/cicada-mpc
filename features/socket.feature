@@ -355,9 +355,14 @@ Feature: SocketCommunicator
 
         Examples:
         | players  | exception            |
-        | 2        | RuntimeError("boo!") |
-        | 4        | RuntimeError("boo!") |
-        | 8        | RuntimeError("boo!") |
-        | 16       | RuntimeError("boo!") |
-        | 32       | RuntimeError("boo!") |
-        | 64       | RuntimeError("boo!") |
+        | 2        | RuntimeError("Doh!") |
+        | 4        | RuntimeError("Doh!") |
+        | 8        | RuntimeError("Doh!") |
+        | 16       | RuntimeError("Doh!") |
+        | 32       | RuntimeError("Doh!") |
+        | 64       | RuntimeError("Doh!") |
+
+        @wip
+        Examples:
+        | players  | exception            |
+        | 128      | RuntimeError("Doh!") |

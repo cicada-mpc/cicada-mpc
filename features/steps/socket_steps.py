@@ -542,7 +542,6 @@ def step_impl(context, exception):
     exception = eval(exception)
 
     def operation(communicator, exception):
-        communicator.barrier()
         raise exception
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(exception,), identities=None, trusted=None, startup_timeout=10)
