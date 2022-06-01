@@ -817,6 +817,7 @@ class SocketCommunicator(Communicator):
             # Return results to the parent process.
             parent_queue.put((rank, result))
 
+
         # Setup the multiprocessing context.
         context = multiprocessing.get_context(method="fork") # I don't remember why we prefer fork().
 
@@ -829,7 +830,7 @@ class SocketCommunicator(Communicator):
         for rank in range(world_size):
             identity = None if identities is None else identities[rank]
             processes.append(context.Process(
-                name=f"Player{rank}Process",
+                name=f"Player {rank}",
                 target=launch,
                 kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, family=family, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
@@ -849,16 +850,32 @@ class SocketCommunicator(Communicator):
         for process in processes:
             child_queue.put(addresses)
 
-        # Wait until every process terminates.
-        for process in processes:
-            process.join()
-
-        # Collect a result for every process, but don't block in case
-        # there are missing results.
+        # Collect a result (or an exit code) from every process.
+        running = set(range(world_size))
         results = []
+        while running:
+            # Get results (if any) from processes.
+            for process in processes:
+                try:
+                    rank, result = parent_queue.get(block=False)
+                    results.append((rank, result))
+                    running.remove(rank)
+                except:
+                    break
+
+            # Check processes for exit codes.
+            for rank, process in enumerate(processes):
+                if process.exitcode is not None:
+                    running.discard(rank)
+
+            time.sleep(0.01)
+
+        # Now that every process has exited, collect any remaining results.
         for process in processes:
             try:
-                results.append(parent_queue.get(block=False))
+                rank, result = parent_queue.get(block=False)
+                results.append((rank, result))
+                running.remove(rank)
             except:
                 break
 
