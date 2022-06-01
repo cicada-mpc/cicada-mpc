@@ -850,32 +850,27 @@ class SocketCommunicator(Communicator):
         for process in processes:
             child_queue.put(addresses)
 
-        # Collect a result (or an exit code) from every process.
-        running = set(range(world_size))
+        # Collect results from processes until every process has completed.
         results = []
-        while running:
-            # Get results (if any) from processes.
-            for process in processes:
+        while any([process.is_alive() for process in processes]):
+            while True:
                 try:
                     rank, result = parent_queue.get(block=False)
                     results.append((rank, result))
-                    running.remove(rank)
                 except:
                     break
 
-            # Check processes for exit codes.
-            for rank, process in enumerate(processes):
-                if process.exitcode is not None:
-                    running.discard(rank)
-
             time.sleep(0.01)
 
-        # Now that every process has exited, collect any remaining results.
+        # Join all processes, just to be safe.
         for process in processes:
+            process.join()
+
+        # Now that every process has exited, collect any remaining results.
+        while True:
             try:
                 rank, result = parent_queue.get(block=False)
                 results.append((rank, result))
-                running.remove(rank)
             except:
                 break
 
