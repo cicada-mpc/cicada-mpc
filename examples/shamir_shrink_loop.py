@@ -18,7 +18,6 @@ import argparse
 import contextlib
 import itertools
 import logging
-import multiprocessing
 import os
 import signal
 import time
@@ -31,9 +30,6 @@ import cicada.shamir
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(message)s', datefmt="%H:%M:%S")
 
-logger = multiprocessing.log_to_stderr()
-logger.setLevel(multiprocessing.SUBDEBUG)
-
 parser = argparse.ArgumentParser(description="Failure recovery tester.")
 parser.add_argument("--debug", action="store_true", help="Enable verbose output.")
 parser.add_argument("--mtbf", "-m", type=float, default="10", help="Mean time between failure in iterations. Default: %(default)s")
@@ -44,9 +40,6 @@ arguments = parser.parse_args()
 lam = 1.0 / arguments.mtbf
 
 def main(communicator):
-    import manhole
-    manhole.install()
-
     log = cicada.Logger(logging.getLogger(), communicator)
     shamir = cicada.shamir.ShamirProtocol(communicator, threshold=2)
     encoder = cicada.encoder.FixedFieldEncoder()
