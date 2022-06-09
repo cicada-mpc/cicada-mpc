@@ -544,7 +544,7 @@ def step_impl(context, exception):
     def operation(communicator, exception):
         raise exception
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(exception,), identities=None, trusted=None, startup_timeout=10)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(exception,), identities=None, trusted=None, startup_timeout=context.startup_timeout)
 
 
 @then(u'SocketCommunicator.run should catch {exception} from every player')
@@ -554,3 +554,10 @@ def step_impl(context, exception):
     lhs = [repr(exception)] * context.players
     rhs = [repr(result.exception) for result in context.results]
     test.assert_equal(lhs, rhs)
+
+
+@given(u'a startup timeout of {timeout} seconds')
+def step_impl(context, timeout):
+    timeout = eval(timeout)
+    context.startup_timeout = timeout
+
