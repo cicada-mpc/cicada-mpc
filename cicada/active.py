@@ -23,6 +23,8 @@ import numpy
 
 from cicada.communicator.interface import Communicator, Tags
 import cicada.encoder
+import cicada.additive
+import cicada.shamir
 
 class ActiveArrayShare(object):
     """Stores the local share of an additive-shared secret array.
@@ -42,7 +44,7 @@ class ActiveArrayShare(object):
 
 
     def __getitem__(self, index):
-        return ActiveArrayShare(numpy.array(self.storage[index], dtype=self.storage.dtype))
+        return self.storage[index]
 
 
     @property
@@ -63,13 +65,14 @@ class ActiveArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
-        if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected storage to be an instance of numpy.ndarray, got {type(storage)} instead.") # pragma: no cover
+        if not isinstance(storage, tuple) or not isinstance(storage[0].storage, numpy.ndarray) or not isinstance(storage[1].storage, numpy.ndarray):#should this check that the elements are additive and shamir array shares todo?
+            raise ValueError(f"Expected storage to be a tuple containing two instances of numpy.ndarray, got {type(storage)} of {type(storage[0])} and {type(storage[1])} instead.") # pragma: no cover
         self._storage = storage
 
 
 class ActiveProtocol(object):
-    """MPC protocol that uses a communicator to share and manipulate additive-shared secrets.
+    """MPC protocol that uses a communicator to share and manipulate shared secrets
+        such that active adversaries actions are detected.
 
     Note
     ----
@@ -96,7 +99,7 @@ class ActiveProtocol(object):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16):
+    def __init__(self, communicator,*, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
@@ -112,41 +115,24 @@ class ActiveProtocol(object):
         # are different for all the players. We use numpy's random generator
         # here since initializing it without a seed will produce different
         # seeds even from forked processes.
-        if seed is None:
-            seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
-        else:
-            if seed_offset is None:
-                seed_offset = communicator.rank
-            seed += seed_offset
 
-        # Send random seed to next party, receive random seed from prev party
-        if communicator.world_size >= 2:  # Otherwise sending seeds will segfault.
-            next_rank = (communicator.rank + 1) % communicator.world_size
-            prev_rank = (communicator.rank - 1) % communicator.world_size
-
-            request = communicator.isend(value=seed, dst=next_rank, tag=Tags.PRSZ)
-            result = communicator.irecv(src=prev_rank, tag=Tags.PRSZ)
-
-            request.wait()
-            result.wait()
-
-            prev_seed = result.value
-        else:
-            prev_seed = seed
-
-        # Setup random number generators
-        self._g0 = numpy.random.default_rng(seed=seed)
-        self._g1 = numpy.random.default_rng(seed=prev_seed)
-
+        max_threshold = (communicator.world_size+1) // 2
+        if threshold > max_threshold:
+            min_world_size = (2 * threshold) - 1
+            raise ValueError(f"threshold must be <= {max_threshold}, or world_size must be >= {min_world_size}")
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
+        self.aprotocol = cicada.additive.AdditiveProtocol(communicator=communicator, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision)
+        self.sprotocol = cicada.shamir.ShamirProtocol(communicator=communicator, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision, threshold=threshold)
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
         self._assert_unary_compatible(lhs, lhslabel)
         self._assert_unary_compatible(rhs, rhslabel)
-        if lhs.storage.shape != rhs.storage.shape:
-            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
+        if lhs.storage[0].shape != rhs.storage[0].shape :
+            raise ValueError(f"{lhslabel} and {rhslabel} additive shares, ActiveShare[0], must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
+        if lhs.storage[1].shape != rhs.storage[1].shape:
+            raise ValueError(f"{lhslabel} and {rhslabel} shamir shares, ActiveShare[1], must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
 
 
     def _assert_unary_compatible(self, share, label):
@@ -173,12 +159,7 @@ class ActiveProtocol(object):
             Secret-shared elementwise absolute value of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
-        ltz = self.less_than_zero(operand)
-        nltz = self.logical_not(ltz)
-        addinvop = ActiveArrayShare(self.encoder.negative(operand.storage))
-        ltz_parts = self.untruncated_multiply(ltz, addinvop)
-        nltz_parts = self.untruncated_multiply(nltz, operand)
-        return self.add(ltz_parts, nltz_parts)
+        return ActiveArrayShare((self.aprotocol.absolute(operand[0]), self.sprotocol.absolute(operand[1])))
 
 
     def add(self, lhs, rhs):
@@ -205,7 +186,7 @@ class ActiveProtocol(object):
             Secret-shared sum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare(self.encoder.add(lhs.storage, rhs.storage))
+        return ActiveArrayShare((self.aprotocol.add(lhs[0], rhs[0]), self.sprotocol.add(lhs[1], rhs[1])))
 
 
     def additive_inverse(self, operand):
@@ -233,7 +214,7 @@ class ActiveProtocol(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        return self.public_private_subtract(numpy.full(operand.storage.shape, self.encoder.modulus, dtype=self.encoder.dtype), operand)
+        return ActiveArrayShare((self.aprotocol.additive_inverse(operand[0]), self.sprotocol.additive_inverse(operand[1])))
 
     def bit_compose(self, operand):
         """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
@@ -256,16 +237,7 @@ class ActiveProtocol(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        outer_shape = operand.storage.shape[:-1]
-        last_dimension = operand.storage.shape[-1]
-        idx = numpy.ndindex(outer_shape)
-        composed = []
-        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self.encoder.dtype)[::-1])
-        for x in idx:
-            shifted = self.encoder.untruncated_multiply(operand.storage[x], shift)
-            val_share = numpy.sum(shifted) % self.encoder.modulus
-            composed.append(val_share)
-        return ActiveArrayShare(numpy.array([x for x in composed], dtype=self.encoder.dtype).reshape(outer_shape))
+        return ActiveArrayShare((self.aprotocol.bit_compose(operand[0]), self.sprotocol.bit_compose(operand[1])))
 
     def bit_decompose(self, operand, num_bits=None):
         """Decompose operand into shares of its bitwise representation.
@@ -288,20 +260,15 @@ class ActiveProtocol(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        if num_bits is None:
-            num_bits = self.encoder.fieldbits
-        list_o_bits = []
-        two_inv = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        for element in operand.storage.flat: # Iterates in "C" order.
-            loopop = ActiveArrayShare(numpy.array(element, dtype=self.encoder.dtype))
-            elebits = []
-            for i in range(num_bits):
-                elebits.append(self._lsb(loopop))
-                loopop = self.subtract(loopop, elebits[-1])
-                loopop = ActiveArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
-            list_o_bits.append(elebits[::-1])
-        return ActiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
+        return ActiveArrayShare((self.aprotocol.bit_decompose(operand[0], num_bits), self.sprotocol.bit_decompose(operand[1], num_bits)))
 
+    def check_consistency(self, operand):
+        if not isinstance(operand, ActiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        a_share = operand[0]
+        s_share = operand[1]
+        zero = cicada.shamir.ShamirArrayShare(self.sprotocol.encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.encoder.modulus-2, self.encoder.modulus) * a_share.storage) % self.encoder.modulus, dtype=object)))
+        return self.sprotocol.reveal(zero) == numpy.zeros(zero.storage.shape)
 
     @property
     def communicator(self):
@@ -1181,16 +1148,7 @@ class ActiveProtocol(object):
             if secret.shape != shape:
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
 
-        # Generate a pseudo-random zero sharing ...
-        przs = self.encoder.uniform(size=shape, generator=self._g0)
-        self.encoder.inplace_subtract(przs, self.encoder.uniform(size=shape, generator=self._g1))
-
-        # Add the private secret to the PRZS
-        if self.communicator.rank == src:
-            self.encoder.inplace_add(przs, secret)
-
-        # Package the result.
-        return ActiveArrayShare(przs)
+        return ActiveArrayShare((self.aprotocol.share(src=src, secret=secret, shape=shape), self.sprotocol.share(src=src, secret=secret, shape=shape)))
 
 
     def subtract(self, lhs, rhs):
