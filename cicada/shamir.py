@@ -442,7 +442,7 @@ class ShamirBasicProtocol(object):
                     shares.append(numpy.dot(numpy.power(numpy.full((self.d,), x),numpy.arange(1, self.d+1)), coef[index])+secret[index])
             sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(ldst,)).T
         share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.encoder.dtype).T
-        return ShamirArrayShare(share)
+        return ShamirArrayShare(share%self.encoder.modulus)
 
 
     def subtract(self, lhs, rhs):
