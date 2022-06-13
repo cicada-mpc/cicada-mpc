@@ -443,10 +443,10 @@ class ShamirBasicProtocol(object):
             coef = self.encoder.uniform(size=shape+(self._d,), generator=self._generator)
             for index in numpy.ndindex(shape):
                 for x in self._indices:
-                    shares.append(numpy.dot(numpy.power(numpy.full((self._d,), x),numpy.arange(1, self._d+1)), coef[index])+secret[index])
+                    shares.append((numpy.dot(numpy.power(numpy.full((self._d,), x),numpy.arange(1, self._d+1)), coef[index])+secret[index])%self.encoder.modulus)
             sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(ldst,)).T
         share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.encoder.dtype).T
-        return ShamirArrayShare(share%self.encoder.modulus)
+        return ShamirArrayShare(share)
 
 
     def subtract(self, lhs, rhs):
