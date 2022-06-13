@@ -25,7 +25,6 @@ import time
 import numpy
 
 from cicada.communicator import SocketCommunicator
-import cicada.encoder
 import cicada.shamir
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(message)s', datefmt="%H:%M:%S")
@@ -41,8 +40,7 @@ lam = 1.0 / arguments.mtbf
 
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
-    shamir = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-    encoder = cicada.encoder.FixedFieldEncoder()
+    protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
     generator = numpy.random.default_rng(seed=arguments.seed)
 
     communicator_index = itertools.count(1)
@@ -52,14 +50,14 @@ def main(communicator):
     one = numpy.array(1) if communicator.rank == 0 else None
 
     # Generate shares for all players.
-    share = shamir.share(src=0, secret=encoder.encode(secret), shape=())
-    one_share = shamir.share(src=0, secret=encoder.encode(one), shape=())
+    share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=())
+    one_share = protocol.share(src=0, secret=protocol.encoder.encode(one), shape=())
     while True:
         try: # Do computation in this block.
-            revealed = encoder.decode(shamir.reveal(share))
-            share = shamir.add(one_share, share)
+            revealed = protocol.encoder.decode(protocol.reveal(share))
+            share = protocol.add(one_share, share)
             log.info("-" * 60, src=0)
-            log.info(f"Comm {communicator.name} player {communicator.rank} original rank {shamir.indices[communicator.rank]-1} revealed: {revealed}")
+            log.info(f"Comm {communicator.name} player {communicator.rank} original rank {protocol.indices[communicator.rank]-1} revealed: {revealed}")
         except Exception as e: # Implement failure recovery in this block.
             try:
                 log.sync = False
@@ -73,7 +71,7 @@ def main(communicator):
                 # These objects must be recreated from scratch since they use
                 # the communicator that was revoked.
                 log = cicada.Logger(logging.getLogger(), newcommunicator)
-                shamir = cicada.shamir.ShamirProtocol(newcommunicator, threshold=2, indices=shamir.indices[oldranks])
+                protocol = cicada.shamir.ShamirProtocol(newcommunicator, threshold=2, indices=protocol.indices[oldranks])
                 log.info("-" * 60, src=0)
                 log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} player {newcommunicator.rank}.")
                 communicator.free()
