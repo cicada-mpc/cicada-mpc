@@ -135,6 +135,9 @@ class SocketCommunicator(Communicator):
         self._log = LoggerAdapter(logging.getLogger(__name__), name, rank)
         self._players = sockets
 
+        self._sent = {}
+        self._received = {}
+
         # Begin normal operation.
         self._running = True
 
@@ -172,7 +175,16 @@ class SocketCommunicator(Communicator):
 
             # Log queued messages.
             if self._log.isEnabledFor(logging.DEBUG):
-                self._log.debug(f"<-- player {src} {taglabel(tag)}") # pragma: no cover
+                self._log.debug(f"<-- player {src} {tagname(tag)}") # pragma: no cover
+
+            try:
+                tag = Tags(tag)
+            except:
+                pass
+
+            if tag not in self._received:
+                self._received[tag] = {"messages": 0}
+            self._received[tag]["messages"] += 1
 
             # Revoke messages don't get queued because they receive special handling.
             if tag == Tags.REVOKE:
@@ -216,7 +228,7 @@ class SocketCommunicator(Communicator):
                         self._log.warning(f"ignoring unparsable message: {e}")
                         continue
 
-                    #self._log.debug(f"received {taglabel(tag), payload}")
+                    #self._log.debug(f"received {tagname(tag), payload}")
 
                     # Insert the message into the incoming queue.
                     self._incoming_queue.put((src, tag, payload), block=True, timeout=None)
@@ -326,7 +338,11 @@ class SocketCommunicator(Communicator):
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
 
         if self._log.isEnabledFor(logging.DEBUG):
-            self._log.debug(f"--> player {dst} {taglabel(tag)}") # pragma: no cover
+            self._log.debug(f"--> player {dst} {tagname(tag)}") # pragma: no cover
+
+        if tag not in self._sent:
+            self._sent[tag] = {"messages": 0}
+        self._sent[tag]["messages"] += 1
 
         # As a special-case, route messages sent to ourself directly to the incoming queue.
         if dst == self.rank:
@@ -801,6 +817,7 @@ class SocketCommunicator(Communicator):
             # Return results to the parent process.
             parent_queue.put((rank, result))
 
+
         # Setup the multiprocessing context.
         context = multiprocessing.get_context(method="fork") # I don't remember why we prefer fork().
 
@@ -813,6 +830,7 @@ class SocketCommunicator(Communicator):
         for rank in range(world_size):
             identity = None if identities is None else identities[rank]
             processes.append(context.Process(
+                name=f"Player {rank}",
                 target=launch,
                 kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, family=family, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
                 ))
@@ -832,16 +850,27 @@ class SocketCommunicator(Communicator):
         for process in processes:
             child_queue.put(addresses)
 
-        # Wait until every process terminates.
+        # Collect results from processes until every process has completed.
+        results = []
+        while any([process.is_alive() for process in processes]):
+            while True:
+                try:
+                    rank, result = parent_queue.get(block=False)
+                    results.append((rank, result))
+                except:
+                    break
+
+            time.sleep(0.01)
+
+        # Join all processes, just to be safe.
         for process in processes:
             process.join()
 
-        # Collect a result for every process, but don't block in case
-        # there are missing results.
-        results = []
-        for process in processes:
+        # Now that every process has exited, collect any remaining results.
+        while True:
             try:
-                results.append(parent_queue.get(block=False))
+                rank, result = parent_queue.get(block=False)
+                results.append((rank, result))
             except:
                 break
 
@@ -887,6 +916,7 @@ class SocketCommunicator(Communicator):
         if self.rank == src:
             for value, rank in zip(values, self.ranks):
                 self._send(tag=Tags.SCATTER, payload=value, dst=rank)
+
 
         # Receive data from the sender.
         return self._wait_next_payload(src=src, tag=Tags.SCATTER)
@@ -1024,7 +1054,7 @@ class SocketCommunicator(Communicator):
 
         # Create a new listening socket and update the address to match
         timer = Timer(threshold=startup_timeout)
-        listen_socket = listen(address=address, rank=self.rank, name=self.name, timer=timer)
+        listen_socket = listen(address=address, rank=rank, name=name, timer=timer)
         address = geturl(listen_socket)
 
         ##################################################################################
@@ -1128,18 +1158,31 @@ class SocketCommunicator(Communicator):
     @property
     def stats(self):
         """Nested dict containing communication statistics for logging / debugging."""
-        totals = {
-            "sent": {"bytes": 0, "messages": 0},
-            "received": {"bytes": 0, "messages": 0},
+        results = {
+            "player": {},
+            "tag": {},
+            "total": { "sent": {"bytes": 0, "messages": 0}, "received": {"bytes": 0, "messages": 0}},
         }
+
+        for tag, sent in self._sent.items():
+            if tag not in results["tag"]:
+                results["tag"][tag] = {}
+            results["tag"][tag]["sent"] = sent
+
+        for tag, received in self._received.items():
+            if tag not in results["tag"]:
+                results["tag"][tag] = {}
+            results["tag"][tag]["received"] = received
+
         for rank, player in self._players.items():
             stats = player.stats
-            totals[rank] = stats
-            totals["sent"]["bytes"] += stats["sent"]["bytes"]
-            totals["sent"]["messages"] += stats["sent"]["messages"]
-            totals["received"]["bytes"] += stats["received"]["bytes"]
-            totals["received"]["messages"] += stats["received"]["messages"]
-        return totals
+            results["player"][rank] = stats
+            results["total"]["sent"]["bytes"] += stats["sent"]["bytes"]
+            results["total"]["sent"]["messages"] += stats["sent"]["messages"]
+            results["total"]["received"]["bytes"] += stats["received"]["bytes"]
+            results["total"]["received"]["messages"] += stats["received"]["messages"]
+
+        return results
 
 
     @property

@@ -331,6 +331,7 @@ Feature: SocketCommunicator
         When the players create a new communicator with connect, but player <a> doesn't trust player <b>
         Then the group should raise exceptions <result>
 
+        @wip
         Examples:
         | players | a         | b     | result                                         |
         | 2       | 1         | 0     | [EncryptionFailed, EncryptionFailed]           |
@@ -344,3 +345,25 @@ Feature: SocketCommunicator
         | players | a         | b     | result                                         |
         | 2       | 0         | 1     | [EncryptionFailed, EncryptionFailed]           |
         | 3       | 0         | 1     | [EncryptionFailed, EncryptionFailed, Timeout]  |
+
+
+    Scenario Outline: SocketCommunicator.run Exception Handling
+
+        Given <players> players
+        And a startup timeout of 60 seconds
+        When every player raises <exception>
+        Then SocketCommunicator.run should catch <exception> from every player
+
+        Examples:
+        | players  | exception            |
+        | 2        | RuntimeError("Doh!") |
+        | 4        | RuntimeError("Doh!") |
+        | 8        | RuntimeError("Doh!") |
+        | 16       | RuntimeError("Doh!") |
+        | 32       | RuntimeError("Doh!") |
+        | 64       | RuntimeError("Doh!") |
+
+        Examples:
+        | players  | exception            |
+        | 128      | RuntimeError("Doh!") |
+

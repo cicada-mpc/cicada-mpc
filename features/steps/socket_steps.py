@@ -171,7 +171,7 @@ def step_impl(context, src, value, dst):
 def step_impl(context, src, sent):
     src = eval(src)
     sent = eval(sent)
-    test.assert_equal(context.stats[src]["sent"]["messages"], sent)
+    test.assert_equal(context.stats[src]["total"]["sent"]["messages"], sent)
 
 
 @then(u'every player other than {src} should receive exactly {received} messages')
@@ -181,7 +181,7 @@ def step_impl(context, src, received):
 
     stats = [player for index, player in enumerate(context.stats) if index != src]
     for player, expected in zip(stats, received):
-        numpy.testing.assert_equal(player["received"]["messages"], expected)
+        numpy.testing.assert_equal(player["total"]["received"]["messages"], expected)
 
 
 @then(u'it should be possible to start and stop a communicator {count} times')
@@ -535,3 +535,29 @@ def step_impl(context, slacker):
         pass
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(slacker,), identities=context.identities, trusted=context.trusted)
+
+
+@when(u'every player raises {exception}')
+def step_impl(context, exception):
+    exception = eval(exception)
+
+    def operation(communicator, exception):
+        raise exception
+
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(exception,), identities=None, trusted=None, startup_timeout=context.startup_timeout)
+
+
+@then(u'SocketCommunicator.run should catch {exception} from every player')
+def step_impl(context, exception):
+    exception = eval(exception)
+
+    lhs = [repr(exception)] * context.players
+    rhs = [repr(result.exception) for result in context.results]
+    test.assert_equal(lhs, rhs)
+
+
+@given(u'a startup timeout of {timeout} seconds')
+def step_impl(context, timeout):
+    timeout = eval(timeout)
+    context.startup_timeout = timeout
+

@@ -91,9 +91,16 @@ class ShamirBasicProtocol(object):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator,*, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16,  indices=None):
+    def __init__(self, communicator, *, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, indices=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
+        self._communicator = communicator
+
+        if threshold < 2:
+            raise ValueError("threshold must be >= 2")
+        if threshold > communicator.world_size:
+            raise ValueError("threshold must be <= world_size")
+        self._d = threshold-1
 
         if seed is None:
             seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
@@ -101,23 +108,15 @@ class ShamirBasicProtocol(object):
             if seed_offset is None:
                 seed_offset = communicator.rank
             seed += seed_offset
+        self._generator = numpy.random.default_rng(seed=seed)
 
-        self._prng = numpy.random.default_rng(seed=seed)
-        if threshold < 2:
-            raise ValueError('threshold is too small. Privacy is not tenable with threshold < 2.')
-        self.d=threshold-1
-        self.threshold = threshold
-        if communicator.world_size < self.d+1:
-            raise ValueError('threshold incompatible with worldsize, recovery impossible. Increase worldsize or decrease threshold.')
-        #if communicator.world_size < self.d+1:
-        #    raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
-        self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
+
         if indices is None:
-            self.indices = [x+1 for x in communicator.ranks]
-        else:
-            self.indices = indices
-        self.revealing_coef = self._lagrange_coef()
+            indices = numpy.array(communicator.ranks) + 1
+        self._indices = numpy.array(indices)
+
+        self._revealing_coef = self._lagrange_coef()
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -135,12 +134,12 @@ class ShamirBasicProtocol(object):
         # with respect to each index given, keyed by those indices
         from math import prod
         if src is None:
-            src = self.indices
+            src = [int(value) for value in self._indices]
         ls = len(src)
         coefs=numpy.zeros(ls, dtype=self.encoder.dtype)
         for i in range(ls):
             coefs[i]=prod([-src[j]*pow(src[i]-src[j], self.encoder.modulus-2, self.encoder.modulus) for j in range(ls) if src[j] != src[i]])%self.encoder.modulus
-        return coefs 
+        return coefs
 
     @property
     def communicator(self):
@@ -152,6 +151,11 @@ class ShamirBasicProtocol(object):
     def encoder(self):
         """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
         return self._encoder
+
+
+    @property
+    def indices(self):
+        return self._indices
 
 
     def add(self, lhs, rhs):
@@ -373,19 +377,19 @@ class ShamirBasicProtocol(object):
 
         src = self.communicator.ranks
         n=len(src)
-        if n == len(self.indices):
-            revealing_coef = self.revealing_coef
+        if n == len(self._indices):
+            revealing_coef = self._revealing_coef
         else:
             revealing_coef = None
         # Send data to the other players.
         secret = None
         for recipient in dst:
             received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
-            if received_shares: 
+            if received_shares:
                 received_storage = numpy.array([x.storage for x in received_shares], dtype=self.encoder.dtype)
                 if self.communicator.rank == recipient:
                     if revealing_coef is None:
-                        revealing_coef = self._lagrange_coef([self.indices[x] for x in src])
+                        revealing_coef = self._lagrange_coef([self._indices[x] for x in src])
                     secret = []
                     for index in numpy.ndindex(received_storage[0].shape):
                         secret.append(sum([revealing_coef[i]*received_storage[i][index] for i in range(len(revealing_coef))]))
@@ -436,10 +440,10 @@ class ShamirBasicProtocol(object):
                 raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
             if secret.shape != shape:
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
-            coef = self.encoder.uniform(size=shape+(self.d,), generator=self._prng)
+            coef = self.encoder.uniform(size=shape+(self._d,), generator=self._generator)
             for index in numpy.ndindex(shape):
-                for x in self.indices:
-                    shares.append(numpy.dot(numpy.power(numpy.full((self.d,), x),numpy.arange(1, self.d+1)), coef[index])+secret[index])
+                for x in self._indices:
+                    shares.append(numpy.dot(numpy.power(numpy.full((self._d,), x),numpy.arange(1, self._d+1)), coef[index])+secret[index])
             sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(ldst,)).T
         share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.encoder.dtype).T
         return ShamirArrayShare(share%self.encoder.modulus)
@@ -500,7 +504,7 @@ class ShamirBasicProtocol(object):
         if shape==None:
             shape=()
         if generator is None:
-            generator = self._prng
+            generator = self._generator
 
         rand_ints = self.encoder.uniform(size=shape, generator=generator)
         share = ShamirArrayShare(numpy.zeros(shape, dtype=self.encoder.dtype))
@@ -537,33 +541,13 @@ class ShamirProtocol(ShamirBasicProtocol):
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, communicator,*, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16,  indices=None):
-        if not isinstance(communicator, Communicator):
-            raise ValueError("A Cicada communicator is required.") # pragma: no cover
+    def __init__(self, communicator, *, threshold, seed=None, seed_offset=None, modulus=18446744073709551557, precision=16, indices=None):
+        super().__init__(communicator=communicator, threshold=threshold, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision, indices=indices)
 
-        if seed is None:
-            seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
-        else:
-            if seed_offset is None:
-                seed_offset = communicator.rank
-            seed += seed_offset
-
-        self._prng = numpy.random.default_rng(seed=seed)
-        if threshold < 2:
-            raise ValueError('threshold is too small. Privacy is not tenable with threshold < 2.')
-        self.d=threshold-1
-        self.threshold = threshold
-        if communicator.world_size < 2*self.d+1:
-            raise ValueError(f'Threshold incompatible with worldsize, multiplications will not be feasible. Multiplications with this threshold would require worldsize at least {2*self.d+1}. Increase worldsize or decrease threshold.')
-        #if communicator.world_size < self.d+1:
-        #    raise ValueError('d incompatible with worldsize, even revealing secrets will not be feasible.')
-        self._communicator = communicator
-        self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
-        if indices is None:
-            self.indices = [x+1 for x in communicator.ranks]
-        else:
-            self.indices = indices
-        self.revealing_coef = self._lagrange_coef()
+        max_threshold = (communicator.world_size+1) // 2
+        if threshold > max_threshold:
+            min_world_size = (2 * threshold) - 1
+            raise ValueError(f"threshold must be <= {max_threshold}, or world_size must be >= {min_world_size}")
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -1040,47 +1024,6 @@ class ShamirProtocol(ShamirBasicProtocol):
         inv = numpy.array(nppowmod(revealed_masked_op, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
         op_inv_share = self.encoder.untruncated_multiply(inv, mask.storage)
         return ShamirArrayShare(op_inv_share)
-
-
-    def _private_public_mod(self, lhs, rhspub, *, enc=False):
-        """Return an elementwise result of applying moduli contained in rhspub to lhs 
-        in the context of the underlying finite field. Explicitly, this 
-        function returns a same shape array which contains an approximation
-        of the division in which lhs is the secret shared dividend and 
-        rhspub is a publicly known divisor. 
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`ShamirArrayShare`, required
-            Secret shared array to act as the dend.
-        rhspub: :class:`numpy.ndarray`, required
-            Public value to act as divisor, it is assumed to not
-            be encoded, but we optionally provide an argument to 
-            handle the case in which it is
-
-        Returns
-        -------
-        value: :class:`ShamirArrayShare`
-            The secret approximate result of lhs/rhspub on an elementwise basis.
-        """
-        self._assert_unary_compatible(lhs, "lhs")
-        if not enc:
-            divisor = self.encoder.encode(numpy.array(1/rhspub))
-            rhs_enc = self.encoder.encode(rhspub)
-        else:
-            divisor = self.encoder.encode(numpy.array(1/self.encoder.decode(rhspub)))
-            rhs_enc = rhspub
-        quotient = ShamirArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
-        quotient = self.truncate(quotient)
-        quotient = self.floor(quotient)
-        val2subtract = self.truncate(ShamirArrayShare(self.encoder.untruncated_multiply(rhs_enc, quotient.storage)))
-        remainder = self.subtract(lhs, val2subtract) 
-        return remainder 
 
 
     def private_public_power(self, lhs, rhspub):

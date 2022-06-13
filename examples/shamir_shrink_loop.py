@@ -30,7 +30,6 @@ import cicada.shamir
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(message)s', datefmt="%H:%M:%S")
 
-
 parser = argparse.ArgumentParser(description="Failure recovery tester.")
 parser.add_argument("--debug", action="store_true", help="Enable verbose output.")
 parser.add_argument("--mtbf", "-m", type=float, default="10", help="Mean time between failure in iterations. Default: %(default)s")
@@ -41,9 +40,6 @@ arguments = parser.parse_args()
 lam = 1.0 / arguments.mtbf
 
 def main(communicator):
-    import manhole
-    manhole.install()
-
     log = cicada.Logger(logging.getLogger(), communicator)
     shamir = cicada.shamir.ShamirProtocol(communicator, threshold=2)
     encoder = cicada.encoder.FixedFieldEncoder()
@@ -71,14 +67,13 @@ def main(communicator):
                 # Something went wrong.  Revoke the current communicator to
                 # ensure that all players are aware of it.
                 communicator.revoke()
-                log(f"Comm {communicator.anem} player {communicator.rank} a")
                 # Obtain a new communicator that contains the remaining players.
                 name = f"world-{next(communicator_index)}"
-                newcommunicator, old_ranks = communicator.shrink(name=name)
+                newcommunicator, oldranks = communicator.shrink(name=name)
                 # These objects must be recreated from scratch since they use
                 # the communicator that was revoked.
                 log = cicada.Logger(logging.getLogger(), newcommunicator)
-                shamir = cicada.shamir.ShamirProtocol(newcommunicator, threshold=2, indices=[shamir.indices[x] for x in old_ranks])
+                shamir = cicada.shamir.ShamirProtocol(newcommunicator, threshold=2, indices=shamir.indices[oldranks])
                 log.info("-" * 60, src=0)
                 log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} player {newcommunicator.rank}.")
                 communicator.free()

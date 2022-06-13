@@ -65,24 +65,6 @@ def step_impl(context, count):
     context.shares = numpy.column_stack(SocketCommunicator.run(world_size=context.players, fn=operation, args=(count,)))
 
 
-#@then(u'the shares should never be repeated')
-#def step_impl(context):
-#    for i in range(len(context.shares)):
-#        for j in range(i+1, len(context.shares)):
-#            with numpy.testing.assert_raises(AssertionError):
-#                numpy.testing.assert_almost_equal(context.shares[i], context.shares[j], decimal=4)
-
-
-#@given(u'secret value {}')
-#def step_impl(context, secret):
-#	context.secret = numpy.array(eval(secret))
-#
-#
-#@given(u'local value {}')
-#def step_impl(context, local):
-#    context.local = numpy.array(eval(local))
-
-
 @when(u'player {} performs local in-place addition on the shamir shared secret')
 def step_impl(context, player):
     player = eval(player)
@@ -107,29 +89,6 @@ def step_impl(context, player):
         return protocol.encoder.decode(protocol.reveal(share))
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
-
-
-#@then(u'the group should return {} to within {} digits')
-#def step_impl(context, result, digits_accuracy):
-#    result = numpy.array(eval(result))
-#    digits_accuracy = numpy.array(eval(digits_accuracy))
-#    group = numpy.array(context.results)
-#
-#    if issubclass(result.dtype.type, numpy.number) and issubclass(group.dtype.type, numpy.number):
-#        numpy.testing.assert_almost_equal(result, group, decimal=digits_accuracy)
-#    else:
-#        numpy.testing.assert_array_equal(result, group)
-
-
-#@then(u'the group should return {}')
-#def step_impl(context, result):
-#    result = numpy.array(eval(result))
-#    group = numpy.array(context.results)
-#
-#    if issubclass(result.dtype.type, numpy.number) and issubclass(group.dtype.type, numpy.number):
-#        numpy.testing.assert_almost_equal(result, group, decimal=4)
-#    else:
-#        numpy.testing.assert_array_equal(result, group)
 
 
 @given(u'binary operation shamir public-private addition')
@@ -265,39 +224,6 @@ def step_impl(context):
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
-@given(u'binary operation shamir private-public modulus')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = numpy.array(b)
-        c = protocol.private_public_mod(a, b)
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
-
-
-#@given(u'operands {a} and {b}')
-#def step_impl(context, a, b):
-#    context.a = eval(a)
-#    context.b = eval(b)
-
-
-#@given(u'operand {a}')
-#def step_impl(context, a):
-#    context.a = eval(a)
-
-
-#@when(u'the binary operation is executed {count} times')
-#def step_impl(context, count):
-#    count = eval(count)
-#
-#    context.results = []
-#    for i in range(count):
-#        context.results.append(context.binary_operation(args=(context.a, context.b)))
-
-
 @given(u'unary operation shamir floor')
 def step_impl(context):
     def operation(communicator, a):
@@ -308,16 +234,6 @@ def step_impl(context):
         b_share = protocol.floor(a_share)
         return protocol.encoder.decode(protocol.reveal(b_share))
     context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
-
-
-#@when(u'the unary operation is executed {count} times')
-#def step_impl(context, count):
-#    count = eval(count)
-#
-#    context.results = []
-#    for i in range(count):
-#        context.results.append(context.unary_operation(args=(context.a,)))
-
 
 
 @when(u'player {player} shamir shares and reveals random secrets, the revealed secrets should match the originals')
