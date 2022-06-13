@@ -37,6 +37,9 @@ def main(communicator):
 
     
     log.info(f"Player {communicator.rank} share consistency check: {protocol.check_consistency(share)}")
+    if protocol.communicator.rank == 2:
+        share[0].storage[0] += 1
+    log.info(f"Player {communicator.rank} share consistency check: {protocol.check_consistency(share)}")
 
 cicada.communicator.SocketCommunicator.run(world_size=5, fn=main)
 
