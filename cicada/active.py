@@ -265,13 +265,16 @@ class ActiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         return ActiveArrayShare((self.aprotocol.bit_decompose(operand[0], num_bits), self.sprotocol.bit_decompose(operand[1], num_bits)))
 
-    def check_consistency(self, operand):
+    def check_commit(self, operand):
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         a_share = operand[0]
         s_share = operand[1]
         zero = cicada.shamir.ShamirArrayShare(self.sprotocol.encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.encoder.modulus-2, self.encoder.modulus) * a_share.storage) % self.encoder.modulus, dtype=object)))
-        return self.sprotocol.reveal(zero) == numpy.zeros(zero.storage.shape)
+        if all(self.sprotocol.reveal(zero) == numpy.zeros(zero.storage.shape))
+            return zero
+        else:
+            raise ConsistencyError("Secret Shares are inconsistent in the first stage")
 
     @property
     def communicator(self):
@@ -899,10 +902,22 @@ class ActiveProtocol(object):
             Encoded representation of the revealed secret, if this player is a
             member of `dst`, or :any:`None`.
         """
-        if all(self.check_consistency(share)):
-            return self.aprotocol.reveal(share, dst=dst), self.sprotocol.reveal(share, dst=dst)
+        zshare = self.check_commit(share)
+        if all(bools):
+            a_storage = self.communicator.gather(share[0].storage)
+            s_storage = self.communicator.gather(share[1].storage)
+            z_storage =  self.communicator.gather(zshare.storage)
+            #check z_storage = s_storage - \ell ^-1 * a_storage
+            # check reveal(s_storage) == reveal(a_storage)
+            # and/or check reveal s_storage with a subset == reveal s_storage with a distinct subset
+            reconstruct_original_s_shares = (zshares + self.sprotocol._revealing_coef * a_shares)%self.encoder.modulus
+            s1 = random.sample(self.sprotocol.indicies, self.sprotocol.d+1)
+            s2 = None
+            while s2 == None or s2 == s1:
+                s2 = random.sample(self.sprotocol.indicies, self.sprotocol.d+1)
+            v1 = self.sprotocol
+            return self.encoder.decode(self.aprotocol.reveal(share[0], dst=dst)), self.encoder.decode(self.sprotocol.reveal(share[1], dst=dst))
         else:
-            raise ConsistencyError("Secret Shares do not match")
             
 
     def share(self, *, src, secret, shape):
