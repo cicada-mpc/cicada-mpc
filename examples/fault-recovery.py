@@ -15,84 +15,90 @@
 # limitations under the License.
 
 import argparse
-import contextlib
 import itertools
 import logging
 import os
 import signal
-import time
 
 import numpy
 
 from cicada.communicator import SocketCommunicator
 import cicada.shamir
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(message)s', datefmt="%H:%M:%S")
-
 parser = argparse.ArgumentParser(description="Failure recovery tester.")
-parser.add_argument("--debug", action="store_true", help="Enable verbose output.")
-parser.add_argument("--mtbf", "-m", type=float, default="10", help="Mean time between failure in iterations. Default: %(default)s")
+parser.add_argument("--pfail", type=float, default="0.01", help="Probability that a process will fail during the current iteration. Default: %(default)s")
 parser.add_argument("--seed", type=int, default=1234, help="Random seed. Default: %(default)s")
 parser.add_argument("--world-size", "-n", type=int, default=32, help="Number of players. Default: %(default)s")
 arguments = parser.parse_args()
 
-lam = 1.0 / arguments.mtbf
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("cicada.communicator").setLevel(logging.CRITICAL)
+
+
+def random_failures(pfail, seed):
+    generator = numpy.random.default_rng(seed=seed)
+
+    while True:
+        if generator.uniform() <= pfail:
+            os.kill(os.getpid(), signal.SIGKILL)
+        yield
+
 
 def main(communicator):
+    # One-time initialization.
+    communicator_index = itertools.count(1)
+    failure = random_failures(pfail=arguments.pfail, seed=arguments.seed + communicator.rank)
+
     log = cicada.Logger(logging.getLogger(), communicator)
     protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-    generator = numpy.random.default_rng(seed=arguments.seed)
 
-    communicator_index = itertools.count(1)
+    total = numpy.array(0) if communicator.rank == 0 else None
+    total_share = protocol.share(src=0, secret=protocol.encoder.encode(total), shape=())
 
-    # Player 0 will provide a secret.
-    secret = numpy.array(0) if communicator.rank == 0 else None
-    one = numpy.array(1) if communicator.rank == 0 else None
+    increment = numpy.array(1) if communicator.rank == 1 else None
+    increment_share = protocol.share(src=1, secret=protocol.encoder.encode(increment), shape=())
 
-    # Generate shares for all players.
-    share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=())
-    one_share = protocol.share(src=0, secret=protocol.encoder.encode(one), shape=())
-    while True:
-        try: # Do computation in this block.
-            revealed = protocol.encoder.decode(protocol.reveal(share))
-            share = protocol.add(one_share, share)
-            log.info("-" * 60, src=0)
-            log.info(f"Comm {communicator.name} player {communicator.rank} original rank {protocol.indices[communicator.rank]-1} revealed: {revealed}")
-        except Exception as e: # Implement failure recovery in this block.
-            try:
-                log.sync = False
-                log.error(f"Comm {communicator.name} player {communicator.rank} exception: {e}")
-                # Something went wrong.  Revoke the current communicator to
-                # ensure that all players are aware of it.
-                communicator.revoke()
-                # Obtain a new communicator that contains the remaining players.
-                name = f"world-{next(communicator_index)}"
-                newcommunicator, oldranks = communicator.shrink(name=name)
-                # These objects must be recreated from scratch since they use
-                # the communicator that was revoked.
-                log = cicada.Logger(logging.getLogger(), newcommunicator)
-                protocol = cicada.shamir.ShamirProtocol(newcommunicator, threshold=2, indices=protocol.indices[oldranks])
-                log.info("-" * 60, src=0)
-                log.info(f"Shrank {communicator.name} player {communicator.rank} to {newcommunicator.name} player {newcommunicator.rank}.")
-                communicator.free()
-                communicator = newcommunicator
-            except ValueError as e:
-                print('World has shrunk too small to continue, cleaning up experiment')
+    # Main iteration loop.
+    for iteration in itertools.count():
+        # Do computation in this block.
+        try:
+            revealed = protocol.encoder.decode(protocol.reveal(total_share))
+            total_share = protocol.add(total_share, increment_share)
+            log.info(f"Iteration {iteration} comm {communicator.name} player {communicator.rank} of {communicator.world_size} result: {revealed}", src=0)
+        # Implement failure recovery in this block.  Be careful here!  Only
+        # a limited number of operations can be used safely when there are
+        # (presumably) players missing.
+        except Exception as e:
+            # Something went wrong.  Revoke the current communicator to
+            # ensure that all players are aware of it.
+            communicator.revoke()
+
+            # Obtain a new communicator that contains the remaining players.
+            name = f"world-{next(communicator_index)}"
+            newcommunicator, oldranks = communicator.shrink(name=name)
+
+            # Recreate the logger since objects that depend on the old,
+            # revoked communicator must be rebuilt from scratch using the
+            # new communicator.
+            log = cicada.Logger(logging.getLogger(), newcommunicator)
+            log.info(f"Iteration {iteration} shrank comm {communicator.name} with {communicator.world_size} players to comm {newcommunicator.name} with {newcommunicator.world_size} players.", src=0)
+
+            # If we don't have enough players to setup our Shamir protocol
+            # object, it's time to exit cleanly.
+            if newcommunicator.world_size < 3:
+                log.info(f"Iteration {iteration} not enough players to continue.", src=0)
                 break
-        finally:
-            time.sleep(0.1)
 
-        # Figure-out how many processes will fail on this round.
-        failures = generator.poisson(lam)
+            # Recreate the protocol since objects that depend on the old,
+            # revoked communicator must be rebuilt from scratch using the
+            # new communicator.
+            protocol = cicada.shamir.ShamirProtocol(newcommunicator, threshold=2, indices=protocol.indices[oldranks])
 
-        # Decide which processes will fail.
-        failures = generator.choice(communicator.world_size, size=failures, replace=False)
+            # Cleanup the old communicator.
+            communicator.free()
+            communicator = newcommunicator
 
-        # If we're one of the lambs, bail-out.
-        if communicator.rank in failures:
-            logging.info("-" * 60)
-            logging.error(f"Comm {communicator.name} player {communicator.rank} dying!")
-            os.kill(os.getpid(), signal.SIGKILL)
+        next(failure)
 
 
 SocketCommunicator.run(world_size=arguments.world_size, fn=main, name="world-0")
