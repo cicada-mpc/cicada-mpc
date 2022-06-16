@@ -141,23 +141,6 @@ class ShamirBasicProtocol(object):
             coefs[i]=prod([-src[j]*pow(src[i]-src[j], self.encoder.modulus-2, self.encoder.modulus) for j in range(ls) if src[j] != src[i]])%self.encoder.modulus
         return coefs
 
-    @property
-    def communicator(self):
-        """Return the :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
-        return self._communicator
-
-
-    @property
-    def encoder(self):
-        """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
-        return self._encoder
-
-
-    @property
-    def indices(self):
-        return self._indices
-
-
     def add(self, lhs, rhs):
         """Return the elementwise sum of two secret shared arrays.
 
@@ -244,6 +227,23 @@ class ShamirBasicProtocol(object):
             val_share = numpy.sum(shifted) % self.encoder.modulus
             composed.append(val_share)
         return ShamirArrayShare(numpy.array([x for x in composed], dtype=self.encoder.dtype).reshape(outer_shape))
+
+    @property
+    def communicator(self):
+        """Return the :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
+        return self._communicator
+
+
+    @property
+    def encoder(self):
+        """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
+        return self._encoder
+
+
+    @property
+    def indices(self):
+        return self._indices
+
 
     def private_public_subtract(self, lhs, rhs):
         """Return the elementwise difference between public and secret shared arrays.
@@ -471,6 +471,12 @@ class ShamirBasicProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
+
+
+    @property
+    def threshold(self):
+        """Return the threshold (minimum number of players required to reveal a secret)."""
+        return self._d + 1
 
 
     def uniform(self, *, shape=None, generator=None):
