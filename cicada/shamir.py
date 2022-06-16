@@ -114,7 +114,7 @@ class ShamirBasicProtocol(object):
 
         if indices is None:
             indices = numpy.array(communicator.ranks) + 1
-        self._indices = numpy.array(indices)
+        self._indices = numpy.array(indices, dtype=self.encoder.dtype)
 
         self._revealing_coef = self._lagrange_coef()
 

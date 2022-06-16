@@ -25,6 +25,7 @@ from cicada.communicator.interface import Communicator, Tags
 import cicada.encoder
 import cicada.additive
 import cicada.shamir
+import random
 
 class ActiveArrayShare(object):
     """Stores the local share of an additive-shared secret array.
@@ -271,7 +272,7 @@ class ActiveProtocol(object):
         a_share = operand[0]
         s_share = operand[1]
         zero = cicada.shamir.ShamirArrayShare(self.sprotocol.encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.encoder.modulus-2, self.encoder.modulus) * a_share.storage) % self.encoder.modulus, dtype=object)))
-        if all(self.sprotocol.reveal(zero) == numpy.zeros(zero.storage.shape))
+        if all(self.sprotocol.reveal(zero) == numpy.zeros(zero.storage.shape)):
             return zero
         else:
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
@@ -900,24 +901,40 @@ class ActiveProtocol(object):
         -------
         value: :class:`numpy.ndarray` or :any:`None`
             Encoded representation of the revealed secret, if this player is a
-            member of `dst`, or :any:`None`.
+            member of `dst`, or :any:`None`
         """
-        zshare = self.check_commit(share)
-        if all(bools):
-            a_storage = self.communicator.gather(share[0].storage)
-            s_storage = self.communicator.gather(share[1].storage)
-            z_storage =  self.communicator.gather(zshare.storage)
-            #check z_storage = s_storage - \ell ^-1 * a_storage
-            # check reveal(s_storage) == reveal(a_storage)
-            # and/or check reveal s_storage with a subset == reveal s_storage with a distinct subset
-            reconstruct_original_s_shares = (zshares + self.sprotocol._revealing_coef * a_shares)%self.encoder.modulus
-            s1 = random.sample(self.sprotocol.indicies, self.sprotocol.d+1)
-            s2 = None
-            while s2 == None or s2 == s1:
-                s2 = random.sample(self.sprotocol.indicies, self.sprotocol.d+1)
-            v1 = self.sprotocol
-            return self.encoder.decode(self.aprotocol.reveal(share[0], dst=dst)), self.encoder.decode(self.sprotocol.reveal(share[1], dst=dst))
-        else:
+        #zshare = self.check_commit(share)
+        zshare =  cicada.shamir.ShamirArrayShare(self.sprotocol.encoder.subtract(share[1].storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.encoder.modulus-2, self.encoder.modulus) * share[0].storage) % self.encoder.modulus, dtype=self.encoder.dtype)))
+        
+        a_storage = self.communicator.all_gather(share[0].storage)
+        #s_storage = self.communicator.gather(share[1].storage)
+        z_storage =  self.communicator.all_gather(zshare.storage)
+        #check z_storage = s_storage - \ell ^-1 * a_storage
+        # check reveal(s_storage) == reveal(a_storage)
+        # and/or check reveal s_storage with a subset == reveal s_storage with a distinct subset
+        secret = []
+        revealing_coef = self.sprotocol._revealing_coef 
+        for index in numpy.ndindex(z_storage[0].shape):
+            secret.append(sum([revealing_coef[i]*z_storage[i][index] for i in range(len(revealing_coef))]))
+        rev = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
+        if any(rev != numpy.zeros(rev.shape)):
+            raise ConsistencyError("Secret Shares are inconsistent in the first stage")
+
+        secret = []
+        for index in numpy.ndindex(a_storage[0].shape):
+            secret.append(sum([a_storage[i][index] for i in range(len(revealing_coef))]))
+        reva = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
+        
+        bs_storage = z_storage + (numpy.array(a_storage, dtype=self.encoder.dtype).T*revealing_coef).T
+
+        s1 = random.sample(list(self.sprotocol._indices), self.sprotocol._d+1)
+        revealing_coef = self.sprotocol._lagrange_coef(s1)
+        for index in numpy.ndindex(z_storage[0].shape):
+            secret.append(sum([revealing_coef[i]*bs_storage[v][index] for i, v in enumerate(s1)]))
+        revs = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
+        if revs != reva:
+            raise ConsistencyError("Secret Shares are inconsistent in the second stage")
+        return revs
             
 
     def share(self, *, src, secret, shape):

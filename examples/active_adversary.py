@@ -36,13 +36,13 @@ def main(communicator):
     log.info(f"Player {communicator.rank} share: {share}")
 
     
-    log.info(f"Player {communicator.rank} share consistency check: {protocol.check_consistency(share)[0]}")
+    log.info(f"Player {communicator.rank} share consistency check: {protocol.check_commit(share)}")
     log.info(f"Player {communicator.rank} share reveal check: {protocol.reveal(share)}")
     if protocol.communicator.rank == 2:
         share[0].storage[0] += 1
     if protocol.communicator.rank == 3:
         share[0].storage[1] += 1
-    log.info(f"Player {communicator.rank} share consistency check: {protocol.check_consistency(share)[0]}")
+    log.info(f"Player {communicator.rank} share consistency check: {protocol.check_commit(share)}")
     log.info(f"Player {communicator.rank} share reveal check: {protocol.reveal(share)}")
 
 cicada.communicator.SocketCommunicator.run(world_size=5, fn=main)
