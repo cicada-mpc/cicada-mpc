@@ -63,13 +63,15 @@ def main(communicator):
 
         # Do computation in this block.
         try:
-            total = protocol.encoder.decode(protocol.reveal(total_share))
-            log.info(f"Iteration {iteration} comm {communicator.name} total: {total}", src=0)
-
+            # Increment the total.
             contributor = iteration % communicator.world_size
             increment = numpy.array(1) if communicator.rank == contributor else None
             increment_share = protocol.share(src=contributor, secret=protocol.encoder.encode(increment), shape=())
             total_share = protocol.add(total_share, increment_share)
+
+            # Print the current total.
+            total = protocol.encoder.decode(protocol.reveal(total_share))
+            log.info(f"Iteration {iteration} comm {communicator.name} total: {total}", src=0)
 
         # Implement failure recovery in this block. Be careful here! Many
         # operations can't be used when there are unresponsive players.
@@ -78,7 +80,7 @@ def main(communicator):
             # ensure that all players are aware of it.
             communicator.revoke()
 
-            # If we don't have enough players to continue, it's time to exit cleanly.
+            # If we don't have enough players to continue, it's time to shutdown cleanly.
             if communicator.world_size == protocol.threshold:
                 log.info(f"Iteration {iteration} not enough players to continue.", src=0)
                 break
@@ -97,9 +99,6 @@ def main(communicator):
             # revoked communicator must be rebuilt from scratch using the
             # new communicator.
             protocol = ShamirBasicProtocol(newcommunicator, threshold=2, indices=protocol.indices[oldranks])
-
-#            total = protocol.encoder.decode(protocol.reveal(total_share))
-#            log.info(f"Iteration {iteration} comm {communicator.name} total: {total}", src=0)
 
             # Cleanup the old communicator.
             communicator.free()
