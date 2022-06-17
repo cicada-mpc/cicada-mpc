@@ -7,6 +7,20 @@
 Release Notes
 =============
 
+Cicada 0.6.0 - June 17th, 2022
+
+* SocketCommunicator.run() would sometimes hang returning results from large numbers of players.
+* Sped-up regression tests significantly by removing unnecessary redundancy.
+* Began formally testing Cicada with Python 3.8 and 3.10.
+* Added user guide sections on Shamir sharing and fault recovery.
+* Reorganized SocketCommunicator statistics, and added statistics organized by message type.
+* Added the cicada-perf command for benchmarking communications.
+* Added `indices` and `threshold` properties to ShamirBasicProtocol and ShamirProtocol.
+* SocketCommunicator setup didn't always use the correct rank and name in log output.
+* Fixed a problem with the way thresholds are constrained in ShamirProtocol.
+* Explicitly specify process names for debugging with SocketCommunicator.run().
+* Removed obsolete code.
+
 Cicada 0.5.1 - May 4th, 2022
 ----------------------------
 
