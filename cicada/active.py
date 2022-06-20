@@ -928,11 +928,18 @@ class ActiveProtocol(object):
         bs_storage = z_storage + (numpy.array(a_storage, dtype=self.encoder.dtype).T*revealing_coef).T
 
         s1 = random.sample(list(self.sprotocol._indices), self.sprotocol._d+1)
+        #print(f'presort: {s1}')
+        s1.sort()
+        #print(f'postsort: {s1}')
         revealing_coef = self.sprotocol._lagrange_coef(s1)
+        #print(f'bs shape: {bs_storage.shape}')
+        #print(f'for indexes: {[index for index in numpy.ndindex(z_storage[0].shape)]}')
+        sub_secret = []
         for index in numpy.ndindex(z_storage[0].shape):
-            secret.append(sum([revealing_coef[i]*bs_storage[v][index] for i, v in enumerate(s1)]))
-        revs = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
-        if revs != reva:
+            #print(index, ' '.join([str((i,v)) for i,v in enumerate(s1)]))
+            sub_secret.append(sum([revealing_coef[i]*bs_storage[v-1][index] for i, v in enumerate(s1)]))
+        revs = numpy.array([x%self.encoder.modulus for x in sub_secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
+        if any(revs != reva):
             raise ConsistencyError("Secret Shares are inconsistent in the second stage")
         return revs
             
