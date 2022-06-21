@@ -350,6 +350,7 @@ Feature: SocketCommunicator
     Scenario Outline: SocketCommunicator.run Exception Handling
 
         Given <players> players
+        And a startup timeout of 60 seconds
         When every player raises <exception>
         Then SocketCommunicator.run should catch <exception> from every player
 
@@ -362,7 +363,7 @@ Feature: SocketCommunicator
         | 32       | RuntimeError("Doh!") |
         | 64       | RuntimeError("Doh!") |
 
-        @wip
         Examples:
         | players  | exception            |
         | 128      | RuntimeError("Doh!") |
+
