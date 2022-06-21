@@ -906,9 +906,9 @@ class ActiveProtocol(object):
         #zshare = self.check_commit(share)
         zshare =  cicada.shamir.ShamirArrayShare(self.sprotocol.encoder.subtract(share[1].storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.encoder.modulus-2, self.encoder.modulus) * share[0].storage) % self.encoder.modulus, dtype=self.encoder.dtype)))
         
-        a_storage = self.communicator.all_gather(share[0].storage)
-        #s_storage = self.communicator.gather(share[1].storage)
-        z_storage =  self.communicator.all_gather(zshare.storage)
+        a_storage = numpy.array(self.communicator.all_gather(share[0].storage), dtype=self.encoder.dtype)
+        s_storage = numpy.array(self.communicator.all_gather(share[1].storage), dtype=self.encoder.dtype)
+        z_storage = numpy.array(self.communicator.all_gather(zshare.storage), dtype=self.encoder.dtype)
         #check z_storage = s_storage - \ell ^-1 * a_storage
         # check reveal(s_storage) == reveal(a_storage)
         # and/or check reveal s_storage with a subset == reveal s_storage with a distinct subset
@@ -917,16 +917,21 @@ class ActiveProtocol(object):
         for index in numpy.ndindex(z_storage[0].shape):
             secret.append(sum([revealing_coef[i]*z_storage[i][index] for i in range(len(revealing_coef))]))
         rev = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
-        if any(rev != numpy.zeros(rev.shape)):
+        if any(rev):
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
 
         secret = []
         for index in numpy.ndindex(a_storage[0].shape):
             secret.append(sum([a_storage[i][index] for i in range(len(revealing_coef))]))
         reva = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
-        
-        bs_storage = z_storage + (numpy.array(a_storage, dtype=self.encoder.dtype).T*revealing_coef).T
-
+        bs_storage=numpy.zeros(z_storage.shape, dtype=self.encoder.dtype)
+        for i, c in enumerate(revealing_coef):
+            bs_storage[i] =  self.sprotocol.encoder.add(z_storage[i], numpy.array((pow(self.sprotocol._revealing_coef[i], self.encoder.modulus-2, self.encoder.modulus) * a_storage[i]) % self.encoder.modulus, dtype=self.encoder.dtype))
+        bs_storage %= self.encoder.modulus
+#        if numpy.array_equal(bs_storage, s_storage):
+#            print(f'############# success ############')
+#        else:
+#            print(f'bs: {bs_storage}\ns_storage: {s_storage}')
         s1 = random.sample(list(self.sprotocol._indices), self.sprotocol._d+1)
         #print(f'presort: {s1}')
         s1.sort()
@@ -935,11 +940,35 @@ class ActiveProtocol(object):
         #print(f'bs shape: {bs_storage.shape}')
         #print(f'for indexes: {[index for index in numpy.ndindex(z_storage[0].shape)]}')
         sub_secret = []
+#        print(f'z: {z_storage}, a: {a_storage}, bs: {bs_storage}, rc: {self.sprotocol._revealing_coef}')
         for index in numpy.ndindex(z_storage[0].shape):
-            #print(index, ' '.join([str((i,v)) for i,v in enumerate(s1)]))
-            sub_secret.append(sum([revealing_coef[i]*bs_storage[v-1][index] for i, v in enumerate(s1)]))
-        revs = numpy.array([x%self.encoder.modulus for x in sub_secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
-        if any(revs != reva):
+            loop_acc = 0
+            for i,v in enumerate(s1):
+                loop_acc += revealing_coef[i]*bs_storage[v-1][index]
+            sub_secret.append(loop_acc % self.encoder.modulus)
+        revs = numpy.array(sub_secret, dtype=self.encoder.dtype).reshape(share[0].storage.shape)
+        s2 = random.sample(list(self.sprotocol._indices), self.sprotocol._d+1)
+        #print(f'presort: {s1}')
+        s2.sort()
+        while s2 == s1:
+            s2 = random.sample(list(self.sprotocol._indices), self.sprotocol._d+1)
+            #print(f'presort: {s1}')
+            s2.sort()
+        #print(f'postsort: {s1}')
+        revealing_coef = self.sprotocol._lagrange_coef(s2)
+        #print(f'bs shape: {bs_storage.shape}')
+        #print(f'for indexes: {[index for index in numpy.ndindex(z_storage[0].shape)]}')
+        sub_secret2 = []
+#        print(f'z: {z_storage}, a: {a_storage}, bs: {bs_storage}, rc: {self.sprotocol._revealing_coef}')
+        for index in numpy.ndindex(z_storage[0].shape):
+            loop_acc = 0
+            for i,v in enumerate(s2):
+                loop_acc += revealing_coef[i]*bs_storage[v-1][index]
+            sub_secret2.append(loop_acc % self.encoder.modulus)
+        revs2 = numpy.array(sub_secret2, dtype=self.encoder.dtype).reshape(share[0].storage.shape)
+        if any(revs != reva) or any(revs2 != reva):
+            print(f's1: {s1}\t recoef: {revealing_coef} test: {sum(revealing_coef)%self.encoder.modulus}')
+            print(f'reva: {reva} \n revs: {revs}')
             raise ConsistencyError("Secret Shares are inconsistent in the second stage")
         return revs
             

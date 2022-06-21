@@ -33,10 +33,10 @@ def main(communicator):
 
     # Create shares for the secret.
     share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=(4,))
-    log.info(f"Player {communicator.rank} share: {share}")
+    #log.info(f"Player {communicator.rank} share: {share}")
 
     
-    log.info(f"Player {communicator.rank} share consistency check: {protocol.check_commit(share)}")
+    #log.info(f"Player {communicator.rank} share consistency check: {protocol.check_commit(share)}")
     log.info(f"Player {communicator.rank} share reveal check: {protocol.reveal(share)}")
     log.info(f"Player {communicator.rank} Entering Malicious activity")
     if protocol.communicator.rank == 2:
