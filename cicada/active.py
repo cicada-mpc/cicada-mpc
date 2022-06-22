@@ -133,9 +133,9 @@ class ActiveProtocol(object):
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
         self._assert_unary_compatible(lhs, lhslabel)
         self._assert_unary_compatible(rhs, rhslabel)
-        if lhs.storage[0].shape != rhs.storage[0].shape :
+        if lhs[0].storage.shape != rhs[0].storage.shape :
             raise ValueError(f"{lhslabel} and {rhslabel} additive shares, ActiveShare[0], must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
-        if lhs.storage[1].shape != rhs.storage[1].shape:
+        if lhs[1].storage.shape != rhs[1].storage.shape:
             raise ValueError(f"{lhslabel} and {rhslabel} shamir shares, ActiveShare[1], must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
 
 
