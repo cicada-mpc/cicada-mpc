@@ -47,9 +47,9 @@ def main(communicator):
         share[0].storage[0] += 1
     if protocol.communicator.rank == 0 and smart_change:
         share[0].storage[1] += 1
-        share[1].storage[1] =(share[1].storage[1] + pow(5, modulus-2, modulus)) % modulus
+        share[1].storage[1] = (share[1].storage[1] + pow(5, modulus-2, modulus)) % modulus
     try:
-        log.info(f"Player {communicator.rank} share consistency check - should be zero: {protocol.sprotocol.reveal(protocol.check_commit(share))}")
+        log.info(f"Player {communicator.rank} share consistency check - should be all zero: {protocol.sprotocol.reveal(protocol.check_commit(share))}")
     except cicada.active.ConsistencyError as e:
         print(f'Malicious alteration detected: {e}')
     try:
