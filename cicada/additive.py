@@ -21,7 +21,7 @@ from math import ceil
 
 import numpy
 
-from cicada.communicator.interface import Communicator, Tags
+from cicada.communicator.interface import Communicator, Tag
 import cicada.encoder
 
 class AdditiveArrayShare(object):
@@ -124,8 +124,8 @@ class AdditiveProtocol(object):
             next_rank = (communicator.rank + 1) % communicator.world_size
             prev_rank = (communicator.rank - 1) % communicator.world_size
 
-            request = communicator.isend(value=seed, dst=next_rank, tag=Tags.PRSZ)
-            result = communicator.irecv(src=prev_rank, tag=Tags.PRSZ)
+            request = communicator.isend(value=seed, dst=next_rank, tag=Tag.PRSZ)
+            result = communicator.irecv(src=prev_rank, tag=Tag.PRSZ)
 
             request.wait()
             result.wait()

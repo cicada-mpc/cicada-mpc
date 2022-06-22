@@ -20,7 +20,7 @@ import contextlib
 import logging
 import numbers
 
-from cicada.communicator.interface import Communicator, Tags
+from cicada.communicator.interface import Communicator, Tag
 
 
 class Logger(object):
@@ -145,7 +145,7 @@ class Logger(object):
 
         # Wait for our turn to generate output.
         if self._sync and communicator.rank:
-            communicator.recv(src=communicator.rank-1, tag=Tags.LOGSYNC)
+            communicator.recv(src=communicator.rank-1, tag=Tag.LOGSYNC)
 
         # Generate output.
         if src is None or communicator.rank in src:
@@ -153,16 +153,16 @@ class Logger(object):
 
         # Notify the next player that it's their turn.
         if self._sync and communicator.rank < communicator.world_size-1:
-            communicator.send(dst=communicator.rank+1, value=None, tag=Tags.LOGSYNC)
+            communicator.send(dst=communicator.rank+1, value=None, tag=Tag.LOGSYNC)
 
         # The last player notifies the group that the output is complete.
         if self._sync and communicator.rank == communicator.world_size-1:
             for rank in communicator.ranks:
-                communicator.send(dst=rank, value=None, tag=Tags.LOGSYNC)
+                communicator.send(dst=rank, value=None, tag=Tag.LOGSYNC)
 
         # Wait until output is complete before we return.
         if self._sync:
-            communicator.recv(src=communicator.world_size-1, tag=Tags.LOGSYNC)
+            communicator.recv(src=communicator.world_size-1, tag=Tag.LOGSYNC)
 
 
     @property

@@ -174,7 +174,7 @@ class Communicator(metaclass=ABCMeta):
         ----------
         src: :class:`int`, required
             Rank of the sending player.
-        tag: :class:`int` or :class:`~cicada.communicator.interface.Tags`, required
+        tag: :class:`int` or :class:`~cicada.communicator.interface.Tag`, required
             User- or library-defined tag identifying the message type to match.
 
         Returns
@@ -212,7 +212,7 @@ class Communicator(metaclass=ABCMeta):
             Value to be sent.
         dst: :class:`int`, required
             Rank of the destination player.
-        tag: :class:`int` or :class:`~cicada.communicator.interface.Tags`, required
+        tag: :class:`int` or :class:`~cicada.communicator.interface.Tag`, required
             User- or library-defined tag identifying the message type.
 
         Returns
@@ -270,7 +270,7 @@ class Communicator(metaclass=ABCMeta):
         ----------
         src: :class:`int`, required
             Rank of the sending player.
-        tag: :class:`int` or :class:`~cicada.communicator.interface.Tags`, required
+        tag: :class:`int` or :class:`~cicada.communicator.interface.Tag`, required
             User- or library-defined tag identifying the message type to match.
 
         Returns
@@ -355,7 +355,7 @@ class Communicator(metaclass=ABCMeta):
             Value to be sent.
         dst: :class:`int`, required
             Rank of the destination player.
-        tag: :class:`int` or :class:`~cicada.communicator.interface.Tags`, required
+        tag: :class:`int` or :class:`~cicada.communicator.interface.Tag`, required
             User- or library-defined tag identifying the message type.
         """
         pass # pragma: no cover
@@ -373,7 +373,7 @@ class Communicator(metaclass=ABCMeta):
         pass # pragma: no cover
 
 
-class Tags(enum.IntEnum):
+class Tag(enum.IntEnum):
     """Message tags used internally by the library.
 
     Callers can use these tags, or any other :class:`int`, when calling
@@ -406,10 +406,10 @@ def tagname(tag):
 
     Parameters
     ----------
-    tag: :class:`int` or :class:`~cicada.communicator.interface.Tags`, required
+    tag: :class:`int` or :class:`~cicada.communicator.interface.Tag`, required
     """
     try:
-        tag = Tags(tag)
+        tag = Tag(tag)
         return tag.name
     except:
         return str(tag)
