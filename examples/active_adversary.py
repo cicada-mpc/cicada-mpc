@@ -23,8 +23,9 @@ import cicada.active
 
 logging.basicConfig(level=logging.INFO)
 
-dumb_change = False
-smart_change = True
+dumb_change = 0
+
+smart_change = 1
 
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
@@ -46,10 +47,13 @@ def main(communicator):
         share[0].storage[0] += 1
     if protocol.communicator.rank == 0 and smart_change:
         share[0].storage[1] += 1
-        share[1].storage[1] += pow(5, modulus-2, modulus)
+        share[1].storage[1] =(share[1].storage[1] + pow(5, modulus-2, modulus)) % modulus
     try:
-        log.info(f"Player {communicator.rank} share consistency check: {protocol.check_commit(share)}")
-        log.info(f"Player {communicator.rank} share reveal check: {protocol.reveal(share)}")
+        log.info(f"Player {communicator.rank} share consistency check - should be zero: {protocol.sprotocol.reveal(protocol.check_commit(share))}")
+    except cicada.active.ConsistencyError as e:
+        print(f'Malicious alteration detected: {e}')
+    try:
+        log.info(f"Player {communicator.rank} share reveal check: {protocol.encoder.decode(protocol.reveal(share))}")
     except cicada.active.ConsistencyError as e:
         print(f'Malicious alteration detected: {e}')
 
