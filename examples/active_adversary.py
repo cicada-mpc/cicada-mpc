@@ -33,7 +33,7 @@ def main(communicator):
     protocol = cicada.active.ActiveProtocol(communicator, threshold=3)
 
     # Player 0 will provide a secret which is a scalar.
-    secret = numpy.array([numpy.pi, 1,2,3]) if communicator.rank == 0 else None
+    secret = numpy.array([0,1,2,3]) if communicator.rank == 0 else None
     log.info(f"Player {communicator.rank} secret: {secret}")
 
     # Create shares for the secret.
@@ -43,13 +43,13 @@ def main(communicator):
     modulus = 2**64-59
     #log.info(f"Player {communicator.rank} share consistency check: {protocol.check_commit(share)}")
     log.info(f"Player {communicator.rank} share reveal check: {protocol.encoder.decode(protocol.reveal(share))}")
-    log.info(f"Player {communicator.rank} Entering Malicious activity, since we're messing with things in a {['dumb', 'smart'][smart_change]} way the consistency check should fail in the {['first', 'second'][smart_change]} step.", src=0)
+    log.info(f"Player {communicator.rank} Entering Malicious activity, since we're messing with things in a {['dumb', 'smart'][smart_change]} way,\nthe consistency check should fail in the {['first', 'second'][smart_change]} step.", src=0)
     bad_share = deepcopy(share)
     if protocol.communicator.rank == 3 and dumb_change:
         bad_share[0].storage[0] += 1
     if protocol.communicator.rank == 0 and smart_change:
         bad_share[0].storage[1] += 1
-        bad_share[1].storage[1] = (share[1].storage[1] + pow(5, modulus-2, modulus)) % modulus
+        bad_share[1].storage[1] = (bad_share[1].storage[1] + pow(5, modulus-2, modulus)) % modulus
     try:
         log.info(f"Player {communicator.rank} share consistency check - should be all zero: {protocol.sprotocol.reveal(protocol.check_commit(bad_share))}")
     except cicada.active.ConsistencyError as e:
@@ -61,7 +61,6 @@ def main(communicator):
 
 
 
-    time.sleep(5)
     log.info("\n\nLet's try some operations...", src=0)
     double_share = protocol.add(share, share)
     try:
@@ -89,8 +88,7 @@ def main(communicator):
 
 
 
-    time.sleep(5)
-    log.info(f"\n\nAnd finally we'll mess with the results of the previous computation now, since we're messing with things in a {['dumb', 'smart'][smart_change]} way the consistency check should fail in the {['first', 'second'][smart_change]} step.", src=0)
+    log.info(f"\n\nFinally we'll mess with the results of the previous computation now, since we're messing with things in a {['dumb', 'smart'][smart_change]} way,\nthe consistency check should fail in the {['first', 'second'][smart_change]} step.", src=0)
     if protocol.communicator.rank == 3 and dumb_change:
         square_share[0].storage[0] += 1
     if protocol.communicator.rank == 0 and smart_change:
