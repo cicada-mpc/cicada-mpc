@@ -32,7 +32,7 @@ class Communicator(metaclass=ABCMeta):
 
 
     @abstractmethod
-    def all_gather(self, value):
+    def allgather(self, value):
         """All-to-all communication.
 
         Note

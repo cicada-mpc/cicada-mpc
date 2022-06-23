@@ -98,7 +98,7 @@ nbsphinx_thumbnails = {
     "user-guide/power": "_static/power.png",
     "user-guide/relu": "_static/relu.png",
     "user-guide/zigmoid": "_static/zigmoid.png",
-    "user-guide/communication-patterns": "_static/communication-patterns.png",
+    "user-guide/communication-patterns": "_static/communication-patterns_generic.png",
     "user-guide/timeouts": "_static/timeouts.png",
 }
 

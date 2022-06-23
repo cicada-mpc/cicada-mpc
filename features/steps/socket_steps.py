@@ -58,7 +58,7 @@ def step_impl(context, values):
     values = eval(values)
 
     def operation(communicator, values):
-        return communicator.all_gather(value=values[communicator.rank])
+        return communicator.allgather(value=values[communicator.rank])
 
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(values,), identities=context.identities, trusted=context.trusted)
 
