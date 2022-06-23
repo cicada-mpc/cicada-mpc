@@ -112,26 +112,6 @@ def main(communicator):
     revealed_acc = int(protocol.reveal(shared_acc))
     log.info(f'time to make 1 less leaky query: {time()-t0}s', src=0)
     log.info(f'shared acc for item not in bf less leaky method: {revealed_acc}', src=0)
-#    secret_a = numpy.array(2) if communicator.rank == 0 else None
-#    secret_b = numpy.array(3.5) if communicator.rank == 1 else None
-#
-#    log.info(f"Player {communicator.rank} secret a: {secret_a}", src=0)
-#    log.info(f"Player {communicator.rank} secret b: {secret_b}", src=1)
-#
-#    a_share = protocol.share(src=0, secret=protocol.encoder.encode(secret_a), shape=())
-#    b_share = protocol.share(src=1, secret=protocol.encoder.encode(secret_b), shape=())
-#
-#    log.info(f"Player {communicator.rank} share of a: {a_share}")
-#    log.info(f"Player {communicator.rank} share of b: {b_share}")
-#
-#    sum_share = protocol.add(a_share, b_share)
-#
-#    log.info(f"Player {communicator.rank} share of sum: {sum_share}")
-#
-#    sum = protocol.encoder.decode(protocol.reveal(sum_share))
-#
-#    log.info(f"Player {communicator.rank} sum: {sum}")
-#    log.info(f"Player {communicator.rank} stats: {pprint.pformat(communicator.stats)}")
 
 cicada.communicator.SocketCommunicator.run(world_size=3, fn=main)
 
