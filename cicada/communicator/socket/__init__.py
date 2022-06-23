@@ -357,8 +357,8 @@ class SocketCommunicator(Communicator):
                 raise BrokenPipe(message(self.name, self.rank, f"broken pipe sending to player {dst}."))
 
 
-    def all_gather(self, value):
-        self._log.debug(f"all_gather()")
+    def allgather(self, value):
+        self._log.debug(f"allgather()")
 
         self._require_unrevoked()
         self._require_running()
