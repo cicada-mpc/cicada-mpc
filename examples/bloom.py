@@ -47,7 +47,7 @@ def main(communicator):
             bf[hash((k,i)) %B]=1
     
     log.info(f'time to construct in the clear: {time()-t0}s', src=0)
-    log.info(bf, src=0)
+    #log.info(bf, src=0)
 
     #confirm bloom filter correctness
     t0=time()
@@ -83,7 +83,8 @@ def main(communicator):
             bf_index = hash((k,e)) %B
             shared_acc_list[i] = protocol.add(shared_acc_list[i], shared_bf[bf_index])
     revealed_acc_list_sums = [int(protocol.reveal(shared_acc_list[i])) for i in range(n)]
-    log.info(f'time to make 100 leaky queries: {time()-t0}s', src=0)
+    hundred_time = time()-t0
+    log.info(f'time to make 100 leaky queries: {hundred_time}s, average time per leaky query: {hundred_time/100}s', src=0)
     log.info(f'acc for items in bf: {revealed_acc_list_sums}', src=0)
 
     t0=time()
@@ -102,7 +103,8 @@ def main(communicator):
             bf_index = hash((k,e)) %B
             shared_prod_list[i] = protocol.untruncated_multiply(shared_prod_list[i], shared_bf[bf_index])
     revealed_prod_list = [int(protocol.reveal(shared_prod_list[i])) for i in range(n)]
-    log.info(f'time to make 100 less leaky queries: {time()-t0}s', src=0)
+    hundred_time = time()-t0
+    log.info(f'time to make 100 less leaky queries: {hundred_time}s, average time per less leaky query: {hundred_time/100}s', src=0)
     log.info(f'acc for items in bf: {revealed_prod_list}', src=0)
     t0=time()
     shared_acc = protocol.share(src=0, secret=numpy.array(1, dtype=object), shape=())
