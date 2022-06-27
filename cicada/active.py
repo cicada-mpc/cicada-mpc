@@ -133,9 +133,9 @@ class ActiveProtocol(object):
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
         self._assert_unary_compatible(lhs, lhslabel)
         self._assert_unary_compatible(rhs, rhslabel)
-        if lhs.storage[0].shape != rhs.storage[0].shape :
+        if lhs[0].storage.shape != rhs[0].storage.shape :
             raise ValueError(f"{lhslabel} and {rhslabel} additive shares, ActiveShare[0], must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
-        if lhs.storage[1].shape != rhs.storage[1].shape:
+        if lhs[1].storage.shape != rhs[1].storage.shape:
             raise ValueError(f"{lhslabel} and {rhslabel} shamir shares, ActiveShare[1], must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
 
 
@@ -849,7 +849,7 @@ class ActiveProtocol(object):
             A share of the value defined by `bits` (in big-endian order).
         """
         pass
-    #TODO make the random secret that same between both?
+    #TODO make the random secret that same between both? YES!!!!!!
 #    ActiveArrayShare((self.aprotocol.private_publicsubtract(lhs, rhs[0]), self.sprotocol.private_public_subtract(lhs, rhs[1])))
 #        return bit_share, secret_share
 
@@ -913,6 +913,7 @@ class ActiveProtocol(object):
             secret.append(sum([revealing_coef[i]*z_storage[i][index] for i in range(len(revealing_coef))]))
         rev = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
         if any(rev):
+            #print(f's: {self.sprotocol.reveal(share[1])}\na: {self.aprotocol.reveal(share[0])}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
 
         secret = []
@@ -948,6 +949,7 @@ class ActiveProtocol(object):
             sub_secret2.append(loop_acc % self.encoder.modulus)
         revs2 = numpy.array(sub_secret2, dtype=self.encoder.dtype).reshape(share[0].storage.shape)
         if any(revs != reva) or any(revs2 != reva):
+            #print(reva, revs, revs2)
             raise ConsistencyError("Secret Shares are inconsistent in the second stage")
         return revs
             
@@ -1043,7 +1045,7 @@ class ActiveProtocol(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.truncate(operand[0]), self.sprotocol.truncate(operand[1])))
+        return ActiveArrayShare((self.aprotocol.truncate(operand[0], bits=bits, src=src, generator=generator), self.sprotocol.truncate(operand[1], bits=bits, src=src, generator=generator)))
 
 
 
@@ -1075,7 +1077,7 @@ class ActiveProtocol(object):
             A share of the random generated value.
         """
         pass
-    # TODO should the shares from both schemes match?
+    # TODO should the shares from both schemes match? YES!!!
 #
 #        if shape==None:
 #            shape=()
