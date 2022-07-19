@@ -39,7 +39,7 @@ import numpy
 import pynetstring
 
 from ..interface import Communicator, Tag, tagname
-from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, message, rendezvous
+from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, gettls, geturl, listen, message, rendezvous
 
 
 class BrokenPipe(Exception):
@@ -487,24 +487,7 @@ class SocketCommunicator(Communicator):
         if trusted is None:
             trusted = [trust for trust in os.environ.get("CICADA_TRUSTED", "").split(",") if trust]
 
-        if identity and trusted:
-            server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            server.load_cert_chain(certfile=identity)
-            for trust in trusted:
-                server.load_verify_locations(trust)
-            server.check_hostname=False
-            server.verify_mode = ssl.CERT_REQUIRED
-
-            client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            client.load_cert_chain(certfile=identity)
-            for trust in trusted:
-                client.load_verify_locations(trust)
-            client.check_hostname = False
-            client.verify_mode = ssl.CERT_REQUIRED
-
-            tls = (server, client)
-        else:
-            tls = None
+        tls = gettls(identity=identity, trusted=trusted)
 
         timer = Timer(threshold=startup_timeout)
         listen_socket = listen(address=address, rank=rank, name=name, timer=timer)
@@ -788,25 +771,7 @@ class SocketCommunicator(Communicator):
                 addresses = child_queue.get()
 
                 # Optionally setup TLS.
-                if identity and trusted:
-                    server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                    server.load_cert_chain(certfile=identity)
-                    for trust in trusted:
-                        server.load_verify_locations(trust)
-                    server.check_hostname=False
-                    server.verify_mode = ssl.CERT_REQUIRED
-
-                    client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                    client.load_cert_chain(certfile=identity)
-                    for trust in trusted:
-                        client.load_verify_locations(trust)
-                    client.check_hostname = False
-                    client.verify_mode = ssl.CERT_REQUIRED
-
-                    tls = (server, client)
-                else:
-                    tls = None
-
+                tls = gettls(identity=identity, trusted=trusted)
                 sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer, tls=tls)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
                 result = fn(communicator, *args, **kwargs)
@@ -1071,7 +1036,7 @@ class SocketCommunicator(Communicator):
         return SocketCommunicator(sockets=sockets, name=name, timeout=timeout), remaining_ranks
 
 
-    def split(self, *, name, timeout=5, startup_timeout=5):
+    def split(self, *, name, identity=None, trusted=None, timeout=5, startup_timeout=5):
         """Return a new communicator with the given name.
 
         If players specify different names - which can be any :class:`str`
@@ -1089,6 +1054,10 @@ class SocketCommunicator(Communicator):
         ----------
         name: :class:`str` or :any:`None`, required
             Communicator name, or `None`.
+        identity: :class:`str`, optional
+            Path to a private key and certificate in PEM format that will identify the player.
+        trusted: sequence of :class:`str`, optional
+            Path to certificates in PEM format that will identify the other players in a group.
         timeout: :class:`numbers.Number`, optional
             Maximum time to wait for communication, in seconds.
         startup_timeout: :class:`numbers.Number`, optional

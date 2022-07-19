@@ -442,6 +442,44 @@ def getpeerurl(sock):
     raise ValueError(f"Unknown address family: {sock.family}") # pragma: no cover
 
 
+def gettls(*, identity=None, trusted=None):
+    """Construct a pair of :class:`ssl.SSLContext` instances.
+
+    Parameters
+    ----------
+    identity: :class:`str`, optional
+        Path to a private key and certificate in PEM format that will
+        identify the local player.
+    trusted: sequence of :class:`str`, optional
+        Path to certificates in PEM format that will identify the other
+        players.
+
+    Returns
+    -------
+    tls: (server, client) tuple or :any:`None`
+    """
+
+    if identity and trusted:
+        server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        server.load_cert_chain(certfile=identity)
+        for trust in trusted:
+            server.load_verify_locations(trust)
+        server.check_hostname=False
+        server.verify_mode = ssl.CERT_REQUIRED
+
+        client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        client.load_cert_chain(certfile=identity)
+        for trust in trusted:
+            client.load_verify_locations(trust)
+        client.check_hostname = False
+        client.verify_mode = ssl.CERT_REQUIRED
+
+        return (server, client)
+
+    return None
+
+
+
 def geturl(sock):
     """Return a socket's local address as a URL.
 
