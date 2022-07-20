@@ -1015,7 +1015,7 @@ class SocketCommunicator(Communicator):
         elif address.scheme == "tcp":
             address = f"tcp://{address.hostname}"
         else:
-            raise ValueError(f"Comm {self.name} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
+            raise ValueError(f"Comm {self.name} player {self.rank} cannot parse unknown address scheme: {address.scheme}") # pragma: no cover
 
         # Create a new listening socket and update the address to match
         timer = Timer(threshold=startup_timeout)
