@@ -924,7 +924,7 @@ class SocketCommunicator(Communicator):
         self._send(tag=tag, payload=value, dst=dst)
 
 
-    def shrink(self, *, name, shrink_timeout=5, startup_timeout=5, timeout=5):
+    def shrink(self, *, name, identity=None, trusted=None, shrink_timeout=5, startup_timeout=5, timeout=5):
         """Create a new communicator containing surviving players.
 
         This method should be called as part of a failure-recovery phase by as
@@ -938,6 +938,10 @@ class SocketCommunicator(Communicator):
         ----------
         name: :class:`str`, required
             New communicator name.
+        identity: :class:`str`, optional
+            Path to a private key and certificate in PEM format that will identify the current player.
+        trusted: sequence of :class:`str`, optional
+            Path to certificates in PEM format that will identify the other players in the new communicator.
         shrink_timeout: :class:`numbers.Number`, optional
             Maximum amount of time to spend identifying remaining members.
         startup_timeout: :class:`numbers.Number`, optional
@@ -964,6 +968,8 @@ class SocketCommunicator(Communicator):
 
         # By default, we assume that no-one is alive.
         remaining_ranks = set()
+
+        tls = gettls(identity=identity, trusted=trusted)
 
         timer = Timer(threshold=shrink_timeout)
         while not timer.expired:
@@ -1032,7 +1038,7 @@ class SocketCommunicator(Communicator):
         root_address = self._wait_next_payload(src=remaining_ranks[0], tag=Tag.SHRINK)
 
         # Return a new communicator.
-        sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer)
+        sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer, tls=tls)
         return SocketCommunicator(sockets=sockets, name=name, timeout=timeout), remaining_ranks
 
 
@@ -1055,9 +1061,9 @@ class SocketCommunicator(Communicator):
         name: :class:`str` or :any:`None`, required
             Communicator name, or `None`.
         identity: :class:`str`, optional
-            Path to a private key and certificate in PEM format that will identify the player.
+            Path to a private key and certificate in PEM format that will identify the current player.
         trusted: sequence of :class:`str`, optional
-            Path to certificates in PEM format that will identify the other players in a group.
+            Path to certificates in PEM format that will identify the other players in the new communicator.
         timeout: :class:`numbers.Number`, optional
             Maximum time to wait for communication, in seconds.
         startup_timeout: :class:`numbers.Number`, optional
