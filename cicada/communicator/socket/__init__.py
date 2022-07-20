@@ -256,7 +256,7 @@ class SocketCommunicator(Communicator):
         if src is None:
             src = self.ranks
         if not isinstance(src, list):
-            src = [src]
+            src = [src] # pragma: no cover
 
         matches = []
         with self._message_queue_lock:
@@ -977,7 +977,8 @@ class SocketCommunicator(Communicator):
             for rank in self.ranks:
                 try:
                     self._send(tag=Tag.BEACON, payload=None, dst=rank)
-                except BrokenPipe: # Ignore broken pipe errors, they're to be expected under the circumstances.
+                # Ignore broken pipe errors, they're to be expected under the circumstances.
+                except BrokenPipe: # pragma: no cover
                     pass
 
             # Get any received beacons (including our own).
