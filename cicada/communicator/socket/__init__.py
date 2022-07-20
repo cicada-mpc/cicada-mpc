@@ -1075,6 +1075,8 @@ class SocketCommunicator(Communicator):
         if not isinstance(name, (str, type(None))):
             raise ValueError(f"Comm {self.name} player {self.rank} name must be a string or None, got {name} instead.") # pragma: no cover
 
+        tls = gettls(identity=identity, trusted=trusted)
+
         timer = Timer(threshold=startup_timeout)
 
         # Generate a random new listening address.
@@ -1118,7 +1120,7 @@ class SocketCommunicator(Communicator):
 
         # Return a new communicator.
         if group_name is not None:
-            sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timer=timer)
+            sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timer=timer, tls=tls)
             return SocketCommunicator(sockets=sockets, name=group_name, timeout=timeout)
 
         return None

@@ -199,14 +199,14 @@ def step_impl(context, count):
 def step_impl(context, names):
     names = eval(names)
 
-    def operation(communicator, groups):
-        comm = communicator.split(name=groups[communicator.rank])
+    def operation(communicator, groups, identities, trusted):
+        comm = communicator.split(name=groups[communicator.rank], identity=identities[communicator.rank], trusted=trusted)
         if comm is not None:
             return {"name": comm.name, "world_size": comm.world_size}
         else:
             return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names,), family=context.family, identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names, context.identities, context.trusted), family=context.family, identities=context.identities, trusted=context.trusted)
 
 
 @then(u'the new communicator names should match {names}')
