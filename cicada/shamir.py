@@ -104,9 +104,9 @@ class ShamirBasicProtocol(object):
         self._communicator = communicator
 
         if threshold < 2:
-            raise ValueError("threshold must be >= 2")
+            raise ValueError("threshold must be >= 2") # pragma: no cover
         if threshold > communicator.world_size:
-            raise ValueError("threshold must be <= world_size")
+            raise ValueError("threshold must be <= world_size") # pragma: no cover
         self._d = threshold-1
 
         if seed is None:
