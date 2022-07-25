@@ -848,10 +848,16 @@ class ActiveProtocol(object):
         secret: :class:`ActiveArrayShare`
             A share of the value defined by `bits` (in big-endian order).
         """
-        pass
-    #TODO make the random secret that same between both? YES!!!!!!
-#    ActiveArrayShare((self.aprotocol.private_publicsubtract(lhs, rhs[0]), self.sprotocol.private_public_subtract(lhs, rhs[1])))
-#        return bit_share, secret_share
+        bs_add, ss_add = self.aprotocol.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=shape)
+        shamadd = []
+        for i in self.communicator.ranks:
+            shamadd.append(self.sprotocol.share(src=i, secret=ss_add.storage, shape=ss_add.storage.shape))
+        ss_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.encoder.dtype))
+        shamadd = []
+        for i in self.communicator.ranks:
+            shamadd.append(self.sprotocol.share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape))
+        bs_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.encoder.dtype))
+        return ((bs_add, ss_add), (bs_sham, ss_sham))
 
 
     def relu(self, operand):
@@ -912,7 +918,10 @@ class ActiveProtocol(object):
         for index in numpy.ndindex(z_storage[0].shape):
             secret.append(sum([revealing_coef[i]*z_storage[i][index] for i in range(len(revealing_coef))]))
         rev = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
-        if any(rev):
+        if len(rev.shape) == 0 and rev:
+            #print(f's: {self.sprotocol.reveal(share[1])}\na: {self.aprotocol.reveal(share[0])}')
+            raise ConsistencyError("Secret Shares are inconsistent in the first stage")
+        if len(rev.shape) > 0 and any(rev):
             #print(f's: {self.sprotocol.reveal(share[1])}\na: {self.aprotocol.reveal(share[0])}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
 
@@ -928,12 +937,19 @@ class ActiveProtocol(object):
         s1.sort()
         revealing_coef = self.sprotocol._lagrange_coef(s1)
         sub_secret = []
-        for index in numpy.ndindex(z_storage[0].shape):
+        if len(z_storage[0].shape) > 0:
+            for index in numpy.ndindex(z_storage[0].shape):
+                loop_acc = 0
+                for i,v in enumerate(s1):
+                    loop_acc += revealing_coef[i]*bs_storage[v-1][index] # TODO Problem arises in 0d shared array
+                sub_secret.append(loop_acc % self.encoder.modulus)
+                #sub_secret.append(sum([(revealing_coef[i]*bs_storage[v-1][index]) % self.encoder.modulus for i,v in enumerate(s1)]))
+        else:
             loop_acc = 0
             for i,v in enumerate(s1):
-                loop_acc += revealing_coef[i]*bs_storage[v-1][index]
+                loop_acc += revealing_coef[i]*bs_storage[v-1]
             sub_secret.append(loop_acc % self.encoder.modulus)
-            #sub_secret.append(sum([(revealing_coef[i]*bs_storage[v-1][index]) % self.encoder.modulus for i,v in enumerate(s1)]))
+
         revs = numpy.array(sub_secret, dtype=self.encoder.dtype).reshape(share[0].storage.shape)
         s2 = random.sample(list(self.sprotocol._indices), self.sprotocol._d+1)
         s2.sort()
@@ -942,15 +958,26 @@ class ActiveProtocol(object):
             s2.sort()
         revealing_coef = self.sprotocol._lagrange_coef(s2)
         sub_secret2 = []
-        for index in numpy.ndindex(z_storage[0].shape):
+        if len(z_storage[0].shape) > 0:
+            for index in numpy.ndindex(z_storage[0].shape):
+                loop_acc = 0
+                for i,v in enumerate(s2):
+                    loop_acc += revealing_coef[i]*bs_storage[v-1][index]
+                sub_secret2.append(loop_acc % self.encoder.modulus)
+        else:
             loop_acc = 0
             for i,v in enumerate(s2):
-                loop_acc += revealing_coef[i]*bs_storage[v-1][index]
+                loop_acc += revealing_coef[i]*bs_storage[v-1]
             sub_secret2.append(loop_acc % self.encoder.modulus)
+
         revs2 = numpy.array(sub_secret2, dtype=self.encoder.dtype).reshape(share[0].storage.shape)
-        if any(revs != reva) or any(revs2 != reva):
-            #print(reva, revs, revs2)
-            raise ConsistencyError("Secret Shares are inconsistent in the second stage")
+        if len(revs.shape) > 0 or len(revs2.shape) > 0:
+            if any(revs != reva) or any(revs2 != reva):
+                #print(reva, revs, revs2)
+                raise ConsistencyError("Secret Shares are inconsistent in the second stage")
+        else:
+            if revs != reva or revs2 != reva:
+                raise ConsistencyError("Secret Shares are inconsistent in the second stage")
         return revs
             
 
@@ -1045,7 +1072,16 @@ class ActiveProtocol(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.truncate(operand[0], bits=bits, src=src, generator=generator), self.sprotocol.truncate(operand[1], bits=bits, src=src, generator=generator)))
+        if bits is None:
+            bits = self.encoder.precision
+        tbm = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand[0].storage.shape)
+        rbm = self.random_bitwise_secret(bits=self.encoder.fieldbits-bits, src=src, generator=generator, shape=operand[0].storage.shape)
+        atbm = tbm[0][1]
+        stbm = tbm[1][1]
+        arbm = rbm[0][1]
+        srbm = rbm[1][1]
+
+        return ActiveArrayShare((self.aprotocol.truncate(operand[0], bits=bits, src=src, generator=generator, trunc_mask=atbm, rem_mask=arbm), self.sprotocol.truncate(operand[1], bits=bits, src=src, generator=generator, trunc_mask=stbm, rem_mask=srbm)))
 
 
 
@@ -1076,17 +1112,14 @@ class ActiveProtocol(object):
         secret: :class:`ActiveArrayShare`
             A share of the random generated value.
         """
-        pass
     # TODO should the shares from both schemes match? YES!!!
-#
-#        if shape==None:
-#            shape=()
-#
-#        if generator is None:
-#            generator = numpy.random.default_rng()
-#
-#        return ActiveArrayShare(self.encoder.uniform(size=shape, generator=generator)) 
 
+        uniadd = self.aprotocol.uniform(shape=shape, generator=generator)
+        shamadd = []
+        for i in self.communicator.ranks:
+            shamadd.append(self.sprotocol.share(src=i, secret=uniadd.storage, shape=uniadd.storage.shape))
+        unisham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.encoder.dtype))
+        return (uniadd, unisham)
 
     def untruncated_multiply(self, lhs, rhs):
         """Element-wise multiplication of two shared arrays.

@@ -1301,7 +1301,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         return nltz_parts
 
 
-    def truncate(self, operand, *, bits=None, src=None, generator=None):
+    def truncate(self, operand, *, bits=None, src=None, generator=None, trunc_mask=None, rem_mask=None):
         """Remove the `bits` least significant bits from each element in a secret shared array.
 
         Note
@@ -1339,12 +1339,16 @@ class ShamirProtocol(ShamirBasicProtocol):
         # Multiplicative inverse of shift_left.
         shift_right = numpy.full(operand.storage.shape, pow(2 ** bits, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
 
-
-        # Generate random bits that will mask the region to be truncated.
-        _, truncation_mask = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.storage.shape)
-
-        # Generate random bits that will mask everything outside the region to be truncated.
-        _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
+        if trunc_mask:
+            truncation_mask = trunc_mask
+        else:
+            # Generate random bits that will mask the region to be truncated.
+            _, truncation_mask = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.storage.shape)
+        if rem_mask:
+            remaining_mask = rem_mask
+        else:
+            # Generate random bits that will mask everything outside the region to be truncated.
+            _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
         remaining_mask.storage = self.encoder.untruncated_multiply(remaining_mask.storage, shift_left)
 
         # Combine the two masks.
