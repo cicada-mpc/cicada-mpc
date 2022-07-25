@@ -50,7 +50,7 @@ class ActiveArrayShare(object):
 
     @property
     def storage(self):
-        """Local share of an additive-shared secret array.
+        """Local share of an shared secret array.
 
         Returns
         -------
