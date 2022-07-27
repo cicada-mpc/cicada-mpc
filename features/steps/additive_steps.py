@@ -299,6 +299,18 @@ def step_impl(context):
     context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
 
+@given(u'unary operation sum')
+def step_impl(context):
+    def operation(communicator, a):
+        protocol = cicada.additive.AdditiveProtocol(communicator)
+
+        a = numpy.array(a)
+        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
+        b_share = protocol.sum(a_share)
+        return protocol.encoder.decode(protocol.reveal(b_share))
+    context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
+
+
 @when(u'the unary operation is executed {count} times')
 def step_impl(context, count):
     count = eval(count)

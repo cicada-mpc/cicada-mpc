@@ -1175,6 +1175,31 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
 
 
+    def sum(self, operand):
+        """Return the sum of a secret shared array's elements.
+
+        The result is the secret shared sum of the array elements.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be summed.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `operand`'s elements.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return AdditiveArrayShare(self.encoder.sum(operand.storage))
+
+
     def truncate(self, operand, *, bits=None, src=None, generator=None):
         """Remove the `bits` least significant bits from each element in a secret shared array.
 
@@ -1443,7 +1468,7 @@ class AdditiveProtocol(object):
         """
         ones=self.encoder.encode(numpy.full(operand.storage.shape, 1))
         half = self.encoder.encode(numpy.full(operand.storage.shape, .5))
-        
+
         secret_plushalf = self.public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self.encoder.add(operand.storage,half))
         secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self.encoder.subtract(operand.storage, half))
         ltzsmh = self.less_than_zero(secret_minushalf)

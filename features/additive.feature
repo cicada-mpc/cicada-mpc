@@ -316,7 +316,7 @@ Feature: Additive Protocol
 
     Scenario Outline: Less
         Given <players> players
-        And binary operation less 
+        And binary operation less
         And operands <a> and <b>
         When the binary operation is executed <count> times
         Then the group should return <result>
@@ -336,7 +336,7 @@ Feature: Additive Protocol
         | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | 1     | [[[[1,0],[1,0]]] * 3]           |
 
 
-    Scenario Outline: ReLU 
+    Scenario Outline: ReLU
         Given <players> players
         And unary operation <operation>
         And operand <a>
@@ -356,6 +356,21 @@ Feature: Additive Protocol
         | 3       | relu      | -2.1                    | 1     | [[0] * 3]                       |
         | 3       | relu      | [[0, 3.4],[-1234,1234]] | 1     | [[[[0,3.4],[0,1234]]] * 3]      |
 
+
+
+    Scenario Outline: Summation
+        Given <players> players
+        And unary operation <operation>
+        And operand <a>
+        When the unary operation is executed <count> times
+        Then the group should return <result>
+
+        Examples:
+        | players | operation | a             | count | result             |
+        | 2       | sum       | 1             | 1     | [[1] * 2]          |
+        | 2       | sum       | [1.2, -3.4]   | 1     | [[-2.2] * 2]       |
+        | 3       | sum       | 1.1           | 1     | [[1.1] * 3]        |
+        | 3       | sum       | [1.2, -3.4]   | 1     | [[-2.2] * 3]       |
 
 
     Scenario Outline: Zigmoid
