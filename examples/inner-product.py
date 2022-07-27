@@ -35,7 +35,7 @@ def main(communicator):
     a = generator.uniform(size=arguments.vector_size)
     b = generator.uniform(size=arguments.vector_size)
     if communicator.rank == 0:
-        print(numpy.dot(a, b))
+        print("  answer:", numpy.dot(a, b))
 
     ashare = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=arguments.vector_size)
     bshare = protocol.share(src=0, secret=protocol.encoder.encode(b), shape=arguments.vector_size)
@@ -45,6 +45,6 @@ def main(communicator):
     cshare = protocol.truncate(cshare)
 
     c = protocol.encoder.decode(protocol.reveal(cshare))
-    print(c)
+    print("revealed:", c)
 
 SocketCommunicator.run(world_size=arguments.world_size, fn=main, timeout=arguments.timeout)

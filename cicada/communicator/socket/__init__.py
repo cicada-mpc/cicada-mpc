@@ -353,6 +353,8 @@ class SocketCommunicator(Communicator):
                 raw_message = pickle.dumps((int(tag), payload))
                 player = self._players[dst]
                 player.send(raw_message)
+            except BlockingIOError as e: # pragma: no cover
+                raise TryAgain(message(self.name, self.rank, f"operation would block sending to player {dst}."))
             except BrokenPipeError as e: # pragma: no cover
                 raise BrokenPipe(message(self.name, self.rank, f"broken pipe sending to player {dst}."))
 
