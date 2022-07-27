@@ -19,7 +19,6 @@ import argparse
 import numpy
 
 from cicada.communicator import SocketCommunicator
-from cicada.logging import Logger
 from cicada.additive import AdditiveProtocol
 
 parser = argparse.ArgumentParser(description="Dot product example.")
