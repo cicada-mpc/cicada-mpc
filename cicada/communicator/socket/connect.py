@@ -116,7 +116,11 @@ class NetstringSocket(object):
     def send(self, msg):
         """Send a message."""
         raw = pynetstring.encode(msg)
-        self._socket.sendall(raw)
+        while raw:
+            _, ready, _ = select.select([], [self], [])
+            if ready:
+                sent = self._socket.send(raw)
+                raw = raw[sent:]
         self._sent_bytes += len(raw)
         self._sent_messages += 1
 
