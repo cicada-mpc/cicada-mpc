@@ -39,12 +39,8 @@ def main(communicator):
 
     ashare = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=arguments.vector_size)
     bshare = protocol.share(src=0, secret=protocol.encoder.encode(b), shape=arguments.vector_size)
+    cshare = protocol.dot(ashare, bshare)
 
-    cshare = protocol.untruncated_multiply(ashare, bshare)
-    cshare = protocol.sum(cshare)
-    cshare = protocol.truncate(cshare)
-
-    c = protocol.encoder.decode(protocol.reveal(cshare))
-    print("revealed:", c)
+    print("revealed:", protocol.encoder.decode(protocol.reveal(cshare)))
 
 SocketCommunicator.run(world_size=arguments.world_size, fn=main, timeout=arguments.timeout)

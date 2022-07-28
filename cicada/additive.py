@@ -309,6 +309,31 @@ class AdditiveProtocol(object):
         return self._communicator
 
 
+    def dot(self, lhs, rhs):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.sum(result)
+        result = self.truncate(result)
+        return result
+
+
     @property
     def encoder(self):
         """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
