@@ -28,6 +28,47 @@ from cicada.communicator import SocketCommunicator
 from cicada.communicator.socket import connect
 
 
+def service_main(listen_socket, communicator):
+    log = Logger(logger=logging.getLogger(), communicator=communicator)
+
+    protocol_stack = []
+    argument_stack = []
+
+    listen_socket.setblocking(True)
+    while True:
+        client, addr = listen_socket.accept()
+        command = pickle.loads(client.recv(4096))
+        log.info(f"Player {communicator.rank} received command: {command}")
+        if command[0] == "create":
+            if command[1] == "AdditiveProtocol":
+                protocol_stack.append(AdditiveProtocol(communicator))
+        elif command[0] == "share":
+            protocol = protocol_stack[-1]
+            player = command[1]
+            secret = command[2]
+            shape = command[3]
+            share = protocol.share(src=player, secret=protocol.encoder.encode(secret), shape=shape)
+            argument_stack.append(share)
+        elif command[0] == "private-private-add":
+            protocol = protocol_stack[-1]
+            b = argument_stack.pop()
+            a = argument_stack.pop()
+            share = protocol.add(a, b)
+            argument_stack.append(share)
+        elif command[0] == "reveal":
+            protocol = protocol_stack[-1]
+            share = argument_stack.pop()
+            secret = protocol.encoder.decode(protocol.reveal(share))
+            argument_stack.append(secret)
+        elif command[0] == "compare":
+            rhs = command[1]
+            lhs = argument_stack[-1]
+            assert(lhs == rhs)
+        else:
+            log.error(f"Player {communicator.rank} unknown command: {command}")
+        client.sendall(pickle.dumps("OK"))
+
+
 def service_command(context, command):
     if not isinstance(command, list):
         command = [command] * context.service_world_size
@@ -44,153 +85,23 @@ def service_command(context, command):
     for sock, command in zip(sockets, commands):
         sock.sendall(pickle.dumps(command))
 
-    # Receive results
-    results = []
-    for sock in sockets:
-        results.append(pickle.loads(sock.recv(4096)))
-
-    return results
+#    # Receive results
+#    results = []
+#    for sock in sockets:
+#        results.append(pickle.loads(sock.recv(4096)))
+#
+#    return results
 
 
 @given(u'an MPC service with world size {world_size}')
 def step_impl(context, world_size):
     world_size = eval(world_size)
 
-    def launch(*, parent_queue, child_queue, rank, name="world", timeout=5, startup_timeout=5):
-        # Run the work function.
-        try:
-            # Create a socket with a randomly-assigned port number.
-            timer = connect.Timer(threshold=startup_timeout)
-            listen_socket = connect.listen(name=name, rank=rank, address="tcp://127.0.0.1", timer=timer)
-            address = connect.geturl(listen_socket)
-
-            # Send our address to the parent process.
-            parent_queue.put((rank, address))
-
-            # Get all addresses from the parent process.
-            addresses = child_queue.get()
-
-            sockets=connect.direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer)
-            communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
-            log = Logger(logger=logging.getLogger(), communicator=communicator)
-
-            protocol_stack = []
-            argument_stack = []
-
-            listen_socket.setblocking(True)
-            while True:
-                client, addr = listen_socket.accept()
-                command = pickle.loads(client.recv(4096))
-                log.info(f"Player {rank} received command: {command}")
-                if command[0] == "create":
-                    if command[1] == "AdditiveProtocol":
-                        protocol_stack.append(AdditiveProtocol(communicator))
-                elif command[0] == "share":
-                    protocol = protocol_stack[-1]
-                    player = command[1]
-                    secret = command[2]
-                    shape = command[3]
-                    share = protocol.share(src=player, secret=protocol.encoder.encode(secret), shape=shape)
-                    argument_stack.append(share)
-                elif command[0] == "private-private-add":
-                    protocol = protocol_stack[-1]
-                    b = argument_stack.pop()
-                    a = argument_stack.pop()
-                    share = protocol.add(a, b)
-                    argument_stack.append(share)
-                elif command[0] == "reveal":
-                    protocol = protocol_stack[-1]
-                    share = argument_stack.pop()
-                    secret = protocol.encoder.decode(protocol.reveal(share))
-                    argument_stack.append(secret)
-                elif command[0] == "compare":
-                    rhs = command[1]
-                    lhs = argument_stack[-1]
-                    assert(lhs == rhs)
-                else:
-                    log.error(f"Player {rank} unknown command: {command}")
-                client.sendall(pickle.dumps("OK"))
-
-            communicator.free()
-        except Exception as e: # pragma: no cover
-            result = Failed(e, traceback.format_exc())
-
-        # Return results to the parent process.
-        parent_queue.put((rank, result))
-
-    # Setup the multiprocessing context.
-    mp_context = multiprocessing.get_context(method="fork") # I don't remember why we prefer fork().
-
-    # Create queues for IPC.
-    parent_queue = mp_context.Queue()
-    child_queue = mp_context.Queue()
-
-    # Create per-player processes.
-    processes = []
-    for rank in range(world_size):
-        processes.append(mp_context.Process(
-            target=launch,
-            kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank),
-            ))
-
-    # Start per-player processes.
-    for process in processes:
-        process.daemon = True
-        process.start()
-
-    # Collect addresses from every process.
-    addresses = [None] * world_size
-    for process in processes:
-        rank, address = parent_queue.get(block=True)
-        addresses[rank] = address
-
-    # Send addresses to every process.
-    for process in processes:
-        child_queue.put(addresses)
+    addresses = SocketCommunicator.run(world_size=world_size, fn=service_main, use_listen_socket=True, return_addresses=True, return_results=False)
 
     context.service_addresses = addresses
-    context.service_processes = processes
     context.service_ranks = list(range(world_size))
     context.service_world_size = world_size
-#
-#    # Wait until every process terminates.
-#    for process in processes:
-#        process.join()
-#
-#    # Collect a result for every process, but don't block in case
-#    # there are missing results.
-#    results = []
-#    for process in processes:
-#        try:
-#            results.append(parent_queue.get(block=False))
-#        except:
-#            break
-#
-#    # Return the output of each rank, in rank order, with a sentinel object for missing outputs.
-#    output = [Terminated(process.exitcode) for process in processes]
-#    for rank, result in results:
-#        output[rank] = result
-#
-#    # Log the results for each player.
-#    log = logging.getLogger(__name__)
-#
-#    for rank, result in enumerate(output):
-#        if isinstance(result, Failed):
-#            log.warning(f"Comm {name} player {rank} failed: {result.exception!r}")
-#        elif isinstance(result, Exception):
-#            log.warning(f"Comm {name} player {rank} failed: {result!r}")
-#        else:
-#            log.info(f"Comm {name} player {rank} result: {result}")
-#
-#    # Print a traceback for players that failed.
-#    for rank, result in enumerate(output):
-#        if isinstance(result, Failed):
-#            log.error("*" * 80)
-#            log.error(f"Comm {name} player {rank} traceback:")
-#            log.error(result.traceback)
-#
-#    return output
-
 
 
 @given(u'an AdditiveProtocol object')

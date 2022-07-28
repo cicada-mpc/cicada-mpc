@@ -702,7 +702,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5):
+    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5, use_listen_socket=False, return_addresses=False, return_results=True):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -740,10 +740,25 @@ class SocketCommunicator(Communicator):
         startup_timeout: :class:`numbers.Number`, optional
             Maximum time allowed to setup the communicator in seconds.
             Defaults to five seconds.
+        use_listen_socket: :class:`bool`, optional
+            If :any:`True`, pass a listening server socket as the first
+            argument to `fun`.  Default: :any:`False`.
+        return_addresses: :class:`bool`, optional
+            If :any:`True`, return a :class:`list` of network addresses in rank
+            order.  This is useful for long-running "MPC-as-a-service"
+            applications where the caller needs to communicate with the players
+            while they run.  Default: :any:`False`.
+        return_results: :class:`bool`, optional
+            When :any:`True` (the default), this function will wait until `fn`
+            completes, returning a :class:`list` of `fn` return values, in rank
+            order.  If :any:`False`, the function returns immediately after starting
+            the player processes.
 
         Returns
         -------
-        results: list
+        addresses: :class:`list` of :class:`str`
+            A listening address for each player, in rank order.
+        results: :class:`list`
             The return value from the function for each player, in
             rank order.  If a player process terminates unexpectedly, the
             result will be an instance of :class:`Terminated`, which can be
@@ -776,7 +791,10 @@ class SocketCommunicator(Communicator):
                 tls = gettls(identity=identity, trusted=trusted)
                 sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer, tls=tls)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
-                result = fn(communicator, *args, **kwargs)
+                if use_listen_socket:
+                    result = fn(listen_socket, communicator, *args, **kwargs)
+                else:
+                    result = fn(communicator, *args, **kwargs)
                 communicator.free()
             except Exception as e: # pragma: no cover
                 result = Failed(e, traceback.format_exc())
@@ -817,9 +835,24 @@ class SocketCommunicator(Communicator):
         for process in processes:
             child_queue.put(addresses)
 
-        # Collect results from processes until every process has completed.
-        results = []
-        while any([process.is_alive() for process in processes]):
+        if return_results:
+            # Collect results from processes until every process has completed.
+            results = []
+            while any([process.is_alive() for process in processes]):
+                while True:
+                    try:
+                        rank, result = parent_queue.get(block=False)
+                        results.append((rank, result))
+                    except:
+                        break
+
+                time.sleep(0.01)
+
+            # Join all processes, just to be safe.
+            for process in processes:
+                process.join()
+
+            # Now that every process has exited, collect any remaining results.
             while True:
                 try:
                     rank, result = parent_queue.get(block=False)
@@ -827,44 +860,35 @@ class SocketCommunicator(Communicator):
                 except:
                     break
 
-            time.sleep(0.01)
+            # Return the output of each rank, in rank order, with a sentinel object for missing outputs.
+            output = [Terminated(process.exitcode) for process in processes]
+            for rank, result in results:
+                output[rank] = result
 
-        # Join all processes, just to be safe.
-        for process in processes:
-            process.join()
+            # Log the results for each player.
+            log = logging.getLogger(__name__)
 
-        # Now that every process has exited, collect any remaining results.
-        while True:
-            try:
-                rank, result = parent_queue.get(block=False)
-                results.append((rank, result))
-            except:
-                break
+            for rank, result in enumerate(output):
+                if isinstance(result, Failed):
+                    log.warning(f"Comm {name} player {rank} failed: {result.exception!r}")
+                elif isinstance(result, Exception):
+                    log.warning(f"Comm {name} player {rank} failed: {result!r}")
+                else:
+                    log.info(f"Comm {name} player {rank} result: {result}")
 
-        # Return the output of each rank, in rank order, with a sentinel object for missing outputs.
-        output = [Terminated(process.exitcode) for process in processes]
-        for rank, result in results:
-            output[rank] = result
+            # Print a traceback for players that failed.
+            for rank, result in enumerate(output):
+                if isinstance(result, Failed):
+                    log.error("*" * 80)
+                    log.error(f"Comm {name} player {rank} traceback:")
+                    log.error(result.traceback)
 
-        # Log the results for each player.
-        log = logging.getLogger(__name__)
-
-        for rank, result in enumerate(output):
-            if isinstance(result, Failed):
-                log.warning(f"Comm {name} player {rank} failed: {result.exception!r}")
-            elif isinstance(result, Exception):
-                log.warning(f"Comm {name} player {rank} failed: {result!r}")
-            else:
-                log.info(f"Comm {name} player {rank} result: {result}")
-
-        # Print a traceback for players that failed.
-        for rank, result in enumerate(output):
-            if isinstance(result, Failed):
-                log.error("*" * 80)
-                log.error(f"Comm {name} player {rank} traceback:")
-                log.error(result.traceback)
-
-        return output
+        if return_addresses and return_results:
+            return addresses, output
+        if return_addresses:
+            return addresses
+        if return_results:
+            return output
 
 
     def scatter(self, *, src, values):

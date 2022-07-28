@@ -1,6 +1,5 @@
 Feature: MPC as a Service
 
-    @wip
     Scenario Outline: Addition
         Given an MPC service with world size <players>
         And an AdditiveProtocol object
