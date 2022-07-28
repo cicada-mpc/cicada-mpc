@@ -15,58 +15,17 @@
 # limitations under the License.
 
 import logging
-import multiprocessing
 import pickle
 import socket
 import urllib.parse
 
 import numpy
 
-from cicada import Logger
-from cicada.additive import AdditiveProtocol
+from cicada.calculator import main as calculator_main
 from cicada.communicator import SocketCommunicator
-from cicada.communicator.socket import connect
 
 
-def service_main(listen_socket, communicator):
-    log = Logger(logger=logging.getLogger(), communicator=communicator)
-
-    protocol_stack = []
-    argument_stack = []
-
-    listen_socket.setblocking(True)
-    while True:
-        client, addr = listen_socket.accept()
-        command = pickle.loads(client.recv(4096))
-        log.info(f"Player {communicator.rank} received command: {command}")
-        if command[0] == "create":
-            if command[1] == "AdditiveProtocol":
-                protocol_stack.append(AdditiveProtocol(communicator))
-        elif command[0] == "share":
-            protocol = protocol_stack[-1]
-            player = command[1]
-            secret = command[2]
-            shape = command[3]
-            share = protocol.share(src=player, secret=protocol.encoder.encode(secret), shape=shape)
-            argument_stack.append(share)
-        elif command[0] == "private-private-add":
-            protocol = protocol_stack[-1]
-            b = argument_stack.pop()
-            a = argument_stack.pop()
-            share = protocol.add(a, b)
-            argument_stack.append(share)
-        elif command[0] == "reveal":
-            protocol = protocol_stack[-1]
-            share = argument_stack.pop()
-            secret = protocol.encoder.decode(protocol.reveal(share))
-            argument_stack.append(secret)
-        elif command[0] == "compare":
-            rhs = command[1]
-            lhs = argument_stack[-1]
-            assert(lhs == rhs)
-        else:
-            log.error(f"Player {communicator.rank} unknown command: {command}")
-        client.sendall(pickle.dumps("OK"))
+logging.basicConfig(level=logging.INFO)
 
 
 def service_command(context, command):
@@ -85,19 +44,19 @@ def service_command(context, command):
     for sock, command in zip(sockets, commands):
         sock.sendall(pickle.dumps(command))
 
-#    # Receive results
-#    results = []
-#    for sock in sockets:
-#        results.append(pickle.loads(sock.recv(4096)))
-#
-#    return results
+    # Receive results
+    results = []
+    for sock in sockets:
+        results.append(pickle.loads(sock.recv(4096)))
+
+    return results
 
 
 @given(u'an MPC service with world size {world_size}')
 def step_impl(context, world_size):
     world_size = eval(world_size)
 
-    addresses = SocketCommunicator.run(world_size=world_size, fn=service_main, use_listen_socket=True, return_addresses=True, return_results=False)
+    addresses = SocketCommunicator.run(world_size=world_size, fn=calculator_main, use_listen_socket=True, return_addresses=True, return_results=False)
 
     context.service_addresses = addresses
     context.service_ranks = list(range(world_size))
