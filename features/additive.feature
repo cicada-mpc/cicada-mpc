@@ -1,17 +1,5 @@
 Feature: Additive Protocol
 
-    Scenario Outline: Startup Reliability
-        Given <players> players
-        Then it should be possible to setup an additive protocol object <count> times
-
-        Examples:
-        | players | count   |
-        | 2       | 10      |
-        | 3       | 10      |
-        | 4       | 10      |
-        | 10      | 10      |
-
-
     Scenario: Inter-session Repetition
         Given 3 players
         When secret sharing the same value for 10 sessions
@@ -29,10 +17,10 @@ Feature: Additive Protocol
         When player <player> shares and reveals <count> random secrets, the revealed secrets should match the originals
 
         Examples:
-        | players | player | count      |
-        | 2       | 0      | 10         |
-        | 3       | 1      | 10         |
-        | 4       | 2      | 10         |
+        | players | player | count |
+        | 2       | 0      | 10    |
+        | 3       | 1      | 10    |
+        | 4       | 2      | 10    |
 
 
     Scenario Outline: Local Addition
@@ -517,5 +505,18 @@ Feature: Additive Protocol
         | 3       | -2123456   | -3512345   | -5635801    |
         | 3       | -21234567  | -35123458  | -56358025   |
         | 3       | -212345678 | -351234589 | -563580267  |
+
+
+    @calculator
+    Scenario Outline: Startup Reliability
+        Given a calculator service with <players> players
+        Then <count> AdditiveProtocol objects can be created without error
+
+        Examples:
+        | players | count |
+        | 2       | 10    |
+        | 3       | 10    |
+        | 4       | 10    |
+        | 10      | 10    |
 
 

@@ -224,6 +224,20 @@ def step_impl(context):
     service_command(context, command="private_public_subtract")
 
 
+@then(u'{count} AdditiveProtocol objects can be created without error')
+def step_impl(context, count):
+    count = eval(count)
+    for index in range(count):
+        service_command(context, command=("push-protocol", "AdditiveProtocol"))
+
+
+@then(u'{count} ShamirProtocol objects can be created without error')
+def step_impl(context, count):
+    count = eval(count)
+    for index in range(count):
+        service_command(context, command=("push-protocol", "AdditiveProtocol"))
+
+
 @then(u'the result should match {value} to within {digits} digits')
 def step_impl(context, value, digits):
     value = eval(value)

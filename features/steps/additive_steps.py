@@ -27,17 +27,6 @@ from cicada.communicator import SocketCommunicator
 import test
 
 
-@then(u'it should be possible to setup an additive protocol object {count} times')
-def step_impl(context, count):
-    count = eval(count)
-
-    def operation(communicator):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-    for i in range(count):
-        SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
 @when(u'secret sharing the same value for {count} sessions')
 def step_impl(context, count):
     count = eval(count)

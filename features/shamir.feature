@@ -1,16 +1,5 @@
 Feature: Shamir Protocol
 
-    Scenario Outline: Startup Reliability
-        Given <players> players
-        Then it should be possible to setup a shamir protocol object <count> times
-
-        Examples:
-        | players | count   |
-        | 3       | 10      |
-        | 4       | 10      |
-        | 10      | 10      |
-
-
     Scenario: Inter-session Repetition
         Given 3 players
         When shamir secret sharing the same value for 10 sessions
@@ -477,3 +466,13 @@ Feature: Shamir Protocol
         | 3       | -212345678 | -351234589 | -563580267  |
 
 
+    @calculator
+    Scenario Outline: Startup Reliability
+        Given a calculator service with <players> players
+        Then <count> ShamirProtocol objects can be created without error
+
+        Examples:
+        | players | count |
+        | 3       | 10    |
+        | 4       | 10    |
+        | 10      | 10    |

@@ -27,17 +27,6 @@ from cicada.communicator import SocketCommunicator
 import test
 
 
-@then(u'it should be possible to setup a shamir protocol object {count} times')
-def step_impl(context, count):
-    count = eval(count)
-
-    def operation(communicator):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-    for i in range(count):
-        SocketCommunicator.run(world_size=context.players, fn=operation)
-
-
 @when(u'shamir secret sharing the same value for {count} sessions')
 def step_impl(context, count):
     count = eval(count)
