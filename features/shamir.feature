@@ -61,33 +61,6 @@ Feature: Shamir Protocol
         | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
 
 
-    Scenario Outline: Shamir Addition
-        Given <players> players
-        And binary operation shamir <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation               | a          | b          | count |  result             |
-        | 3       | public-private addition | -2         | -3.5       | 1     | [[-5.5] * 3]        |
-        | 3       | public-private addition | -20        | -30        | 1     | [[-50] * 3]         |
-        | 3       | public-private addition | -200       | -300       | 1     | [[-500] * 3]        |
-        | 3       | public-private addition | -2000      | -3000      | 1     | [[-5000] * 3]       |
-        | 3       | public-private addition | -20000     | -30000     | 1     | [[-50000] * 3]      |
-        | 3       | public-private addition | -200000    | -300000    | 1     | [[-500000] * 3]     |
-        | 3       | public-private addition | -2000000   | -3000000   | 1     | [[-5000000] * 3]    |
-        | 3       | public-private addition | -20000000  | -30000000  | 1     | [[-50000000] * 3]   |
-        | 3       | public-private addition | -200000000 | -300000000 | 1     | [[-500000000] * 3]  |
-        | 3       | public-private addition | -21        | -35        | 1     | [[-56] * 3]         |
-        | 3       | public-private addition | -212       | -351       | 1     | [[-563] * 3]        |
-        | 3       | public-private addition | -2123      | -3512      | 1     | [[-5635] * 3]       |
-        | 3       | public-private addition | -21234     | -35123     | 1     | [[-56357] * 3]      |
-        | 3       | public-private addition | -212345    | -351234    | 1     | [[-563579] * 3]     |
-        | 3       | public-private addition | -2123456   | -3512345   | 1     | [[-5635801] * 3]    |
-        | 3       | public-private addition | -21234567  | -35123458  | 1     | [[-56358025] * 3]   |
-        | 3       | public-private addition | -212345678 | -351234589 | 1     | [[-563580267] * 3]  |
-
     Scenario Outline: Untruncated Shamir Multiplication
         Given <players> players
         And binary operation shamir <operation>
@@ -240,6 +213,37 @@ Feature: Shamir Protocol
 ## New style scenarios using the calculator service.
 
     @calculator
+    Scenario Outline: Public Private Addition
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        And public value <a>
+        When player 1 secret shares <b>
+        And the players add the public value and the share
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result      |
+        | 3       | -2         | -3.5       | -5.5        |
+        | 3       | -20        | -30        | -50         |
+        | 3       | -200       | -300       | -500        |
+        | 3       | -2000      | -3000      | -5000       |
+        | 3       | -20000     | -30000     | -50000      |
+        | 3       | -200000    | -300000    | -500000     |
+        | 3       | -2000000   | -3000000   | -5000000    |
+        | 3       | -20000000  | -30000000  | -50000000   |
+        | 3       | -200000000 | -300000000 | -500000000  |
+        | 3       | -21        | -35        | -56         |
+        | 3       | -212       | -351       | -563        |
+        | 3       | -2123      | -3512      | -5635       |
+        | 3       | -21234     | -35123     | -56357      |
+        | 3       | -212345    | -351234    | -563579     |
+        | 3       | -2123456   | -3512345   | -5635801    |
+        | 3       | -21234567  | -35123458  | -56358025   |
+        | 3       | -212345678 | -351234589 | -563580267  |
+
+
+    @calculator
     Scenario Outline: Private Add
         Given a calculator service with <players> players
         And a ShamirProtocol object
@@ -277,7 +281,7 @@ Feature: Shamir Protocol
         When player 0 secret shares <a>
         And player 1 secret shares <b>
         And the players compare the shares for equality
-        And the players reveal the unencoded result
+        And the players reveal the binary result
         Then the result should match <result>
 
         Examples:
@@ -324,7 +328,7 @@ Feature: Shamir Protocol
         When player 0 secret shares <a>
         And player 1 secret shares <b>
         And the players compare the shares with less than
-        And the players reveal the unencoded result
+        And the players reveal the binary result
         Then the result should match <result>
 
         Examples:
@@ -346,10 +350,10 @@ Feature: Shamir Protocol
     Scenario Outline: Private Logical And
         Given a calculator service with <players> players
         And a ShamirProtocol object
-        When player 0 secret shares unencoded <a>
-        And player 1 secret shares unencoded <b>
+        When player 0 secret shares binary <a>
+        And player 1 secret shares binary <b>
         And the players compute the logical and of the shares
-        And the players reveal the unencoded result
+        And the players reveal the binary result
         Then the result should match <result>
 
         Examples:
@@ -364,10 +368,10 @@ Feature: Shamir Protocol
     Scenario Outline: Private Logical Exclusive Or
         Given a calculator service with <players> players
         And a ShamirProtocol object
-        When player 0 secret shares unencoded <a>
-        And player 1 secret shares unencoded <b>
+        When player 0 secret shares binary <a>
+        And player 1 secret shares binary <b>
         And the players compute the logical exclusive or of the shares
-        And the players reveal the unencoded result
+        And the players reveal the binary result
         Then the result should match <result>
 
         Examples:
@@ -382,10 +386,10 @@ Feature: Shamir Protocol
     Scenario Outline: Private Logical Or
         Given a calculator service with <players> players
         And a ShamirProtocol object
-        When player 0 secret shares unencoded <a>
-        And player 1 secret shares unencoded <b>
+        When player 0 secret shares binary <a>
+        And player 1 secret shares binary <b>
         And the players compute the logical or of the shares
-        And the players reveal the unencoded result
+        And the players reveal the binary result
         Then the result should match <result>
 
         Examples:

@@ -91,20 +91,6 @@ def step_impl(context, player):
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
 
-@given(u'binary operation shamir public-private addition')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=0, secret=b, shape=b.shape)
-        c = protocol.public_private_add(a, b)
-
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
-
-
 @given(u'binary operation shamir private-private untruncated multiplication')
 def step_impl(context):
     def operation(communicator, a, b):

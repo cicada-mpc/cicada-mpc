@@ -86,14 +86,22 @@ def step_impl(context):
     service_command(context, command=("push-protocol", "ShamirProtocol"))
 
 
-@when(u'player {player} secret shares unencoded {secret}')
+@given(u'public value {public}')
+def step_impl(context, public):
+    public = numpy.array(eval(public))
+    service_command(context, command=("push-operand", public.tolist()))
+    service_command(context, command="encode")
+
+
+@when(u'player {player} secret shares binary {secret}')
 def step_impl(context, player, secret):
     player = eval(player)
     secret = numpy.array(eval(secret))
 
-    command = [("push", secret.tolist()) if player == rank else ("push", None) for rank in context.service_ranks]
+    command = [("push-operand", secret.tolist()) if player == rank else ("push-operand", None) for rank in context.service_ranks]
     service_command(context, command=command)
-    service_command(context, command=("share-unencoded", player, secret.shape))
+    service_command(context, command=("binary-encode"))
+    service_command(context, command=("share", player, secret.shape))
 
 
 @when(u'player {player} secret shares {secret}')
@@ -101,9 +109,15 @@ def step_impl(context, player, secret):
     player = eval(player)
     secret = numpy.array(eval(secret))
 
-    command = [("push", secret.tolist()) if player == rank else ("push", None) for rank in context.service_ranks]
+    command = [("push-operand", secret.tolist()) if player == rank else ("push-operand", None) for rank in context.service_ranks]
     service_command(context, command=command)
+    service_command(context, command="encode")
     service_command(context, command=("share", player, secret.shape))
+
+
+@when(u'the players add the public value and the share')
+def step_impl(context):
+    service_command(context, command="public_private_add")
 
 
 @when(u'the players add the shares')
@@ -174,11 +188,12 @@ def step_impl(context):
 @when(u'the players reveal the result')
 def step_impl(context):
     service_command(context, command="reveal")
+    service_command(context, command="decode")
 
 
-@when(u'the players reveal the unencoded result')
+@when(u'the players reveal the binary result')
 def step_impl(context):
-    service_command(context, command="reveal-unencoded")
+    service_command(context, command="reveal")
 
 
 @then(u'the result should match {value} to within {digits} digits')

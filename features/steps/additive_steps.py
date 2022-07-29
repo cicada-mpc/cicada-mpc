@@ -134,20 +134,6 @@ def step_impl(context, result):
         numpy.testing.assert_array_equal(result, group)
 
 
-@given(u'binary operation public-private addition')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=0, secret=b, shape=b.shape)
-        c = protocol.public_private_add(a, b)
-
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
 @given(u'binary operation private-private untruncated multiplication')
 def step_impl(context):
     def operation(communicator, a, b):

@@ -47,7 +47,7 @@ def main(listen_socket, communicator):
     log = Logger(logger=logging.getLogger(), communicator=communicator, sync=False)
 
     protocol_stack = []
-    argument_stack = []
+    operand_stack = []
 
     while True:
         try:
@@ -57,9 +57,31 @@ def main(listen_socket, communicator):
             command = json.loads(command)
             log.info(f"Player {communicator.rank} received command: {command}")
 
-            # Exit the service immediately.
-            if command == "quit":
-                break
+            # Raise an exception if the top of the operand stack doesn't match a value to within n digits.
+            if isinstance(command, list) and len(command) == 3 and command[0] == "assert-close":
+                rhs = command[1]
+                digits = command[2]
+                lhs = operand_stack[-1]
+                numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
+                _success(client)
+                continue
+
+            # Raise an exception if the top of the operand stack doesn't match a value exactly.
+            if isinstance(command, list) and len(command) == 2 and command[0] == "assert-equal":
+                rhs = command[1]
+                lhs = operand_stack[-1]
+                numpy.testing.assert_array_equal(lhs, rhs)
+                _success(client)
+                continue
+
+            # Push a new value onto the operand stack.
+            if isinstance(command, list) and len(command) == 2 and command[0] == "push-operand":
+                operand = command[1]
+                if operand is not None:
+                    operand = numpy.array(operand)
+                operand_stack.append(operand)
+                _success(client)
+                continue
 
             # Push a new protocol object onto the protocol stack.
             if isinstance(command, list) and len(command) == 2 and command[0] == "push-protocol":
@@ -75,88 +97,73 @@ def main(listen_socket, communicator):
                     _success(client)
                     continue
 
-            # Push a new value onto the argument stack.
-            if isinstance(command, list) and len(command) == 2 and command[0] == "push":
-                operand = command[1]
-                if operand is not None:
-                    operand = numpy.array(operand)
-                argument_stack.append(operand)
-                _success(client)
-                continue
-
-            # Secret share a value from the argument stack.
+            # Secret share a value from the operand stack.
             if isinstance(command, list) and len(command) == 3 and command[0] == "share":
                 src = command[1]
                 shape = tuple(command[2])
                 protocol = protocol_stack[-1]
-                secret = argument_stack.pop()
-                share = protocol.share(src=src, secret=protocol.encoder.encode(secret), shape=shape)
-                argument_stack.append(share)
-                _success(client)
-                continue
-
-            # Secret share a value from the argument stack, without encoding.
-            if isinstance(command, list) and len(command) == 3 and command[0] == "share-unencoded":
-                src = command[1]
-                shape = tuple(command[2])
-                protocol = protocol_stack[-1]
-                secret = numpy.array(argument_stack.pop(), dtype=object)
+                secret = operand_stack.pop()
                 share = protocol.share(src=src, secret=secret, shape=shape)
-                argument_stack.append(share)
+                operand_stack.append(share)
                 _success(client)
                 continue
 
-            # Unary operations.
-            if command in ["floor", "relu", "sum", "zigmoid"]:
+            # Encode a binary value on the operand stack.
+            if command == "binary-encode":
                 protocol = protocol_stack[-1]
-                a = argument_stack.pop()
-                share = getattr(protocol, command)(a)
-                argument_stack.append(share)
+                value = operand_stack.pop()
+                value = numpy.array(value, dtype=protocol.encoder.dtype)
+                operand_stack.append(value)
                 _success(client)
                 continue
 
-            # Binary operations.
-            if command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min"]:
+            # Decode a value on the operand stack.
+            if command == "decode":
                 protocol = protocol_stack[-1]
-                b = argument_stack.pop()
-                a = argument_stack.pop()
-                share = getattr(protocol, command)(a, b)
-                argument_stack.append(share)
+                value = operand_stack.pop()
+                value = protocol.encoder.decode(value)
+                operand_stack.append(value)
+                _success(client)
+                continue
+
+            # Encode a value on the operand stack.
+            if command == "encode":
+                protocol = protocol_stack[-1]
+                value = operand_stack.pop()
+                value = protocol.encoder.encode(value)
+                operand_stack.append(value)
                 _success(client)
                 continue
 
             # Reveal a secret shared value.
             if command == "reveal":
                 protocol = protocol_stack[-1]
-                share = argument_stack.pop()
-                secret = protocol.encoder.decode(protocol.reveal(share))
-                argument_stack.append(secret)
-                _success(client)
-                continue
-
-            # Reveal a secret shared value, without decoding.
-            if command == "reveal-unencoded":
-                protocol = protocol_stack[-1]
-                share = argument_stack.pop()
+                share = operand_stack.pop()
                 secret = protocol.reveal(share)
-                argument_stack.append(secret)
+                operand_stack.append(secret)
                 _success(client)
                 continue
 
-            # Raise an exception if the top of the argument stack doesn't match a value to within n digits.
-            if isinstance(command, list) and len(command) == 3 and command[0] == "assert-close":
-                rhs = command[1]
-                digits = command[2]
-                lhs = argument_stack[-1]
-                numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
+            # Exit the service immediately.
+            if command == "quit":
+                break
+
+            # Unary operations.
+            if command in ["floor", "relu", "sum", "zigmoid"]:
+                protocol = protocol_stack[-1]
+                a = operand_stack.pop()
+                share = getattr(protocol, command)(a)
+                operand_stack.append(share)
                 _success(client)
                 continue
 
-            # Raise an exception if the top of the argument stack doesn't match a value exactly.
-            if isinstance(command, list) and len(command) == 2 and command[0] == "assert-equal":
-                rhs = command[1]
-                lhs = argument_stack[-1]
-                numpy.testing.assert_array_equal(lhs, rhs)
+            # Binary operations.
+            if command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "public_private_add"]:
+                protocol = protocol_stack[-1]
+                b = operand_stack.pop()
+                a = operand_stack.pop()
+                share = getattr(protocol, command)(a, b)
+                operand_stack.append(share)
                 _success(client)
                 continue
 
