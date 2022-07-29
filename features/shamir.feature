@@ -391,20 +391,6 @@ Feature: Shamir Protocol
         | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
 
 
-    Scenario Outline: Shamir Logical AND
-        Given <players> players
-        And binary operation shamir logical_and
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players  | a             | b              | count | result                          |
-        | 3        | 0             | 0              | 1     | [[0] * 3]                       |
-        | 3        | 0             | 1              | 1     | [[0] * 3]                       |
-        | 3        | 1             | 0              | 1     | [[0] * 3]                       |
-        | 3        | 1             | 1              | 1     | [[1] * 3]                       |
-
 
     Scenario Outline: Shamir Private Public Power
         Given <players> players
@@ -444,3 +430,26 @@ Feature: Shamir Protocol
         | 3        | -1            | 5              | 1     | [[-.2] * 3]                     |
         | 3        | 2             | -16            | 1     | [[-1/8] * 3]                    |
         | 3        | -37           | 1              | 1     | [[-37.0] * 3]                   |
+
+
+############################################################################################################
+## New style scenarios using the calculator service.
+
+
+    Scenario Outline: Logical And
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares unencoded <a>
+        And player 1 secret shares unencoded <b>
+        And all players compute the logical and of the shares
+        And all players reveal the unencoded result
+        Then the result should match <result>
+
+        Examples:
+        | players  | a | b | result |
+        | 3        | 0 | 0 | [0]    |
+        | 3        | 0 | 1 | [0]    |
+        | 3        | 1 | 0 | [0]    |
+        | 3        | 1 | 1 | [1]    |
+
+

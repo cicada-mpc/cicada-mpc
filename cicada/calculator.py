@@ -66,6 +66,11 @@ def main(listen_socket, communicator):
                     protocol_stack.append(AdditiveProtocol(communicator))
                     _success(client)
                     continue
+                if protocol == "ShamirProtocol":
+                    from cicada.shamir import ShamirProtocol
+                    protocol_stack.append(ShamirProtocol(communicator, threshold=2))
+                    _success(client)
+                    continue
 
             if isinstance(command, list) and len(command) == 2 and command[0] == "push":
                 operand = command[1]
@@ -148,6 +153,9 @@ def main(listen_socket, communicator):
 
             log.error(f"Player {communicator.rank} unknown command: {command}")
             client.sendall(json.dumps(("unknown command", f"{command}")).encode())
+            client.close()
         except Exception as e:
             log.error(f"Player {communicator.rank} exception: {e}")
             client.sendall(json.dumps(("exception", str(e))).encode())
+            client.close()
+

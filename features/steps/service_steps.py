@@ -81,6 +81,11 @@ def step_impl(context):
     service_command(context, command=("protopush", "AdditiveProtocol"))
 
 
+@given(u'a ShamirProtocol object')
+def step_impl(context):
+    service_command(context, command=("protopush", "ShamirProtocol"))
+
+
 @when(u'player {player} secret shares unencoded {secret}')
 def step_impl(context, player, secret):
     player = eval(player)
