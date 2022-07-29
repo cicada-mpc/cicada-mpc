@@ -57,7 +57,7 @@ def service_command(context, command):
 
     for result in results:
         if isinstance(result, list) and len(result) == 2 and result[0] == "unknown command":
-            raise RuntimeError(f"Unknown command: {result[1]}")
+            raise RuntimeError(f"Unknown calculator command: {result[1]}.  Do you need to add it in cicada/calculator.py?")
         if isinstance(result, list) and len(result) == 2 and result[0] == "exception":
             raise RuntimeError(result[1])
 
@@ -118,22 +118,27 @@ def step_impl(context):
 
 @when(u'the players compute the logical and of the shares')
 def step_impl(context):
-    service_command(context, command="logical-and")
+    service_command(context, command="logical_and")
 
 
 @when(u'the players compute the logical exclusive or of the shares')
 def step_impl(context):
-    service_command(context, command="logical-xor")
+    service_command(context, command="logical_xor")
 
 
 @when(u'the players compute the logical or of the shares')
 def step_impl(context):
-    service_command(context, command="logical-or")
+    service_command(context, command="logical_or")
 
 
 @when(u'the players compute the relu of the share')
 def step_impl(context):
     service_command(context, command="relu")
+
+
+@when(u'the players compute the sum of the share')
+def step_impl(context):
+    service_command(context, command="sum")
 
 
 @when(u'the players compute the zigmoid of the share')

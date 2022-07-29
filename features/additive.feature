@@ -289,21 +289,6 @@ Feature: Additive Protocol
         | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | 1     | [[[[1,0],[1,0]]] * 3]           |
 
 
-    Scenario Outline: Summation
-        Given <players> players
-        And unary operation <operation>
-        And operand <a>
-        When the unary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation | a             | count | result             |
-        | 2       | sum       | 1             | 1     | [[1] * 2]          |
-        | 2       | sum       | [1.2, -3.4]   | 1     | [[-2.2] * 2]       |
-        | 3       | sum       | 1.1           | 1     | [[1.1] * 3]        |
-        | 3       | sum       | [1.2, -3.4]   | 1     | [[-2.2] * 3]       |
-
-
     Scenario Outline: Private Public Subtraction
         Given <players> players
         And secret value <secret>
@@ -364,7 +349,7 @@ Feature: Additive Protocol
 ## New style scenarios using the calculator service.
 
     @calculator
-    Scenario Outline: Private Addition
+    Scenario Outline: Private Add
         Given a calculator service with <players> players
         And an AdditiveProtocol object
         When player 0 secret shares <a>
@@ -488,6 +473,23 @@ Feature: Additive Protocol
         | 3       | -2                      | 0                       |
         | 3       | -2.1                    | 0                       |
         | 3       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
+
+
+    @calculator
+    Scenario Outline: Private Sum
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares <a>
+        And the players compute the sum of the share
+        And the players reveal the result
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a             | result |
+        | 2       | 1             | 1      |
+        | 2       | [1.2, -3.4]   | -2.2   |
+        | 3       | 1.1           | 1.1    |
+        | 3       | [1.2, -3.4]   | -2.2   |
 
 
     @calculator

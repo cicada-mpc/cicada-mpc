@@ -338,7 +338,7 @@ Feature: Shamir Protocol
 ## New style scenarios using the calculator service.
 
     @calculator
-    Scenario Outline: Private Addition
+    Scenario Outline: Private Add
         Given a calculator service with <players> players
         And a ShamirProtocol object
         When player 0 secret shares <a>

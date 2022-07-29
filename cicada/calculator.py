@@ -51,11 +51,13 @@ def main(listen_socket, communicator):
 
     while True:
         try:
+            # Wait for a client to connect and send a command.
             client, addr = listen_socket.accept()
             command = client.recv(4096)
             command = json.loads(command)
             log.info(f"Player {communicator.rank} received command: {command}")
 
+            # Exit the service immediately.
             if command == "quit":
                 break
 
@@ -104,7 +106,6 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
-
             # Unary operations.
             if command in ["relu", "sum", "zigmoid"]:
                 protocol = protocol_stack[-1]
@@ -113,7 +114,6 @@ def main(listen_socket, communicator):
                 argument_stack.append(share)
                 _success(client)
                 continue
-
 
             # Binary operations.
             if command in ["add", "dot", "logical_and", "logical_or", "logical_xor"]:
@@ -143,6 +143,7 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            # Raise an exception if the top of the argument stack doesn't match a value to within n digits.
             if isinstance(command, list) and len(command) == 3 and command[0] == "assert-close":
                 rhs = command[1]
                 digits = command[2]
@@ -151,6 +152,7 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            # Raise an exception if the top of the argument stack doesn't match a value exactly.
             if isinstance(command, list) and len(command) == 2 and command[0] == "assert-equal":
                 rhs = command[1]
                 lhs = argument_stack[-1]
@@ -158,6 +160,7 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            # Unknown command.
             log.error(f"Player {communicator.rank} unknown command: {command}")
             client.sendall(json.dumps(("unknown command", f"{command}")).encode())
             client.close()
