@@ -419,20 +419,6 @@ def step_impl(context, player):
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local), identities=context.identities, trusted=context.trusted)
 
 
-@given(u'binary operation logical_and')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = numpy.array(a, dtype=object)
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = numpy.array(b, dtype=object)
-        b = protocol.share(src=0, secret=b, shape=b.shape)
-        c = protocol.logical_and(a, b)
-        return protocol.reveal(c)
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
 @given(u'binary operation private_public_power')
 def step_impl(context):
     def operation(communicator, a, b):
@@ -461,17 +447,4 @@ def step_impl(context):
         return protocol.encoder.decode(protocol.reveal(c))
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
-
-@given(u'binary operation dot product')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=0, secret=b, shape=b.shape)
-        c = protocol.dot(a, b)
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 

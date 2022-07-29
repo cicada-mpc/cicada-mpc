@@ -84,6 +84,16 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            if isinstance(command, list) and len(command) == 3 and command[0] == "share unencoded":
+                src = command[1]
+                shape = tuple(command[2])
+                protocol = protocol_stack[-1]
+                secret = numpy.array(argument_stack.pop(), dtype=object)
+                share = protocol.share(src=src, secret=secret, shape=shape)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
             if command == "add":
                 protocol = protocol_stack[-1]
                 b = argument_stack.pop()
@@ -102,6 +112,15 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            if command == "logical and":
+                protocol = protocol_stack[-1]
+                b = argument_stack.pop()
+                a = argument_stack.pop()
+                share = protocol.logical_and(a, b)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
             if command == "reveal":
                 protocol = protocol_stack[-1]
                 share = argument_stack.pop()
@@ -110,15 +129,24 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            if command == "reveal unencoded":
+                protocol = protocol_stack[-1]
+                share = argument_stack.pop()
+                secret = protocol.reveal(share)
+                argument_stack.append(secret)
+                _success(client)
+                continue
+
             if isinstance(command, list) and len(command) == 2 and command[0] == "match":
                 rhs = command[1]
                 lhs = argument_stack[-1]
-                assert(lhs == rhs)
+                if lhs != rhs:
+                    raise RuntimeError(f"{lhs} != {rhs}")
                 _success(client)
                 continue
 
             log.error(f"Player {communicator.rank} unknown command: {command}")
-            client.sendall(json.dumps("unknown command").encode())
+            client.sendall(json.dumps(("unknown command", f"{command}")).encode())
         except Exception as e:
             log.error(f"Player {communicator.rank} exception: {e}")
             client.sendall(json.dumps(("exception", str(e))).encode())

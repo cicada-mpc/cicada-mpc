@@ -51,8 +51,8 @@ def service_command(context, command):
         results.append(json.loads(sock.recv(4096)))
 
     for result in results:
-        if result == "unknown command":
-            raise RuntimeError("Unknown command")
+        if isinstance(result, list) and len(result) == 2 and result[0] == "unknown command":
+            raise RuntimeError(f"Unknown command: {result[1]}")
         if isinstance(result, list) and len(result) == 2 and result[0] == "exception":
             raise RuntimeError(result[1])
 
@@ -76,6 +76,16 @@ def step_impl(context):
     service_command(context, command=("protopush", "AdditiveProtocol"))
 
 
+@when(u'player {player} secret shares unencoded {secret}')
+def step_impl(context, player, secret):
+    player = eval(player)
+    secret = numpy.array(eval(secret))
+
+    command = [("push", secret.tolist()) if player == rank else ("push", None) for rank in context.service_ranks]
+    service_command(context, command=command)
+    service_command(context, command=("share unencoded", player, secret.shape))
+
+
 @when(u'player {player} secret shares {secret}')
 def step_impl(context, player, secret):
     player = eval(player)
@@ -96,9 +106,19 @@ def step_impl(context):
     service_command(context, command="dot")
 
 
+@when(u'all players compute the logical and of the shares')
+def step_impl(context):
+    service_command(context, command="logical and")
+
+
 @when(u'all players reveal the result')
 def step_impl(context):
     service_command(context, command="reveal")
+
+
+@when(u'all players reveal the unencoded result')
+def step_impl(context):
+    service_command(context, command="reveal unencoded")
 
 
 @then(u'the result should match {value}')

@@ -416,21 +416,6 @@ Feature: Additive Protocol
         | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
 
 
-    Scenario Outline: Logical AND
-        Given <players> players
-        And binary operation logical_and
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players  | a             | b              | count | result                          |
-        | 3        | 0             | 0              | 1     | [[0] * 3]                       |
-        | 3        | 0             | 1              | 1     | [[0] * 3]                       |
-        | 3        | 1             | 0              | 1     | [[0] * 3]                       |
-        | 3        | 1             | 1              | 1     | [[1] * 3]                       |
-
-
     Scenario Outline: Private Public Power
         Given <players> players
         And binary operation private_public_power
@@ -492,5 +477,22 @@ Feature: Additive Protocol
         | 3       | 5          | -2.5    | -12.5  |
         | 3       | -5         | -2.5    | 12.5   |
         | 3       | [5, 3.5]   | [2, 4]  | 24     |
+
+
+    Scenario Outline: Logical And
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares unencoded <a>
+        And player 1 secret shares unencoded <b>
+        And all players compute the logical and of the shares
+        And all players reveal the unencoded result
+        Then the result should match <result>
+
+        Examples:
+        | players  | a | b | result |
+        | 3        | 0 | 0 | [0]    |
+        | 3        | 0 | 1 | [0]    |
+        | 3        | 1 | 0 | [0]    |
+        | 3        | 1 | 1 | [1]    |
 
 
