@@ -124,40 +124,6 @@ Feature: Additive Protocol
         | 5       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1|[[[655360, 917504]]*5] |
 
 
-    Scenario Outline: Max
-        Given <players> players
-        And binary operation <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation | a              | b                  | count | result                         |
-        | 3       | max       | 2              | 3.5                | 1     | [[3.5] * 3]                    |
-        | 3       | max       | 3.5            | 2                  | 1     | [[3.5] * 3]                    |
-        | 3       | max       | -3             | 2                  | 1     | [[2] * 3]                      |
-        | 3       | max       | 2              | -3                 | 1     | [[2] * 3]                      |
-        | 3       | max       | -4             | -3                 | 1     | [[-3] * 3]                     |
-        | 3       | max       | [2, 3, -2, -1] | [3.5, 1, 1, -4]    | 1     | [[[3.5, 3, 1, -1]] * 3]        |
-
-
-    Scenario Outline: Min
-        Given <players> players
-        And binary operation <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation | a              | b                  | count | result                         |
-        | 3       | min       | 2              | 3.5                | 1     | [[2] * 3]                      |
-        | 3       | min       | 3.5            | 2                  | 1     | [[2] * 3]                      |
-        | 3       | min       | -3             | 2                  | 1     | [[-3] * 3]                     |
-        | 3       | min       | 2              | -3                 | 1     | [[-3] * 3]                     |
-        | 3       | min       | -4             | -3                 | 1     | [[-4] * 3]                     |
-        | 3       | min       | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | 1     | [[[2, 1, -2, -4]] * 3]         |
-
-
     Scenario Outline: Random Bitwise Secret
         Given <players> players
         Then generating <bits> random bits with players <src> and seed <seed> produces a valid result
@@ -450,6 +416,46 @@ Feature: Additive Protocol
         | 2       | 0 | 1 | 1      |
         | 2       | 1 | 0 | 1      |
         | 2       | 1 | 1 | 1      |
+
+
+    @calculator
+    Scenario Outline: Private Max
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players compute the maximum of the shares
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a              | b                | result           |
+        | 3       | 2              | 3.5              | 3.5              |
+        | 3       | 3.5            | 2                | 3.5              |
+        | 3       | -3             | 2                | 2                |
+        | 3       | 2              | -3               | 2                |
+        | 3       | -4             | -3               | -3               |
+        | 3       | [2, 3, -2, -1] | [3.5, 1, 1, -4]  | [3.5, 3, 1, -1]  |
+
+
+    @calculator
+    Scenario Outline: Private Min
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players compute the minimum of the shares
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a              | b                  | result           |
+        | 3       | 2              | 3.5                | 2                |
+        | 3       | 3.5            | 2                  | 2                |
+        | 3       | -3             | 2                  | -3               |
+        | 3       | 2              | -3                 | -3               |
+        | 3       | -4             | -3                 | -4               |
+        | 3       | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | [2, 1, -2, -4]   |
 
 
     @calculator

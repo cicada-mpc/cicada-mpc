@@ -114,40 +114,6 @@ Feature: Shamir Protocol
         | 5       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1    | [[[655360, 917504]] * 5]        |
 
 
-    Scenario Outline: Shamir Max
-        Given <players> players
-        And binary operation shamir <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation          | a              | b                  | count | result                         |
-        | 3       | max                | 2              | 3.5                | 1     | [[3.5] * 3]              |
-        | 3       | max                | 3.5            | 2                  | 1     | [[3.5] * 3]              |
-        | 3       | max                | -3             | 2                  | 1     | [[2] * 3]                |
-        | 3       | max                | 2              | -3                 | 1     | [[2] * 3]                |
-        | 3       | max                | -4             | -3                 | 1     | [[-3] * 3]               |
-        | 3       | max                | [2, 3, -2, -1] | [3.5, 1, 1, -4]    | 1     | [[[3.5, 3, 1, -1]] * 3]  |
-
-
-    Scenario Outline: Shamir Min
-        Given <players> players
-        And binary operation shamir <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation          | a              | b                  | count | result                    |
-        | 3       | min                | 2              | 3.5                | 1     | [[2] * 3]                 |
-        | 3       | min                | 3.5            | 2                  | 1     | [[2] * 3]                 |
-        | 3       | min                | -3             | 2                  | 1     | [[-3] * 3]                |
-        | 3       | min                | 2              | -3                 | 1     | [[-3] * 3]                |
-        | 3       | min                | -4             | -3                 | 1     | [[-4] * 3]                |
-        | 3       | min                | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | 1     | [[[2, 1, -2, -4]] * 3]    |
-
-
     Scenario Outline: Shamir Random Bitwise Secret
         Given <players> players
         Then generating <bits> shamir random bits with all players produces a valid result
@@ -420,6 +386,46 @@ Feature: Shamir Protocol
         | 3       | 0 | 1 | 1      |
         | 3       | 1 | 0 | 1      |
         | 3       | 1 | 1 | 1      |
+
+
+    @calculator
+    Scenario Outline: Private Max
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players compute the maximum of the shares
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a              | b                | result           |
+        | 3       | 2              | 3.5              | 3.5              |
+        | 3       | 3.5            | 2                | 3.5              |
+        | 3       | -3             | 2                | 2                |
+        | 3       | 2              | -3               | 2                |
+        | 3       | -4             | -3               | -3               |
+        | 3       | [2, 3, -2, -1] | [3.5, 1, 1, -4]  | [3.5, 3, 1, -1]  |
+
+
+    @calculator
+    Scenario Outline: Private Min
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players compute the minimum of the shares
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a              | b                  | result           |
+        | 3       | 2              | 3.5                | 2                |
+        | 3       | 3.5            | 2                  | 2                |
+        | 3       | -3             | 2                  | -3               |
+        | 3       | 2              | -3                 | -3               |
+        | 3       | -4             | -3                 | -4               |
+        | 3       | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | [2, 1, -2, -4]   |
 
 
     @calculator

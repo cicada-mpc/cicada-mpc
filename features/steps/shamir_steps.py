@@ -122,36 +122,6 @@ def step_impl(context):
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
-@given(u'binary operation shamir max')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-        a = numpy.array(a)
-        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
-        b = numpy.array(b)
-        b_share = protocol.share(src=1, secret=protocol.encoder.encode(b), shape=b.shape)
-        c_share = protocol.max(a_share, b_share)
-
-        return protocol.encoder.decode(protocol.reveal(c_share))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
-
-
-@given(u'binary operation shamir min')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-        a = numpy.array(a)
-        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
-        b = numpy.array(b)
-        b_share = protocol.share(src=1, secret=protocol.encoder.encode(b), shape=b.shape)
-        c_share = protocol.min(a_share, b_share)
-
-        return protocol.encoder.decode(protocol.reveal(c_share))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
-
-
 @given(u'binary operation shamir private-private multiplication')
 def step_impl(context):
     def operation(communicator, a, b):

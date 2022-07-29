@@ -131,6 +131,16 @@ def step_impl(context):
     service_command(context, command="logical_or")
 
 
+@when(u'the players compute the maximum of the shares')
+def step_impl(context):
+    service_command(context, command="max")
+
+
+@when(u'the players compute the minimum of the shares')
+def step_impl(context):
+    service_command(context, command="min")
+
+
 @when(u'the players compute the relu of the share')
 def step_impl(context):
     service_command(context, command="relu")
