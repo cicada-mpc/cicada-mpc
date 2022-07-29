@@ -1,5 +1,6 @@
 Feature: MPC as a Service
 
+    @calculator
     Scenario Outline: Addition
         Given a calculator service with <players> players
         And an AdditiveProtocol object

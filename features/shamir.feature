@@ -417,6 +417,7 @@ Feature: Shamir Protocol
 ############################################################################################################
 ## New style scenarios using the calculator service.
 
+    @calculator
     Scenario Outline: Private Addition
         Given a calculator service with <players> players
         And a ShamirProtocol object
@@ -447,7 +448,7 @@ Feature: Shamir Protocol
         | 3       | -212345678 | -351234589 | -563580267   |
 
 
-
+    @calculator
     Scenario Outline: Private Logical And
         Given a calculator service with <players> players
         And a ShamirProtocol object

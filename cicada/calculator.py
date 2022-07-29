@@ -59,7 +59,7 @@ def main(listen_socket, communicator):
             if command == "quit":
                 break
 
-            if isinstance(command, list) and len(command) == 2 and command[0] == "protopush":
+            if isinstance(command, list) and len(command) == 2 and command[0] == "push-protocol":
                 protocol = command[1]
                 if protocol == "AdditiveProtocol":
                     from cicada.additive import AdditiveProtocol
@@ -90,7 +90,7 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
-            if isinstance(command, list) and len(command) == 3 and command[0] == "share unencoded":
+            if isinstance(command, list) and len(command) == 3 and command[0] == "share-unencoded":
                 src = command[1]
                 shape = tuple(command[2])
                 protocol = protocol_stack[-1]
@@ -118,7 +118,7 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
-            if command == "logical and":
+            if command == "logical-and":
                 protocol = protocol_stack[-1]
                 b = argument_stack.pop()
                 a = argument_stack.pop()
@@ -135,7 +135,7 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
-            if command == "reveal unencoded":
+            if command == "reveal-unencoded":
                 protocol = protocol_stack[-1]
                 share = argument_stack.pop()
                 secret = protocol.reveal(share)
@@ -143,11 +143,18 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
-            if isinstance(command, list) and len(command) == 2 and command[0] == "match":
+            if command == "zigmoid":
+                protocol = protocol_stack[-1]
+                a = argument_stack.pop()
+                share = protocol.zigmoid(a)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
+            if isinstance(command, list) and len(command) == 2 and command[0] == "assert-equal":
                 rhs = command[1]
                 lhs = argument_stack[-1]
-                if lhs != rhs:
-                    raise RuntimeError(f"{lhs} != {rhs}")
+                numpy.testing.assert_array_equal(lhs, rhs)
                 _success(client)
                 continue
 

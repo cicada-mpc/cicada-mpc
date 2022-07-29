@@ -356,34 +356,6 @@ Feature: Additive Protocol
         | 3       | sum       | [1.2, -3.4]   | 1     | [[-2.2] * 3]       |
 
 
-    Scenario Outline: Zigmoid
-        Given <players> players
-        And unary operation <operation>
-        And operand <a>
-        When the unary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation | a                       | count | result                          |
-        | 2       | zigmoid   | 1                       | 1     | [[1] * 2]                       |
-        | 2       | zigmoid   | 1.1                     | 1     | [[1] * 2]                       |
-        | 2       | zigmoid   | -2                      | 1     | [[0] * 2]                       |
-        | 2       | zigmoid   | -2.1                    | 1     | [[0] * 2]                       |
-        | 2       | zigmoid   | 0.25                    | 1     | [[.75] * 2]                     |
-        | 2       | zigmoid   | 0.75                    | 1     | [[1] * 2]                       |
-        | 2       | zigmoid   | -.0625                  | 1     | [[.4375] * 2]                   |
-        | 2       | zigmoid   | -.5                     | 1     | [[0] * 2]                       |
-        | 2       | zigmoid   | [[0, 3.4],[-1234,1234]] | 1     | [[[[0.5,1],[0,1]]] * 2]         |
-        | 3       | zigmoid   | 1                       | 1     | [[1] * 3]                       |
-        | 3       | zigmoid   | 1.1                     | 1     | [[1] * 3]                       |
-        | 3       | zigmoid   | -2                      | 1     | [[0] * 3]                       |
-        | 3       | zigmoid   | -2.1                    | 1     | [[0] * 3]                       |
-        | 3       | zigmoid   | 0.25                    | 1     | [[.75] * 3]                     |
-        | 3       | zigmoid   | 0.75                    | 1     | [[1] * 3]                       |
-        | 3       | zigmoid   | -.0625                  | 1     | [[.4375] * 3]                   |
-        | 3       | zigmoid   | -.5                     | 1     | [[0] * 3]                       |
-        | 3       | zigmoid   | [[0, 3.4],[-1234,1234]] | 1     | [[[[0.5,1],[0,1]]] * 3]         |
-
     Scenario Outline: Private Public Subtraction
         Given <players> players
         And secret value <secret>
@@ -443,7 +415,7 @@ Feature: Additive Protocol
 ############################################################################################################
 ## New style scenarios using the calculator service.
 
-
+    @calculator
     Scenario Outline: Private Addition
         Given a calculator service with <players> players
         And an AdditiveProtocol object
@@ -474,6 +446,7 @@ Feature: Additive Protocol
         | 3       | -212345678 | -351234589 | -563580267   |
 
 
+    @calculator
     Scenario Outline: Private Dot Product
         Given a calculator service with <players> players
         And an AdditiveProtocol object
@@ -492,6 +465,7 @@ Feature: Additive Protocol
         | 3       | [5, 3.5]   | [2, 4]  | 24     |
 
 
+    @calculator
     Scenario Outline: Private Logical And
         Given a calculator service with <players> players
         And an AdditiveProtocol object
@@ -508,4 +482,34 @@ Feature: Additive Protocol
         | 3        | 1 | 0 | [0]    |
         | 3        | 1 | 1 | [1]    |
 
+
+    @calculator
+    Scenario Outline: Private Zigmoid
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares <a>
+        And the players compute the zigmoid of the share
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a                        | result                  |
+        | 2       | 1                        | 1                       |
+        | 2       | 1.1                      | 1                       |
+        | 2       | -2                       | 0                       |
+        | 2       | -2.1                     | 0                       |
+        | 2       | 0.25                     | .75                     |
+        | 2       | 0.75                     | 1                       |
+        | 2       | -.0625                   | .4375                   |
+        | 2       | -.5                      | 0                       |
+        | 2       | [[0, 3.4],[-1234, 1234]] | [[0.5, 1],[0, 1]]       |
+        | 3       | 1                        | 1                       |
+        | 3       | 1.1                      | 1                       |
+        | 3       | -2                       | 0                       |
+        | 3       | -2.1                     | 0                       |
+        | 3       | 0.25                     | .75                     |
+        | 3       | 0.75                     | 1                       |
+        | 3       | -.0625                   | .4375                   |
+        | 3       | -.5                      | 0                       |
+        | 3       | [[0, 3.4],[-1234, 1234]] | [[0.5, 1],[0, 1]]       |
 

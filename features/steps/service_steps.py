@@ -78,12 +78,12 @@ def step_impl(context, world_size):
 
 @given(u'an AdditiveProtocol object')
 def step_impl(context):
-    service_command(context, command=("protopush", "AdditiveProtocol"))
+    service_command(context, command=("push-protocol", "AdditiveProtocol"))
 
 
 @given(u'a ShamirProtocol object')
 def step_impl(context):
-    service_command(context, command=("protopush", "ShamirProtocol"))
+    service_command(context, command=("push-protocol", "ShamirProtocol"))
 
 
 @when(u'player {player} secret shares unencoded {secret}')
@@ -93,7 +93,7 @@ def step_impl(context, player, secret):
 
     command = [("push", secret.tolist()) if player == rank else ("push", None) for rank in context.service_ranks]
     service_command(context, command=command)
-    service_command(context, command=("share unencoded", player, secret.shape))
+    service_command(context, command=("share-unencoded", player, secret.shape))
 
 
 @when(u'player {player} secret shares {secret}')
@@ -118,7 +118,12 @@ def step_impl(context):
 
 @when(u'the players compute the logical and of the shares')
 def step_impl(context):
-    service_command(context, command="logical and")
+    service_command(context, command="logical-and")
+
+
+@when(u'the players compute the zigmoid of the share')
+def step_impl(context):
+    service_command(context, command="zigmoid")
 
 
 @when(u'the players reveal the result')
@@ -128,11 +133,11 @@ def step_impl(context):
 
 @when(u'the players reveal the unencoded result')
 def step_impl(context):
-    service_command(context, command="reveal unencoded")
+    service_command(context, command="reveal-unencoded")
 
 
 @then(u'the result should match {value}')
 def step_impl(context, value):
     value = eval(value)
-    service_command(context, command=("match", value))
+    service_command(context, command=("assert-equal", value))
 
