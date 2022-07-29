@@ -165,16 +165,3 @@ def step_impl(context):
 
 
 
-@given(u'binary operation shamir untruncated_private_divide')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=0, secret=b, shape=b.shape)
-        c = protocol.untruncated_private_divide(a, b)
-        c = protocol.truncate(c)
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)

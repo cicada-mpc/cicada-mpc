@@ -185,6 +185,12 @@ def step_impl(context):
     service_command(context, command="zigmoid")
 
 
+@when(u'the players divide the shares')
+def step_impl(context):
+    service_command(context, command="untruncated_divide")
+    service_command(context, command="truncate")
+
+
 @when(u'the players multiply the shares')
 def step_impl(context):
     service_command(context, command="untruncated_multiply")

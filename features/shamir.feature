@@ -133,25 +133,6 @@ Feature: Shamir Protocol
         | 3        | [-1, 2, 3.75, -2.0625] | 3  | 1     | [[[-1, 8, 52.734375, -8.773681640625]] * 3]         |
 
 
-
-    Scenario Outline: Shamir Private Divide
-        Given <players> players
-        And binary operation shamir untruncated_private_divide
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result> to within 3 digits
-
-        Examples:
-        | players  | a             | b              | count | result                          |
-        | 3        | 0             | 5              | 1     | [[0] * 3]                       |
-        | 3        | 1             | 5              | 1     | [[.2] * 3]                      |
-        | 3        | 2             | 16             | 1     | [[1/8] * 3]                     |
-        | 3        | 37            | 1              | 1     | [[37.0] * 3]                    |
-        | 3        | -1            | 5              | 1     | [[-.2] * 3]                     |
-        | 3        | 2             | -16            | 1     | [[-1/8] * 3]                    |
-        | 3        | -37           | 1              | 1     | [[-37.0] * 3]                   |
-
-
 ############################################################################################################
 ## New style scenarios using the calculator service.
 
@@ -215,6 +196,28 @@ Feature: Shamir Protocol
         | 3       | -2123456   | -3512345   | -5635801     |
         | 3       | -21234567  | -35123458  | -56358025    |
         | 3       | -212345678 | -351234589 | -563580267   |
+
+
+    @calculator
+    Scenario Outline: Private Divide
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players divide the shares
+        And the players reveal the result
+        Then the result should match <result> to within 3 digits
+
+        Examples:
+        | players | a    | b    | result        |
+        | 3       | 0    | 5    | 0             |
+        | 3       | 1    | 5    | 0.2           |
+        | 3       | 2    | 16   | 1/8           |
+        | 3       | 37   | 1    | 37.0          |
+        | 3       | -1   | 5    | -0.2          |
+        | 3       | 2    | -16  | -1/8          |
+        | 3       | -37  | 1    | -37.0         |
+        | 3       | 0.5  | 0.3  | 1.6666        |
 
 
     @calculator

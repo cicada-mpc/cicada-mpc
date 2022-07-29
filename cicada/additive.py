@@ -1405,7 +1405,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
 
 
-    def untruncated_private_divide(self, lhs, rhs):
+    def untruncated_divide(self, lhs, rhs):
         """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
         close to or bigger than 2^precision
 
