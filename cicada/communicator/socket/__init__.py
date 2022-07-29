@@ -791,6 +791,9 @@ class SocketCommunicator(Communicator):
                 tls = gettls(identity=identity, trusted=trusted)
                 sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer, tls=tls)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
+
+                parent_queue.put("ready")
+
                 if keep_listen_socket:
                     result = fn(listen_socket, communicator, *args, **kwargs)
                 else:
@@ -834,6 +837,10 @@ class SocketCommunicator(Communicator):
         # Send addresses to every process.
         for process in processes:
             child_queue.put(addresses)
+
+        # Wait until networking has been established.
+        for process in processes:
+            parent_queue.get(block=True)
 
         if return_results:
             # Collect results from processes until every process has completed.
