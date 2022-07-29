@@ -106,27 +106,27 @@ def step_impl(context, player, secret):
     service_command(context, command=("share", player, secret.shape))
 
 
-@when(u'all players add the shares')
+@when(u'the players add the shares')
 def step_impl(context):
     service_command(context, command="add")
 
 
-@when(u'all players compute the dot product of the shares')
+@when(u'the players compute the dot product of the shares')
 def step_impl(context):
     service_command(context, command="dot")
 
 
-@when(u'all players compute the logical and of the shares')
+@when(u'the players compute the logical and of the shares')
 def step_impl(context):
     service_command(context, command="logical and")
 
 
-@when(u'all players reveal the result')
+@when(u'the players reveal the result')
 def step_impl(context):
     service_command(context, command="reveal")
 
 
-@when(u'all players reveal the unencoded result')
+@when(u'the players reveal the unencoded result')
 def step_impl(context):
     service_command(context, command="reveal unencoded")
 

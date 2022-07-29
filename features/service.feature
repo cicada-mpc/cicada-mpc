@@ -5,8 +5,8 @@ Feature: MPC as a Service
         And an AdditiveProtocol object
         When player 0 secret shares <a>
         And player 1 secret shares <b>
-        And all players add the shares
-        And all players reveal the result
+        And the players add the shares
+        And the players reveal the result
         Then the result should match <result>
 
         Examples:
