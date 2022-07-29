@@ -104,59 +104,28 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
-            if command == "add":
+
+            # Unary operations.
+            if command in ["relu", "sum", "zigmoid"]:
+                protocol = protocol_stack[-1]
+                a = argument_stack.pop()
+                share = getattr(protocol, command)(a)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
+
+            # Binary operations.
+            if command in ["add", "dot", "logical_and", "logical_or", "logical_xor"]:
                 protocol = protocol_stack[-1]
                 b = argument_stack.pop()
                 a = argument_stack.pop()
-                share = protocol.add(a, b)
+                share = getattr(protocol, command)(a, b)
                 argument_stack.append(share)
                 _success(client)
                 continue
 
-            if command == "dot":
-                protocol = protocol_stack[-1]
-                b = argument_stack.pop()
-                a = argument_stack.pop()
-                share = protocol.dot(a, b)
-                argument_stack.append(share)
-                _success(client)
-                continue
-
-            if command == "logical-and":
-                protocol = protocol_stack[-1]
-                b = argument_stack.pop()
-                a = argument_stack.pop()
-                share = protocol.logical_and(a, b)
-                argument_stack.append(share)
-                _success(client)
-                continue
-
-            if command == "logical-or":
-                protocol = protocol_stack[-1]
-                b = argument_stack.pop()
-                a = argument_stack.pop()
-                share = protocol.logical_or(a, b)
-                argument_stack.append(share)
-                _success(client)
-                continue
-
-            if command == "logical-xor":
-                protocol = protocol_stack[-1]
-                b = argument_stack.pop()
-                a = argument_stack.pop()
-                share = protocol.logical_xor(a, b)
-                argument_stack.append(share)
-                _success(client)
-                continue
-
-            if command == "relu":
-                protocol = protocol_stack[-1]
-                a = argument_stack.pop()
-                share = protocol.relu(a)
-                argument_stack.append(share)
-                _success(client)
-                continue
-
+            # Reveal a secret shared value.
             if command == "reveal":
                 protocol = protocol_stack[-1]
                 share = argument_stack.pop()
@@ -165,19 +134,12 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            # Reveal a secret shared value, without decoding.
             if command == "reveal-unencoded":
                 protocol = protocol_stack[-1]
                 share = argument_stack.pop()
                 secret = protocol.reveal(share)
                 argument_stack.append(secret)
-                _success(client)
-                continue
-
-            if command == "zigmoid":
-                protocol = protocol_stack[-1]
-                a = argument_stack.pop()
-                share = protocol.zigmoid(a)
-                argument_stack.append(share)
                 _success(client)
                 continue
 
