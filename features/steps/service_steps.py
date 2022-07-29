@@ -121,6 +121,11 @@ def step_impl(context):
     service_command(context, command="logical-and")
 
 
+@when(u'the players compute the relu of the share')
+def step_impl(context):
+    service_command(context, command="relu")
+
+
 @when(u'the players compute the zigmoid of the share')
 def step_impl(context):
     service_command(context, command="zigmoid")
@@ -134,6 +139,13 @@ def step_impl(context):
 @when(u'the players reveal the unencoded result')
 def step_impl(context):
     service_command(context, command="reveal-unencoded")
+
+
+@then(u'the result should match {value} to within {digits} digits')
+def step_impl(context, value, digits):
+    value = eval(value)
+    digits = eval(digits)
+    service_command(context, command=("assert-close", value, digits))
 
 
 @then(u'the result should match {value}')

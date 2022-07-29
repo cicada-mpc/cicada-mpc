@@ -308,56 +308,6 @@ Feature: Shamir Protocol
         | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | 1     | [[[[1,0],[1,0]]] * 3]           |
 
 
-    Scenario Outline: Shamir ReLU 
-        Given <players> players
-        And unary operation shamir <operation>
-        And operand <a>
-        When the unary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation | a                       | count | result                          |
-        | 4       | relu      | 1                       | 1     | [[1] * 4]                       |
-        | 4       | relu      | 1.1                     | 1     | [[1.1] * 4]                     |
-        | 4       | relu      | -2                      | 1     | [[0] * 4]                       |
-        | 4       | relu      | -2.1                    | 1     | [[0] * 4]                       |
-        | 4       | relu      | [[0, 3.4],[-1234,1234]] | 1     | [[[[0,3.4],[0,1234]]] * 4]      |
-        | 3       | relu      | 1                       | 1     | [[1] * 3]                       |
-        | 3       | relu      | 1.1                     | 1     | [[1.1] * 3]                     |
-        | 3       | relu      | -2                      | 1     | [[0] * 3]                       |
-        | 3       | relu      | -2.1                    | 1     | [[0] * 3]                       |
-        | 3       | relu      | [[0, 3.4],[-1234,1234]] | 1     | [[[[0,3.4],[0,1234]]] * 3]      |
-
-
-
-    Scenario Outline: Shamir Zigmoid
-        Given <players> players
-        And unary operation shamir <operation>
-        And operand <a>
-        When the unary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation | a                       | count | result                          |
-        | 4       | zigmoid   | 1                       | 1     | [[1] * 4]                       |
-        | 4       | zigmoid   | 1.1                     | 1     | [[1] * 4]                       |
-        | 4       | zigmoid   | -2                      | 1     | [[0] * 4]                       |
-        | 4       | zigmoid   | -2.1                    | 1     | [[0] * 4]                       |
-        | 4       | zigmoid   | 0.25                    | 1     | [[.75] * 4]                     |
-        | 4       | zigmoid   | 0.75                    | 1     | [[1] * 4]                       |
-        | 4       | zigmoid   | -.0625                  | 1     | [[.4375] * 4]                   |
-        | 4       | zigmoid   | -.5                     | 1     | [[0] * 4]                       |
-        | 4       | zigmoid   | [[0, 3.4],[-1234,1234]] | 1     | [[[[0.5,1],[0,1]]] * 4]         |
-        | 3       | zigmoid   | 1                       | 1     | [[1] * 3]                       |
-        | 3       | zigmoid   | 1.1                     | 1     | [[1] * 3]                       |
-        | 3       | zigmoid   | -2                      | 1     | [[0] * 3]                       |
-        | 3       | zigmoid   | -2.1                    | 1     | [[0] * 3]                       |
-        | 3       | zigmoid   | 0.25                    | 1     | [[.75] * 3]                     |
-        | 3       | zigmoid   | 0.75                    | 1     | [[1] * 3]                       |
-        | 3       | zigmoid   | -.0625                  | 1     | [[.4375] * 3]                   |
-        | 3       | zigmoid   | -.5                     | 1     | [[0] * 3]                       |
-        | 3       | zigmoid   | [[0, 3.4],[-1234,1234]] | 1     | [[[[0.5,1],[0,1]]] * 3]      |
-
     Scenario Outline: Shamir Private Public Subtraction
         Given <players> players
         And secret value <secret>
@@ -466,3 +416,53 @@ Feature: Shamir Protocol
         | 3        | 1 | 1 | [1]    |
 
 
+    @calculator
+    Scenario Outline: Private ReLU
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares <a>
+        And the players compute the relu of the share
+        And the players reveal the result
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a                       | result                  |
+        | 4       | 1                       | 1                       |
+        | 4       | 1.1                     | 1.1                     |
+        | 4       | -2                      | 0                       |
+        | 4       | -2.1                    | 0                       |
+        | 4       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
+        | 3       | 1                       | 1                       |
+        | 3       | 1.1                     | 1.1                     |
+        | 3       | -2                      | 0                       |
+        | 3       | -2.1                    | 0                       |
+        | 3       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
+
+
+    @calculator
+    Scenario Outline: Private Zigmoid
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares <a>
+        And the players compute the zigmoid of the share
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a                        | result                  |
+        | 4       | 1                        | 1                       |
+        | 4       | 1.1                      | 1                       |
+        | 4       | -2                       | 0                       |
+        | 4       | -2.1                     | 0                       |
+        | 4       | 0.25                     | .75                     |
+        | 4       | 0.75                     | 1                       |
+        | 4       | -.0625                   | .4375                   |
+        | 4       | -.5                      | 0                       |
+        | 4       | [[0, 3.4],[-1234, 1234]] | [[0.5, 1],[0, 1]]       |
+        | 3       | 1                        | 1                       |
+        | 3       | 1.1                      | 1                       |
+        | 3       | -2                       | 0                       |
+        | 3       | -2.1                     | 0                       |
+        | 3       | 0.25                     | .75                     |
+        | 3       | 0.75                     | 1                       |
+        | 3       | -.0625                   | .4375                   |

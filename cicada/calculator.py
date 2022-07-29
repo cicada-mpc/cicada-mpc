@@ -59,6 +59,7 @@ def main(listen_socket, communicator):
             if command == "quit":
                 break
 
+            # Push a new protocol object onto the protocol stack.
             if isinstance(command, list) and len(command) == 2 and command[0] == "push-protocol":
                 protocol = command[1]
                 if protocol == "AdditiveProtocol":
@@ -72,6 +73,7 @@ def main(listen_socket, communicator):
                     _success(client)
                     continue
 
+            # Push a new value onto the argument stack.
             if isinstance(command, list) and len(command) == 2 and command[0] == "push":
                 operand = command[1]
                 if operand is not None:
@@ -80,6 +82,7 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            # Secret share a value from the argument stack.
             if isinstance(command, list) and len(command) == 3 and command[0] == "share":
                 src = command[1]
                 shape = tuple(command[2])
@@ -90,6 +93,7 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            # Secret share a value from the argument stack, without encoding.
             if isinstance(command, list) and len(command) == 3 and command[0] == "share-unencoded":
                 src = command[1]
                 shape = tuple(command[2])
@@ -127,6 +131,14 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            if command == "relu":
+                protocol = protocol_stack[-1]
+                a = argument_stack.pop()
+                share = protocol.relu(a)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
             if command == "reveal":
                 protocol = protocol_stack[-1]
                 share = argument_stack.pop()
@@ -148,6 +160,14 @@ def main(listen_socket, communicator):
                 a = argument_stack.pop()
                 share = protocol.zigmoid(a)
                 argument_stack.append(share)
+                _success(client)
+                continue
+
+            if isinstance(command, list) and len(command) == 3 and command[0] == "assert-close":
+                rhs = command[1]
+                digits = command[2]
+                lhs = argument_stack[-1]
+                numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
                 _success(client)
                 continue
 

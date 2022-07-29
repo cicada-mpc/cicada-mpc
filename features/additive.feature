@@ -319,28 +319,6 @@ Feature: Additive Protocol
         | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | 1     | [[[[1,0],[1,0]]] * 3]           |
 
 
-    Scenario Outline: ReLU
-        Given <players> players
-        And unary operation <operation>
-        And operand <a>
-        When the unary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation | a                       | count | result                          |
-        | 2       | relu      | 1                       | 1     | [[1] * 2]                       |
-        | 2       | relu      | 1.1                     | 1     | [[1.1] * 2]                     |
-        | 2       | relu      | -2                      | 1     | [[0] * 2]                       |
-        | 2       | relu      | -2.1                    | 1     | [[0] * 2]                       |
-        | 2       | relu      | [[0, 3.4],[-1234,1234]] | 1     | [[[[0,3.4],[0,1234]]] * 2]      |
-        | 3       | relu      | 1                       | 1     | [[1] * 3]                       |
-        | 3       | relu      | 1.1                     | 1     | [[1.1] * 3]                     |
-        | 3       | relu      | -2                      | 1     | [[0] * 3]                       |
-        | 3       | relu      | -2.1                    | 1     | [[0] * 3]                       |
-        | 3       | relu      | [[0, 3.4],[-1234,1234]] | 1     | [[[[0,3.4],[0,1234]]] * 3]      |
-
-
-
     Scenario Outline: Summation
         Given <players> players
         And unary operation <operation>
@@ -481,6 +459,29 @@ Feature: Additive Protocol
         | 3        | 0 | 1 | [0]    |
         | 3        | 1 | 0 | [0]    |
         | 3        | 1 | 1 | [1]    |
+
+
+    @calculator
+    Scenario Outline: Private ReLU
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares <a>
+        And the players compute the relu of the share
+        And the players reveal the result
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a                       | result                  |
+        | 2       | 1                       | 1                       |
+        | 2       | 1.1                     | 1.1                     |
+        | 2       | -2                      | 0                       |
+        | 2       | -2.1                    | 0                       |
+        | 2       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
+        | 3       | 1                       | 1                       |
+        | 3       | 1.1                     | 1.1                     |
+        | 3       | -2                      | 0                       |
+        | 3       | -2.1                    | 0                       |
+        | 3       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
 
 
     @calculator
