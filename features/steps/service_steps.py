@@ -25,7 +25,7 @@ from cicada.calculator import main as calculator_main
 from cicada.communicator import SocketCommunicator
 
 
-logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.INFO)
 
 
 def service_command(context, command):
