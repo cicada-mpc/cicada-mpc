@@ -1,4 +1,4 @@
-name: Manual Regression tests
+name: Targeted regression tests
 
 on:
   push:
