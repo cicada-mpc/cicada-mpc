@@ -126,6 +126,11 @@ def step_impl(context):
     service_command(context, command="dot")
 
 
+@when(u'the players compute the floor of the share')
+def step_impl(context):
+    service_command(context, command="floor")
+
+
 @when(u'the players compute the logical and of the shares')
 def step_impl(context):
     service_command(context, command="logical_and")

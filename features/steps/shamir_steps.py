@@ -137,18 +137,6 @@ def step_impl(context):
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
-@given(u'unary operation shamir floor')
-def step_impl(context):
-    def operation(communicator, a):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-        a = numpy.array(a)
-        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
-        b_share = protocol.floor(a_share)
-        return protocol.encoder.decode(protocol.reveal(b_share))
-    context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
-
-
 @when(u'player {player} shamir shares and reveals random secrets, the revealed secrets should match the originals')
 def step_impl(context, player):
     player = eval(player)

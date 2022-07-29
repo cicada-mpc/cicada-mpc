@@ -107,7 +107,7 @@ def main(listen_socket, communicator):
                 continue
 
             # Unary operations.
-            if command in ["relu", "sum", "zigmoid"]:
+            if command in ["floor", "relu", "sum", "zigmoid"]:
                 protocol = protocol_stack[-1]
                 a = argument_stack.pop()
                 share = getattr(protocol, command)(a)

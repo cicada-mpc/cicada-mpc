@@ -169,27 +169,6 @@ Feature: Additive Protocol
         | 5       | private-private multiplication | [5, 3.5]   | [2, 4]  | 1     | [[[10, 14]] * 5]            |
 
 
-    Scenario Outline: Floor
-        Given <players> players
-        And unary operation <operation>
-        And operand <a>
-        When the unary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation | a             | count | result               |
-        | 2       | floor     | 1             | 1     | [[1] * 2]            |
-        | 2       | floor     | 1.1           | 1     | [[1] * 2]            |
-        | 2       | floor     | -2            | 1     | [[-2] * 2]           |
-        | 2       | floor     | -2.1          | 1     | [[-3] * 2]           |
-        | 2       | floor     | [1.2, -3.4]   | 1     | [[[1, -4]] * 2]      |
-        | 3       | floor     | 1             | 1     | [[1] * 3]            |
-        | 3       | floor     | 1.1           | 1     | [[1] * 3]            |
-        | 3       | floor     | -2            | 1     | [[-2] * 3]           |
-        | 3       | floor     | -2.1          | 1     | [[-3] * 3]           |
-        | 3       | floor     | [1.2, -3.4]   | 1     | [[[1, -4]] * 3]      |
-
-
     Scenario Outline: Multiplicative Inverse
         Given <players> players
         And unary operation <operation>
@@ -342,6 +321,29 @@ Feature: Additive Protocol
         | 2        | -2.1              | -2.1             | 1          |
         | 2        | -2                | 2                | 0          |
         | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | [1,0,1,1]  |
+
+
+    @calculator
+    Scenario Outline: Private Floor
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares <a>
+        And the players compute the floor of the share
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a            | result       |
+        | 2       | 1            | 1            |
+        | 2       | 1.1          | 1            |
+        | 2       | -2           | -2           |
+        | 2       | -2.1         | -3           |
+        | 2       | [1.2, -3.4]  | [1, -4]      |
+        | 3       | 1            | 1            |
+        | 3       | 1.1          | 1            |
+        | 3       | -2           | -2           |
+        | 3       | -2.1         | -3           |
+        | 3       | [1.2, -3.4]  | [1, -4]      |
 
 
     @calculator
