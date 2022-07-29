@@ -111,6 +111,11 @@ def step_impl(context):
     service_command(context, command="add")
 
 
+@when(u'the players compare the shares for equality')
+def step_impl(context):
+    service_command(context, command="equal")
+
+
 @when(u'the players compute the dot product of the shares')
 def step_impl(context):
     service_command(context, command="dot")

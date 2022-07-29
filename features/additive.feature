@@ -190,28 +190,6 @@ Feature: Additive Protocol
         | 3       | floor     | [1.2, -3.4]   | 1     | [[[1, -4]] * 3]      |
 
 
-    Scenario Outline: Equality
-        Given <players> players
-        And binary operation private-private equality
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players  | a                 | b                | count | result                        |
-        | 2        | 2                 | 2                | 1     | [[1] * 2]                     |
-        | 2        | 2                 | 3                | 1     | [[0] * 2]                     |
-        | 2        | 2                 | 2.1              | 1     | [[0] * 2]                     |
-        | 2        | 2.1               | 2.1              | 1     | [[1] * 2]                     |
-        | 2        | -2                | -2               | 1     | [[1] * 2]                     |
-        | 2        | -2                | -3               | 1     | [[0] * 2]                     |
-        | 2        | -2                | -2.1             | 1     | [[0] * 2]                     |
-        | 2        | -2.1              | -2.1             | 1     | [[1] * 2]                     |
-        | 2        | -2                | 2                | 1     | [[0] * 2]                     |
-        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | 1     | [[[1,0,1,1]] * 3]             |
-
-
-
     Scenario Outline: Multiplicative Inverse
         Given <players> players
         And unary operation <operation>
@@ -362,6 +340,30 @@ Feature: Additive Protocol
         | 3       | 5          | -2.5    | -12.5  |
         | 3       | -5         | -2.5    | 12.5   |
         | 3       | [5, 3.5]   | [2, 4]  | 24     |
+
+
+    @calculator
+    Scenario Outline: Private Equality
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players compare the shares for equality
+        And the players reveal the unencoded result
+        Then the result should match <result>
+
+        Examples:
+        | players  | a                 | b                | result     |
+        | 2        | 2                 | 2                | 1          |
+        | 2        | 2                 | 3                | 0          |
+        | 2        | 2                 | 2.1              | 0          |
+        | 2        | 2.1               | 2.1              | 1          |
+        | 2        | -2                | -2               | 1          |
+        | 2        | -2                | -3               | 0          |
+        | 2        | -2                | -2.1             | 0          |
+        | 2        | -2.1              | -2.1             | 1          |
+        | 2        | -2                | 2                | 0          |
+        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | [1,0,1,1]  |
 
 
     @calculator

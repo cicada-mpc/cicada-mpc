@@ -180,27 +180,6 @@ Feature: Shamir Protocol
         | 3       | floor     | [1.2, -3.4]   | 1     | [[[1, -4]] * 3]      |
 
 
-    Scenario Outline: Shamir Equality
-        Given <players> players
-        And binary operation shamir private-private equality
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players  | a                 | b                | count | result                        |
-        | 5        | 2                 | 2                | 1     | [[1] * 5]                     |
-        | 5        | 2                 | 3                | 1     | [[0] * 5]                     |
-        | 5        | 2                 | 2.1              | 1     | [[0] * 5]                     |
-        | 5        | 2.1               | 2.1              | 1     | [[1] * 5]                     |
-        | 5        | -2                | -2               | 1     | [[1] * 5]                     |
-        | 5        | -2                | -3               | 1     | [[0] * 5]                     |
-        | 5        | -2                | -2.1             | 1     | [[0] * 5]                     |
-        | 5        | -2.1              | -2.1             | 1     | [[1] * 5]                     |
-        | 5        | -2                | 2                | 1     | [[0] * 5]                     |
-        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | 1     | [[[1,0,1,1]] * 3]             |
-
-
     Scenario Outline: Shamir Multiplicative Inverse
         Given <players> players
         And unary operation shamir <operation>
@@ -332,6 +311,30 @@ Feature: Shamir Protocol
         | 3       | -2123456   | -3512345   | -5635801     |
         | 3       | -21234567  | -35123458  | -56358025    |
         | 3       | -212345678 | -351234589 | -563580267   |
+
+
+    @calculator
+    Scenario Outline: Private Equality
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players compare the shares for equality
+        And the players reveal the unencoded result
+        Then the result should match <result>
+
+        Examples:
+        | players  | a                 | b                | result     |
+        | 3        | 2                 | 2                | 1          |
+        | 3        | 2                 | 3                | 0          |
+        | 3        | 2                 | 2.1              | 0          |
+        | 3        | 2.1               | 2.1              | 1          |
+        | 3        | -2                | -2               | 1          |
+        | 3        | -2                | -3               | 0          |
+        | 3        | -2                | -2.1             | 0          |
+        | 3        | -2.1              | -2.1             | 1          |
+        | 3        | -2                | 2                | 0          |
+        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | [1,0,1,1]  |
 
 
     @calculator

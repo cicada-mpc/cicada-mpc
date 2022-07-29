@@ -180,20 +180,6 @@ def step_impl(context):
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
 
-@given(u'binary operation private-private equality')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=1, secret=b, shape=b.shape)
-        c = protocol.equal(a, b)
-        return protocol.reveal(c)
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
 @given(u'operands {a} and {b}')
 def step_impl(context, a, b):
     context.a = eval(a)
