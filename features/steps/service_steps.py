@@ -16,7 +16,6 @@
 
 import json
 import logging
-import pickle
 import socket
 import urllib.parse
 
@@ -43,7 +42,7 @@ def service_command(context, command):
 
     # Send commands
     for sock, command in zip(sockets, commands):
-        sock.sendall(json.dumps(command).encode("utf-8"))
+        sock.sendall(json.dumps(command).encode())
 
     # Receive results
     results = []
@@ -54,7 +53,6 @@ def service_command(context, command):
             if not data:
                 break
             result += data
-        print(result)
         results.append(json.loads(result))
 
     for result in results:
