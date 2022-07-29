@@ -68,7 +68,7 @@ def service_command(context, command):
 def step_impl(context, world_size):
     world_size = eval(world_size)
 
-    addresses, processes = SocketCommunicator.run(world_size=world_size, fn=calculator_main, keep_listen_socket=True, return_results=False)
+    addresses, processes = SocketCommunicator.run_forever(world_size=world_size, fn=calculator_main)
 
     context.service_addresses = addresses
     context.service_processes = processes

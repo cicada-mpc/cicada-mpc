@@ -702,16 +702,21 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5, keep_listen_socket=False, return_results=True):
+    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
-        This is extremely useful for running examples and regression tests on one machine.
+        This method returns when the callback functions finish, returning a
+        :class:`list` of results from each, in rank order.  Special sentinel
+        classes are used to indicate whether a process raised an exception or
+        terminated unexpectedly.  This is extremely useful for running examples
+        and regression tests on one machine.
 
-        The given function *must* accept a communicator as its first
-        argument.  Additional positional and keyword arguments may follow the
-        communicator.
+        The given function *must* accept a communicator as its first argument.
+        Additional caller-provided positional and keyword arguments are passed
+        to the function after the communicator.
 
-        To run computations across multiple hosts, you should use the
+        To run computation using multiple hosts, you should use
+        :meth:`~cicada.communicator.socket.SocketCommunicator.connect` and the
         :ref:`cicada` command line executable instead.
 
         Parameters
@@ -740,24 +745,9 @@ class SocketCommunicator(Communicator):
         startup_timeout: :class:`numbers.Number`, optional
             Maximum time allowed to setup the communicator in seconds.
             Defaults to five seconds.
-        keep_listen_socket: :class:`bool`, optional
-            If :any:`True`, pass a listening server socket as the first
-            argument to `fn`.  Default: :any:`False`.
-        return_results: :class:`bool`, optional
-            When :any:`True` (the default), this function will wait until `fn`
-            completes, returning a :class:`list` of `fn` return values, in rank
-            order.  If :any:`False`, the function returns immediately after starting
-            the player processes, and returns rank-order lists of network addresses
-            and processes.
 
         Returns
         -------
-        addresses: :class:`list` of :class:`str`
-            A listening address for each player, in rank order.  Returned only
-            if `return_results` is :any:`False`.
-        processes: :class:`list` of :class:`multiprocessing.Process`
-            A listening address for each player, in rank order.  Returned only
-            if `return_results` is :any:`False`.
         results: :class:`list`
             The return value from the function for each player, in rank order.
             Returned only if `return_results` is :any:`True`. If a player
@@ -791,13 +781,7 @@ class SocketCommunicator(Communicator):
                 tls = gettls(identity=identity, trusted=trusted)
                 sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer, tls=tls)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
-
-                parent_queue.put("ready")
-
-                if keep_listen_socket:
-                    result = fn(listen_socket, communicator, *args, **kwargs)
-                else:
-                    result = fn(communicator, *args, **kwargs)
+                result = fn(communicator, *args, **kwargs)
                 communicator.free()
             except Exception as e: # pragma: no cover
                 result = Failed(e, traceback.format_exc())
@@ -838,28 +822,9 @@ class SocketCommunicator(Communicator):
         for process in processes:
             child_queue.put(addresses)
 
-        # Wait until networking has been established.
-        for process in processes:
-            parent_queue.get(block=True)
-
-        if return_results:
-            # Collect results from processes until every process has completed.
-            results = []
-            while any([process.is_alive() for process in processes]):
-                while True:
-                    try:
-                        rank, result = parent_queue.get(block=False)
-                        results.append((rank, result))
-                    except:
-                        break
-
-                time.sleep(0.01)
-
-            # Join all processes, just to be safe.
-            for process in processes:
-                process.join()
-
-            # Now that every process has exited, collect any remaining results.
+        # Collect results from processes until every process has completed.
+        results = []
+        while any([process.is_alive() for process in processes]):
             while True:
                 try:
                     rank, result = parent_queue.get(block=False)
@@ -867,30 +832,166 @@ class SocketCommunicator(Communicator):
                 except:
                     break
 
-            # Return the output of each rank, in rank order, with a sentinel object for missing outputs.
-            output = [Terminated(process.exitcode) for process in processes]
-            for rank, result in results:
-                output[rank] = result
+            time.sleep(0.01)
 
-            # Log the results for each player.
-            log = logging.getLogger(__name__)
+        # Join all processes, just to be safe.
+        for process in processes:
+            process.join()
 
-            for rank, result in enumerate(output):
-                if isinstance(result, Failed):
-                    log.warning(f"Comm {name} player {rank} failed: {result.exception!r}")
-                elif isinstance(result, Exception):
-                    log.warning(f"Comm {name} player {rank} failed: {result!r}")
-                else:
-                    log.info(f"Comm {name} player {rank} result: {result}")
+        # Now that every process has exited, collect any remaining results.
+        while True:
+            try:
+                rank, result = parent_queue.get(block=False)
+                results.append((rank, result))
+            except:
+                break
 
-            # Print a traceback for players that failed.
-            for rank, result in enumerate(output):
-                if isinstance(result, Failed):
-                    log.error("*" * 80)
-                    log.error(f"Comm {name} player {rank} traceback:")
-                    log.error(result.traceback)
+        # Return the output of each rank, in rank order, with a sentinel object for missing outputs.
+        output = [Terminated(process.exitcode) for process in processes]
+        for rank, result in results:
+            output[rank] = result
 
-            return output
+        # Log the results for each player.
+        log = logging.getLogger(__name__)
+
+        for rank, result in enumerate(output):
+            if isinstance(result, Failed):
+                log.warning(f"Comm {name} player {rank} failed: {result.exception!r}")
+            elif isinstance(result, Exception):
+                log.warning(f"Comm {name} player {rank} failed: {result!r}")
+            else:
+                log.info(f"Comm {name} player {rank} result: {result}")
+
+        # Print a traceback for players that failed.
+        for rank, result in enumerate(output):
+            if isinstance(result, Failed):
+                log.error("*" * 80)
+                log.error(f"Comm {name} player {rank} traceback:")
+                log.error(result.traceback)
+
+        return output
+
+
+    @staticmethod
+    def run_forever(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5):
+        """Execute a long-running function in parallel using sub-processes on the local host.
+
+        This method returns immediately after networking has been setup and the
+        callback function begins executing, returning a :class:`list` of
+        network addresses and a :class:`list` of corresponding processes.  This
+        is particularly useful for running "MPC-as-a-service" applications on
+        the local machine - the caller can use the addresses to communicate with
+        the individual processes.
+
+        The given function *must* accept a listening socket and a communicator
+        as its first two arguments.  Additional caller-provided positional and
+        keyword arguments are passed to the function after the socket and communicator.
+
+        To run a service with multiple hosts, you should use
+        :meth:`~cicada.communicator.socket.SocketCommunicator.connect` and the
+        :ref:`cicada` command line executable instead.
+
+        Parameters
+        ----------
+        world_size: :class:`int`, required
+            The number of players that will run the function.
+        fn: :func:`callable`, required
+            The function to execute in parallel.
+        identities: sequence of :class:`str`, optional
+            Path to files in PEM format each containing a private key and a certificate, one per player.
+        trusted: sequence of :class:`str`, optional
+            Path to files in PEM format containing certificates.
+        args: :class:`tuple`, optional
+            Positional arguments to pass to `fn` when it is executed.
+        kwargs: :class:`dict`, optional
+            Keyword arguments to pass to `fn` when it is executed.
+        family: :class:`str`, optional
+            Address family that matches the scheme used in address URLs
+            elsewhere in the API.  Allowed values are "tcp" and "file".
+        name: :class:`str`, optional
+            Human-readable name for the communicator created by this function.
+            Defaults to "world".
+        timeout: :class:`numbers.Number`, optional
+            Maximum time to wait for normal communication to complete in
+            seconds.  Defaults to five seconds.
+        startup_timeout: :class:`numbers.Number`, optional
+            Maximum time allowed to setup the communicator in seconds.
+            Defaults to five seconds.
+
+        Returns
+        -------
+        addresses: :class:`list` of :class:`str`
+            A listening address for each player, in rank order.  Returned only
+            if `return_results` is :any:`False`.
+        processes: :class:`list` of :class:`multiprocessing.Process`
+            A listening address for each player, in rank order.  Returned only
+            if `return_results` is :any:`False`.
+        """
+        def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, family, name, timeout, startup_timeout):
+            # Run the work function.
+            try:
+                # Create a socket with a randomly-assigned address.
+                if family == "file":
+                    fd, path = tempfile.mkstemp()
+                    os.close(fd)
+                    address = f"file://{path}"
+                elif family == "tcp":
+                    address = "tcp://127.0.0.1"
+                timer = Timer(threshold=startup_timeout)
+                listen_socket = listen(name=name, rank=rank, address=address, timer=timer)
+                address = geturl(listen_socket)
+
+                # Send our address to the parent process.
+                parent_queue.put((rank, address))
+
+                # Get all addresses from the parent process.
+                addresses = child_queue.get()
+
+                # Optionally setup TLS.
+                tls = gettls(identity=identity, trusted=trusted)
+                sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer, tls=tls)
+                communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
+                parent_queue.put("ready")
+                result = fn(listen_socket, communicator, *args, **kwargs)
+                communicator.free()
+            except Exception as e: # pragma: no cover
+                result = Failed(e, traceback.format_exc())
+
+        # Setup the multiprocessing context.
+        context = multiprocessing.get_context(method="fork") # I don't remember why we prefer fork().
+
+        # Create queues for IPC.
+        parent_queue = context.Queue()
+        child_queue = context.Queue()
+
+        # Create per-player processes.
+        processes = []
+        for rank in range(world_size):
+            identity = None if identities is None else identities[rank]
+            processes.append(context.Process(
+                name=f"Player {rank}",
+                target=launch,
+                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, family=family, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                ))
+
+        # Start per-player processes.
+        for process in processes:
+            process.daemon = True
+            process.start()
+
+        # Collect addresses from every process.
+        addresses = [None] * world_size
+        for process in processes:
+            rank, address = parent_queue.get(block=True)
+            addresses[rank] = address
+
+        # Send addresses to every process.
+        for process in processes:
+            child_queue.put(addresses)
+
+        # Wait until networking has been established.
+        for process in processes:
+            parent_queue.get(block=True)
 
         return addresses, processes
 

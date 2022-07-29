@@ -34,11 +34,11 @@ def main(listen_socket, communicator):
     This is an example of MPC-as-a-service, for cases where that is
     desirable.  Run this function using::
 
-        SocketCommunicator.run(world_size=n, fn=cicada.calculator.main, keep_listen_socket=True, return_results=False)
+        SocketCommunicator.run_forever(world_size=n, fn=cicada.calculator.main)
 
-    ... which will start the service and return a set of socket addresses.
-    Client code can then use those addressess to connect to the service and
-    issue commands, which will be executed by the service players.
+    ... which will start the service and return a set of player addresses and
+    processes.  Client code can use those addressess to connect to the service
+    and issue commands, which will be executed by the service players.
 
     The service implements an RPN calculator where communicators, protocols,
     and operands are pushed and popped from stacks.

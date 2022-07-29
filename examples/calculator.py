@@ -27,7 +27,7 @@ arguments = parser.parse_args()
 
 logging.basicConfig(level=logging.INFO)
 
-addresses, processes = SocketCommunicator.run(world_size=arguments.world_size, fn=calculator_main, keep_listen_socket=True, return_results=False)
+addresses, processes = SocketCommunicator.run_forever(world_size=arguments.world_size, fn=calculator_main)
 
 print("Service addresses:")
 for address in addresses:
