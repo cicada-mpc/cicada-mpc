@@ -28,15 +28,21 @@ from cicada.communicator import SocketCommunicator
 #logging.basicConfig(level=logging.INFO)
 
 
-def service_command(context, command):
+def service_command(context, command, players=None):
+    if players is None:
+        players = context.service_ranks
+    if not isinstance(players, list):
+        players = [players]
+
     if not isinstance(command, list):
-        command = [command] * context.service_world_size
+        command = [command] * len(players)
 
     commands = command
 
     # Establish connections
     sockets = []
-    for rank, address in enumerate(context.service_addresses):
+    for player in players:
+        address = context.service_addresses[player]
         address = urllib.parse.urlparse(address)
         sockets.append(socket.create_connection((address.hostname, address.port)))
 
@@ -119,6 +125,26 @@ def step_impl(context, player, secret):
     service_command(context, command=command)
     service_command(context, command="encode")
     service_command(context, command=("share", player, secret.shape))
+
+
+@when(u'player {player} adds {value} to the share in-place')
+def step_impl(context, player, value):
+    player = eval(player)
+    value = numpy.array(eval(value))
+    command = [("push-operand", value.tolist()) if player == rank else ("push-operand", None) for rank in context.service_ranks]
+    service_command(context, command=("push-operand", value.tolist()), players=player)
+    service_command(context, command="encode", players=player)
+    service_command(context, command="inplace_add", players=player)
+
+
+@when(u'player {player} subtracts {value} from the share in-place')
+def step_impl(context, player, value):
+    player = eval(player)
+    value = numpy.array(eval(value))
+    command = [("push-operand", value.tolist()) if player == rank else ("push-operand", None) for rank in context.service_ranks]
+    service_command(context, command=("push-operand", value.tolist()), players=player)
+    service_command(context, command="encode", players=player)
+    service_command(context, command="inplace_subtract", players=player)
 
 
 @when(u'the players add the public value and the share')

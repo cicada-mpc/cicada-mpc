@@ -62,56 +62,6 @@ def step_impl(context):
                 numpy.testing.assert_almost_equal(context.shares[i], context.shares[j], decimal=4)
 
 
-@given(u'secret value {}')
-def step_impl(context, secret):
-	context.secret = numpy.array(eval(secret))
-
-
-@given(u'local value {}')
-def step_impl(context, local):
-    context.local = numpy.array(eval(local))
-
-
-@when(u'player {} performs local in-place addition on the shared secret')
-def step_impl(context, player):
-    player = eval(player)
-
-    def operation(communicator, secret, player, local):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
-        if communicator.rank == player:
-            protocol.encoder.inplace_add(share.storage, protocol.encoder.encode(local))
-        return protocol.encoder.decode(protocol.reveal(share))
-
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local), identities=context.identities, trusted=context.trusted)
-
-
-@when(u'player {} performs local in-place subtraction on the shared secret')
-def step_impl(context, player):
-    player = eval(player)
-
-    def operation(communicator, secret, player, local):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
-        if communicator.rank == player:
-            protocol.encoder.inplace_subtract(share.storage, protocol.encoder.encode(local))
-        return protocol.encoder.decode(protocol.reveal(share))
-
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local), identities=context.identities, trusted=context.trusted)
-
-
-@then(u'the group should return {} to within {} digits')
-def step_impl(context, result, digits_accuracy):
-    result = numpy.array(eval(result))
-    digits_accuracy = numpy.array(eval(digits_accuracy))
-    group = numpy.array(context.results)
-
-    if issubclass(result.dtype.type, numpy.number) and issubclass(group.dtype.type, numpy.number):
-        numpy.testing.assert_almost_equal(result, group, decimal=digits_accuracy)
-    else:
-        numpy.testing.assert_array_equal(result, group)
-
-
 @then(u'the group should return {}')
 def step_impl(context, result):
     result = numpy.array(eval(result))
@@ -123,24 +73,9 @@ def step_impl(context, result):
         numpy.testing.assert_array_equal(result, group)
 
 
-@given(u'operands {a} and {b}')
-def step_impl(context, a, b):
-    context.a = eval(a)
-    context.b = eval(b)
-
-
 @given(u'operand {a}')
 def step_impl(context, a):
     context.a = eval(a)
-
-
-@when(u'the binary operation is executed {count} times')
-def step_impl(context, count):
-    count = eval(count)
-
-    context.results = []
-    for i in range(count):
-        context.results.append(context.binary_operation(args=(context.a, context.b)))
 
 
 @when(u'the unary operation is executed {count} times')

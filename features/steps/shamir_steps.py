@@ -54,32 +54,6 @@ def step_impl(context, count):
     context.shares = numpy.column_stack(SocketCommunicator.run(world_size=context.players, fn=operation, args=(count,)))
 
 
-@when(u'player {} performs local in-place addition on the shamir shared secret')
-def step_impl(context, player):
-    player = eval(player)
-
-    def operation(communicator, secret, player, local):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
-        protocol.encoder.inplace_add(share.storage, protocol.encoder.encode(local))
-        return protocol.encoder.decode(protocol.reveal(share))
-
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
-
-
-@when(u'player {} performs local in-place subtraction on the shamir shared secret')
-def step_impl(context, player):
-    player = eval(player)
-
-    def operation(communicator, secret, player, local):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
-        protocol.encoder.inplace_subtract(share.storage, protocol.encoder.encode(local))
-        return protocol.encoder.decode(protocol.reveal(share))
-
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
-
-
 @when(u'player {player} shamir shares and reveals random secrets, the revealed secrets should match the originals')
 def step_impl(context, player):
     player = eval(player)

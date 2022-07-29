@@ -23,36 +23,6 @@ Feature: Additive Protocol
         | 4       | 2      | 10    |
 
 
-    Scenario Outline: Local Addition
-        Given <players> players
-        And secret value <secret>
-        And local value <local>
-        When player <player> performs local in-place addition on the shared secret
-        Then the group should return <result>
-
-        Examples:
-        | players | secret  | local       | player | result                                 |
-        | 2       | 5       | 1           | 1      | [6] * 2                                |
-        | 3       | 5       | 1.1         | 1      | [6.1] * 3                              |
-        | 4       | 5       | 1.5         | 2      | [6.5] * 4                              |
-        | 3       | [5, 3]  | [1.1, 2.2]  | 1      | [[6.1, 5.2]] * 3                       |
-
-
-    Scenario Outline: Local Subtraction
-        Given <players> players
-        And secret value <secret>
-        And local value <local>
-        When player <player> performs local in-place subtraction on the shared secret
-        Then the group should return <result>
-
-        Examples:
-        | players | secret  | local       | player | result                                    |
-        | 2       | 5       | 1           | 1      | [4] * 2                                   |
-        | 3       | 5       | 1.1         | 1      | [3.9] * 3                                 |
-        | 4       | 5       | 1.5         | 1      | [3.5] * 4                                 |
-        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
-
-
     Scenario Outline: Random Bitwise Secret
         Given <players> players
         Then generating <bits> random bits with players <src> and seed <seed> produces a valid result
@@ -90,6 +60,40 @@ Feature: Additive Protocol
 
 ############################################################################################################
 ## New style scenarios using the calculator service.
+
+    @calculator
+    Scenario Outline: Local Add
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        And player 0 secret shares <a>
+        When player <player> adds <b> to the share in-place
+        And the players reveal the result
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a       | b           | player | result      |
+        | 2       | 5       | 1           | 1      | 6           |
+        | 3       | 5       | 1.1         | 1      | 6.1         |
+        | 4       | 5       | 1.5         | 2      | 6.5         |
+        | 3       | [5, 3]  | [1.1, 2.2]  | 1      | [6.1, 5.2]  |
+
+
+    @calculator
+    Scenario Outline: Local Subtract
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        And player 0 secret shares <a>
+        When player <player> subtracts <b> from the share in-place
+        And the players reveal the result
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a       | b           | player | result        |
+        | 2       | 5       | 1           | 1      | 4             |
+        | 3       | 5       | 1.1         | 1      | 3.9           |
+        | 4       | 5       | 1.5         | 1      | 3.5           |
+        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [3.9, -0.2]   |
+
 
     @calculator
     Scenario Outline: Private Add
@@ -514,9 +518,6 @@ Feature: Additive Protocol
 
         Examples:
         | players | count |
-        | 2       | 10    |
         | 3       | 10    |
         | 4       | 10    |
         | 10      | 10    |
-
-

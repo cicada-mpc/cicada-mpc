@@ -167,6 +167,26 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+
+            # Inplace operations.
+            if command == "inplace_add":
+                protocol = protocol_stack[-1]
+                b = operand_stack.pop()
+                a = operand_stack.pop()
+                protocol.encoder.inplace_add(a.storage, b)
+                operand_stack.append(a)
+                _success(client)
+                continue
+
+            if command == "inplace_subtract":
+                protocol = protocol_stack[-1]
+                b = operand_stack.pop()
+                a = operand_stack.pop()
+                protocol.encoder.inplace_subtract(a.storage, b)
+                operand_stack.append(a)
+                _success(client)
+                continue
+
             # Unknown command.
             log.error(f"Player {communicator.rank} unknown command: {command}")
             client.sendall(json.dumps(("unknown command", f"{command}")).encode())

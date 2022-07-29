@@ -21,34 +21,6 @@ Feature: Shamir Protocol
         | 4       | 0      |
         | 5       | 0      |
 
-    Scenario Outline: Local Shamir Addition
-        Given <players> players
-        And secret value <secret>
-        And local value <local>
-        When player <player> performs local in-place addition on the shamir shared secret
-        Then the group should return <result>
-
-        Examples:
-        | players | secret  | local       | player | result                                 |
-        | 3       | 5       | 1.1         | 1      | [6.1] * 3                              |
-        | 4       | 5       | 1.5         | 2      | [6.5] * 4                              |
-
-        | 3       | [5, 3]  | [1.1, 2.2]  | 1      | [[6.1, 5.2]] * 3                       |
-
-
-    Scenario Outline: Local Shamir Subtraction
-        Given <players> players
-        And secret value <secret>
-        And local value <local>
-        When player <player> performs local in-place subtraction on the shamir shared secret
-        Then the group should return <result>
-
-        Examples:
-        | players | secret  | local       | player | result                                    |
-        | 3       | 5       | 1.1         | 1      | [3.9] * 3                                 |
-        | 4       | 5       | 1.5         | 1      | [3.5] * 4                                 |
-        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
-
 
     Scenario Outline: Shamir Random Bitwise Secret
         Given <players> players
@@ -87,6 +59,7 @@ Feature: Shamir Protocol
 
 ############################################################################################################
 ## New style scenarios using the calculator service.
+
 
     @calculator
     Scenario Outline: Private Add
