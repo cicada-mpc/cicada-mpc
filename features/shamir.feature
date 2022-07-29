@@ -96,22 +96,6 @@ Feature: Shamir Protocol
         | 3       | multiplicative_inverse  | [[35.125,65.25],[73.5, -3.0625]]  | 1     | [[[[1,1],[1,1]]] * 3]|
 
 
-    Scenario Outline: Shamir Private Public Subtraction
-        Given <players> players
-        And secret value <secret>
-        And local value <local>
-        When player <player> performs private public subtraction on the shamir shared secret
-        Then the group should return <result>
-
-        Examples:
-        | players | secret  | local       | player | result                                    |
-        | 5       | 5       | 1           | 1      | [4] * 5                                   |
-        | 3       | 5       | 1.1         | 1      | [3.9] * 3                                 |
-        | 4       | 5       | 1.5         | 1      | [3.5] * 4                                 |
-        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
-
-
-
 ############################################################################################################
 ## New style scenarios using the calculator service.
 
@@ -390,6 +374,24 @@ Feature: Shamir Protocol
         Examples:
         | players | a                      | b  | result                                |
         | 3       | [-1, 2, 3.75, -2.0625] | 3  | [-1, 8, 52.734375, -8.773681640625]   |
+
+
+    @calculator
+    Scenario Outline: Private Public Subtract
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        And player 0 secret shares <a>
+        And public value <b>
+        When the players subtract the public value from the share
+        And the players reveal the result
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a       | b          | result       |
+        | 3       | 5       | 1          | 4            |
+        | 3       | 5       | 1.1        | 3.9          |
+        | 4       | 5       | 1.5        | 3.5          |
+        | 3       | [5, 3]  | [1.1, 3.2] | [3.9, -0.2]  |
 
 
     @calculator

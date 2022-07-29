@@ -219,6 +219,11 @@ def step_impl(context):
     service_command(context, command="reveal")
 
 
+@when(u'the players subtract the public value from the share')
+def step_impl(context):
+    service_command(context, command="private_public_subtract")
+
+
 @then(u'the result should match {value} to within {digits} digits')
 def step_impl(context, value, digits):
     value = eval(value)

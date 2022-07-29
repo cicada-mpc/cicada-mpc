@@ -138,16 +138,3 @@ def step_impl(context):
     context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
-@when(u'player {} performs private public subtraction on the shamir shared secret')
-def step_impl(context, player):
-    player = eval(player)
-
-    def operation(communicator, secret, player, local):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=secret.shape)
-        result = protocol.private_public_subtract(share, protocol.encoder.encode(local))
-        return protocol.encoder.decode(protocol.reveal(result))
-
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
-
-
