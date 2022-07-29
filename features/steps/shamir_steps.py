@@ -196,20 +196,6 @@ def step_impl(context):
     context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
 
 
-@given(u'binary operation shamir less')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=0, secret=b, shape=b.shape)
-        c = protocol.less(a, b)
-        return protocol.reveal(c)
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
-
-
 @when(u'player {} performs private public subtraction on the shamir shared secret')
 def step_impl(context, player):
     player = eval(player)

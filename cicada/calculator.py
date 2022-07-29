@@ -116,7 +116,7 @@ def main(listen_socket, communicator):
                 continue
 
             # Binary operations.
-            if command in ["add", "dot", "equal", "logical_and", "logical_or", "logical_xor", "max", "min"]:
+            if command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min"]:
                 protocol = protocol_stack[-1]
                 b = argument_stack.pop()
                 a = argument_stack.pop()

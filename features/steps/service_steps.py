@@ -116,6 +116,11 @@ def step_impl(context):
     service_command(context, command="equal")
 
 
+@when(u'the players compare the shares with less than')
+def step_impl(context):
+    service_command(context, command="less")
+
+
 @when(u'the players compute the dot product of the shares')
 def step_impl(context):
     service_command(context, command="dot")

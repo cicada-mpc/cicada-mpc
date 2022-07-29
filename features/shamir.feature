@@ -201,28 +201,6 @@ Feature: Shamir Protocol
         | 3       | multiplicative_inverse  | [[35.125,65.25],[73.5, -3.0625]]  | 1     | [[[[1,1],[1,1]]] * 3]|
 
 
-    Scenario Outline: Shamir Less
-        Given <players> players
-        And binary operation shamir less 
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players  | a             | b              | count | result                          |
-        | 3        | 0             | 0              | 1     | [[0] * 3]                       |
-        | 3        | 0             | 100            | 1     | [[1] * 3]                       |
-        | 3        | 0             | -100           | 1     | [[0] * 3]                       |
-        | 3        | 0             | 2**-16         | 1     | [[1] * 3]                       |
-        | 3        | 0             | -2**-16        | 1     | [[0] * 3]                       |
-        | 3        | -100          | 100            | 1     | [[1] * 3]                       |
-        | 3        | 100           | 100            | 1     | [[0] * 3]                       |
-        | 3        | -100          | -100           | 1     | [[0] * 3]                       |
-        | 3        | 2**16         | 2**16-1        | 1     | [[0] * 3]                       |
-        | 3        | 2**16-2       | 2**16-1        | 1     | [[1] * 3]                       |
-        | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | 1     | [[[[1,0],[1,0]]] * 3]           |
-
-
     Scenario Outline: Shamir Private Public Subtraction
         Given <players> players
         And secret value <secret>
@@ -335,6 +313,31 @@ Feature: Shamir Protocol
         | 3        | -2.1              | -2.1             | 1          |
         | 3        | -2                | 2                | 0          |
         | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | [1,0,1,1]  |
+
+
+    @calculator
+    Scenario Outline: Private Less Than
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players compare the shares with less than
+        And the players reveal the unencoded result
+        Then the result should match <result>
+
+        Examples:
+        | players  | a             | b              | result          |
+        | 3        | 0             | 0              | 0               |
+        | 3        | 0             | 100            | 1               |
+        | 3        | 0             | -100           | 0               |
+        | 3        | 0             | 2**-16         | 1               |
+        | 3        | 0             | -2**-16        | 0               |
+        | 3        | -100          | 100            | 1               |
+        | 3        | 100           | 100            | 0               |
+        | 3        | -100          | -100           | 0               |
+        | 3        | 2**16         | 2**16-1        | 0               |
+        | 3        | 2**16-2       | 2**16-1        | 1               |
+        | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | [[1,0],[1,0]]   |
 
 
     @calculator

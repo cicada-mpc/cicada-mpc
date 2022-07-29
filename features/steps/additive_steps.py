@@ -271,20 +271,6 @@ def step_impl(context):
     context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
 
-@given(u'binary operation less')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=0, secret=b, shape=b.shape)
-        c = protocol.less(a, b)
-        return protocol.reveal(c)
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
 @when(u'player {} performs private public subtraction on the shared secret')
 def step_impl(context, player):
     player = eval(player)
