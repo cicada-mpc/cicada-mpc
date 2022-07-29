@@ -61,32 +61,6 @@ Feature: Shamir Protocol
         | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
 
 
-    Scenario Outline: Untruncated Shamir Multiplication
-        Given <players> players
-        And binary operation shamir <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation                                  | a   | b    | count | result                |
-        | 3       | private-private untruncated multiplication | 5   | 2    | 1     | [[655360] * 3]       |
-        | 3       | private-private untruncated multiplication | 5   | 2.5  | 1     | [[819200] * 3]     |
-        | 3       | private-private untruncated multiplication | 5   | -2.5 | 1     | [[-819200] * 3]    |
-        | 3       | private-private untruncated multiplication | -5  | -2.5 | 1     | [[819200] * 3]     |
-        | 3       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1    | [[[655360, 917504]] * 3]|
-        | 4       | private-private untruncated multiplication | 5   | 2    | 1     | [[655360] * 4]       |
-        | 4       | private-private untruncated multiplication | 5   | 2.5  | 1     | [[819200] * 4]     |
-        | 4       | private-private untruncated multiplication | 5   | -2.5 | 1     | [[-819200] * 4]    |
-        | 4       | private-private untruncated multiplication | -5  | -2.5 | 1     | [[819200] * 4]     |
-        | 4       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1    | [[[655360, 917504]] * 4]|
-        | 5       | private-private untruncated multiplication | 5   | 2    | 1     | [[655360] * 5]       |
-        | 5       | private-private untruncated multiplication | 5   | 2.5  | 1     | [[819200] * 5]     |
-        | 5       | private-private untruncated multiplication | 5   | -2.5 | 1     | [[-819200] * 5]    |
-        | 5       | private-private untruncated multiplication | -5  | -2.5 | 1     | [[819200] * 5]     |
-        | 5       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1    | [[[655360, 917504]] * 5]        |
-
-
     Scenario Outline: Shamir Random Bitwise Secret
         Given <players> players
         Then generating <bits> shamir random bits with all players produces a valid result
@@ -94,42 +68,11 @@ Feature: Shamir Protocol
         Examples:
         | players | bits  |
         | 4       | 1     |
-        | 4       | 2     | 
-        | 4       | 4     |  
+        | 4       | 2     |
+        | 4       | 4     |
         | 4       | 8     |
         | 3       | 8     |
         | 3       | 8     |
-
-
-    Scenario Outline: Shamir Multiplication
-        Given <players> players
-        And binary operation shamir <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation                      | a   | b    | count | result                |
-        | 6       | private-private multiplication | 5   | 2    | 1     | [[10] * 6]            |
-        | 6       | private-private multiplication | 5   | 2.5  | 1     | [[12.5] * 6]          |
-        | 6       | private-private multiplication | 5   | -2.5 | 1     | [[-12.5] * 6]         |
-        | 6       | private-private multiplication | -5  | -2.5 | 1     | [[12.5] * 6]          |
-        | 6       | private-private multiplication | [5, 3.5]   | [2, 4]  | 1    | [[[10, 14]] * 6]   |
-        | 3       | private-private multiplication | 5   | 2    | 1     | [[10] * 3]           |
-        | 3       | private-private multiplication | 5   | 2.5  | 1     | [[12.5] * 3]         |
-        | 3       | private-private multiplication | 5   | -2.5 | 1     | [[-12.5] * 3]        |
-        | 3       | private-private multiplication | -5  | -2.5 | 1     | [[12.5] * 3]         |
-        | 3       | private-private multiplication | [5, 3.5]   | [2, 4]  | 1    | [[[10, 14]] * 3]  |
-        | 4       | private-private multiplication | 5   | 2    | 1     | [[10] * 4]           |
-        | 4       | private-private multiplication | 5   | 2.5  | 1     | [[12.5] * 4]         |
-        | 4       | private-private multiplication | 5   | -2.5 | 1     | [[-12.5] * 4]        |
-        | 4       | private-private multiplication | -5  | -2.5 | 1     | [[12.5] * 4]         |
-        | 4       | private-private multiplication | [5, 3.5]   | [2, 4]  | 1    | [[[10, 14]] * 4]  |
-        | 5       | private-private multiplication | 5   | 2    | 1     | [[10] * 5]           |
-        | 5       | private-private multiplication | 5   | 2.5  | 1     | [[12.5] * 5]         |
-        | 5       | private-private multiplication | 5   | -2.5 | 1     | [[-12.5] * 5]        |
-        | 5       | private-private multiplication | -5  | -2.5 | 1     | [[12.5] * 5]         |
-        | 5       | private-private multiplication | [5, 3.5]   | [2, 4]  | 1    | [[[10, 14]] * 5]  |
 
 
     Scenario Outline: Shamir Multiplicative Inverse
@@ -438,6 +381,40 @@ Feature: Shamir Protocol
         | 3       | 2              | -3                 | -3               |
         | 3       | -4             | -3                 | -4               |
         | 3       | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | [2, 1, -2, -4]   |
+
+
+    @calculate
+    Scenario Outline: Private Multiply
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players multiply the shares
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b       | result        |
+        | 5       | 5          | 2       | 10            |
+        | 5       | 5          | 2.5     | 12.5          |
+        | 5       | 5          | -2.5    | -12.5         |
+        | 5       | -5         | -2.5    | 12.5          |
+        | 5       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+        | 3       | 5          | 2       | 10            |
+        | 3       | 5          | 2.5     | 12.5          |
+        | 3       | 5          | -2.5    | -12.5         |
+        | 3       | -5         | -2.5    | 12.5          |
+        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+        | 4       | 5          | 2       | 10            |
+        | 4       | 5          | 2.5     | 12.5          |
+        | 4       | 5          | -2.5    | -12.5         |
+        | 4       | -5         | -2.5    | 12.5          |
+        | 4       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+        | 5       | 5          | 2       | 10            |
+        | 5       | 5          | 2.5     | 12.5          |
+        | 5       | 5          | -2.5    | -12.5         |
+        | 5       | -5         | -2.5    | 12.5          |
+        | 5       | [5, 3.5]   | [2, 4]  | [10, 14]      |
 
 
     @calculator

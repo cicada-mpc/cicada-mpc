@@ -65,37 +65,6 @@ Feature: Additive Protocol
         | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
 
 
-    Scenario Outline: Untruncated Multiplication
-        Given <players> players
-        And binary operation <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation                                  | a   | b    | count | result                |
-        | 2       | private-private untruncated multiplication | 5   | 2    | 1     | [[655360] * 2]            |
-        | 2       | private-private untruncated multiplication | 5   | 2.5  | 1     | [[819200] * 2]          |
-        | 2       | private-private untruncated multiplication | 5   | -2.5 | 1     | [[-819200] * 2]         |
-        | 2       | private-private untruncated multiplication | -5  | -2.5 | 1     | [[819200] * 2]          |
-        | 2       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1 | [[[655360, 917504]]*2]|
-        | 3       | private-private untruncated multiplication | 5   | 2    | 1     | [[655360] * 3]            |
-        | 3       | private-private untruncated multiplication | 5   | 2.5  | 1     | [[819200] * 3]          |
-        | 3       | private-private untruncated multiplication | 5   | -2.5 | 1     | [[-819200] * 3]         |
-        | 3       | private-private untruncated multiplication | -5  | -2.5 | 1     | [[819200] * 3]          |
-        | 3       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1| [[[655360, 917504]]*3] |
-        | 4       | private-private untruncated multiplication | 5   | 2    | 1     | [[655360] * 4]            |
-        | 4       | private-private untruncated multiplication | 5   | 2.5  | 1     | [[819200] * 4]          |
-        | 4       | private-private untruncated multiplication | 5   | -2.5 | 1     | [[-819200] * 4]         |
-        | 4       | private-private untruncated multiplication | -5  | -2.5 | 1     | [[819200] * 4]          |
-        | 4       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1|[[[655360, 917504]]*4]|
-        | 5       | private-private untruncated multiplication | 5   | 2    | 1     | [[655360] * 5]            |
-        | 5       | private-private untruncated multiplication | 5   | 2.5  | 1     | [[819200] * 5]          |
-        | 5       | private-private untruncated multiplication | 5   | -2.5 | 1     | [[-819200] * 5]         |
-        | 5       | private-private untruncated multiplication | -5  | -2.5 | 1     | [[819200] * 5]          |
-        | 5       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1|[[[655360, 917504]]*5] |
-
-
     Scenario Outline: Random Bitwise Secret
         Given <players> players
         Then generating <bits> random bits with players <src> and seed <seed> produces a valid result
@@ -108,37 +77,6 @@ Feature: Additive Protocol
         | 2       | 8     | None      | 1237 |
         | 3       | 8     | None      | 1238 |
         | 3       | 8     | None      | 1239 |
-
-
-    Scenario Outline: Multiplication
-        Given <players> players
-        And binary operation <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation                      | a   | b    | count | result                |
-        | 2       | private-private multiplication | 5   | 2    | 1     | [[10] * 2]            |
-        | 2       | private-private multiplication | 5   | 2.5  | 1     | [[12.5] * 2]          |
-        | 2       | private-private multiplication | 5   | -2.5 | 1     | [[-12.5] * 2]         |
-        | 2       | private-private multiplication | -5  | -2.5 | 1     | [[12.5] * 2]          |
-        | 2       | private-private multiplication | [5, 3.5]   | [2, 4]  | 1     | [[[10, 14]] * 2]            |
-        | 3       | private-private multiplication | 5   | 2    | 1     | [[10] * 3]            |
-        | 3       | private-private multiplication | 5   | 2.5  | 1     | [[12.5] * 3]          |
-        | 3       | private-private multiplication | 5   | -2.5 | 1     | [[-12.5] * 3]         |
-        | 3       | private-private multiplication | -5  | -2.5 | 1     | [[12.5] * 3]          |
-        | 3       | private-private multiplication | [5, 3.5]   | [2, 4]  | 1     | [[[10, 14]] * 3]            |
-        | 4       | private-private multiplication | 5   | 2    | 1     | [[10] * 4]            |
-        | 4       | private-private multiplication | 5   | 2.5  | 1     | [[12.5] * 4]          |
-        | 4       | private-private multiplication | 5   | -2.5 | 1     | [[-12.5] * 4]         |
-        | 4       | private-private multiplication | -5  | -2.5 | 1     | [[12.5] * 4]          |
-        | 4       | private-private multiplication | [5, 3.5]   | [2, 4]  | 1     | [[[10, 14]] * 4]            |
-        | 5       | private-private multiplication | 5   | 2    | 1     | [[10] * 5]            |
-        | 5       | private-private multiplication | 5   | 2.5  | 1     | [[12.5] * 5]          |
-        | 5       | private-private multiplication | 5   | -2.5 | 1     | [[-12.5] * 5]         |
-        | 5       | private-private multiplication | -5  | -2.5 | 1     | [[12.5] * 5]          |
-        | 5       | private-private multiplication | [5, 3.5]   | [2, 4]  | 1     | [[[10, 14]] * 5]            |
 
 
     Scenario Outline: Multiplicative Inverse
@@ -466,6 +404,40 @@ Feature: Additive Protocol
         | 3       | 2              | -3                 | -3               |
         | 3       | -4             | -3                 | -4               |
         | 3       | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | [2, 1, -2, -4]   |
+
+
+    @calculate
+    Scenario Outline: Private Multiply
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And the players multiply the shares
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b       | result        |
+        | 2       | 5          | 2       | 10            |
+        | 2       | 5          | 2.5     | 12.5          |
+        | 2       | 5          | -2.5    | -12.5         |
+        | 2       | -5         | -2.5    | 12.5          |
+        | 2       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+        | 3       | 5          | 2       | 10            |
+        | 3       | 5          | 2.5     | 12.5          |
+        | 3       | 5          | -2.5    | -12.5         |
+        | 3       | -5         | -2.5    | 12.5          |
+        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+        | 4       | 5          | 2       | 10            |
+        | 4       | 5          | 2.5     | 12.5          |
+        | 4       | 5          | -2.5    | -12.5         |
+        | 4       | -5         | -2.5    | 12.5          |
+        | 4       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+        | 5       | 5          | 2       | 10            |
+        | 5       | 5          | 2.5     | 12.5          |
+        | 5       | 5          | -2.5    | -12.5         |
+        | 5       | -5         | -2.5    | 12.5          |
+        | 5       | [5, 3.5]   | [2, 4]  | [10, 14]      |
 
 
     @calculator

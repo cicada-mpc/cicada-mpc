@@ -149,7 +149,7 @@ def main(listen_socket, communicator):
                 break
 
             # Unary operations.
-            if command in ["floor", "relu", "sum", "zigmoid"]:
+            if command in ["floor", "relu", "sum", "truncate", "zigmoid"]:
                 protocol = protocol_stack[-1]
                 a = operand_stack.pop()
                 share = getattr(protocol, command)(a)
@@ -158,7 +158,7 @@ def main(listen_socket, communicator):
                 continue
 
             # Binary operations.
-            if command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "public_private_add"]:
+            if command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "public_private_add", "untruncated_multiply"]:
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()

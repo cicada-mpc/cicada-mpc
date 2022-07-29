@@ -91,38 +91,6 @@ def step_impl(context, player):
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local))
 
 
-@given(u'binary operation shamir private-private untruncated multiplication')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=1, secret=b, shape=b.shape)
-        logging.debug(f"Comm {communicator.name} player {communicator.rank} untruncated_multiply")
-        c = protocol.untruncated_multiply(a, b)
-
-        logging.debug(f"Comm {communicator.name} player {communicator.rank} reveal")
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
-
-
-@given(u'binary operation shamir private-private multiplication')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=1, secret=b, shape=b.shape)
-        c = protocol.untruncated_multiply(a, b)
-        c = protocol.truncate(c)
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation)
-
-
 @when(u'player {player} shamir shares and reveals random secrets, the revealed secrets should match the originals')
 def step_impl(context, player):
     player = eval(player)

@@ -134,38 +134,6 @@ def step_impl(context, result):
         numpy.testing.assert_array_equal(result, group)
 
 
-@given(u'binary operation private-private untruncated multiplication')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=1, secret=b, shape=b.shape)
-        logging.debug(f"Comm {communicator.name} player {communicator.rank} untruncated_multiply")
-        c = protocol.untruncated_multiply(a, b)
-
-        logging.debug(f"Comm {communicator.name} player {communicator.rank} reveal")
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
-@given(u'binary operation private-private multiplication')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = protocol.encoder.encode(numpy.array(b))
-        b = protocol.share(src=1, secret=b, shape=b.shape)
-        c = protocol.untruncated_multiply(a, b)
-        c = protocol.truncate(c)
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
 @given(u'operands {a} and {b}')
 def step_impl(context, a, b):
     context.a = eval(a)
