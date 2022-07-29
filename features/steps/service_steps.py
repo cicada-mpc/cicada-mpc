@@ -54,6 +54,7 @@ def service_command(context, command):
             if not data:
                 break
             result += data
+        print(result)
         results.append(json.loads(result))
 
     for result in results:
