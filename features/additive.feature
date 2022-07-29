@@ -124,36 +124,6 @@ Feature: Additive Protocol
         | 5       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1|[[[655360, 917504]]*5] |
 
 
-    Scenario Outline: Logical Exclusive Or
-        Given <players> players
-        And binary operation <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation           | a      | b      | count | result             |
-        | 2       | private-private xor | 0      | 0      | 1     | [[0] * 2]          |
-        | 2       | private-private xor | 0      | 1      | 1     | [[1] * 2]          |
-        | 2       | private-private xor | 1      | 0      | 1     | [[1] * 2]          |
-        | 2       | private-private xor | 1      | 1      | 1     | [[0] * 2]          |
-
-
-    Scenario Outline: Logical Or
-        Given <players> players
-        And binary operation <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation          | a      | b      | count | result             |
-        | 2       | private-private or | 0      | 0      | 1     | [[0] * 2]          |
-        | 2       | private-private or | 0      | 1      | 1     | [[1] * 2]          |
-        | 2       | private-private or | 1      | 0      | 1     | [[1] * 2]          |
-        | 2       | private-private or | 1      | 1      | 1     | [[1] * 2]          |
-
-
     Scenario Outline: Max
         Given <players> players
         And binary operation <operation>
@@ -455,10 +425,46 @@ Feature: Additive Protocol
 
         Examples:
         | players  | a | b | result |
-        | 3        | 0 | 0 | [0]    |
-        | 3        | 0 | 1 | [0]    |
-        | 3        | 1 | 0 | [0]    |
-        | 3        | 1 | 1 | [1]    |
+        | 3        | 0 | 0 | 0      |
+        | 3        | 0 | 1 | 0      |
+        | 3        | 1 | 0 | 0      |
+        | 3        | 1 | 1 | 1      |
+
+
+    @calculator
+    Scenario Outline: Private Logical Exclusive Or
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares unencoded <a>
+        And player 1 secret shares unencoded <b>
+        And the players compute the logical exclusive or of the shares
+        And the players reveal the unencoded result
+        Then the result should match <result>
+
+        Examples:
+        | players | a | b | result |
+        | 3       | 0 | 0 | 0      |
+        | 3       | 0 | 1 | 1      |
+        | 3       | 1 | 0 | 1      |
+        | 3       | 1 | 1 | 0      |
+
+
+    @calculator
+    Scenario Outline: Private Logical Or
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares unencoded <a>
+        And player 1 secret shares unencoded <b>
+        And the players compute the logical or of the shares
+        And the players reveal the unencoded result
+        Then the result should match <result>
+
+        Examples:
+        | players | a | b | result |
+        | 2       | 0 | 0 | 0      |
+        | 2       | 0 | 1 | 1      |
+        | 2       | 1 | 0 | 1      |
+        | 2       | 1 | 1 | 1      |
 
 
     @calculator

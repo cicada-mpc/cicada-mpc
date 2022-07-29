@@ -121,6 +121,16 @@ def step_impl(context):
     service_command(context, command="logical-and")
 
 
+@when(u'the players compute the logical exclusive or of the shares')
+def step_impl(context):
+    service_command(context, command="logical-xor")
+
+
+@when(u'the players compute the logical or of the shares')
+def step_impl(context):
+    service_command(context, command="logical-or")
+
+
 @when(u'the players compute the relu of the share')
 def step_impl(context):
     service_command(context, command="relu")

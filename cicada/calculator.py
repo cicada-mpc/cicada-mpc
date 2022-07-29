@@ -131,6 +131,24 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            if command == "logical-or":
+                protocol = protocol_stack[-1]
+                b = argument_stack.pop()
+                a = argument_stack.pop()
+                share = protocol.logical_or(a, b)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
+            if command == "logical-xor":
+                protocol = protocol_stack[-1]
+                b = argument_stack.pop()
+                a = argument_stack.pop()
+                share = protocol.logical_xor(a, b)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
             if command == "relu":
                 protocol = protocol_stack[-1]
                 a = argument_stack.pop()

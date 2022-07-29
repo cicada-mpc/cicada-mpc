@@ -165,34 +165,6 @@ def step_impl(context):
     context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
 
-@given(u'binary operation private-private xor')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = numpy.array(a, dtype=protocol.encoder.dtype)
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = numpy.array(b, dtype=protocol.encoder.dtype)
-        b = protocol.share(src=1, secret=b, shape=b.shape)
-        c = protocol.logical_xor(a, b)
-        return protocol.reveal(c)
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
-@given(u'binary operation private-private or')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = numpy.array(a, dtype=protocol.encoder.dtype)
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = numpy.array(b, dtype=protocol.encoder.dtype)
-        b = protocol.share(src=1, secret=b, shape=b.shape)
-        c = protocol.logical_or(a, b)
-        return protocol.reveal(c)
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
 @given(u'binary operation max')
 def step_impl(context):
     def operation(communicator, a, b):

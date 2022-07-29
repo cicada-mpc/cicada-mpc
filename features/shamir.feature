@@ -114,36 +114,6 @@ Feature: Shamir Protocol
         | 5       | private-private untruncated multiplication | [5, 3.5] | [2, 4]  | 1    | [[[655360, 917504]] * 5]        |
 
 
-    Scenario Outline: Shamir Logical Exclusive Or
-        Given <players> players
-        And binary operation shamir <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation           | a      | b      | count | result             |
-        | 5       | private-private xor | 0      | 0      | 1     | [[0] * 5]      |
-        | 5       | private-private xor | 0      | 1      | 1     | [[1] * 5]      |
-        | 5       | private-private xor | 1      | 0      | 1     | [[1] * 5]      |
-        | 5       | private-private xor | 1      | 1      | 1     | [[0] * 5]      |
-
-
-    Scenario Outline: Shamir Logical Or
-        Given <players> players
-        And binary operation shamir <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation          | a      | b      | count | result             |
-        | 5       | private-private or | 0      | 0      | 1     | [[0] * 5]      |
-        | 5       | private-private or | 0      | 1      | 1     | [[1] * 5]      |
-        | 5       | private-private or | 1      | 0      | 1     | [[1] * 5]      |
-        | 5       | private-private or | 1      | 1      | 1     | [[1] * 5]      |
-
-
     Scenario Outline: Shamir Max
         Given <players> players
         And binary operation shamir <operation>
@@ -414,6 +384,42 @@ Feature: Shamir Protocol
         | 3        | 0 | 1 | [0]    |
         | 3        | 1 | 0 | [0]    |
         | 3        | 1 | 1 | [1]    |
+
+
+    @calculator
+    Scenario Outline: Private Logical Exclusive Or
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares unencoded <a>
+        And player 1 secret shares unencoded <b>
+        And the players compute the logical exclusive or of the shares
+        And the players reveal the unencoded result
+        Then the result should match <result>
+
+        Examples:
+        | players | a | b | result |
+        | 3       | 0 | 0 | 0      |
+        | 3       | 0 | 1 | 1      |
+        | 3       | 1 | 0 | 1      |
+        | 3       | 1 | 1 | 0      |
+
+
+    @calculator
+    Scenario Outline: Private Logical Or
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When player 0 secret shares unencoded <a>
+        And player 1 secret shares unencoded <b>
+        And the players compute the logical or of the shares
+        And the players reveal the unencoded result
+        Then the result should match <result>
+
+        Examples:
+        | players | a | b | result |
+        | 3       | 0 | 0 | 0      |
+        | 3       | 0 | 1 | 1      |
+        | 3       | 1 | 0 | 1      |
+        | 3       | 1 | 1 | 1      |
 
 
     @calculator
