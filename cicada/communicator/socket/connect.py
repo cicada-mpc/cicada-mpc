@@ -372,7 +372,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
                             other_player.send(pickle.dumps("OK"))
                             break
                     except Exception as e: # pragma: no cover
-                        log.warning("exception receiving player rank.")
+                        log.warning(f"exception receiving player rank: {e}")
                         time.sleep(0.1)
                 else: # pragma: no cover
                     raise Timeout(message(name, rank, "timeout waiting for player rank."))
@@ -418,8 +418,8 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
             else: # pragma: no cover
                 raise Timeout(message(name, rank, f"timeout waiting for response from player {listener}."))
 
-
     return players
+
 
 def getpeerurl(sock):
     """Return a socket's peer address as a URL.
@@ -839,7 +839,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                             log.debug(f"received rank from player {other_rank}.")
                             break
                     except Exception as e: # pragma: no cover
-                        log.warning(f"exception receiving player rank.")
+                        log.warning(f"exception receiving player rank: {e}")
                         time.sleep(0.1)
                 else: # pragma: no cover
                     raise Timeout(message(name, rank, "timeout waiting for player rank."))
