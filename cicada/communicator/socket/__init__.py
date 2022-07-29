@@ -702,7 +702,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5, use_listen_socket=False, return_addresses=False, return_results=True):
+    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5, keep_listen_socket=False, return_results=True):
         """Run a function in parallel using sub-processes on the local host.
 
         This is extremely useful for running examples and regression tests on one machine.
@@ -740,32 +740,32 @@ class SocketCommunicator(Communicator):
         startup_timeout: :class:`numbers.Number`, optional
             Maximum time allowed to setup the communicator in seconds.
             Defaults to five seconds.
-        use_listen_socket: :class:`bool`, optional
+        keep_listen_socket: :class:`bool`, optional
             If :any:`True`, pass a listening server socket as the first
-            argument to `fun`.  Default: :any:`False`.
-        return_addresses: :class:`bool`, optional
-            If :any:`True`, return a :class:`list` of network addresses in rank
-            order.  This is useful for long-running "MPC-as-a-service"
-            applications where the caller needs to communicate with the players
-            while they run.  Default: :any:`False`.
+            argument to `fn`.  Default: :any:`False`.
         return_results: :class:`bool`, optional
             When :any:`True` (the default), this function will wait until `fn`
             completes, returning a :class:`list` of `fn` return values, in rank
             order.  If :any:`False`, the function returns immediately after starting
-            the player processes.
+            the player processes, and returns rank-order lists of network addresses
+            and processes.
 
         Returns
         -------
         addresses: :class:`list` of :class:`str`
-            A listening address for each player, in rank order.
+            A listening address for each player, in rank order.  Returned only
+            if `return_results` is :any:`False`.
+        processes: :class:`list` of :class:`multiprocessing.Process`
+            A listening address for each player, in rank order.  Returned only
+            if `return_results` is :any:`False`.
         results: :class:`list`
-            The return value from the function for each player, in
-            rank order.  If a player process terminates unexpectedly, the
-            result will be an instance of :class:`Terminated`, which can be
-            used to access the process exit code.  If the player process raises
-            a Python exception, the result will be an instance of
-            :class:`Failed`, which can be used to access the Python exception
-            and a traceback of the failing code.
+            The return value from the function for each player, in rank order.
+            Returned only if `return_results` is :any:`True`. If a player
+            process terminates unexpectedly, the result will be an instance of
+            :class:`Terminated`, which can be used to access the process exit
+            code.  If the player process raises a Python exception, the result
+            will be an instance of :class:`Failed`, which can be used to access
+            the Python exception and a traceback of the failing code.
         """
         def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, family, name, timeout, startup_timeout):
             # Run the work function.
@@ -791,7 +791,7 @@ class SocketCommunicator(Communicator):
                 tls = gettls(identity=identity, trusted=trusted)
                 sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer, tls=tls)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
-                if use_listen_socket:
+                if keep_listen_socket:
                     result = fn(listen_socket, communicator, *args, **kwargs)
                 else:
                     result = fn(communicator, *args, **kwargs)
@@ -883,12 +883,9 @@ class SocketCommunicator(Communicator):
                     log.error(f"Comm {name} player {rank} traceback:")
                     log.error(result.traceback)
 
-        if return_addresses and return_results:
-            return addresses, output
-        if return_addresses:
-            return addresses
-        if return_results:
             return output
+
+        return addresses, processes
 
 
     def scatter(self, *, src, values):

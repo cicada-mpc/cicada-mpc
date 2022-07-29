@@ -14,11 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import logging
 import pickle
 
+import numpy
+
 from cicada import Logger
-from cicada.additive import AdditiveProtocol
+
+
+def _success(client):
+    client.sendall(json.dumps(None).encode())
 
 
 def main(listen_socket, communicator):
@@ -27,7 +33,7 @@ def main(listen_socket, communicator):
     This is an example of MPC-as-a-service, for cases where that is
     desirable.  Run this function using::
 
-        SocketCommunicator.run(world_size=n, fn=cicada.calculator.main, use_listen_socket=True, return_addresses=True, return_results=False)
+        SocketCommunicator.run(world_size=n, fn=cicada.calculator.main, keep_listen_socket=True, return_results=False)
 
     ... which will start the service and return a set of socket addresses.
     Client code can then use those addressess to connect to the service and
@@ -37,42 +43,73 @@ def main(listen_socket, communicator):
     and operands are pushed and popped from stacks.
     """
     listen_socket.setblocking(True)
-    log = Logger(logger=logging.getLogger(), communicator=communicator)
+    log = Logger(logger=logging.getLogger(), communicator=communicator, sync=False)
 
     protocol_stack = []
     argument_stack = []
 
     while True:
-        client, addr = listen_socket.accept()
-        command = pickle.loads(client.recv(4096))
-        log.info(f"Player {communicator.rank} received command: {command}")
-        if command[0] == "create":
-            if command[1] == "AdditiveProtocol":
-                protocol_stack.append(AdditiveProtocol(communicator))
-        elif command[0] == "share":
-            protocol = protocol_stack[-1]
-            player = command[1]
-            secret = command[2]
-            shape = command[3]
-            share = protocol.share(src=player, secret=protocol.encoder.encode(secret), shape=shape)
-            argument_stack.append(share)
-        elif command[0] == "private-private-add":
-            protocol = protocol_stack[-1]
-            b = argument_stack.pop()
-            a = argument_stack.pop()
-            share = protocol.add(a, b)
-            argument_stack.append(share)
-        elif command[0] == "reveal":
-            protocol = protocol_stack[-1]
-            share = argument_stack.pop()
-            secret = protocol.encoder.decode(protocol.reveal(share))
-            argument_stack.append(secret)
-        elif command[0] == "compare":
-            rhs = command[1]
-            lhs = argument_stack[-1]
-            assert(lhs == rhs)
-        else:
+        try:
+            client, addr = listen_socket.accept()
+            command = client.recv(4096)
+            command = json.loads(command)
+            log.info(f"Player {communicator.rank} received command: {command}")
+
+            if command == "quit":
+                break
+
+            if isinstance(command, list) and len(command) == 2 and command[0] == "protopush":
+                protocol = command[1]
+                if protocol == "AdditiveProtocol":
+                    from cicada.additive import AdditiveProtocol
+                    protocol_stack.append(AdditiveProtocol(communicator))
+                    _success(client)
+                    continue
+
+            if isinstance(command, list) and len(command) == 2 and command[0] == "push":
+                operand = command[1]
+                if operand is not None:
+                    operand = numpy.array(operand)
+                argument_stack.append(operand)
+                _success(client)
+                continue
+
+            if isinstance(command, list) and len(command) == 3 and command[0] == "share":
+                src = command[1]
+                shape = tuple(command[2])
+                protocol = protocol_stack[-1]
+                secret = argument_stack.pop()
+                share = protocol.share(src=src, secret=protocol.encoder.encode(secret), shape=shape)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
+            if command == "add":
+                protocol = protocol_stack[-1]
+                b = argument_stack.pop()
+                a = argument_stack.pop()
+                share = protocol.add(a, b)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
+            if command == "reveal":
+                protocol = protocol_stack[-1]
+                share = argument_stack.pop()
+                secret = protocol.encoder.decode(protocol.reveal(share))
+                argument_stack.append(secret)
+                _success(client)
+                continue
+
+            if isinstance(command, list) and len(command) == 2 and command[0] == "match":
+                rhs = command[1]
+                lhs = argument_stack[-1]
+                assert(lhs == rhs)
+                _success(client)
+                continue
+
             log.error(f"Player {communicator.rank} unknown command: {command}")
-        client.sendall(pickle.dumps("OK"))
-
-
+            client.sendall(json.dumps("unknown command").encode())
+        except Exception as e:
+            log.error(f"Player {communicator.rank} exception: {e}")
+            client.sendall(json.dumps(("exception", str(e))).encode())
