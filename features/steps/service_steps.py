@@ -57,7 +57,7 @@ def service_command(context, command):
 
     for result in results:
         if isinstance(result, list) and len(result) == 2 and result[0] == "unknown command":
-            raise RuntimeError(f"Unknown calculator command: {result[1]}.  Do you need to add it in cicada/calculator.py?")
+            raise RuntimeError(f"Unknown command {result[1]}.  Do you need to add it in cicada/calculator.py?")
         if isinstance(result, list) and len(result) == 2 and result[0] == "exception":
             raise RuntimeError(result[1])
 
@@ -86,6 +86,12 @@ def step_impl(context):
     service_command(context, command=("push-protocol", "ShamirProtocol"))
 
 
+@given(u'unencoded public value {public}')
+def step_impl(context, public):
+    public = numpy.array(eval(public))
+    service_command(context, command=("push-operand", public.tolist()))
+
+
 @given(u'public value {public}')
 def step_impl(context, public):
     public = numpy.array(eval(public))
@@ -93,7 +99,7 @@ def step_impl(context, public):
     service_command(context, command="encode")
 
 
-@when(u'player {player} secret shares binary {secret}')
+@given(u'player {player} secret shares binary {secret}')
 def step_impl(context, player, secret):
     player = eval(player)
     secret = numpy.array(eval(secret))
@@ -104,7 +110,7 @@ def step_impl(context, player, secret):
     service_command(context, command=("share", player, secret.shape))
 
 
-@when(u'player {player} secret shares {secret}')
+@given(u'player {player} secret shares {secret}')
 def step_impl(context, player, secret):
     player = eval(player)
     secret = numpy.array(eval(secret))
@@ -195,6 +201,11 @@ def step_impl(context):
 def step_impl(context):
     service_command(context, command="untruncated_multiply")
     service_command(context, command="truncate")
+
+
+@when(u'the players raise the share to a public power')
+def step_impl(context):
+    service_command(context, command="private_public_power")
 
 
 @when(u'the players reveal the result')

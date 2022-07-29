@@ -226,17 +226,3 @@ def step_impl(context, player):
     context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.secret, player, context.local), identities=context.identities, trusted=context.trusted)
 
 
-@given(u'binary operation private_public_power')
-def step_impl(context):
-    def operation(communicator, a, b):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = protocol.encoder.encode(numpy.array(a))
-        a = protocol.share(src=0, secret=a, shape=a.shape)
-        b = numpy.array(b)
-        c = protocol.private_public_power(a, b)
-        return protocol.encoder.decode(protocol.reveal(c))
-    context.binary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
-
-
-

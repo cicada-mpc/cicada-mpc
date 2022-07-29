@@ -115,70 +115,18 @@ Feature: Additive Protocol
         | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [[3.9, -0.2]] * 3                         |
 
 
-    Scenario Outline: Private Public Power
-        Given <players> players
-        And binary operation private_public_power
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players  | a             | b              | count | result                          |
-        | 3        | 0             | 5              | 1     | [[0] * 3]                       |
-        | 3        | 1             | 5              | 1     | [[1] * 3]                       |
-        | 3        | 2             | 16             | 1     | [[65536] * 3]                   |
-        | 3        | -1            | 4              | 1     | [[1] * 3]                       |
-        | 3        | -2            | 16             | 1     | [[65536] * 3]                   |
-        | 3        | -1            | 5              | 1     | [[-1] * 3]                      |
-
-        Examples:
-        | players  | a                      | b  | count | result                                              |
-        | 3        | [-1, 2, 3.75, -2.0625] | 3  | 1     | [[[-1, 8, 52.734375, -8.773681640625]] * 3]         |
-
-
 
 
 ############################################################################################################
 ## New style scenarios using the calculator service.
 
     @calculator
-    Scenario Outline: Public Private Addition
-        Given a calculator service with <players> players
-        And an AdditiveProtocol object
-        And public value <a>
-        When player 1 secret shares <b>
-        And the players add the public value and the share
-        And the players reveal the result
-        Then the result should match <result>
-
-        Examples:
-        | players | a          | b          | result      |
-        | 2       | -2         | -3.5       | -5.5        |
-        | 2       | -20        | -30        | -50         |
-        | 2       | -200       | -300       | -500        |
-        | 2       | -2000      | -3000      | -5000       |
-        | 3       | -20000     | -30000     | -50000      |
-        | 3       | -200000    | -300000    | -500000     |
-        | 3       | -2000000   | -3000000   | -5000000    |
-        | 3       | -20000000  | -30000000  | -50000000   |
-        | 3       | -200000000 | -300000000 | -500000000  |
-        | 3       | -21        | -35        | -56         |
-        | 3       | -212       | -351       | -563        |
-        | 3       | -2123      | -3512      | -5635       |
-        | 3       | -21234     | -35123     | -56357      |
-        | 3       | -212345    | -351234    | -563579     |
-        | 3       | -2123456   | -3512345   | -5635801    |
-        | 3       | -21234567  | -35123458  | -56358025   |
-        | 3       | -212345678 | -351234589 | -563580267  |
-
-
-    @calculator
     Scenario Outline: Private Add
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
+        And player 0 secret shares <a>
         And player 1 secret shares <b>
-        And the players add the shares
+        When the players add the shares
         And the players reveal the result
         Then the result should match <result>
 
@@ -207,9 +155,9 @@ Feature: Additive Protocol
     Scenario Outline: Private Divide
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
+        And player 0 secret shares <a>
         And player 1 secret shares <b>
-        And the players divide the shares
+        When the players divide the shares
         And the players reveal the result
         Then the result should match <result> to within 3 digits
 
@@ -229,9 +177,9 @@ Feature: Additive Protocol
     Scenario Outline: Private Dot Product
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
+        And player 0 secret shares <a>
         And player 1 secret shares <b>
-        And the players compute the dot product of the shares
+        When the players compute the dot product of the shares
         And the players reveal the result
         Then the result should match <result>
 
@@ -248,9 +196,9 @@ Feature: Additive Protocol
     Scenario Outline: Private Equality
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
+        And player 0 secret shares <a>
         And player 1 secret shares <b>
-        And the players compare the shares for equality
+        When the players compare the shares for equality
         And the players reveal the binary result
         Then the result should match <result>
 
@@ -272,8 +220,8 @@ Feature: Additive Protocol
     Scenario Outline: Private Floor
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
-        And the players compute the floor of the share
+        And player 0 secret shares <a>
+        When the players compute the floor of the share
         And the players reveal the result
         Then the result should match <result>
 
@@ -295,9 +243,9 @@ Feature: Additive Protocol
     Scenario Outline: Private Less Than
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
+        And player 0 secret shares <a>
         And player 1 secret shares <b>
-        And the players compare the shares with less than
+        When the players compare the shares with less than
         And the players reveal the binary result
         Then the result should match <result>
 
@@ -320,9 +268,9 @@ Feature: Additive Protocol
     Scenario Outline: Private Logical And
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares binary <a>
+        And player 0 secret shares binary <a>
         And player 1 secret shares binary <b>
-        And the players compute the logical and of the shares
+        When the players compute the logical and of the shares
         And the players reveal the binary result
         Then the result should match <result>
 
@@ -338,9 +286,9 @@ Feature: Additive Protocol
     Scenario Outline: Private Logical Exclusive Or
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares binary <a>
+        And player 0 secret shares binary <a>
         And player 1 secret shares binary <b>
-        And the players compute the logical exclusive or of the shares
+        When the players compute the logical exclusive or of the shares
         And the players reveal the binary result
         Then the result should match <result>
 
@@ -356,9 +304,9 @@ Feature: Additive Protocol
     Scenario Outline: Private Logical Or
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares binary <a>
+        And player 0 secret shares binary <a>
         And player 1 secret shares binary <b>
-        And the players compute the logical or of the shares
+        When the players compute the logical or of the shares
         And the players reveal the binary result
         Then the result should match <result>
 
@@ -374,9 +322,9 @@ Feature: Additive Protocol
     Scenario Outline: Private Max
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
+        And player 0 secret shares <a>
         And player 1 secret shares <b>
-        And the players compute the maximum of the shares
+        When the players compute the maximum of the shares
         And the players reveal the result
         Then the result should match <result>
 
@@ -394,9 +342,9 @@ Feature: Additive Protocol
     Scenario Outline: Private Min
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
+        And player 0 secret shares <a>
         And player 1 secret shares <b>
-        And the players compute the minimum of the shares
+        When the players compute the minimum of the shares
         And the players reveal the result
         Then the result should match <result>
 
@@ -410,13 +358,13 @@ Feature: Additive Protocol
         | 3       | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | [2, 1, -2, -4]   |
 
 
-    @calculate
+    @calculator
     Scenario Outline: Private Multiply
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
+        And player 0 secret shares <a>
         And player 1 secret shares <b>
-        And the players multiply the shares
+        When the players multiply the shares
         And the players reveal the result
         Then the result should match <result>
 
@@ -445,11 +393,35 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Private Public Power
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        And player 0 secret shares <a>
+        And unencoded public value <b>
+        When the players raise the share to a public power
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a    | b    | result   |
+        | 3       | 0    | 5    | 0        |
+        | 3       | 1    | 5    | 1        |
+        | 3       | 2    | 16   | 65536    |
+        | 3       | -1   | 4    | 1        |
+        | 3       | -2   | 16   | 65536    |
+        | 3       | -1   | 5    | -1       |
+
+        Examples:
+        | players | a                      | b  | result                                |
+        | 3       | [-1, 2, 3.75, -2.0625] | 3  | [-1, 8, 52.734375, -8.773681640625]   |
+
+
+    @calculator
     Scenario Outline: Private ReLU
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
-        And the players compute the relu of the share
+        And player 0 secret shares <a>
+        When the players compute the relu of the share
         And the players reveal the result
         Then the result should match <result> to within 4 digits
 
@@ -471,8 +443,8 @@ Feature: Additive Protocol
     Scenario Outline: Private Sum
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
-        And the players compute the sum of the share
+        And player 0 secret shares <a>
+        When the players compute the sum of the share
         And the players reveal the result
         Then the result should match <result> to within 4 digits
 
@@ -488,8 +460,8 @@ Feature: Additive Protocol
     Scenario Outline: Private Zigmoid
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares <a>
-        And the players compute the zigmoid of the share
+        And player 0 secret shares <a>
+        When the players compute the zigmoid of the share
         And the players reveal the result
         Then the result should match <result>
 
@@ -513,4 +485,36 @@ Feature: Additive Protocol
         | 3       | -.0625                   | .4375                   |
         | 3       | -.5                      | 0                       |
         | 3       | [[0, 3.4],[-1234, 1234]] | [[0.5, 1],[0, 1]]       |
+
+
+    @calculator
+    Scenario Outline: Public Private Add
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        And public value <a>
+        And player 1 secret shares <b>
+        When the players add the public value and the share
+        And the players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result      |
+        | 2       | -2         | -3.5       | -5.5        |
+        | 2       | -20        | -30        | -50         |
+        | 2       | -200       | -300       | -500        |
+        | 2       | -2000      | -3000      | -5000       |
+        | 3       | -20000     | -30000     | -50000      |
+        | 3       | -200000    | -300000    | -500000     |
+        | 3       | -2000000   | -3000000   | -5000000    |
+        | 3       | -20000000  | -30000000  | -50000000   |
+        | 3       | -200000000 | -300000000 | -500000000  |
+        | 3       | -21        | -35        | -56         |
+        | 3       | -212       | -351       | -563        |
+        | 3       | -2123      | -3512      | -5635       |
+        | 3       | -21234     | -35123     | -56357      |
+        | 3       | -212345    | -351234    | -563579     |
+        | 3       | -2123456   | -3512345   | -5635801    |
+        | 3       | -21234567  | -35123458  | -56358025   |
+        | 3       | -212345678 | -351234589 | -563580267  |
+
 
