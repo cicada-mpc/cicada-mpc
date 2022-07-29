@@ -15,7 +15,21 @@
 # limitations under the License.
 
 import glob
+import json
+import socket
+import urllib
 
 def before_all(context):
     context.identities = sorted(glob.glob("features/certificates/player-*.pem"))
     context.trusted = sorted(glob.glob("features/certificates/player-*.cert"))
+
+
+def after_scenario(context, scenario):
+    if hasattr(context, "service_addresses"):
+        for address in context.service_addresses:
+            address = urllib.parse.urlparse(address)
+            sock = socket.create_connection((address.hostname, address.port))
+            sock.sendall(json.dumps("quit").encode())
+
+        for process in context.service_processes:
+            process.join()
