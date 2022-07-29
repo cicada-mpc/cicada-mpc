@@ -48,7 +48,13 @@ def service_command(context, command):
     # Receive results
     results = []
     for sock in sockets:
-        results.append(json.loads(sock.recv(4096)))
+        result = b""
+        while True:
+            data = sock.recv(4096)
+            if not data:
+                break
+            result += data
+        results.append(json.loads(result))
 
     for result in results:
         if isinstance(result, list) and len(result) == 2 and result[0] == "unknown command":

@@ -25,6 +25,7 @@ from cicada import Logger
 
 def _success(client):
     client.sendall(json.dumps(None).encode())
+    client.close()
 
 
 def main(listen_socket, communicator):
