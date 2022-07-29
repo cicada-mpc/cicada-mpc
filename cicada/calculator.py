@@ -93,6 +93,15 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            if command == "dot":
+                protocol = protocol_stack[-1]
+                b = argument_stack.pop()
+                a = argument_stack.pop()
+                share = protocol.dot(a, b)
+                argument_stack.append(share)
+                _success(client)
+                continue
+
             if command == "reveal":
                 protocol = protocol_stack[-1]
                 share = argument_stack.pop()

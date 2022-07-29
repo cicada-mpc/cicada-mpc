@@ -110,22 +110,6 @@ Feature: Additive Protocol
         | 3       | private-private addition | -21234567  | -35123458 | 1     | [[-56358025] * 3]    |
         | 3       | private-private addition | -212345678 | -351234589| 1     | [[-563580267] * 3]   |
 
-    Scenario Outline: Dot Product
-        Given <players> players
-        And binary operation <operation>
-        And operands <a> and <b>
-        When the binary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation   | a          | b       | count | result                |
-        | 2       | dot product | 5          | 2       | 1     | [[10] * 2]            |
-        | 2       | dot product | [5, 3.5]   | [2, 4]  | 1     | [[24] * 2]            |
-        | 3       | dot product | 5          | -2.5    | 1     | [[-12.5] * 3]         |
-        | 3       | dot product | -5         | -2.5    | 1     | [[12.5] * 3]          |
-        | 3       | dot product | [5, 3.5]   | [2, 4]  | 1     | [[24] * 3]            |
-
-
     Scenario Outline: Untruncated Multiplication
         Given <players> players
         And binary operation <operation>
@@ -485,3 +469,28 @@ Feature: Additive Protocol
         | 3        | -1            | 5              | 1     | [[-.2] * 3]                     |
         | 3        | 2             | -16            | 1     | [[-1/8] * 3]                    |
         | 3        | -37           | 1              | 1     | [[-37.0] * 3]                   |
+
+
+
+############################################################################################################
+## New style scenarios using the calculator service.
+
+
+    Scenario Outline: Dot Product
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And all players compute the dot product of the shares
+        And all players reveal the result
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b       | result |
+        | 2       | 5          | 2       | 10     |
+        | 2       | [5, 3.5]   | [2, 4]  | 24     |
+        | 3       | 5          | -2.5    | -12.5  |
+        | 3       | -5         | -2.5    | 12.5   |
+        | 3       | [5, 3.5]   | [2, 4]  | 24     |
+
+

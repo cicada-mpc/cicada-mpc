@@ -1,11 +1,11 @@
 Feature: MPC as a Service
 
     Scenario Outline: Addition
-        Given an MPC service with world size <players>
+        Given a calculator service with <players> players
         And an AdditiveProtocol object
-        When player 0 secret shares operand <a>
-        And player 1 secret shares operand <b>
-        And all players add the operands
+        When player 0 secret shares <a>
+        And player 1 secret shares <b>
+        And all players add the shares
         And all players reveal the result
         Then the result should match <result>
 

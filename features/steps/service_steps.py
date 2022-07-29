@@ -26,7 +26,7 @@ from cicada.calculator import main as calculator_main
 from cicada.communicator import SocketCommunicator
 
 
-logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.INFO)
 
 
 def service_command(context, command):
@@ -59,7 +59,7 @@ def service_command(context, command):
     return results
 
 
-@given(u'an MPC service with world size {world_size}')
+@given(u'a calculator service with {world_size} players')
 def step_impl(context, world_size):
     world_size = eval(world_size)
 
@@ -76,19 +76,24 @@ def step_impl(context):
     service_command(context, command=("protopush", "AdditiveProtocol"))
 
 
-@when(u'player {player} secret shares operand {operand}')
-def step_impl(context, player, operand):
+@when(u'player {player} secret shares {secret}')
+def step_impl(context, player, secret):
     player = eval(player)
-    operand = numpy.array(eval(operand))
+    secret = numpy.array(eval(secret))
 
-    command = [("push", operand.tolist()) if player == rank else ("push", None) for rank in context.service_ranks]
+    command = [("push", secret.tolist()) if player == rank else ("push", None) for rank in context.service_ranks]
     service_command(context, command=command)
-    service_command(context, command=("share", player, operand.shape))
+    service_command(context, command=("share", player, secret.shape))
 
 
-@when(u'all players add the operands')
+@when(u'all players add the shares')
 def step_impl(context):
     service_command(context, command="add")
+
+
+@when(u'all players compute the dot product of the shares')
+def step_impl(context):
+    service_command(context, command="dot")
 
 
 @when(u'all players reveal the result')
