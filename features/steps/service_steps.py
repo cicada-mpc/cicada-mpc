@@ -202,6 +202,12 @@ def step_impl(context):
     service_command(context, command="min")
 
 
+@when(u'the players compute the multiplicative inverse')
+def step_impl(context):
+    service_command(context, command="duplicate-operand")
+    service_command(context, command="multiplicative_inverse")
+
+
 @when(u'the players compute the relu of the share')
 def step_impl(context):
     service_command(context, command="relu")
@@ -234,6 +240,11 @@ def step_impl(context):
     service_command(context, command="truncate")
 
 
+@when(u'the players multiply the shares without truncation')
+def step_impl(context):
+    service_command(context, command="untruncated_multiply")
+
+
 @when(u'the players raise the share to a public power')
 def step_impl(context):
     service_command(context, command="private_public_power")
@@ -243,6 +254,11 @@ def step_impl(context):
 def step_impl(context):
     service_command(context, command="reveal")
     service_command(context, command="decode")
+
+
+@when(u'the players reveal the result without decoding')
+def step_impl(context):
+    service_command(context, command="reveal")
 
 
 @when(u'the players reveal the binary result')

@@ -135,6 +135,13 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            # Duplicate the value on the top of the operand stack.
+            if command == "duplicate-operand":
+                value = operand_stack[-1]
+                operand_stack.append(value)
+                _success(client)
+                continue
+
             # Encode a value on the operand stack.
             if command == "encode":
                 protocol = protocol_stack[-1]
@@ -165,7 +172,7 @@ def main(listen_socket, communicator):
                 break
 
             # Unary operations.
-            if command in ["floor", "relu", "sum", "truncate", "zigmoid"]:
+            if command in ["floor", "multiplicative_inverse", "relu", "sum", "truncate", "zigmoid"]:
                 protocol = protocol_stack[-1]
                 a = operand_stack.pop()
                 share = getattr(protocol, command)(a)

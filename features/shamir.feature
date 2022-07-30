@@ -25,27 +25,6 @@ Feature: Shamir Protocol
         | 3       | 8     |
 
 
-    Scenario Outline: Shamir Multiplicative Inverse
-        Given <players> players
-        And unary operation shamir <operation>
-        And operand <a>
-        When the unary operation is executed <count> times
-        Then the group should return <result>
-
-        Examples:
-        | players | operation               | a                                 | count | result                      |
-        | 4       | multiplicative_inverse  | 2                                 | 1     | [[1] * 4]         |
-        | 4       | multiplicative_inverse  | 100                               | 1     | [[1] * 4]         |
-        | 4       | multiplicative_inverse  | -75                               | 1     | [[1] * 4]         |
-        | 4       | multiplicative_inverse  | -1000                             | 1     | [[1] * 4]         |
-        | 4       | multiplicative_inverse  | [[35.125,65.25],[73.5, -3.0625]]  | 1     | [[[[1,1],[1,1]]] * 4]|
-        | 3       | multiplicative_inverse  | 2                                 | 1     | [[1] * 3]           |
-        | 3       | multiplicative_inverse  | 100                               | 1     | [[1] * 3]           |
-        | 3       | multiplicative_inverse  | -75                               | 1     | [[1] * 3]           |
-        | 3       | multiplicative_inverse  | -1000                             | 1     | [[1] * 3]           |
-        | 3       | multiplicative_inverse  | [[35.125,65.25],[73.5, -3.0625]]  | 1     | [[[[1,1],[1,1]]] * 3]|
-
-
 ############################################################################################################
 ## New style scenarios using the calculator service.
 
@@ -324,6 +303,30 @@ Feature: Shamir Protocol
         | 5       | 5          | -2.5    | -12.5         |
         | 5       | -5         | -2.5    | 12.5          |
         | 5       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+
+
+    @calculator
+    Scenario Outline: Private Multiplicative Inverse
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        And player 0 secret shares <a>
+        When the players compute the multiplicative inverse
+        And the players multiply the shares without truncation
+        And the players reveal the result without decoding
+        Then the result should match <result>
+
+        Examples:
+        | players | a                                | result        |
+        | 4       | 2                                | 1             |
+        | 4       | 100                              | 1             |
+        | 4       | -75                              | 1             |
+        | 4       | -1000                            | 1             |
+        | 4       | [[35.125,65.25],[73.5, -3.0625]] | [[1,1],[1,1]] |
+        | 3       | 2                                | 1             |
+        | 3       | 100                              | 1             |
+        | 3       | -75                              | 1             |
+        | 3       | -1000                            | 1             |
+        | 3       | [[35.125,65.25],[73.5, -3.0625]] | [[1,1],[1,1]] |
 
 
     @calculator

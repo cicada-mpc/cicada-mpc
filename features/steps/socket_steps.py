@@ -53,6 +53,17 @@ def step_impl(context):
     numpy.testing.assert_almost_equal(exit_delta, 0, decimal=2)
 
 
+@then(u'the group should return {}')
+def step_impl(context, result):
+    result = numpy.array(eval(result))
+    group = numpy.array(context.results)
+
+    if issubclass(result.dtype.type, numpy.number) and issubclass(group.dtype.type, numpy.number):
+        numpy.testing.assert_almost_equal(result, group, decimal=4)
+    else:
+        numpy.testing.assert_array_equal(result, group)
+
+
 @when(u'the players allgather {values}')
 def step_impl(context, values):
     values = eval(values)

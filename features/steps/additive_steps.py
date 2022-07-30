@@ -27,32 +27,6 @@ from cicada.communicator import SocketCommunicator
 import test
 
 
-@then(u'the group should return {}')
-def step_impl(context, result):
-    result = numpy.array(eval(result))
-    group = numpy.array(context.results)
-
-    if issubclass(result.dtype.type, numpy.number) and issubclass(group.dtype.type, numpy.number):
-        numpy.testing.assert_almost_equal(result, group, decimal=4)
-    else:
-        numpy.testing.assert_array_equal(result, group)
-
-
-@given(u'operand {a}')
-def step_impl(context, a):
-    context.a = eval(a)
-
-
-@when(u'the unary operation is executed {count} times')
-def step_impl(context, count):
-    count = eval(count)
-
-    context.results = []
-    for i in range(count):
-        context.results.append(context.unary_operation(args=(context.a,)))
-
-
-
 @when(u'player {player} shares and reveals {count} random secrets, the revealed secrets should match the originals')
 def step_impl(context, player, count):
     player = eval(player)
@@ -87,18 +61,5 @@ def step_impl(context, bits, src, seed):
     result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(bits, src, seed), identities=context.identities, trusted=context.trusted)
     for bits, secret in result:
         test.assert_equal(secret, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
-
-
-@given(u'unary operation multiplicative_inverse')
-def step_impl(context):
-    def operation(communicator, a):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-
-        a = numpy.array(a)
-        a_share = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
-        b_share = protocol.multiplicative_inverse(a_share)
-        one_share = protocol.untruncated_multiply(a_share, b_share)
-        return protocol.reveal(one_share)
-    context.unary_operation = functools.partial(SocketCommunicator.run, world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
 
 
