@@ -188,10 +188,10 @@ def main(listen_socket, communicator):
                 continue
 
             # Unknown command.
-            log.error(f"Player {communicator.rank} unknown command: {command}")
-            client.sendall(json.dumps(("unknown command", f"{command}")).encode())
-            client.close()
-        except Exception as e:
+            log.error(f"Player {communicator.rank} unknown command: {command}") # pragma: no cover
+            client.sendall(json.dumps(("unknown command", f"{command}")).encode()) # pragma: no cover
+            client.close() # pragma: no cover
+        except Exception as e: # pragma: no cover
             log.error(f"Player {communicator.rank} exception: {e}")
             client.sendall(json.dumps(("exception", str(e))).encode())
             client.close()
