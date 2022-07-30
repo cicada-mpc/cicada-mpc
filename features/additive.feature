@@ -1,17 +1,5 @@
 Feature: Additive Protocol
 
-    Scenario: Inter-session Repetition
-        Given 3 players
-        When secret sharing the same value for 10 sessions
-	    Then the shares should never be repeated
-
-
-	Scenario: Intra-session Repetition
-        Given 3 players
-        When secret sharing the same value 10 times in one session
-        Then the shares should never be repeated
-
-
     Scenario Outline: Random Round Trip Sharing
         Given <players> players
         When player <player> shares and reveals <count> random secrets, the revealed secrets should match the originals
@@ -60,6 +48,30 @@ Feature: Additive Protocol
 
 ############################################################################################################
 ## New style scenarios using the calculator service.
+
+
+    @calculator
+	Scenario: Inter Protocol Share Repetition
+        Given a calculator service with 3 players
+        And an AdditiveProtocol object
+        And player 1 secret shares 5
+        And the players extract the share storage
+        And an AdditiveProtocol object
+        And player 1 secret shares 5
+        And the players extract the share storage
+        Then the two values should not be equal
+
+
+    @calculator
+	Scenario: Intra Protocol Share Repetition
+        Given a calculator service with 3 players
+        And an AdditiveProtocol object
+        And player 1 secret shares 5
+        And the players extract the share storage
+        And player 1 secret shares 5
+        And the players extract the share storage
+        Then the two values should not be equal
+
 
     @calculator
     Scenario Outline: Local Add

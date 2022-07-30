@@ -74,6 +74,15 @@ def main(listen_socket, communicator):
                 _success(client)
                 continue
 
+            # Raise an exception if the top values on the operand stack are equal.
+            if command == "assert-unequal":
+                rhs = operand_stack[-1]
+                lhs = operand_stack[-2]
+                if numpy.array_equal(lhs, rhs):
+                    raise RuntimeError(f"Arrays should not be equal: {lhs} == {rhs}")
+                _success(client)
+                continue
+
             # Push a new value onto the operand stack.
             if isinstance(command, list) and len(command) == 2 and command[0] == "push-operand":
                 operand = command[1]
@@ -132,6 +141,13 @@ def main(listen_socket, communicator):
                 value = operand_stack.pop()
                 value = protocol.encoder.encode(value)
                 operand_stack.append(value)
+                _success(client)
+                continue
+
+            # Extract the storage from a secret share.
+            if command == "extract-storage":
+                value = operand_stack.pop()
+                operand_stack.append(value.storage)
                 _success(client)
                 continue
 

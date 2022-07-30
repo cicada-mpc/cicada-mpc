@@ -27,33 +27,6 @@ from cicada.communicator import SocketCommunicator
 import test
 
 
-@when(u'shamir secret sharing the same value for {count} sessions')
-def step_impl(context, count):
-    count = eval(count)
-
-    def operation(communicator):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=())
-        return int(share.storage)
-
-    context.shares = []
-    for i in range(count):
-        context.shares.append(SocketCommunicator.run(world_size=context.players, fn=operation))
-    context.shares = numpy.array(context.shares, dtype=numpy.object)
-
-
-@when(u'shamir secret sharing the same value {count} times in one session')
-def step_impl(context, count):
-    count = eval(count)
-
-    def operation(communicator, count):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-        shares = [protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=()) for i in range(count)]
-        return numpy.array([int(share.storage) for share in shares], dtype=numpy.object)
-
-    context.shares = numpy.column_stack(SocketCommunicator.run(world_size=context.players, fn=operation, args=(count,)))
-
-
 @when(u'player {player} shamir shares and reveals random secrets, the revealed secrets should match the originals')
 def step_impl(context, player):
     player = eval(player)

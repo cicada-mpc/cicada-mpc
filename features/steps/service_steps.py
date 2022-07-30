@@ -223,6 +223,11 @@ def step_impl(context):
     service_command(context, command="truncate")
 
 
+@given(u'the players extract the share storage')
+def step_impl(context):
+    service_command(context, command="extract-storage")
+
+
 @when(u'the players multiply the shares')
 def step_impl(context):
     service_command(context, command="untruncated_multiply")
@@ -275,4 +280,10 @@ def step_impl(context, value, digits):
 def step_impl(context, value):
     value = eval(value)
     service_command(context, command=("assert-equal", value))
+
+
+@then(u'the two values should not be equal')
+def step_impl(context):
+    service_command(context, command="assert-unequal")
+
 

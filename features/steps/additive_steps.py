@@ -27,41 +27,6 @@ from cicada.communicator import SocketCommunicator
 import test
 
 
-@when(u'secret sharing the same value for {count} sessions')
-def step_impl(context, count):
-    count = eval(count)
-
-    def operation(communicator):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-        share = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=())
-        return int(share.storage)
-
-    context.shares = []
-    for i in range(count):
-        context.shares.append(SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted))
-    context.shares = numpy.array(context.shares, dtype=numpy.object)
-
-
-@when(u'secret sharing the same value {count} times in one session')
-def step_impl(context, count):
-    count = eval(count)
-
-    def operation(communicator, count):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-        shares = [protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(5)), shape=()) for i in range(count)]
-        return numpy.array([int(share.storage) for share in shares], dtype=numpy.object)
-
-    context.shares = numpy.column_stack(SocketCommunicator.run(world_size=context.players, fn=operation, args=(count,), identities=context.identities, trusted=context.trusted))
-
-
-@then(u'the shares should never be repeated')
-def step_impl(context):
-    for i in range(len(context.shares)):
-        for j in range(i+1, len(context.shares)):
-            with numpy.testing.assert_raises(AssertionError):
-                numpy.testing.assert_almost_equal(context.shares[i], context.shares[j], decimal=4)
-
-
 @then(u'the group should return {}')
 def step_impl(context, result):
     result = numpy.array(eval(result))
