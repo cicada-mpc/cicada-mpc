@@ -1,7 +1,7 @@
 Feature: Shamir Protocol
 
     Scenario Outline: Random Round Trip Shamir Sharing
-        Given <players> players 
+        Given <players> players
         When player <player> shamir shares and reveals random secrets, the revealed secrets should match the originals
 
         Examples:
@@ -112,7 +112,7 @@ Feature: Shamir Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compare the shares for equality
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:
@@ -159,7 +159,7 @@ Feature: Shamir Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compare the shares with less than
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:
@@ -181,10 +181,10 @@ Feature: Shamir Protocol
     Scenario Outline: Private Logical And
         Given a calculator service with <players> players
         And a ShamirProtocol object
-        And player 0 secret shares binary <a>
-        And player 1 secret shares binary <b>
+        And player 0 secret shares <a> without encoding
+        And player 1 secret shares <b> without encoding
         When the players compute the logical and of the shares
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:
@@ -199,10 +199,10 @@ Feature: Shamir Protocol
     Scenario Outline: Private Logical Exclusive Or
         Given a calculator service with <players> players
         And a ShamirProtocol object
-        And player 0 secret shares binary <a>
-        And player 1 secret shares binary <b>
+        And player 0 secret shares <a> without encoding
+        And player 1 secret shares <b> without encoding
         When the players compute the logical exclusive or of the shares
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:
@@ -217,10 +217,10 @@ Feature: Shamir Protocol
     Scenario Outline: Private Logical Or
         Given a calculator service with <players> players
         And a ShamirProtocol object
-        And player 0 secret shares binary <a>
-        And player 1 secret shares binary <b>
+        And player 0 secret shares <a> without encoding
+        And player 1 secret shares <b> without encoding
         When the players compute the logical or of the shares
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:

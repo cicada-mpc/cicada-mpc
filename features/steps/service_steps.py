@@ -105,7 +105,7 @@ def step_impl(context, public):
     service_command(context, command="encode")
 
 
-@given(u'player {player} secret shares binary {secret}')
+@given(u'player {player} secret shares {secret} without encoding')
 def step_impl(context, player, secret):
     player = eval(player)
     secret = numpy.array(eval(secret))
@@ -257,11 +257,6 @@ def step_impl(context):
 
 
 @when(u'the players reveal the result without decoding')
-def step_impl(context):
-    service_command(context, command="reveal")
-
-
-@when(u'the players reveal the binary result')
 def step_impl(context):
     service_command(context, command="reveal")
 

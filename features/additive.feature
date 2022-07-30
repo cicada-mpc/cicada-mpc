@@ -165,7 +165,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compare the shares for equality
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:
@@ -212,7 +212,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compare the shares with less than
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:
@@ -234,10 +234,10 @@ Feature: Additive Protocol
     Scenario Outline: Private Logical And
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        And player 0 secret shares binary <a>
-        And player 1 secret shares binary <b>
+        And player 0 secret shares <a> without encoding
+        And player 1 secret shares <b> without encoding
         When the players compute the logical and of the shares
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:
@@ -252,10 +252,10 @@ Feature: Additive Protocol
     Scenario Outline: Private Logical Exclusive Or
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        And player 0 secret shares binary <a>
-        And player 1 secret shares binary <b>
+        And player 0 secret shares <a> without encoding
+        And player 1 secret shares <b> without encoding
         When the players compute the logical exclusive or of the shares
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:
@@ -270,10 +270,10 @@ Feature: Additive Protocol
     Scenario Outline: Private Logical Or
         Given a calculator service with <players> players
         And an AdditiveProtocol object
-        And player 0 secret shares binary <a>
-        And player 1 secret shares binary <b>
+        And player 0 secret shares <a> without encoding
+        And player 1 secret shares <b> without encoding
         When the players compute the logical or of the shares
-        And the players reveal the binary result
+        And the players reveal the result without decoding
         Then the result should match <result>
 
         Examples:
