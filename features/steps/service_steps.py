@@ -234,6 +234,11 @@ def step_impl(context):
     service_command(context, command="extract-storage")
 
 
+@when(u'the players generate {bits} random bits with seed {seed}')
+def step_impl(context, bits, seed):
+    service_command(context, command=("generate_random_bits", {"bits": bits, "seed": seed}))
+
+
 @when(u'the players multiply the shares')
 def step_impl(context):
     service_command(context, command="untruncated_multiply")

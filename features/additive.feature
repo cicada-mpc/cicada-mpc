@@ -11,20 +11,6 @@ Feature: Additive Protocol
         | 4       | 2      | 10    |
 
 
-    Scenario Outline: Random Bitwise Secret
-        Given <players> players
-        Then generating <bits> random bits with players <src> and seed <seed> produces a valid result
-
-        Examples:
-        | players | bits  | src       | seed |
-        | 2       | 1     | None      | 1234 |
-        | 2       | 2     | None      | 1235 |
-        | 2       | 4     | None      | 1236 |
-        | 2       | 8     | None      | 1237 |
-        | 3       | 8     | None      | 1238 |
-        | 3       | 8     | None      | 1239 |
-
-
 ############################################################################################################
 ## New style scenarios using the calculator service.
 
@@ -527,6 +513,22 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Random Bitwise Secret
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        When the players generate <bits> random bits with seed <seed>
+
+        Examples:
+        | players | bits  | seed |
+        | 2       | 1     | 1234 |
+        | 2       | 2     | 1235 |
+        | 2       | 4     | 1236 |
+        | 2       | 8     | 1237 |
+        | 3       | 8     | 1238 |
+        | 3       | 8     | 1239 |
+
+
+    @calculator
     Scenario Outline: Startup Reliability
         Given a calculator service with <players> players
         Then <count> AdditiveProtocol objects can be created without error
@@ -536,3 +538,4 @@ Feature: Additive Protocol
         | 3       | 10    |
         | 4       | 10    |
         | 10      | 10    |
+

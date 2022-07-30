@@ -18,7 +18,7 @@ import argparse
 import logging
 import time
 
-from cicada.calculator import main as calculator_main
+from cicada.calculator import main, Client
 from cicada.communicator import SocketCommunicator
 
 parser = argparse.ArgumentParser(description="Calculator MPC-as-a-service example.")
@@ -27,15 +27,6 @@ arguments = parser.parse_args()
 
 logging.basicConfig(level=logging.INFO)
 
-addresses, processes = SocketCommunicator.run_forever(world_size=arguments.world_size, fn=calculator_main)
-
-print("Service addresses:")
-for address in addresses:
-    print(f"  {address}")
-
-for process in processes:
-    try:
-        process.join()
-    except KeyboardInterrupt:
-        break
+addresses, processes = SocketCommunicator.run_forever(world_size=arguments.world_size, fn=main)
+client = Client(addresses)
 
