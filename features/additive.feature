@@ -97,7 +97,7 @@ Feature: Additive Protocol
         And player 1 secret shares <b>
         When the players divide the shares
         And the players reveal the result
-        Then the result should match <result> to within 3 digits
+        Then the result should match <result> to within 2 digits
 
         Examples:
         | players | a    | b    | result        |
