@@ -130,14 +130,6 @@ def main(listen_socket, communicator):
                 _send_result(client)
                 continue
 
-#            # Test if the top two items on the stack are equal according to Numpy rules.
-#            if command == "arrayequal":
-#                rhs = operand_stack.pop()
-#                lhs = operand_stack.pop()
-#                operand_stack.append(numpy.array_equal(lhs, rhs))
-#                _send_result(client)
-#                continue
-
             # Encode a binary value on the operand stack.
             if command == "binary-encode":
                 protocol = protocol_stack[-1]
@@ -164,14 +156,6 @@ def main(listen_socket, communicator):
                 operand_stack.append(value)
                 _send_result(client)
                 continue
-
-#            # Test if the top two items on the stack are equal according to Python rules.
-#            if command == "equal":
-#                rhs = operand_stack.pop()
-#                lhs = operand_stack.pop()
-#                operand_stack.append(lhs == rhs)
-#                _send_result(client)
-#                continue
 
             # Duplicate the value on the top of the operand stack.
             if command == "opdup":
@@ -306,11 +290,11 @@ def main(listen_socket, communicator):
                 continue
 
             # Unknown command.
-#            log.error(f"Player {communicator.rank} unknown command: {command}") # pragma: no cover
             client.sendall(pickle.dumps(RuntimeError(f"Unknown command {pretty_command}"))) # pragma: no cover
             client.close() # pragma: no cover
+
+        # Something went wrong.
         except Exception as e: # pragma: no cover
-#            log.error(f"Player {communicator.rank} exception: {e}")
             client.sendall(pickle.dumps(e))
             client.close()
 
