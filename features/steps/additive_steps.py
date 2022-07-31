@@ -43,23 +43,3 @@ def step_impl(context, player, count):
         for result in results:
             numpy.testing.assert_almost_equal(secret, result, decimal=4)
 
-@then(u'generating {bits} random bits with players {src} and seed {seed} produces a valid result')
-def step_impl(context, bits, src, seed):
-    bits = eval(bits)
-    src = eval(src)
-    seed = eval(seed)
-
-    def operation(communicator, bits, src, seed):
-        protocol = cicada.additive.AdditiveProtocol(communicator)
-        generator = numpy.random.default_rng(seed + communicator.rank)
-        bit_share, secret_share = protocol.random_bitwise_secret(generator=generator, bits=bits, src=src)
-
-        bits = protocol.reveal(bit_share)
-        secret = protocol.reveal(secret_share)
-        return bits, secret
-
-    result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(bits, src, seed), identities=context.identities, trusted=context.trusted)
-    for bits, secret in result:
-        test.assert_equal(secret, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
-
-

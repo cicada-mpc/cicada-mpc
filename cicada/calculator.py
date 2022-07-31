@@ -203,6 +203,12 @@ def main(listen_socket, communicator):
                 _send_result(client, operand_stack)
                 continue
 
+            # Swap the topmost two values on the operand stack
+            if command == "opswap":
+                operand_stack[-1], operand_stack[-2] = operand_stack[-2], operand_stack[-1]
+                _send_result(client)
+                continue
+
             # Push a new protocol object onto the protocol stack.
             if command == "protopush":
                 protocol = kwargs["name"]
@@ -265,6 +271,18 @@ def main(listen_socket, communicator):
                 a = operand_stack.pop()
                 share = getattr(protocol, command)(a, b)
                 operand_stack.append(share)
+                _send_result(client)
+                continue
+
+            # Random bitwise secret.
+            if command == "random_bitwise_secret":
+                bits = kwargs["bits"]
+                seed = kwargs["seed"]
+                protocol = protocol_stack[-1]
+                generator = numpy.random.default_rng(seed=seed)
+                bits, secret = protocol.random_bitwise_secret(bits=bits, generator=generator)
+                operand_stack.append(bits)
+                operand_stack.append(secret)
                 _send_result(client)
                 continue
 

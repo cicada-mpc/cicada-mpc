@@ -42,22 +42,3 @@ def step_impl(context, player):
         for result in results:
             numpy.testing.assert_almost_equal(secret, result, decimal=4)
 
-@then(u'generating {bits} shamir random bits with all players produces a valid result')
-def step_impl(context, bits):
-    bits = eval(bits)
-    #seed = eval(seed)
-
-    def operation(communicator, bits):
-        protocol = cicada.shamir.ShamirProtocol(communicator, threshold=2)
-        #generator = numpy.random.default_rng(seed + communicator.rank)
-        bit_share, secret_share = protocol.random_bitwise_secret(bits=bits)
-
-        bits = protocol.reveal(bit_share)
-        secret = protocol.reveal(secret_share)
-        return bits, secret
-
-    result = SocketCommunicator.run(world_size=context.players, fn=operation, args=(bits,))
-    for bits, secret in result:
-        test.assert_equal(secret, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
-
-

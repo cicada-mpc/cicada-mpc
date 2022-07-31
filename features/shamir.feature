@@ -11,20 +11,6 @@ Feature: Shamir Protocol
         | 5       | 0      |
 
 
-    Scenario Outline: Shamir Random Bitwise Secret
-        Given <players> players
-        Then generating <bits> shamir random bits with all players produces a valid result
-
-        Examples:
-        | players | bits  |
-        | 4       | 1     |
-        | 4       | 2     |
-        | 4       | 4     |
-        | 4       | 8     |
-        | 3       | 8     |
-        | 3       | 8     |
-
-
 ############################################################################################################
 ## New style scenarios using the calculator service.
 
@@ -452,6 +438,27 @@ Feature: Shamir Protocol
         | 3       | -2123456   | -3512345   | -5635801    |
         | 3       | -21234567  | -35123458  | -56358025   |
         | 3       | -212345678 | -351234589 | -563580267  |
+
+
+    @calculator
+    Scenario Outline: Random Bitwise Secret
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        When the players generate <bits> random bits with seed <seed>
+        And the players reveal the result without decoding
+        And the players swap
+        And the players reveal the result without decoding
+        And the players swap
+        Then the value of the bits in big-endian order should match the random value.
+
+        Examples:
+        | players | bits  | seed |
+        | 3       | 1     | 1234 |
+        | 3       | 2     | 1235 |
+        | 3       | 4     | 1236 |
+        | 3       | 8     | 1237 |
+        | 3       | 8     | 1238 |
+        | 3       | 8     | 1239 |
 
 
     @calculator

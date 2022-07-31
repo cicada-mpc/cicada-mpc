@@ -24,6 +24,7 @@ import numpy
 from cicada.calculator import Client, main
 from cicada.communicator import SocketCommunicator
 
+import test
 
 #logging.basicConfig(level=logging.INFO)
 
@@ -204,7 +205,7 @@ def step_impl(context):
 def step_impl(context, bits, seed):
     bits = eval(bits)
     seed = eval(seed)
-    _require_success(context.calculator.command("generate_random_bits", bits=bits, seed=seed))
+    _require_success(context.calculator.command("random_bitwise_secret", bits=bits, seed=seed))
 
 
 @when(u'the players multiply the shares')
@@ -232,6 +233,11 @@ def step_impl(context):
 @when(u'the players reveal the result without decoding')
 def step_impl(context):
     _require_success(context.calculator.command("reveal"))
+
+
+@when(u'the players swap')
+def step_impl(context):
+    _require_success(context.calculator.command("opswap"))
 
 
 @when(u'the players subtract the public value from the share')
@@ -270,4 +276,13 @@ def step_impl(context, value):
 def step_impl(context):
     _require_success(context.calculator.command("assertunequal"))
 
+
+@then(u'the value of the bits in big-endian order should match the random value.')
+def step_impl(context):
+    values = _require_success(context.calculator.command("oppop"))
+    bits = _require_success(context.calculator.command("oppop"))
+    print(bits, values)
+
+    for bits, value in zip(bits, values):
+        test.assert_equal(value, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
 

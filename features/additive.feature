@@ -512,11 +512,16 @@ Feature: Additive Protocol
         | 3       | -212345678 | -351234589 | -563580267  |
 
 
-    @calculator, @wip
+    @calculator
     Scenario Outline: Random Bitwise Secret
         Given a calculator service with <players> players
         And an AdditiveProtocol object
         When the players generate <bits> random bits with seed <seed>
+        And the players reveal the result without decoding
+        And the players swap
+        And the players reveal the result without decoding
+        And the players swap
+        Then the value of the bits in big-endian order should match the random value.
 
         Examples:
         | players | bits  | seed |
