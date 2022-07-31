@@ -44,14 +44,9 @@ def step_impl(context, world_size):
     context.calculator_processes = processes
 
 
-@given(u'an AdditiveProtocol object')
-def step_impl(context):
-    _require_success(context.calculator.command("protopush", name="AdditiveProtocol"))
-
-
-@given(u'a ShamirProtocol object')
-def step_impl(context):
-    _require_success(context.calculator.command("protopush", name="ShamirProtocol"))
+@given(u'a new {name} protocol object')
+def step_impl(context, name):
+    _require_success(context.calculator.command("protopush", name=name))
 
 
 @given(u'unencoded public value {value}')
@@ -245,18 +240,11 @@ def step_impl(context):
     _require_success(context.calculator.command("private_public_subtract"))
 
 
-@then(u'{count} AdditiveProtocol objects can be created without error')
-def step_impl(context, count):
+@then(u'{count} {name} protocol objects can be created without error')
+def step_impl(context, count, name):
     count = eval(count)
     for index in range(count):
-        _require_success(context.calculator.command("protopush", name="AdditiveProtocol"))
-
-
-@then(u'{count} ShamirProtocol objects can be created without error')
-def step_impl(context, count):
-    count = eval(count)
-    for index in range(count):
-        _require_success(context.calculator.command("protopush", name="ShamirProtocol"))
+        _require_success(context.calculator.command("protopush", name=name))
 
 
 @then(u'the result should match {value} to within {digits} digits')

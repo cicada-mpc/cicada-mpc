@@ -192,13 +192,13 @@ def main(listen_socket, communicator):
                 _send_result(client)
 
             # Push a new AdditiveProtocol object onto the protocol stack.
-            elif command == "protopush" and kwargs["name"] == "AdditiveProtocol":
+            elif command == "protopush" and kwargs["name"] == "Additive":
                 from cicada.additive import AdditiveProtocol
                 protocol_stack.append(AdditiveProtocol(communicator_stack[-1]))
                 _send_result(client)
 
             # Push a new AdditiveProtocol object onto the protocol stack.
-            elif command == "protopush" and kwargs["name"] == "ShamirProtocol":
+            elif command == "protopush" and kwargs["name"] == "Shamir":
                 from cicada.shamir import ShamirProtocol
                 protocol_stack.append(ShamirProtocol(communicator_stack[-1], threshold=2))
                 _send_result(client)

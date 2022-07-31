@@ -4,10 +4,10 @@ Feature: Additive Protocol
     @calculator
 	Scenario: Inter Protocol Share Repetition
         Given a calculator service with 3 players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 1 secret shares 5
         And the players extract the share storage
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 1 secret shares 5
         And the players extract the share storage
         Then the two values should not be equal
@@ -16,7 +16,7 @@ Feature: Additive Protocol
     @calculator
 	Scenario: Intra Protocol Share Repetition
         Given a calculator service with 3 players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 1 secret shares 5
         And the players extract the share storage
         And player 1 secret shares 5
@@ -27,7 +27,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Local Add
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         When player <player> adds <b> to the share in-place
         And the players reveal the result
@@ -44,7 +44,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Local Subtract
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         When player <player> subtracts <b> from the share in-place
         And the players reveal the result
@@ -61,7 +61,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Add
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players add the shares
@@ -92,7 +92,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Divide
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players divide the shares
@@ -114,7 +114,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Dot Product
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compute the dot product of the shares
@@ -133,7 +133,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Equality
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compare the shares for equality
@@ -157,7 +157,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Floor
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         When the players compute the floor of the share
         And the players reveal the result
@@ -180,7 +180,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Less Than
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compare the shares with less than
@@ -205,7 +205,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Logical And
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a> without encoding
         And player 1 secret shares <b> without encoding
         When the players compute the logical and of the shares
@@ -223,7 +223,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Logical Exclusive Or
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a> without encoding
         And player 1 secret shares <b> without encoding
         When the players compute the logical exclusive or of the shares
@@ -241,7 +241,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Logical Or
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a> without encoding
         And player 1 secret shares <b> without encoding
         When the players compute the logical or of the shares
@@ -259,7 +259,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Max
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compute the maximum of the shares
@@ -279,7 +279,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Min
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compute the minimum of the shares
@@ -299,7 +299,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Multiply
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players multiply the shares
@@ -333,7 +333,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Multiplicative Inverse
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         When the players compute the multiplicative inverse
         And the players multiply the shares without truncation
@@ -357,7 +357,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Public Power
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And unencoded public value <b>
         When the players raise the share to a public power
@@ -381,7 +381,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Public Subtract
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         And public value <b>
         When the players subtract the public value from the share
@@ -399,7 +399,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private ReLU
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         When the players compute the relu of the share
         And the players reveal the result
@@ -422,7 +422,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Sum
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         When the players compute the sum of the share
         And the players reveal the result
@@ -439,7 +439,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Private Zigmoid
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player 0 secret shares <a>
         When the players compute the zigmoid of the share
         And the players reveal the result
@@ -470,7 +470,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Public Private Add
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And public value <a>
         And player 1 secret shares <b>
         When the players add the public value and the share
@@ -501,7 +501,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Random Bitwise Secret
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         When the players generate <bits> random bits with seed <seed>
         And the players reveal the result without decoding
         And the players swap
@@ -522,7 +522,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Round Trip Sharing
         Given a calculator service with <players> players
-        And an AdditiveProtocol object
+        And a new Additive protocol object
         And player <player> secret shares <value>
         When the players reveal the result
         Then the result should match <value> to within 4 digits
@@ -538,7 +538,7 @@ Feature: Additive Protocol
     @calculator
     Scenario Outline: Startup Reliability
         Given a calculator service with <players> players
-        Then <count> AdditiveProtocol objects can be created without error
+        Then <count> Additive protocol objects can be created without error
 
         Examples:
         | players | count |
