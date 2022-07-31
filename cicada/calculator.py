@@ -91,6 +91,7 @@ def main(listen_socket, communicator):
     listen_socket.setblocking(True)
     log = Logger(logger=logging.getLogger(), communicator=communicator, sync=False)
 
+    communicator_stack = [communicator]
     protocol_stack = []
     operand_stack = []
 
@@ -111,27 +112,24 @@ def main(listen_socket, communicator):
                 lhs = operand_stack[-1]
                 numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
                 _send_result(client)
-                continue
 
             # Raise an exception if the top of the operand stack doesn't match a value exactly.
-            if command == "assertequal":
+            elif command == "assertequal":
                 rhs = kwargs["value"]
                 lhs = operand_stack[-1]
                 numpy.testing.assert_array_equal(lhs, rhs)
                 _send_result(client)
-                continue
 
             # Raise an exception if the top values on the operand stack are equal.
-            if command == "assertunequal":
+            elif command == "assertunequal":
                 rhs = operand_stack[-1]
                 lhs = operand_stack[-2]
                 if numpy.array_equal(lhs, rhs):
                     raise RuntimeError(f"Arrays should not be equal: {lhs} == {rhs}")
                 _send_result(client)
-                continue
 
             # Encode a binary value on the operand stack.
-            if command == "binary-encode":
+            elif command == "binary-encode":
                 protocol = protocol_stack[-1]
                 value = operand_stack.pop()
                 value = numpy.array(value, dtype=protocol.encoder.dtype)
@@ -139,90 +137,87 @@ def main(listen_socket, communicator):
                 _send_result(client)
                 continue
 
+            # Peek at the communicator on the top of the communicator stack.
+            elif command == "commpeek":
+                _send_result(client, repr(communicator_stack[-1]))
+
+            # View the entire contents of the communicator stack.
+            elif command == "commpeek":
+                _send_result(client, [repr(communicator) for communicator in communicator_stack])
+
             # Decode a value on the operand stack.
-            if command == "decode":
+            elif command == "decode":
                 protocol = protocol_stack[-1]
                 value = operand_stack.pop()
                 value = protocol.encoder.decode(value)
                 operand_stack.append(value)
                 _send_result(client)
-                continue
 
             # Encode a value on the operand stack.
-            if command == "encode":
+            elif command == "encode":
                 protocol = protocol_stack[-1]
                 value = operand_stack.pop()
                 value = protocol.encoder.encode(value)
                 operand_stack.append(value)
                 _send_result(client)
-                continue
 
             # Duplicate the value on the top of the operand stack.
-            if command == "opdup":
+            elif command == "opdup":
                 value = operand_stack[-1]
                 operand_stack.append(value)
                 _send_result(client)
-                continue
 
             # Peek at the value on the top of the operand stack.
-            if command == "oppeek":
+            elif command == "oppeek":
                 _send_result(client, operand_stack[-1])
-                continue
 
             # Pop a value from the operand stack.
-            if command == "oppop":
+            elif command == "oppop":
                 value = operand_stack.pop()
                 _send_result(client, value)
-                continue
 
             # Push a new value onto the operand stack.
-            if command == "oppush":
+            elif command == "oppush":
                 operand = kwargs["value"]
                 operand_stack.append(operand)
                 _send_result(client)
-                continue
 
             # Return a copy of the operand stack.
-            if command == "opstack":
+            elif command == "opstack":
                 _send_result(client, operand_stack)
-                continue
 
             # Swap the topmost two values on the operand stack
-            if command == "opswap":
+            elif command == "opswap":
                 operand_stack[-1], operand_stack[-2] = operand_stack[-2], operand_stack[-1]
                 _send_result(client)
-                continue
 
-            # Push a new protocol object onto the protocol stack.
-            if command == "protopush":
-                protocol = kwargs["name"]
-                if protocol == "AdditiveProtocol":
-                    from cicada.additive import AdditiveProtocol
-                    protocol_stack.append(AdditiveProtocol(communicator))
-                    _send_result(client)
-                    continue
-                if protocol == "ShamirProtocol":
-                    from cicada.shamir import ShamirProtocol
-                    protocol_stack.append(ShamirProtocol(communicator, threshold=2))
-                    _send_result(client)
-                    continue
+            # Push a new AdditiveProtocol object onto the protocol stack.
+            elif command == "protopush" and kwargs["name"] == "AdditiveProtocol":
+                from cicada.additive import AdditiveProtocol
+                protocol_stack.append(AdditiveProtocol(communicator_stack[-1]))
+                _send_result(client)
+
+            # Push a new AdditiveProtocol object onto the protocol stack.
+            elif command == "protopush" and kwargs["name"] == "ShamirProtocol":
+                from cicada.shamir import ShamirProtocol
+                protocol_stack.append(ShamirProtocol(communicator_stack[-1], threshold=2))
+                _send_result(client)
 
             # Exit the service immediately.
-            if command == "quit":
+            elif command == "quit":
                 _send_result(client)
                 break
 
             # Reveal a secret shared value.
-            if command == "reveal":
+            elif command == "reveal":
                 protocol = protocol_stack[-1]
                 share = operand_stack.pop()
                 secret = protocol.reveal(share)
                 operand_stack.append(secret)
                 _send_result(client)
-                continue
 
             # Secret share a value from the operand stack.
-            if command == "share":
+            elif command == "share":
                 src = kwargs["src"]
                 shape = kwargs["shape"]
                 protocol = protocol_stack[-1]
@@ -230,36 +225,32 @@ def main(listen_socket, communicator):
                 share = protocol.share(src=src, secret=secret, shape=shape)
                 operand_stack.append(share)
                 _send_result(client)
-                continue
 
             # Extract the storage from a secret share.
-            if command == "sharestorage":
+            elif command == "sharestorage":
                 value = operand_stack.pop()
                 operand_stack.append(value.storage)
                 _send_result(client)
-                continue
 
             # Unary operations.
-            if command in ["floor", "multiplicative_inverse", "relu", "sum", "truncate", "zigmoid"]:
+            elif command in ["floor", "multiplicative_inverse", "relu", "sum", "truncate", "zigmoid"]:
                 protocol = protocol_stack[-1]
                 a = operand_stack.pop()
                 share = getattr(protocol, command)(a)
                 operand_stack.append(share)
                 _send_result(client)
-                continue
 
             # Binary operations.
-            if command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "private_public_power", "private_public_subtract", "public_private_add", "untruncated_divide", "untruncated_multiply"]:
+            elif command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "private_public_power", "private_public_subtract", "public_private_add", "untruncated_divide", "untruncated_multiply"]:
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()
                 share = getattr(protocol, command)(a, b)
                 operand_stack.append(share)
                 _send_result(client)
-                continue
 
             # Random bitwise secret.
-            if command == "random_bitwise_secret":
+            elif command == "random_bitwise_secret":
                 bits = kwargs["bits"]
                 seed = kwargs["seed"]
                 protocol = protocol_stack[-1]
@@ -268,33 +259,30 @@ def main(listen_socket, communicator):
                 operand_stack.append(bits)
                 operand_stack.append(secret)
                 _send_result(client)
-                continue
 
-            # Inplace operations.
-            if command == "inplace_add":
+            # Inplace addition.
+            elif command == "inplace_add":
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()
                 protocol.encoder.inplace_add(a.storage, b)
                 operand_stack.append(a)
                 _send_result(client)
-                continue
 
-            if command == "inplace_subtract":
+            # Inplace subtraction.
+            elif command == "inplace_subtract":
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()
                 protocol.encoder.inplace_subtract(a.storage, b)
                 operand_stack.append(a)
                 _send_result(client)
-                continue
 
             # Unknown command.
-            client.sendall(pickle.dumps(RuntimeError(f"Unknown command {pretty_command}"))) # pragma: no cover
-            client.close() # pragma: no cover
+            else: # pragma: no cover
+                _send_result(client, RuntimeError(f"Unknown command {pretty_command}"))
 
-        # Something went wrong.
+        # Something else went wrong.
         except Exception as e: # pragma: no cover
-            client.sendall(pickle.dumps(e))
-            client.close()
+            _send_result(client, e)
 
