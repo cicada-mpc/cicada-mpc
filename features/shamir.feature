@@ -1,19 +1,5 @@
 Feature: Shamir Protocol
 
-    Scenario Outline: Random Round Trip Shamir Sharing
-        Given <players> players
-        When player <player> shamir shares and reveals random secrets, the revealed secrets should match the originals
-
-        Examples:
-        | players | player |
-        | 3       | 0      |
-        | 4       | 0      |
-        | 5       | 0      |
-
-
-############################################################################################################
-## New style scenarios using the calculator service.
-
 
     @calculator
 	Scenario: Inter Protocol Share Repetition
@@ -459,6 +445,21 @@ Feature: Shamir Protocol
         | 3       | 8     | 1237 |
         | 3       | 8     | 1238 |
         | 3       | 8     | 1239 |
+
+
+    Scenario Outline: Round Trip Sharing
+        Given a calculator service with <players> players
+        And a ShamirProtocol object
+        And player <player> secret shares <value>
+        When the players reveal the result
+        Then the result should match <value> to within 4 digits
+
+        Examples:
+        | players | player | value         |
+        | 3       | 0      | 1             |
+        | 3       | 1      | 2.56          |
+        | 4       | 2      | -3.5          |
+        | 4       | 3      | [2.3, 7.9]    |
 
 
     @calculator

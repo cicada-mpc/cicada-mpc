@@ -1,19 +1,5 @@
 Feature: Additive Protocol
 
-    Scenario Outline: Random Round Trip Sharing
-        Given <players> players
-        When player <player> shares and reveals <count> random secrets, the revealed secrets should match the originals
-
-        Examples:
-        | players | player | count |
-        | 2       | 0      | 10    |
-        | 3       | 1      | 10    |
-        | 4       | 2      | 10    |
-
-
-############################################################################################################
-## New style scenarios using the calculator service.
-
 
     @calculator
 	Scenario: Inter Protocol Share Repetition
@@ -531,6 +517,22 @@ Feature: Additive Protocol
         | 2       | 8     | 1237 |
         | 3       | 8     | 1238 |
         | 3       | 8     | 1239 |
+
+
+    @calculator
+    Scenario Outline: Round Trip Sharing
+        Given a calculator service with <players> players
+        And an AdditiveProtocol object
+        And player <player> secret shares <value>
+        When the players reveal the result
+        Then the result should match <value> to within 4 digits
+
+        Examples:
+        | players | player | value         |
+        | 2       | 0      | 1             |
+        | 3       | 1      | 2.56          |
+        | 4       | 2      | -3.5          |
+        | 4       | 3      | [2.3, 7.9]    |
 
 
     @calculator
