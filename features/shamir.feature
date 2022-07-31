@@ -255,16 +255,6 @@ Feature: Shamir Protocol
         | 3       | 5          | -2.5    | -12.5         |
         | 3       | -5         | -2.5    | 12.5          |
         | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
-        | 4       | 5          | 2       | 10            |
-        | 4       | 5          | 2.5     | 12.5          |
-        | 4       | 5          | -2.5    | -12.5         |
-        | 4       | -5         | -2.5    | 12.5          |
-        | 4       | [5, 3.5]   | [2, 4]  | [10, 14]      |
-        | 5       | 5          | 2       | 10            |
-        | 5       | 5          | 2.5     | 12.5          |
-        | 5       | 5          | -2.5    | -12.5         |
-        | 5       | -5         | -2.5    | 12.5          |
-        | 5       | [5, 3.5]   | [2, 4]  | [10, 14]      |
 
 
     @calculator
@@ -420,6 +410,7 @@ Feature: Shamir Protocol
         | 3       | 8     | 1239 |
 
 
+    @calculator
     Scenario Outline: Round Trip Sharing
         Given a calculator service with <players> players
         And a new Shamir protocol object
@@ -431,8 +422,8 @@ Feature: Shamir Protocol
         | players | player | value         |
         | 3       | 0      | 1             |
         | 3       | 1      | 2.56          |
-        | 4       | 2      | -3.5          |
-        | 4       | 3      | [2.3, 7.9]    |
+        | 3       | 2      | -3.5          |
+        | 3       | 3      | [2.3, 7.9]    |
 
 
     @calculator
@@ -443,6 +434,5 @@ Feature: Shamir Protocol
         Examples:
         | players | count |
         | 3       | 10    |
-        | 4       | 10    |
         | 10      | 10    |
 
