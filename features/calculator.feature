@@ -1,4 +1,4 @@
-Feature: MPC as a Service
+Feature: MPC Calculator Service
 
     @calculator
     Scenario Outline: Addition
