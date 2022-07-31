@@ -105,31 +105,8 @@ def main(listen_socket, communicator):
             pretty_command = f"{command}({pretty_args})"
             log.debug(f"Player {communicator.rank} received command: {pretty_command}")
 
-            # Raise an exception if the top of the operand stack doesn't match a value to within n digits.
-            if command == "assertclose":
-                rhs = kwargs["value"]
-                digits = kwargs["digits"]
-                lhs = operand_stack[-1]
-                numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
-                _send_result(client)
-
-            # Raise an exception if the top of the operand stack doesn't match a value exactly.
-            elif command == "assertequal":
-                rhs = kwargs["value"]
-                lhs = operand_stack[-1]
-                numpy.testing.assert_array_equal(lhs, rhs)
-                _send_result(client)
-
-            # Raise an exception if the top values on the operand stack are equal.
-            elif command == "assertunequal":
-                rhs = operand_stack[-1]
-                lhs = operand_stack[-2]
-                if numpy.array_equal(lhs, rhs):
-                    raise RuntimeError(f"Arrays should not be equal: {lhs} == {rhs}")
-                _send_result(client)
-
             # Encode a binary value on the operand stack.
-            elif command == "binary-encode":
+            if command == "binary-encode":
                 protocol = protocol_stack[-1]
                 value = operand_stack.pop()
                 value = numpy.array(value, dtype=protocol.encoder.dtype)
@@ -138,11 +115,11 @@ def main(listen_socket, communicator):
                 continue
 
             # Peek at the communicator on the top of the communicator stack.
-            elif command == "commpeek":
+            elif command == "commget":
                 _send_result(client, repr(communicator_stack[-1]))
 
             # View the entire contents of the communicator stack.
-            elif command == "commpeek":
+            elif command == "commstack":
                 _send_result(client, [repr(communicator) for communicator in communicator_stack])
 
             # Decode a value on the operand stack.
@@ -167,9 +144,14 @@ def main(listen_socket, communicator):
                 operand_stack.append(value)
                 _send_result(client)
 
-            # Peek at the value on the top of the operand stack.
-            elif command == "oppeek":
+            # Get the value on the top of the operand stack.
+            elif command == "opget":
                 _send_result(client, operand_stack[-1])
+
+            # Get n values from the top of the operand stack.
+            elif command == "opgetn":
+                n = kwargs["n"]
+                _send_result(client, operand_stack[-n:])
 
             # Pop a value from the operand stack.
             elif command == "oppop":

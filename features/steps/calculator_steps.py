@@ -240,22 +240,28 @@ def step_impl(context, count, name):
         _require_success(context.calculator.command("protopush", name=name))
 
 
-@then(u'the result should match {value} to within {digits} digits')
-def step_impl(context, value, digits):
-    value = eval(value)
+@then(u'the result should match {rhs} to within {digits} digits')
+def step_impl(context, rhs, digits):
+    rhs = eval(rhs)
     digits = eval(digits)
-    _require_success(context.calculator.command("assertclose", value=value, digits=digits))
+
+    for lhs in _require_success(context.calculator.command("opget")):
+        numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
 
 
-@then(u'the result should match {value}')
-def step_impl(context, value):
-    value = eval(value)
-    _require_success(context.calculator.command("assertequal", value=value))
+@then(u'the result should match {rhs}')
+def step_impl(context, rhs):
+    rhs = eval(rhs)
+
+    for lhs in _require_success(context.calculator.command("opget")):
+        numpy.testing.assert_array_equal(lhs, rhs)
 
 
 @then(u'the two values should not be equal')
 def step_impl(context):
-    _require_success(context.calculator.command("assertunequal"))
+    values = _require_success(context.calculator.command("opgetn", n=2))
+    for lhs, rhs in values:
+        test.assert_false(numpy.array_equal(lhs, rhs))
 
 
 @then(u'the value of the bits in big-endian order should match the random value.')
