@@ -512,7 +512,7 @@ Feature: Additive Protocol
         | 3       | -212345678 | -351234589 | -563580267  |
 
 
-    @calculator
+    @calculator, @wip
     Scenario Outline: Random Bitwise Secret
         Given a calculator service with <players> players
         And an AdditiveProtocol object

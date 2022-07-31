@@ -31,9 +31,9 @@ class Client(object):
     def __init__(self, addresses):
         self._addresses = addresses
 
-    def command(self, command, *args, player=None, **kwargs):
+    def command(self, command, *, player=None, **kwargs):
         if player is None:
-            player = list(range(len(self._addresses)))
+            player = self.ranks
         if not isinstance(player, list):
             player = [player]
         players = player
@@ -47,7 +47,7 @@ class Client(object):
 
         # Send commands
         for sock in sockets:
-            sock.sendall(pickle.dumps((command, args, kwargs)))
+            sock.sendall(pickle.dumps((command, kwargs)))
 
         # Receive results
         results = []
@@ -63,44 +63,9 @@ class Client(object):
         return results
 
 
-    def decode(self):
-        return self.command("decode")
-
-
-    def encode(self):
-        return self.command("encode")
-
-
-    def peek(self):
-        return self.command("peekop")
-
-
-    def pop(self):
-        return self.command("popop")
-
-
-    def push(self, value):
-        return self.command("pushop", value)
-
-
-    def push_protocol(self, name):
-        return self.command("pushproto", name)
-
-
-    def quit(self):
-        return self.command("quit")
-
-
-    def reveal(self):
-        return self.command("reveal")
-
-
-    def share(self, *, src, shape):
-        return self.command("share", src=src, shape=shape)
-
-
-    def stack(self):
-        return self.command("stackop")
+    @property
+    def ranks(self):
+        return list(range(len(self._addresses)))
 
 
 def _send_result(client, result=None):
@@ -133,37 +98,54 @@ def main(listen_socket, communicator):
         try:
             # Wait for a client to connect and send a command.
             client, addr = listen_socket.accept()
-            command, args, kwargs = pickle.loads(client.recv(4096))
+            command, kwargs = pickle.loads(client.recv(4096))
 
-            pretty_args = ", ".join([repr(arg) for arg in args] + [f"{key!r}={value!r}" for key, value in kwargs.items()])
+            pretty_args = ", ".join([f"{key}={value!r}" for key, value in kwargs.items()])
             pretty_command = f"{command}({pretty_args})"
             log.debug(f"Player {communicator.rank} received command: {pretty_command}")
 
-#            # Raise an exception if the top of the operand stack doesn't match a value to within n digits.
-#            if isinstance(command, list) and len(command) == 3 and command[0] == "assert-close":
-#                rhs = command[1]
-#                digits = command[2]
-#                lhs = operand_stack[-1]
-#                numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
+            # Raise an exception if the top of the operand stack doesn't match a value to within n digits.
+            if command == "assertclose":
+                rhs = kwargs["value"]
+                digits = kwargs["digits"]
+                lhs = operand_stack[-1]
+                numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
+                _send_result(client)
+                continue
+
+            # Raise an exception if the top of the operand stack doesn't match a value exactly.
+            if command == "assertequal":
+                rhs = kwargs["value"]
+                lhs = operand_stack[-1]
+                numpy.testing.assert_array_equal(lhs, rhs)
+                _send_result(client)
+                continue
+
+            # Raise an exception if the top values on the operand stack are equal.
+            if command == "assertunequal":
+                rhs = operand_stack[-1]
+                lhs = operand_stack[-2]
+                if numpy.array_equal(lhs, rhs):
+                    raise RuntimeError(f"Arrays should not be equal: {lhs} == {rhs}")
+                _send_result(client)
+                continue
+
+#            # Test if the top two items on the stack are equal according to Numpy rules.
+#            if command == "arrayequal":
+#                rhs = operand_stack.pop()
+#                lhs = operand_stack.pop()
+#                operand_stack.append(numpy.array_equal(lhs, rhs))
 #                _send_result(client)
 #                continue
-#
-#            # Raise an exception if the top of the operand stack doesn't match a value exactly.
-#            if isinstance(command, list) and len(command) == 2 and command[0] == "assert-equal":
-#                rhs = command[1]
-#                lhs = operand_stack[-1]
-#                numpy.testing.assert_array_equal(lhs, rhs)
-#                _send_result(client)
-#                continue
-#
-#            # Raise an exception if the top values on the operand stack are equal.
-#            if command == "assert-unequal":
-#                rhs = operand_stack[-1]
-#                lhs = operand_stack[-2]
-#                if numpy.array_equal(lhs, rhs):
-#                    raise RuntimeError(f"Arrays should not be equal: {lhs} == {rhs}")
-#                _send_result(client)
-#                continue
+
+            # Encode a binary value on the operand stack.
+            if command == "binary-encode":
+                protocol = protocol_stack[-1]
+                value = operand_stack.pop()
+                value = numpy.array(value, dtype=protocol.encoder.dtype)
+                operand_stack.append(value)
+                _send_result(client)
+                continue
 
             # Decode a value on the operand stack.
             if command == "decode":
@@ -178,32 +160,52 @@ def main(listen_socket, communicator):
             if command == "encode":
                 protocol = protocol_stack[-1]
                 value = operand_stack.pop()
-                value = protocol.encoder.encode(numpy.array(value))
+                value = protocol.encoder.encode(value)
+                operand_stack.append(value)
+                _send_result(client)
+                continue
+
+#            # Test if the top two items on the stack are equal according to Python rules.
+#            if command == "equal":
+#                rhs = operand_stack.pop()
+#                lhs = operand_stack.pop()
+#                operand_stack.append(lhs == rhs)
+#                _send_result(client)
+#                continue
+
+            # Duplicate the value on the top of the operand stack.
+            if command == "opdup":
+                value = operand_stack[-1]
                 operand_stack.append(value)
                 _send_result(client)
                 continue
 
             # Peek at the value on the top of the operand stack.
-            if command == "peekop":
+            if command == "oppeek":
                 _send_result(client, operand_stack[-1])
                 continue
 
             # Pop a value from the operand stack.
-            if command == "popop":
+            if command == "oppop":
                 value = operand_stack.pop()
                 _send_result(client, value)
                 continue
 
             # Push a new value onto the operand stack.
-            if command == "pushop":
-                operand = args[0]
+            if command == "oppush":
+                operand = kwargs["value"]
                 operand_stack.append(operand)
                 _send_result(client)
                 continue
 
+            # Return a copy of the operand stack.
+            if command == "opstack":
+                _send_result(client, operand_stack)
+                continue
+
             # Push a new protocol object onto the protocol stack.
-            if command == "pushproto":
-                protocol = args[0]
+            if command == "protopush":
+                protocol = kwargs["name"]
                 if protocol == "AdditiveProtocol":
                     from cicada.additive import AdditiveProtocol
                     protocol_stack.append(AdditiveProtocol(communicator))
@@ -217,6 +219,7 @@ def main(listen_socket, communicator):
 
             # Exit the service immediately.
             if command == "quit":
+                _send_result(client)
                 break
 
             # Reveal a secret shared value.
@@ -239,51 +242,31 @@ def main(listen_socket, communicator):
                 _send_result(client)
                 continue
 
-            if command == "stackop":
-                _send_result(client, operand_stack)
-                continue
-
-            # Encode a binary value on the operand stack.
-            if command == "binary-encode":
-                protocol = protocol_stack[-1]
-                value = operand_stack.pop()
-                value = numpy.array(value, dtype=protocol.encoder.dtype)
-                operand_stack.append(value)
-                _send_result(client)
-                continue
-
-            # Duplicate the value on the top of the operand stack.
-            if command == "duplicate-operand":
-                value = operand_stack[-1]
-                operand_stack.append(value)
-                _send_result(client)
-                continue
-
             # Extract the storage from a secret share.
-            if command == "extract-storage":
+            if command == "sharestorage":
                 value = operand_stack.pop()
                 operand_stack.append(value.storage)
                 _send_result(client)
                 continue
 
-#            # Unary operations.
-#            if command in ["floor", "multiplicative_inverse", "relu", "sum", "truncate", "zigmoid"]:
-#                protocol = protocol_stack[-1]
-#                a = operand_stack.pop()
-#                share = getattr(protocol, command)(a)
-#                operand_stack.append(share)
-#                _send_result(client)
-#                continue
-#
-#            # Binary operations.
-#            if command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "private_public_power", "private_public_subtract", "public_private_add", "untruncated_divide", "untruncated_multiply"]:
-#                protocol = protocol_stack[-1]
-#                b = operand_stack.pop()
-#                a = operand_stack.pop()
-#                share = getattr(protocol, command)(a, b)
-#                operand_stack.append(share)
-#                _send_result(client)
-#                continue
+            # Unary operations.
+            if command in ["floor", "multiplicative_inverse", "relu", "sum", "truncate", "zigmoid"]:
+                protocol = protocol_stack[-1]
+                a = operand_stack.pop()
+                share = getattr(protocol, command)(a)
+                operand_stack.append(share)
+                _send_result(client)
+                continue
+
+            # Binary operations.
+            if command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "private_public_power", "private_public_subtract", "public_private_add", "untruncated_divide", "untruncated_multiply"]:
+                protocol = protocol_stack[-1]
+                b = operand_stack.pop()
+                a = operand_stack.pop()
+                share = getattr(protocol, command)(a, b)
+                operand_stack.append(share)
+                _send_result(client)
+                continue
 
             # Inplace operations.
             if command == "inplace_add":
