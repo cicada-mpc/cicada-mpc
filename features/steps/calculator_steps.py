@@ -68,10 +68,7 @@ def step_impl(context, player, secret):
     secret = numpy.array(eval(secret))
 
     for rank in context.calculator.ranks:
-        if player == rank:
-            _require_success(context.calculator.command("oppush", value=secret, player=rank))
-        else:
-            _require_success(context.calculator.command("oppush", value=None, player=rank))
+        _require_success(context.calculator.command("oppush", value=secret if player == rank else None, player=rank))
     _require_success(context.calculator.command("binary-encode"))
     _require_success(context.calculator.command("share", src=player, shape=secret.shape))
 
@@ -82,11 +79,7 @@ def step_impl(context, player, secret):
     secret = numpy.array(eval(secret))
 
     for rank in context.calculator.ranks:
-        if player == rank:
-            _require_success(context.calculator.command("oppush", value=secret, player=rank))
-        else:
-            _require_success(context.calculator.command("oppush", value=None, player=rank))
-
+        _require_success(context.calculator.command("oppush", value=secret if player == rank else None, player=rank))
     _require_success(context.calculator.command("encode"))
     _require_success(context.calculator.command("share", src=player, shape=secret.shape))
 
