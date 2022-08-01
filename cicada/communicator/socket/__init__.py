@@ -38,8 +38,8 @@ import urllib.parse
 import numpy
 import pynetstring
 
-from ..interface import Communicator, Tags, tagname
-from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, geturl, listen, message, rendezvous
+from ..interface import Communicator, Tag, tagname
+from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, gettls, geturl, listen, message, rendezvous
 
 
 class BrokenPipe(Exception):
@@ -178,7 +178,7 @@ class SocketCommunicator(Communicator):
                 self._log.debug(f"<-- player {src} {tagname(tag)}") # pragma: no cover
 
             try:
-                tag = Tags(tag)
+                tag = Tag(tag)
             except:
                 pass
 
@@ -187,7 +187,7 @@ class SocketCommunicator(Communicator):
             self._received[tag]["messages"] += 1
 
             # Revoke messages don't get queued because they receive special handling.
-            if tag == Tags.REVOKE:
+            if tag == Tag.REVOKE:
                 if not self._revoked:
                     self._revoked = True
                     self._log.warning(f"revoked by player {src}")
@@ -256,7 +256,7 @@ class SocketCommunicator(Communicator):
         if src is None:
             src = self.ranks
         if not isinstance(src, list):
-            src = [src]
+            src = [src] # pragma: no cover
 
         matches = []
         with self._message_queue_lock:
@@ -353,22 +353,24 @@ class SocketCommunicator(Communicator):
                 raw_message = pickle.dumps((int(tag), payload))
                 player = self._players[dst]
                 player.send(raw_message)
+            except BlockingIOError as e: # pragma: no cover
+                raise TryAgain(message(self.name, self.rank, f"operation would block sending to player {dst}."))
             except BrokenPipeError as e: # pragma: no cover
                 raise BrokenPipe(message(self.name, self.rank, f"broken pipe sending to player {dst}."))
 
 
-    def all_gather(self, value):
-        self._log.debug(f"all_gather()")
+    def allgather(self, value):
+        self._log.debug(f"allgather()")
 
         self._require_unrevoked()
         self._require_running()
 
         # Send messages.
         for rank in self.ranks:
-            self._send(tag=Tags.ALLGATHER, payload=value, dst=rank)
+            self._send(tag=Tag.ALLGATHER, payload=value, dst=rank)
 
         # Receive messages.
-        values = [self._wait_next_payload(src=rank, tag=Tags.ALLGATHER) for rank in self.ranks]
+        values = [self._wait_next_payload(src=rank, tag=Tag.ALLGATHER) for rank in self.ranks]
         return values
 
 
@@ -383,18 +385,18 @@ class SocketCommunicator(Communicator):
         self._require_running()
 
         # Notify rank 0 that we've entered the barrier.
-        self._send(tag=Tags.BARRIER, payload=None, dst=0)
+        self._send(tag=Tag.BARRIER, payload=None, dst=0)
 
         if self.rank == 0:
             # Wait until every player enters the barrier.
             for rank in self.ranks:
-                self._wait_next_payload(src=rank, tag=Tags.BARRIER)
+                self._wait_next_payload(src=rank, tag=Tag.BARRIER)
             # Notify every player that it's time to exit the barrier.
             for rank in self.ranks:
-                self._send(tag=Tags.BARRIER, payload=None, dst=rank)
+                self._send(tag=Tag.BARRIER, payload=None, dst=rank)
 
         # Wait until we're told to exit.
-        self._wait_next_payload(src=0, tag=Tags.BARRIER)
+        self._wait_next_payload(src=0, tag=Tag.BARRIER)
 
 
     def broadcast(self, *, src, value):
@@ -408,10 +410,10 @@ class SocketCommunicator(Communicator):
         # Broadcast the value to all players.
         if self.rank == src:
             for rank in self.ranks:
-                self._send(tag=Tags.BROADCAST, payload=value, dst=rank)
+                self._send(tag=Tag.BROADCAST, payload=value, dst=rank)
 
         # Receive the broadcast value.
-        return self._wait_next_payload(src=src, tag=Tags.BROADCAST)
+        return self._wait_next_payload(src=src, tag=Tag.BROADCAST)
 
 
     @staticmethod
@@ -487,24 +489,7 @@ class SocketCommunicator(Communicator):
         if trusted is None:
             trusted = [trust for trust in os.environ.get("CICADA_TRUSTED", "").split(",") if trust]
 
-        if identity and trusted:
-            server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            server.load_cert_chain(certfile=identity)
-            for trust in trusted:
-                server.load_verify_locations(trust)
-            server.check_hostname=False
-            server.verify_mode = ssl.CERT_REQUIRED
-
-            client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            client.load_cert_chain(certfile=identity)
-            for trust in trusted:
-                client.load_verify_locations(trust)
-            client.check_hostname = False
-            client.verify_mode = ssl.CERT_REQUIRED
-
-            tls = (server, client)
-        else:
-            tls = None
+        tls = gettls(identity=identity, trusted=trusted)
 
         timer = Timer(threshold=startup_timeout)
         listen_socket = listen(address=address, rank=rank, name=name, timer=timer)
@@ -541,12 +526,12 @@ class SocketCommunicator(Communicator):
         dst = self._require_rank(dst)
 
         # Send local data to the destination.
-        self._send(tag=Tags.GATHER, payload=value, dst=dst)
+        self._send(tag=Tag.GATHER, payload=value, dst=dst)
 
         # Receive data from all ranks.
         if self.rank == dst:
             # Messages could arrive out of order.
-            values = [self._wait_next_payload(src=rank, tag=Tags.GATHER) for rank in self.ranks]
+            values = [self._wait_next_payload(src=rank, tag=Tag.GATHER) for rank in self.ranks]
             return values
 
         return None
@@ -563,12 +548,12 @@ class SocketCommunicator(Communicator):
 
         # Send local data to the destination.
         if self.rank in src:
-            self._send(tag=Tags.GATHERV, payload=value, dst=dst)
+            self._send(tag=Tag.GATHERV, payload=value, dst=dst)
 
         # Receive data from the other players.
         if self.rank == dst:
             # Messages could arrive out of order.
-            values = [self._wait_next_payload(src=rank, tag=Tags.GATHERV) for rank in src]
+            values = [self._wait_next_payload(src=rank, tag=Tag.GATHERV) for rank in src]
             return values
 
         return None
@@ -710,7 +695,7 @@ class SocketCommunicator(Communicator):
         # Notify all players that the communicator is revoked.
         for rank in self.ranks:
             try:
-                self._send(tag=Tags.REVOKE, payload=None, dst=rank)
+                self._send(tag=Tag.REVOKE, payload=None, dst=rank)
             # Ignore BrokenPipe errors, they're to be expected under the circumstances.
             except BrokenPipe as e: # pragma: no cover
                 pass
@@ -720,13 +705,18 @@ class SocketCommunicator(Communicator):
     def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5):
         """Run a function in parallel using sub-processes on the local host.
 
-        This is extremely useful for running examples and regression tests on one machine.
+        This method returns when the callback functions finish, returning a
+        :class:`list` of results from each, in rank order.  Special sentinel
+        classes are used to indicate whether a process raised an exception or
+        terminated unexpectedly.  This is extremely useful for running examples
+        and regression tests on one machine.
 
-        The given function *must* accept a communicator as its first
-        argument.  Additional positional and keyword arguments may follow the
-        communicator.
+        The given function *must* accept a communicator as its first argument.
+        Additional caller-provided positional and keyword arguments are passed
+        to the function after the communicator.
 
-        To run computations across multiple hosts, you should use the
+        To run computation using multiple hosts, you should use
+        :meth:`~cicada.communicator.socket.SocketCommunicator.connect` and the
         :ref:`cicada` command line executable instead.
 
         Parameters
@@ -758,14 +748,14 @@ class SocketCommunicator(Communicator):
 
         Returns
         -------
-        results: list
-            The return value from the function for each player, in
-            rank order.  If a player process terminates unexpectedly, the
-            result will be an instance of :class:`Terminated`, which can be
-            used to access the process exit code.  If the player process raises
-            a Python exception, the result will be an instance of
-            :class:`Failed`, which can be used to access the Python exception
-            and a traceback of the failing code.
+        results: :class:`list`
+            The return value from the function for each player, in rank order.
+            Returned only if `return_results` is :any:`True`. If a player
+            process terminates unexpectedly, the result will be an instance of
+            :class:`Terminated`, which can be used to access the process exit
+            code.  If the player process raises a Python exception, the result
+            will be an instance of :class:`Failed`, which can be used to access
+            the Python exception and a traceback of the failing code.
         """
         def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, family, name, timeout, startup_timeout):
             # Run the work function.
@@ -788,25 +778,7 @@ class SocketCommunicator(Communicator):
                 addresses = child_queue.get()
 
                 # Optionally setup TLS.
-                if identity and trusted:
-                    server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                    server.load_cert_chain(certfile=identity)
-                    for trust in trusted:
-                        server.load_verify_locations(trust)
-                    server.check_hostname=False
-                    server.verify_mode = ssl.CERT_REQUIRED
-
-                    client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                    client.load_cert_chain(certfile=identity)
-                    for trust in trusted:
-                        client.load_verify_locations(trust)
-                    client.check_hostname = False
-                    client.verify_mode = ssl.CERT_REQUIRED
-
-                    tls = (server, client)
-                else:
-                    tls = None
-
+                tls = gettls(identity=identity, trusted=trusted)
                 sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer, tls=tls)
                 communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
                 result = fn(communicator, *args, **kwargs)
@@ -900,6 +872,130 @@ class SocketCommunicator(Communicator):
         return output
 
 
+    @staticmethod
+    def run_forever(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5):
+        """Execute a long-running function in parallel using sub-processes on the local host.
+
+        This method returns immediately after networking has been setup and the
+        callback function begins executing, returning a :class:`list` of
+        network addresses and a :class:`list` of corresponding processes.  This
+        is particularly useful for running "MPC-as-a-service" applications on
+        the local machine - the caller can use the addresses to communicate with
+        the individual processes.
+
+        The given function *must* accept a listening socket and a communicator
+        as its first two arguments.  Additional caller-provided positional and
+        keyword arguments are passed to the function after the socket and communicator.
+
+        To run a service with multiple hosts, you should use
+        :meth:`~cicada.communicator.socket.SocketCommunicator.connect` and the
+        :ref:`cicada` command line executable instead.
+
+        Parameters
+        ----------
+        world_size: :class:`int`, required
+            The number of players that will run the function.
+        fn: :func:`callable`, required
+            The function to execute in parallel.
+        identities: sequence of :class:`str`, optional
+            Path to files in PEM format each containing a private key and a certificate, one per player.
+        trusted: sequence of :class:`str`, optional
+            Path to files in PEM format containing certificates.
+        args: :class:`tuple`, optional
+            Positional arguments to pass to `fn` when it is executed.
+        kwargs: :class:`dict`, optional
+            Keyword arguments to pass to `fn` when it is executed.
+        family: :class:`str`, optional
+            Address family that matches the scheme used in address URLs
+            elsewhere in the API.  Allowed values are "tcp" and "file".
+        name: :class:`str`, optional
+            Human-readable name for the communicator created by this function.
+            Defaults to "world".
+        timeout: :class:`numbers.Number`, optional
+            Maximum time to wait for normal communication to complete in
+            seconds.  Defaults to five seconds.
+        startup_timeout: :class:`numbers.Number`, optional
+            Maximum time allowed to setup the communicator in seconds.
+            Defaults to five seconds.
+
+        Returns
+        -------
+        addresses: :class:`list` of :class:`str`
+            A listening address for each player, in rank order.  Returned only
+            if `return_results` is :any:`False`.
+        processes: :class:`list` of :class:`multiprocessing.Process`
+            A listening address for each player, in rank order.  Returned only
+            if `return_results` is :any:`False`.
+        """
+        def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, family, name, timeout, startup_timeout):
+            # Run the work function.
+            try:
+                # Create a socket with a randomly-assigned address.
+                if family == "file":
+                    fd, path = tempfile.mkstemp()
+                    os.close(fd)
+                    address = f"file://{path}"
+                elif family == "tcp":
+                    address = "tcp://127.0.0.1"
+                timer = Timer(threshold=startup_timeout)
+                listen_socket = listen(name=name, rank=rank, address=address, timer=timer)
+                address = geturl(listen_socket)
+
+                # Send our address to the parent process.
+                parent_queue.put((rank, address))
+
+                # Get all addresses from the parent process.
+                addresses = child_queue.get()
+
+                # Optionally setup TLS.
+                tls = gettls(identity=identity, trusted=trusted)
+                sockets=direct(listen_socket=listen_socket, addresses=addresses, rank=rank, name=name, timer=timer, tls=tls)
+                communicator = SocketCommunicator(sockets=sockets, name=name, timeout=timeout)
+                parent_queue.put("ready")
+                result = fn(listen_socket, communicator, *args, **kwargs)
+                communicator.free()
+            except Exception as e: # pragma: no cover
+                result = Failed(e, traceback.format_exc())
+
+        # Setup the multiprocessing context.
+        context = multiprocessing.get_context(method="fork") # I don't remember why we prefer fork().
+
+        # Create queues for IPC.
+        parent_queue = context.Queue()
+        child_queue = context.Queue()
+
+        # Create per-player processes.
+        processes = []
+        for rank in range(world_size):
+            identity = None if identities is None else identities[rank]
+            processes.append(context.Process(
+                name=f"Player {rank}",
+                target=launch,
+                kwargs=dict(parent_queue=parent_queue, child_queue=child_queue, rank=rank, fn=fn, identity=identity, trusted=trusted, args=args, family=family, name=name, kwargs=kwargs, timeout=timeout, startup_timeout=startup_timeout),
+                ))
+
+        # Start per-player processes.
+        for process in processes:
+            process.daemon = True
+            process.start()
+
+        # Collect addresses from every process.
+        addresses = [None] * world_size
+        for process in processes:
+            rank, address = parent_queue.get(block=True)
+            addresses[rank] = address
+
+        # Send addresses to every process.
+        for process in processes:
+            child_queue.put(addresses)
+
+        # Wait until networking has been established.
+        for process in processes:
+            parent_queue.get(block=True)
+
+        return addresses, processes
+
+
     def scatter(self, *, src, values):
         self._log.debug(f"scatter(src={src})")
 
@@ -915,11 +1011,11 @@ class SocketCommunicator(Communicator):
         # Send data to every player.
         if self.rank == src:
             for value, rank in zip(values, self.ranks):
-                self._send(tag=Tags.SCATTER, payload=value, dst=rank)
+                self._send(tag=Tag.SCATTER, payload=value, dst=rank)
 
 
         # Receive data from the sender.
-        return self._wait_next_payload(src=src, tag=Tags.SCATTER)
+        return self._wait_next_payload(src=src, tag=Tag.SCATTER)
 
 
     def scatterv(self, *, src, values, dst):
@@ -939,11 +1035,11 @@ class SocketCommunicator(Communicator):
         # Send data to every destination.
         if self.rank == src:
             for value, rank in zip(values, dst):
-                self._send(tag=Tags.SCATTERV, payload=value, dst=rank)
+                self._send(tag=Tag.SCATTERV, payload=value, dst=rank)
 
         # Receive data from the sender.
         if self.rank in dst:
-            return self._wait_next_payload(src=src, tag=Tags.SCATTERV)
+            return self._wait_next_payload(src=src, tag=Tag.SCATTERV)
 
         return None
 
@@ -959,7 +1055,7 @@ class SocketCommunicator(Communicator):
         self._send(tag=tag, payload=value, dst=dst)
 
 
-    def shrink(self, *, name, shrink_timeout=5, startup_timeout=5, timeout=5):
+    def shrink(self, *, name, identity=None, trusted=None, shrink_timeout=5, startup_timeout=5, timeout=5):
         """Create a new communicator containing surviving players.
 
         This method should be called as part of a failure-recovery phase by as
@@ -973,6 +1069,10 @@ class SocketCommunicator(Communicator):
         ----------
         name: :class:`str`, required
             New communicator name.
+        identity: :class:`str`, optional
+            Path to a private key and certificate in PEM format that will identify the current player.
+        trusted: sequence of :class:`str`, optional
+            Path to certificates in PEM format that will identify the other players in the new communicator.
         shrink_timeout: :class:`numbers.Number`, optional
             Maximum amount of time to spend identifying remaining members.
         startup_timeout: :class:`numbers.Number`, optional
@@ -1000,17 +1100,20 @@ class SocketCommunicator(Communicator):
         # By default, we assume that no-one is alive.
         remaining_ranks = set()
 
+        tls = gettls(identity=identity, trusted=trusted)
+
         timer = Timer(threshold=shrink_timeout)
         while not timer.expired:
             # Send beacons to the other players (including ourself).
             for rank in self.ranks:
                 try:
-                    self._send(tag=Tags.BEACON, payload=None, dst=rank)
-                except BrokenPipe: # Ignore broken pipe errors, they're to be expected under the circumstances.
+                    self._send(tag=Tag.BEACON, payload=None, dst=rank)
+                # Ignore broken pipe errors, they're to be expected under the circumstances.
+                except BrokenPipe: # pragma: no cover
                     pass
 
             # Get any received beacons (including our own).
-            beacons = self._messages(src=None, tag=Tags.BEACON)
+            beacons = self._messages(src=None, tag=Tag.BEACON)
 
             # If we received a beacon, the player is alive.
             for src, tag, payload in beacons:
@@ -1050,7 +1153,7 @@ class SocketCommunicator(Communicator):
         elif address.scheme == "tcp":
             address = f"tcp://{address.hostname}"
         else:
-            raise ValueError(f"Comm {self.name} player {self.rank} cannot split unknown address scheme: {address.scheme}") # pragma: no cover
+            raise ValueError(f"Comm {self.name} player {self.rank} cannot parse unknown address scheme: {address.scheme}") # pragma: no cover
 
         # Create a new listening socket and update the address to match
         timer = Timer(threshold=startup_timeout)
@@ -1063,15 +1166,15 @@ class SocketCommunicator(Communicator):
         # Send new connection info to the remaining players.
         if self.rank == remaining_ranks[0]:
             for remaining_rank in remaining_ranks:
-                self._send(tag=Tags.SHRINK, payload=address, dst=remaining_rank)
-        root_address = self._wait_next_payload(src=remaining_ranks[0], tag=Tags.SHRINK)
+                self._send(tag=Tag.SHRINK, payload=address, dst=remaining_rank)
+        root_address = self._wait_next_payload(src=remaining_ranks[0], tag=Tag.SHRINK)
 
         # Return a new communicator.
-        sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer)
+        sockets=rendezvous(listen_socket=listen_socket, root_address=root_address, world_size=world_size, rank=rank, name=name, token=token, timer=timer, tls=tls)
         return SocketCommunicator(sockets=sockets, name=name, timeout=timeout), remaining_ranks
 
 
-    def split(self, *, name, timeout=5, startup_timeout=5):
+    def split(self, *, name, identity=None, trusted=None, timeout=5, startup_timeout=5):
         """Return a new communicator with the given name.
 
         If players specify different names - which can be any :class:`str`
@@ -1089,6 +1192,10 @@ class SocketCommunicator(Communicator):
         ----------
         name: :class:`str` or :any:`None`, required
             Communicator name, or `None`.
+        identity: :class:`str`, optional
+            Path to a private key and certificate in PEM format that will identify the current player.
+        trusted: sequence of :class:`str`, optional
+            Path to certificates in PEM format that will identify the other players in the new communicator.
         timeout: :class:`numbers.Number`, optional
             Maximum time to wait for communication, in seconds.
         startup_timeout: :class:`numbers.Number`, optional
@@ -1105,6 +1212,8 @@ class SocketCommunicator(Communicator):
 
         if not isinstance(name, (str, type(None))):
             raise ValueError(f"Comm {self.name} player {self.rank} name must be a string or None, got {name} instead.") # pragma: no cover
+
+        tls = gettls(identity=identity, trusted=trusted)
 
         timer = Timer(threshold=startup_timeout)
 
@@ -1149,7 +1258,7 @@ class SocketCommunicator(Communicator):
 
         # Return a new communicator.
         if group_name is not None:
-            sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timer=timer)
+            sockets = direct(listen_socket=listen_socket, addresses=group_addresses, rank=group_rank, name=group_name, timer=timer, tls=tls)
             return SocketCommunicator(sockets=sockets, name=group_name, timeout=timeout)
 
         return None

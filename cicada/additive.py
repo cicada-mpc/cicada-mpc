@@ -21,7 +21,7 @@ from math import ceil
 
 import numpy
 
-from cicada.communicator.interface import Communicator, Tags
+from cicada.communicator.interface import Communicator, Tag
 import cicada.encoder
 
 class AdditiveArrayShare(object):
@@ -124,8 +124,8 @@ class AdditiveProtocol(object):
             next_rank = (communicator.rank + 1) % communicator.world_size
             prev_rank = (communicator.rank - 1) % communicator.world_size
 
-            request = communicator.isend(value=seed, dst=next_rank, tag=Tags.PRSZ)
-            result = communicator.irecv(src=prev_rank, tag=Tags.PRSZ)
+            request = communicator.isend(value=seed, dst=next_rank, tag=Tag.PRSZ)
+            result = communicator.irecv(src=prev_rank, tag=Tag.PRSZ)
 
             request.wait()
             result.wait()
@@ -307,6 +307,31 @@ class AdditiveProtocol(object):
     def communicator(self):
         """Return the :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
         return self._communicator
+
+
+    def dot(self, lhs, rhs):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.sum(result)
+        result = self.truncate(result)
+        return result
 
 
     @property
@@ -1175,6 +1200,31 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
 
 
+    def sum(self, operand):
+        """Return the sum of a secret shared array's elements.
+
+        The result is the secret shared sum of the array elements.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be summed.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `operand`'s elements.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return AdditiveArrayShare(self.encoder.sum(operand.storage))
+
+
     def truncate(self, operand, *, bits=None, src=None, generator=None, trunc_mask=None, rem_mask=None):
         """Remove the `bits` least significant bits from each element in a secret shared array.
 
@@ -1359,7 +1409,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
 
 
-    def untruncated_private_divide(self, lhs, rhs):
+    def untruncated_divide(self, lhs, rhs):
         """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
         close to or bigger than 2^precision
 
@@ -1447,7 +1497,7 @@ class AdditiveProtocol(object):
         """
         ones=self.encoder.encode(numpy.full(operand.storage.shape, 1))
         half = self.encoder.encode(numpy.full(operand.storage.shape, .5))
-        
+
         secret_plushalf = self.public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self.encoder.add(operand.storage,half))
         secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self.encoder.subtract(operand.storage, half))
         ltzsmh = self.less_than_zero(secret_minushalf)

@@ -260,6 +260,25 @@ class FixedFieldEncoder(object):
         return result
 
 
+    def sum(self, operand):
+        """Sum array elements.
+
+        Parameters
+        ----------
+        operand: :class:`numpy.ndarray`, required
+            Operand.
+
+        Returns
+        -------
+        sum: :class:`numpy.ndarray`
+            The sum of the input array elements.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        result = numpy.array(numpy.sum(operand, axis=None) % self._modulus, dtype=self.dtype)
+        self._assert_unary_compatible(result, "result")
+        return result
+
+
     def uniform(self, *, size, generator):
         """Return a random encoded array, uniformly distributed over the ring.
 

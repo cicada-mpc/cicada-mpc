@@ -16,19 +16,17 @@
 
 import argparse
 import logging
+import time
 
+from cicada.calculator import main, Client
 from cicada.communicator import SocketCommunicator
+
+parser = argparse.ArgumentParser(description="Calculator MPC-as-a-service example.")
+parser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+arguments = parser.parse_args()
 
 logging.basicConfig(level=logging.INFO)
 
-
-parser = argparse.ArgumentParser(description="Startup timeout testing.")
-parser.add_argument("--startup-timeout", "-t", type=float, default=5, help="Startup timeout. Default: %(default)s s")
-parser.add_argument("--world-size", "-n", type=int, default=32, help="Number of players. Default: %(default)s")
-arguments = parser.parse_args()
-
-def main(communicator):
-    return
-
-SocketCommunicator.run(world_size=arguments.world_size, fn=main, startup_timeout=arguments.startup_timeout)
+addresses, processes = SocketCommunicator.run_forever(world_size=arguments.world_size, fn=main)
+client = Client(addresses)
 

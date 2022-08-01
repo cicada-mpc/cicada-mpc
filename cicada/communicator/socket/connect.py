@@ -116,7 +116,11 @@ class NetstringSocket(object):
     def send(self, msg):
         """Send a message."""
         raw = pynetstring.encode(msg)
-        self._socket.sendall(raw)
+        while raw:
+            _, ready, _ = select.select([], [self], [])
+            if ready:
+                sent = self._socket.send(raw)
+                raw = raw[sent:]
         self._sent_bytes += len(raw)
         self._sent_messages += 1
 
@@ -368,7 +372,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
                             other_player.send(pickle.dumps("OK"))
                             break
                     except Exception as e: # pragma: no cover
-                        log.warning("exception receiving player rank.")
+                        log.warning(f"exception receiving player rank: {e}")
                         time.sleep(0.1)
                 else: # pragma: no cover
                     raise Timeout(message(name, rank, "timeout waiting for player rank."))
@@ -414,8 +418,8 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
             else: # pragma: no cover
                 raise Timeout(message(name, rank, f"timeout waiting for response from player {listener}."))
 
-
     return players
+
 
 def getpeerurl(sock):
     """Return a socket's peer address as a URL.
@@ -440,6 +444,44 @@ def getpeerurl(sock):
         return f"tcp://{host}:{port}"
 
     raise ValueError(f"Unknown address family: {sock.family}") # pragma: no cover
+
+
+def gettls(*, identity=None, trusted=None):
+    """Construct a pair of :class:`ssl.SSLContext` instances.
+
+    Parameters
+    ----------
+    identity: :class:`str`, optional
+        Path to a private key and certificate in PEM format that will
+        identify the local player.
+    trusted: sequence of :class:`str`, optional
+        Path to certificates in PEM format that will identify the other
+        players.
+
+    Returns
+    -------
+    tls: (server, client) tuple or :any:`None`
+    """
+
+    if identity and trusted:
+        server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        server.load_cert_chain(certfile=identity)
+        for trust in trusted:
+            server.load_verify_locations(trust)
+        server.check_hostname=False
+        server.verify_mode = ssl.CERT_REQUIRED
+
+        client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        client.load_cert_chain(certfile=identity)
+        for trust in trusted:
+            client.load_verify_locations(trust)
+        client.check_hostname = False
+        client.verify_mode = ssl.CERT_REQUIRED
+
+        return (server, client)
+
+    return None
+
 
 
 def geturl(sock):
@@ -797,7 +839,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
                             log.debug(f"received rank from player {other_rank}.")
                             break
                     except Exception as e: # pragma: no cover
-                        log.warning(f"exception receiving player rank.")
+                        log.warning(f"exception receiving player rank: {e}")
                         time.sleep(0.1)
                 else: # pragma: no cover
                     raise Timeout(message(name, rank, "timeout waiting for player rank."))

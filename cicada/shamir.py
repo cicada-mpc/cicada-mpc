@@ -104,9 +104,9 @@ class ShamirBasicProtocol(object):
         self._communicator = communicator
 
         if threshold < 2:
-            raise ValueError("threshold must be >= 2")
+            raise ValueError("threshold must be >= 2") # pragma: no cover
         if threshold > communicator.world_size:
-            raise ValueError("threshold must be <= world_size")
+            raise ValueError("threshold must be <= world_size") # pragma: no cover
         self._d = threshold-1
 
         if seed is None:
@@ -1419,7 +1419,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         return ShamirArrayShare(sharray)
 
 
-    def untruncated_private_divide(self, lhs, rhs):
+    def untruncated_divide(self, lhs, rhs):
         """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
         close to or bigger than 2^precision
 
