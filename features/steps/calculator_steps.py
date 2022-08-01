@@ -189,11 +189,11 @@ def step_impl(context):
     _require_success(context.calculator.command("sharestorage"))
 
 
-@when(u'the players generate {bits} random bits with seed {seed}')
-def step_impl(context, bits, seed):
+@when(u'the players generate {bits} random bits')
+def step_impl(context, bits):
     bits = eval(bits)
-    seed = eval(seed)
-    _require_success(context.calculator.command("random_bitwise_secret", bits=bits, seed=seed))
+    _require_success(context.calculator.command("oppush", value=bits))
+    _require_success(context.calculator.command("random_bitwise_secret"))
 
 
 @when(u'the players multiply the shares')
