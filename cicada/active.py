@@ -21,7 +21,7 @@ from math import ceil
 
 import numpy
 
-from cicada.communicator.interface import Communicator, Tags
+from cicada.communicator.interface import Communicator
 import cicada.encoder
 import cicada.additive
 import cicada.shamir
@@ -911,8 +911,8 @@ class ActiveProtocol(object):
         """
         zshare =  cicada.shamir.ShamirArrayShare(self.sprotocol.encoder.subtract(share[1].storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.encoder.modulus-2, self.encoder.modulus) * share[0].storage) % self.encoder.modulus, dtype=self.encoder.dtype)))
         
-        a_storage = numpy.array(self.communicator.all_gather(share[0].storage), dtype=self.encoder.dtype)
-        z_storage = numpy.array(self.communicator.all_gather(zshare.storage), dtype=self.encoder.dtype)
+        a_storage = numpy.array(self.communicator.allgather(share[0].storage), dtype=self.encoder.dtype)
+        z_storage = numpy.array(self.communicator.allgather(zshare.storage), dtype=self.encoder.dtype)
         secret = []
         revealing_coef = self.sprotocol._revealing_coef 
         for index in numpy.ndindex(z_storage[0].shape):
