@@ -1171,7 +1171,11 @@ class ActiveProtocol(object):
             The secret element-wise result of lhs / rhs.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.untruncated_divide(lhs[0], rhs[0]), self.sprotocol.untruncated_divide(lhs[1], rhs[1])))
+        bits = self.encoder.precision
+        tbm, tshare = self.random_bitwise_secret(bits=bits, shape=rhs[0].storage.shape)
+        atbm = tshare[0]
+        stbm = tshare[1]
+        return ActiveArrayShare((self.aprotocol.untruncated_divide(lhs[0], rhs[0], atbm), self.sprotocol.untruncated_divide(lhs[1], rhs[1],stbm)))
 
 
     def untruncated_private_public_divide(self, lhs, rhs):
