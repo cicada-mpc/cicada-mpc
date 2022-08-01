@@ -729,7 +729,7 @@ class ActiveProtocol(object):
         """
         self._assert_unary_compatible(lhs, "lhs")
 
-        return ActiveArrayShare((self.aprotocol.private_publicsubtract(lhs[0], rhs), self.sprotocol.private_public_subtract(lhs[1], rhs)))
+        return ActiveArrayShare((self.aprotocol.private_public_subtract(lhs[0], rhs), self.sprotocol.private_public_subtract(lhs[1], rhs)))
 
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
@@ -755,7 +755,7 @@ class ActiveProtocol(object):
         an additive shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
         """
         self._assert_unary_compatible(rhs, "rhs")
-        return ActiveArrayShare((self.aprotocol.private_publicsubtract(lhspub, rhs[0]), self.sprotocol.private_public_subtract(lhspub, rhs[1])))
+        return ActiveArrayShare((self.aprotocol._public_bitwise_less_than(lhspub, rhs[0]), self.sprotocol._public_bitwise_less_than(lhspub, rhs[1])))
 
 
     def public_private_add(self, lhs, rhs):
@@ -785,8 +785,8 @@ class ActiveProtocol(object):
         value: :class:`ActiveArrayShare`
             The secret shared sum of `lhs` and `rhs`.
         """
-        self._assert_unary_compatible(lhs, "lhs")
-        return ActiveArrayShare((self.aprotocol.private_publicsubtract(lhs, rhs[0]), self.sprotocol.private_public_subtract(lhs, rhs[1])))
+        self._assert_unary_compatible(rhs, "rhs")
+        return ActiveArrayShare((self.aprotocol.public_private_add(lhs, rhs[0]), self.sprotocol.public_private_add(lhs, rhs[1])))
 
 
     def public_private_subtract(self, lhs, rhs):
@@ -817,7 +817,7 @@ class ActiveProtocol(object):
             The secret shared difference `lhs` - `rhs`.
         """
         self._assert_unary_compatible(lhs, "lhs")
-        return ActiveArrayShare((self.aprotocol.private_publicsubtract(lhs, rhs[0]), self.sprotocol.private_public_subtract(lhs, rhs[1])))
+        return ActiveArrayShare((self.aprotocol.public_private_subtract(lhs, rhs[0]), self.sprotocol.public_private_subtract(lhs, rhs[1])))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
@@ -1149,7 +1149,7 @@ class ActiveProtocol(object):
         return ActiveArrayShare((self.aprotocol.untruncated_multiply(lhs[0], rhs[0]), self.sprotocol.untruncated_multiply(lhs[1], rhs[1])))
 
 
-    def untruncated_private_divide(self, lhs, rhs):
+    def untruncated_divide(self, lhs, rhs):
         """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
         close to or bigger than 2^precision
 
@@ -1171,7 +1171,7 @@ class ActiveProtocol(object):
             The secret element-wise result of lhs / rhs.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.untruncated_private_divide(lhs[0], rhs[0]), self.sprotocol.untruncated_private_divide(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.untruncated_divide(lhs[0], rhs[0]), self.sprotocol.untruncated_divide(lhs[1], rhs[1])))
 
 
     def untruncated_private_public_divide(self, lhs, rhs):
