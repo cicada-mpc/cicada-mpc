@@ -462,7 +462,7 @@ Feature: Additive Protocol
     Scenario Outline: Random Bitwise Secret
         Given a calculator service with <players> players
         And a new Additive protocol object
-        When the players generate <bits> random bits with seed <seed>
+        When the players generate <bits> random bits
         And the players reveal the result without decoding
         And the players swap
         And the players reveal the result without decoding
@@ -470,19 +470,15 @@ Feature: Additive Protocol
         Then the value of the bits in big-endian order should match the random value.
 
         Examples:
-        | players | bits  | seed |
-        | 2       | 1     | 1234 |
-        | 2       | 2     | 1235 |
-        | 2       | 4     | 1236 |
-        | 2       | 8     | 1237 |
-        | 2       | 8     | 1238 |
-        | 2       | 8     | 1239 |
-        | 3       | 1     | 1234 |
-        | 3       | 2     | 1235 |
-        | 3       | 4     | 1236 |
-        | 3       | 8     | 1237 |
-        | 3       | 8     | 1238 |
-        | 3       | 8     | 1239 |
+        | players | bits  |
+        | 2       | 1     |
+        | 2       | 2     |
+        | 2       | 4     |
+        | 2       | 8     |
+        | 3       | 1     |
+        | 3       | 2     |
+        | 3       | 4     |
+        | 3       | 8     |
 
 
     @calculator

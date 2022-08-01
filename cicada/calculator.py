@@ -233,11 +233,9 @@ def main(listen_socket, communicator):
 
             # Random bitwise secret.
             elif command == "random_bitwise_secret":
-                bits = kwargs["bits"]
-                seed = kwargs["seed"]
+                bits = operand_stack.pop()
                 protocol = protocol_stack[-1]
-                generator = numpy.random.default_rng(seed=seed)
-                bits, secret = protocol.random_bitwise_secret(bits=bits, generator=generator)
+                bits, secret = protocol.random_bitwise_secret(bits=bits)
                 operand_stack.append(bits)
                 operand_stack.append(secret)
                 _send_result(client)
