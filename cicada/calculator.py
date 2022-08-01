@@ -179,10 +179,16 @@ def main(listen_socket, communicator):
                 protocol_stack.append(AdditiveProtocol(communicator_stack[-1]))
                 _send_result(client)
 
-            # Push a new AdditiveProtocol object onto the protocol stack.
+            # Push a new ShamirProtocol object onto the protocol stack.
             elif command == "protopush" and kwargs["name"] == "Shamir":
                 from cicada.shamir import ShamirProtocol
                 protocol_stack.append(ShamirProtocol(communicator_stack[-1], threshold=2))
+                _send_result(client)
+
+            # Push a new ActiveProtocol object onto the protocol stack.
+            elif command == "protopush" and kwargs["name"] == "Active":
+                import cicada.active
+                protocol_stack.append(cicada.active.ActiveProtocol(communicator_stack[-1], threshold=2))
                 _send_result(client)
 
             # Exit the service immediately.
