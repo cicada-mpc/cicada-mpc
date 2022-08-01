@@ -857,7 +857,7 @@ class ActiveProtocol(object):
         for i in self.communicator.ranks:
             shamadd.append(self.sprotocol.share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape))
         bs_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.encoder.dtype))
-        return ((bs_add, ss_add), (bs_sham, ss_sham))
+        return (ActiveArrayShare((bs_add, bs_sham)), ActiveArrayShare((ss_add, ss_sham)))
 
 
     def relu(self, operand):
@@ -1074,12 +1074,12 @@ class ActiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         if bits is None:
             bits = self.encoder.precision
-        tbm = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand[0].storage.shape)
-        rbm = self.random_bitwise_secret(bits=self.encoder.fieldbits-bits, src=src, generator=generator, shape=operand[0].storage.shape)
-        atbm = tbm[0][1]
-        stbm = tbm[1][1]
-        arbm = rbm[0][1]
-        srbm = rbm[1][1]
+        tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand[0].storage.shape)
+        rbm, rshare = self.random_bitwise_secret(bits=self.encoder.fieldbits-bits, src=src, generator=generator, shape=operand[0].storage.shape)
+        atbm = tshare[0]
+        stbm = tshare[1]
+        arbm = rshare[0]
+        srbm = rshare[1]
 
         return ActiveArrayShare((self.aprotocol.truncate(operand[0], bits=bits, src=src, generator=generator, trunc_mask=atbm, rem_mask=arbm), self.sprotocol.truncate(operand[1], bits=bits, src=src, generator=generator, trunc_mask=stbm, rem_mask=srbm)))
 
