@@ -45,7 +45,7 @@ def _require_success(results):
             exceptions[rank] = result
 
     if exceptions:
-        raise RuntimeError()
+        raise RuntimeError(f"{len(exceptions)} players raised exceptions.")
 
     return results
 
