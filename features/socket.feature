@@ -188,6 +188,7 @@ Feature: SocketCommunicator
         | 10      | range(10)   | 10         | list(range(9)) + ["blah"]     |
 
 
+    @wip
     Scenario Outline: Predefined Communicator
         Given <players> players
         When players <group> create a new communicator with name <name> and direct addresses <addresses>
