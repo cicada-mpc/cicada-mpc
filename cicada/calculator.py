@@ -17,6 +17,7 @@
 import logging
 import pickle
 import socket
+import traceback
 import urllib
 
 import numpy
@@ -66,6 +67,17 @@ class Client(object):
     @property
     def ranks(self):
         return list(range(len(self._addresses)))
+
+
+class PlayerError(Exception):
+    def __init__(self, exception, traceback):
+        self.exception = exception
+        self.traceback = traceback
+
+
+class PlayerErrors(Exception):
+    def __init__(self, exceptions):
+        self.exceptions = exceptions
 
 
 def _send_result(client, result=None):
@@ -266,9 +278,9 @@ def main(listen_socket, communicator):
 
             # Unknown command.
             else: # pragma: no cover
-                _send_result(client, RuntimeError(f"Unknown command {pretty_command}"))
+                _send_result(client, ValueError(f"Unknown command {pretty_command}"))
 
         # Something else went wrong.
         except Exception as e: # pragma: no cover
-            _send_result(client, e)
+            _send_result(client, PlayerError(e, traceback.format_exc()))
 

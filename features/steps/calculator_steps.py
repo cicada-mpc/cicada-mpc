@@ -21,7 +21,7 @@ import urllib.parse
 
 import numpy
 
-from cicada.calculator import Client, main
+from cicada.calculator import Client, PlayerError, PlayerErrors, main
 from cicada.communicator import SocketCommunicator
 
 import test
@@ -29,10 +29,28 @@ import test
 #logging.basicConfig(level=logging.INFO)
 
 
+def _print_stacks(context):
+    stacks = _require_success(context.calculator.command("opstack"))
+    for rank, stack in enumerate(stacks):
+        print(f"Player {rank} stack:")
+        for item in stack:
+            print(item)
+
+
 def _require_success(results):
-    for result in results:
-        if isinstance(result, Exception):
-            raise result
+    exceptions = {}
+    for rank, result in enumerate(results):
+        if isinstance(result, PlayerError):
+            print(f"Player {rank} {result.traceback}")
+            exceptions[rank] = result
+
+        elif isinstance(result, Exception):
+            print(f"Player {rank} exception: {result}")
+            exceptions[rank] = result
+
+    if exceptions:
+        raise PlayerErrors(exceptions)
+
     return results
 
 
