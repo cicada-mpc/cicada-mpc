@@ -75,11 +75,6 @@ class PlayerError(Exception):
         self.traceback = traceback
 
 
-class PlayerErrors(Exception):
-    def __init__(self, exceptions):
-        self.exceptions = exceptions
-
-
 def _send_result(client, result=None):
     client.sendall(pickle.dumps(result))
     client.close()
@@ -208,6 +203,10 @@ def main(listen_socket, communicator):
                 _send_result(client)
                 break
 
+            # Raise an exception (for testing).
+            elif command == "raise":
+                raise kwargs["exception"]
+
             # Reveal a secret shared value.
             elif command == "reveal":
                 protocol = protocol_stack[-1]
@@ -278,9 +277,9 @@ def main(listen_socket, communicator):
 
             # Unknown command.
             else: # pragma: no cover
-                _send_result(client, ValueError(f"Unknown command {pretty_command}"))
+                raise ValueError(f"Unknown command {pretty_command}")
 
-        # Something else went wrong.
+        # Something went wrong.
         except Exception as e: # pragma: no cover
             _send_result(client, PlayerError(e, traceback.format_exc()))
 

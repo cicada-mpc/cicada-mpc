@@ -21,7 +21,7 @@ import urllib.parse
 
 import numpy
 
-from cicada.calculator import Client, PlayerError, PlayerErrors, main
+from cicada.calculator import Client, PlayerError, main
 from cicada.communicator import SocketCommunicator
 
 import test
@@ -41,15 +41,11 @@ def _require_success(results):
     exceptions = {}
     for rank, result in enumerate(results):
         if isinstance(result, PlayerError):
-            print(f"Player {rank} {result.traceback}")
-            exceptions[rank] = result
-
-        elif isinstance(result, Exception):
-            print(f"Player {rank} exception: {result}")
+            print(f"====== Remote traceback (player {rank}) ======\n{result.traceback}")
             exceptions[rank] = result
 
     if exceptions:
-        raise PlayerErrors(exceptions)
+        raise RuntimeError()
 
     return results
 
@@ -290,4 +286,20 @@ def step_impl(context):
 
     for bits, value in zip(bits, values):
         test.assert_equal(value, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
+
+
+@when(u'the players raise {exception}')
+def step_impl(context, exception):
+    exception = eval(exception)
+    results = context.calculator.command("raise", exception=exception)
+    context.errors = results
+
+
+@then(u'the returned exceptions should match {exception}')
+def step_impl(context, exception):
+    exception = eval(exception)
+    for error in context.errors:
+        test.assert_is(type(error.exception), type(exception))
+        test.assert_equal(error.exception.args, exception.args)
+
 
