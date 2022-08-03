@@ -11,6 +11,7 @@ API Reference
     :maxdepth: 2
 
     cicada.rst
+    cicada.active.rst
     cicada.additive.rst
     cicada.calculator.rst
     cicada.communicator.rst
