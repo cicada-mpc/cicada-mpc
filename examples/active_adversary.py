@@ -33,7 +33,7 @@ def main(communicator):
     protocol = cicada.active.ActiveProtocol(communicator, threshold=3)
 
     # Player 0 will provide a secret which is a scalar.
-    secret = numpy.array([0,1,2,3]) if communicator.rank == 0 else None
+    secret = numpy.array([numpy.pi,1,-2,3]) if communicator.rank == 0 else None
     log.info(f"Player {communicator.rank} secret: {secret}")
 
     # Create shares for the secret.
