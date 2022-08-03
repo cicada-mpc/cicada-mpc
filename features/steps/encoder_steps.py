@@ -170,4 +170,14 @@ def step_impl(context, a, b):
     numpy.testing.assert_almost_equal(decoded, b, decimal=4)
 
 
+@when(u'{a} is summed the result should match {b}')
+def step_impl(context, a, b):
+    encoder = context.encoders[-1]
+    a = encoder.encode(numpy.array(eval(a)))
+    b = numpy.array(eval(b))
+
+    result = encoder.sum(a)
+    assert_is_fixed_field_representation(result)
+    decoded = encoder.decode(result)
+    numpy.testing.assert_almost_equal(decoded, b, decimal=4)
 

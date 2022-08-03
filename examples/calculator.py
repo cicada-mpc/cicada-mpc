@@ -14,15 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import glob
+import argparse
+import logging
+import time
 
-def before_all(context):
-    context.identities = sorted(glob.glob("features/certificates/player-*.pem"))
-    context.trusted = sorted(glob.glob("features/certificates/player-*.cert"))
+from cicada.calculator import main, Client
+from cicada.communicator import SocketCommunicator
 
+parser = argparse.ArgumentParser(description="Calculator MPC-as-a-service example.")
+parser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+arguments = parser.parse_args()
 
-def after_scenario(context, scenario):
-    if hasattr(context, "calculator"):
-        context.calculator.command("quit")
-        for process in context.calculator_processes:
-            process.join()
+logging.basicConfig(level=logging.INFO)
+
+addresses, processes = SocketCommunicator.run_forever(world_size=arguments.world_size, fn=main)
+client = Client(addresses)
+

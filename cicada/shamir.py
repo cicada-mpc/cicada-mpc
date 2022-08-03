@@ -104,9 +104,9 @@ class ShamirBasicProtocol(object):
         self._communicator = communicator
 
         if threshold < 2:
-            raise ValueError("threshold must be >= 2")
+            raise ValueError("threshold must be >= 2") # pragma: no cover
         if threshold > communicator.world_size:
-            raise ValueError("threshold must be <= world_size")
+            raise ValueError("threshold must be <= world_size") # pragma: no cover
         self._d = threshold-1
 
         if seed is None:
@@ -1202,10 +1202,18 @@ class ShamirProtocol(ShamirBasicProtocol):
 
         This method is secure against non-colluding semi-honest adversaries.  A
         subset of players (by default: all) generate and secret share vectors
-        of pseudo-random bits which are then xored together elementwise.
+        of pseudo-random bits which are then xor-ed together elementwise.
         Communication and computation costs increase with the number of bits
         and the number of players, while security increases with the number of
         players.
+
+        .. warning::
+
+             If you supply your own generators, be careful to ensure that each
+             has a unique seed value to preserve privacy (for example: a
+             constant plus the player's rank).  If players receive generators
+             with identical seed values, even numbers of players will produce
+             all zero bits.
 
         Parameters
         ----------
@@ -1415,7 +1423,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         return ShamirArrayShare(sharray)
 
 
-    def untruncated_private_divide(self, lhs, rhs):
+    def untruncated_divide(self, lhs, rhs):
         """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
         close to or bigger than 2^precision
 

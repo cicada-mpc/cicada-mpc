@@ -12,6 +12,7 @@ API Reference
 
     cicada.rst
     cicada.additive.rst
+    cicada.calculator.rst
     cicada.communicator.rst
     cicada.communicator.interface.rst
     cicada.communicator.socket.rst

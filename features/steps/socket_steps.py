@@ -53,6 +53,17 @@ def step_impl(context):
     numpy.testing.assert_almost_equal(exit_delta, 0, decimal=2)
 
 
+@then(u'the group should return {}')
+def step_impl(context, result):
+    result = numpy.array(eval(result))
+    group = numpy.array(context.results)
+
+    if issubclass(result.dtype.type, numpy.number) and issubclass(group.dtype.type, numpy.number):
+        numpy.testing.assert_almost_equal(result, group, decimal=4)
+    else:
+        numpy.testing.assert_array_equal(result, group)
+
+
 @when(u'the players allgather {values}')
 def step_impl(context, values):
     values = eval(values)
@@ -199,14 +210,14 @@ def step_impl(context, count):
 def step_impl(context, names):
     names = eval(names)
 
-    def operation(communicator, groups):
-        comm = communicator.split(name=groups[communicator.rank])
+    def operation(communicator, groups, identities, trusted):
+        comm = communicator.split(name=groups[communicator.rank], identity=identities[communicator.rank], trusted=trusted)
         if comm is not None:
             return {"name": comm.name, "world_size": comm.world_size}
         else:
             return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names,), family=context.family, identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(names, context.identities, context.trusted), family=context.family, identities=context.identities, trusted=context.trusted)
 
 
 @then(u'the new communicator names should match {names}')
@@ -298,11 +309,11 @@ def step_impl(context, players):
 
 @then(u'shrinking the communicator under normal conditions will return the same players in the same rank order')
 def step_impl(context):
-    def operation(communicator):
-        comm, newranks = communicator.shrink(name="split")
+    def operation(communicator, identities, trusted):
+        comm, newranks = communicator.shrink(name="split", identity=identities[communicator.rank], trusted=trusted)
         return(newranks)
 
-    results = SocketCommunicator.run(world_size=context.players, fn=operation, identities=context.identities, trusted=context.trusted)
+    results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(context.identities, context.trusted), identities=context.identities, trusted=context.trusted)
     for result in results:
         test.assert_equal(result, list(range(context.players)))
 
@@ -311,13 +322,13 @@ def step_impl(context):
 def step_impl(context, group, name):
     group = eval(group)
     name = eval(name)
-    def operation(communicator, group, name):
+    def operation(communicator, group, name, identities, trusted):
         if communicator.rank in group:
-            comm, newranks = communicator.shrink(name=name)
+            comm, newranks = communicator.shrink(name=name, identity=identities[communicator.rank], trusted=trusted)
             return {"name": comm.name, "world_size": comm.world_size}
         return {}
 
-    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name), family=context.family, identities=context.identities, trusted=context.trusted)
+    context.results = SocketCommunicator.run(world_size=context.players, fn=operation, args=(group, name, context.identities, context.trusted), family=context.family, identities=context.identities, trusted=context.trusted)
 
 
 @when(u'player {player} revokes the communicator')

@@ -140,6 +140,15 @@ Feature: Encoders
         | FixedFieldEncoder  | -3.2      | 3.2       |
 
 
+    Scenario Outline: Summation
+        Given a <encoder>
+        When <a> is summed the result should match <b>
+
+        Examples:
+        | encoder            | a         | b         |
+        | FixedFieldEncoder  | [1, 2, 3] | 6         |
+
+
     Scenario Outline: Untruncated Matrix Vector Multiplication
         Given a <encoder>
         When matrix <A> and vector <x> are encoded and multiplied without truncation, the decoded result should match <y>

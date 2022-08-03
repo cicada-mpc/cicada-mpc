@@ -28,6 +28,9 @@ def assert_dict_equal(first, second, msg=None):
 def assert_equal(first, second, msg=None):
     return unittest.TestCase().assertEqual(first, second, msg)
 
+def assert_false(expr, msg=None):
+    return unittest.TestCase().assertFalse(expr, msg)
+
 def assert_is_instance(obj, cls, msg=None):
     return unittest.TestCase().assertIsInstance(obj, cls, msg)
 

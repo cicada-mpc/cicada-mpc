@@ -309,6 +309,31 @@ class AdditiveProtocol(object):
         return self._communicator
 
 
+    def dot(self, lhs, rhs):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.sum(result)
+        result = self.truncate(result)
+        return result
+
+
     @property
     def encoder(self):
         """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
@@ -958,10 +983,18 @@ class AdditiveProtocol(object):
 
         This method is secure against non-colluding semi-honest adversaries.  A
         subset of players (by default: all) generate and secret share vectors
-        of pseudo-random bits which are then xored together elementwise.
+        of pseudo-random bits which are then xor-ed together elementwise.
         Communication and computation costs increase with the number of bits
         and the number of players, while security increases with the number of
         players.
+
+        .. warning::
+
+             If you supply your own generators, be careful to ensure that each
+             has a unique seed value to preserve privacy (for example: a
+             constant plus the player's rank).  If players receive generators
+             with identical seed values, even numbers of players will produce
+             all zero bits.
 
         Parameters
         ----------
@@ -1175,6 +1208,31 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
 
 
+    def sum(self, operand):
+        """Return the sum of a secret shared array's elements.
+
+        The result is the secret shared sum of the array elements.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be summed.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `operand`'s elements.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return AdditiveArrayShare(self.encoder.sum(operand.storage))
+
+
     def truncate(self, operand, *, bits=None, src=None, generator=None):
         """Remove the `bits` least significant bits from each element in a secret shared array.
 
@@ -1355,7 +1413,7 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
 
 
-    def untruncated_private_divide(self, lhs, rhs):
+    def untruncated_divide(self, lhs, rhs):
         """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
         close to or bigger than 2^precision
 
@@ -1443,7 +1501,7 @@ class AdditiveProtocol(object):
         """
         ones=self.encoder.encode(numpy.full(operand.storage.shape, 1))
         half = self.encoder.encode(numpy.full(operand.storage.shape, .5))
-        
+
         secret_plushalf = self.public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self.encoder.add(operand.storage,half))
         secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self.encoder.subtract(operand.storage, half))
         ltzsmh = self.less_than_zero(secret_minushalf)

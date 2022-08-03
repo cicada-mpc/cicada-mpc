@@ -24,6 +24,25 @@ import cicada.logging
 import test
 
 
+@when(u'the players create a Cicada logger, they can access the underlying Python logger')
+def step_impl(context):
+    def operation(communicator):
+        log = cicada.logging.Logger(logging.getLogger(), communicator)
+        test.assert_equal(log.logger, logging.getLogger())
+
+    cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
+
+
+@when(u'the players create a Cicada logger, they can temporarily override the sync attribute')
+def step_impl(context):
+    def operation(communicator):
+        log = cicada.logging.Logger(logging.getLogger(), communicator)
+        test.assert_equal(log.sync, True)
+        with log.override(sync=False):
+            test.assert_equal(log.sync, False)
+        test.assert_equal(log.sync, True)
+
+
 @when(u'the players log {message} with level {level}, the message is logged at the correct level')
 def step_impl(context, message, level):
     message = eval(message)
