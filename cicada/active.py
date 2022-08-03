@@ -921,7 +921,7 @@ class ActiveProtocol(object):
         if len(rev.shape) == 0 and rev:
             #print(f's: {self.sprotocol.reveal(share[1])}\na: {self.aprotocol.reveal(share[0])}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
-        if len(rev.shape) > 0 and any(rev):
+        if len(rev.shape) > 0 and numpy.any(rev):
             #print(f's: {self.sprotocol.reveal(share[1])}\na: {self.aprotocol.reveal(share[0])}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
 
@@ -972,7 +972,7 @@ class ActiveProtocol(object):
 
         revs2 = numpy.array(sub_secret2, dtype=self.encoder.dtype).reshape(share[0].storage.shape)
         if len(revs.shape) > 0 or len(revs2.shape) > 0:
-            if any(revs != reva) or any(revs2 != reva):
+            if numpy.any(revs != reva) or numpy.any(revs2 != reva):
                 #print(reva, revs, revs2)
                 raise ConsistencyError("Secret Shares are inconsistent in the second stage")
         else:
