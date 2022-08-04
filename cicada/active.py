@@ -1088,7 +1088,7 @@ class ActiveProtocol(object):
             Secret-shared sum of `operand`'s elements.
         """
         self._assert_unary_compatible(operand, "operand")
-        return ActiveArrayShare((self.aprotocol.dot(operand[0]), self.sprotocol.dot(operand[1])))
+        return ActiveArrayShare((self.aprotocol.sum(operand[0]), self.sprotocol.sum(operand[1])))
 
 
     def truncate(self, operand, *, bits=None, src=None, generator=None):
