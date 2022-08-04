@@ -283,6 +283,28 @@ class ActiveProtocol(object):
         return self._communicator
 
 
+    def dot(self, lhs, rhs):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ActiveArrayShare((self.aprotocol.dot(lhs[0], rhs[0]), self.sprotocol.dot(lhs[1], rhs[1])))
+
+
     @property
     def encoder(self):
         """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
@@ -1042,6 +1064,31 @@ class ActiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((self.aprotocol.subtract(lhs[0], rhs[0]), self.sprotocol.subtract(lhs[1], rhs[1])))
+
+
+    def sum(self, operand):
+        """Return the sum of a secret shared array's elements.
+
+        The result is the secret shared sum of the array elements.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be summed.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `operand`'s elements.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((self.aprotocol.dot(operand[0]), self.sprotocol.dot(operand[1])))
 
 
     def truncate(self, operand, *, bits=None, src=None, generator=None):
