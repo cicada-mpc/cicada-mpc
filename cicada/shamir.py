@@ -246,6 +246,31 @@ class ShamirBasicProtocol(object):
         return self._communicator
 
 
+    def dot(self, lhs, rhs):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.sum(result)
+        result = self.truncate(result)
+        return result
+
+
     @property
     def encoder(self):
         """Return the :class:`~cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol.
@@ -497,6 +522,29 @@ class ShamirBasicProtocol(object):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
 
+    def sum(self, operand):
+        """Return the sum of a secret shared array's elements.
+
+        The result is the secret shared sum of the array elements.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared array to be summed.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            Secret-shared sum of `operand`'s elements.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ShamirArrayShare(self.encoder.sum(operand.storage))
 
     @property
     def threshold(self):

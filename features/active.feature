@@ -54,7 +54,7 @@ Feature: Active Protocol
         | 3       | -21234567  | -35123458  | -56358025    |
         | 3       | -212345678 | -351234589 | -563580267   |
 
-
+    @wip
     @calculator
     Scenario Outline: Private Divide
         Given a calculator service with <players> players

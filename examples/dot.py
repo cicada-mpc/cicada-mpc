@@ -20,16 +20,28 @@ import numpy
 
 from cicada.communicator import SocketCommunicator
 from cicada.additive import AdditiveProtocol
+from cicada.shamir import ShamirProtocol
+from cicada.active import ActiveProtocol
 
 parser = argparse.ArgumentParser(description="Dot product example.")
 parser.add_argument("--seed", type=int, default=1234, help="Random seed. Default: %(default)s")
 parser.add_argument("--timeout", type=float, default=10, help="Timeout. Default: %(default)ss")
 parser.add_argument("--vector-size", "-v", type=int, default=10, help="Vector size. Default: %(default)s")
 parser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+parser.add_argument("--protocol", "-p", default='additive', help="Protocol to use for SMC. Options are  \"additive\", \"shamir\", or \"active\". Default: %(default)s")
 arguments = parser.parse_args()
 
 def main(communicator):
-    protocol = AdditiveProtocol(communicator)
+    if arguments.protocol == 'additive':
+        protocol = AdditiveProtocol(communicator)
+    elif arguments.protocol == 'shamir':
+        t = ((arguments.world_size-1)//2)+1
+        protocol = ShamirProtocol(communicator, threshold=t)
+    elif arguments.protocol == 'active':
+        t = ((arguments.world_size-1)//2)+1
+        protocol = ActiveProtocol(communicator, threshold=t)
+    else:
+        raise ValueError('Invalid argument passed for protocol')
     generator = numpy.random.default_rng(seed=arguments.seed + communicator.rank)
 
     a = generator.uniform(size=arguments.vector_size)
