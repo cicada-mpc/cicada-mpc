@@ -355,7 +355,7 @@ Feature: Active Protocol
         | 3       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
 
 
-    @calculator, @wip
+    @calculator
     Scenario Outline: Private Sum
         Given a calculator service with <players> players
         And a new Active protocol object
