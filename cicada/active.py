@@ -907,6 +907,28 @@ k
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         return ActiveArrayShare((self.aprotocol.relu(operand[0]), self.sprotocol.relu(operand[1])))
 
+    def reshare(self, *, operand):
+        """Convert a private array to an additive secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`
+            The local share of the secret shared array.
+
+        Returns
+        -------
+        share: :class:`ActiveArrayShare`
+            The local share of the secret shared array, now rerandomized.
+        """
+
+        if not isinstance(operand, ActiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+        return ActiveArrayShare((self.aprotocol.reshare(operand[0]), self.sprotocol.reshare(operand[1])))
 
     def reveal(self, share, dst=None):
         """Reveals a secret shared value to a subset of players.
