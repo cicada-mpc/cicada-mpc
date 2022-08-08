@@ -390,6 +390,44 @@ class ShamirBasicProtocol(object):
 
         return ShamirArrayShare(self.encoder.subtract(lhs, rhs.storage))
 
+    def reshare(self, *, operand):
+        """Convert a private array to an shamir secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            The player providing the private array to be secret shared.
+        secret: :class:`numpy.ndarray` or :any:`None`, required
+            The secret array to be shared, which must be encoded with this
+            object's :attr:`encoder`.  This value is ignored for all players
+            except `src`.
+        shape: :class:`tuple`, required
+            The shape of the secret.  Note that the shape must be consistently
+            specified by all players.
+
+        Returns
+        -------
+        share: :class:`ShamirArrayShare`
+            The local share of the secret shared array.
+        """
+        self._assert_unary_compatible(operand, "operand")
+
+        dst=self.communicator.ranks
+        ldst=len(dst)
+        recshares = []
+        for i in dst:
+            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape))
+        acc = numpy.zeros(operand.storage.shape, dtype=self.encoder.dtype)
+        for i, s in enumerate(recshares):
+            acc += self._revealing_coef[i]*s.storage
+        acc %= self.encoder.modulus
+
+        return ShamirArrayShare(acc)
 
     def reveal(self, share,*, dst=None):
         """Reveals a secret shared value to a subset of players.

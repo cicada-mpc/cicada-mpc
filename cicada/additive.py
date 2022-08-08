@@ -1089,6 +1089,34 @@ class AdditiveProtocol(object):
         nltz_parts = self.untruncated_multiply(nltz, operand)
         return nltz_parts
 
+    def reshare(self, *, operand):
+        """Rerandomize an additive secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`
+            The local share of the secret shared array.
+
+        Returns
+        -------
+        share: :class:`AdditiveArrayShare`
+            The local share of the secret shared array, now rerandomized.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        recshares = []
+        for i in range(self.communicator.world_size):
+            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape))
+        # Package the result.
+        acc = numpy.zeros(operand.storage.shape, dtype=self.encoder.dtype)
+        for s in recshares:
+            acc += s.storage
+        acc %= self.encoder.modulus
+        return AdditiveArrayShare(acc)
 
     def reveal(self, share, dst=None):
         """Reveals a secret shared value to a subset of players.
