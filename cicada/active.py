@@ -302,7 +302,10 @@ class ActiveProtocol(object):
             Secret-shared dot product of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.dot(lhs[0], rhs[0]), self.sprotocol.dot(lhs[1], rhs[1])))
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.sum(result)
+        result = self.truncate(result)
+        return result
 
 
     @property
@@ -337,7 +340,7 @@ class ActiveProtocol(object):
     def floor(self, operand):
         """Remove the `bits` least significant bits from each element in a secret shared array
             then shift back left so that only the original integer part of 'operand' remains.
-
+k
 
         Parameters
         ----------
