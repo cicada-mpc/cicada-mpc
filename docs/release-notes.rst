@@ -7,6 +7,21 @@
 Release Notes
 =============
 
+Cicada 0.7.0 - August 9th, 2022
+
+* Added ActiveProtocol, our first protocol with a security model against active adversaries.
+* Added private summation and private dot product operations to all protocol objects.
+* Added TLS support to SocketCommunicator.split() and SocketCommunicator.shrink().
+* Added SocketCommunicator.run_forever() for starting MPC services.
+* Created cicada.communicator as an example of MPC-as-a-service.
+* Regression tests use the calculator service, eliminating lots of repetitive test code.
+* Rename Tags -> Tag for consistency, clarity.
+* Rename all_gather() -> allgather() for consistency, clarity.
+* Raise a better error if a send operation would block.
+* NetstringSocket didn't handle sending large messages correctly.
+
+
+
 Cicada 0.6.0 - June 17th, 2022
 
 * SocketCommunicator.run() would sometimes hang returning results from large numbers of players.
