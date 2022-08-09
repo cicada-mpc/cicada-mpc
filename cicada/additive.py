@@ -17,7 +17,8 @@
 """Functionality for creating, manipulating, and revealing additive-shared secrets."""
 
 import logging
-from math import ceil
+import math
+import warnings
 
 import numpy
 
@@ -175,7 +176,7 @@ class AdditiveProtocol(object):
         self._assert_unary_compatible(operand, "operand")
         ltz = self.less_than_zero(operand)
         nltz = self.logical_not(ltz)
-        addinvop = AdditiveArrayShare(self.encoder.negative(operand.storage))
+        addinvop = AdditiveArrayShare(self._encoder.negative(operand.storage))
         ltz_parts = self.untruncated_multiply(ltz, addinvop)
         nltz_parts = self.untruncated_multiply(nltz, operand)
         return self.add(ltz_parts, nltz_parts)
@@ -205,7 +206,7 @@ class AdditiveProtocol(object):
             Secret-shared sum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return AdditiveArrayShare(self.encoder.add(lhs.storage, rhs.storage))
+        return AdditiveArrayShare(self._encoder.add(lhs.storage, rhs.storage))
 
 
     def additive_inverse(self, operand):
@@ -233,7 +234,7 @@ class AdditiveProtocol(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        return self.public_private_subtract(numpy.full(operand.storage.shape, self.encoder.modulus, dtype=self.encoder.dtype), operand)
+        return self.public_private_subtract(numpy.full(operand.storage.shape, self._encoder.modulus, dtype=self._encoder.dtype), operand)
 
     def bit_compose(self, operand):
         """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
@@ -260,12 +261,12 @@ class AdditiveProtocol(object):
         last_dimension = operand.storage.shape[-1]
         idx = numpy.ndindex(outer_shape)
         composed = []
-        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self.encoder.dtype)[::-1])
+        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self._encoder.dtype)[::-1])
         for x in idx:
-            shifted = self.encoder.untruncated_multiply(operand.storage[x], shift)
-            val_share = numpy.sum(shifted) % self.encoder.modulus
+            shifted = self._encoder.untruncated_multiply(operand.storage[x], shift)
+            val_share = numpy.sum(shifted) % self._encoder.modulus
             composed.append(val_share)
-        return AdditiveArrayShare(numpy.array([x for x in composed], dtype=self.encoder.dtype).reshape(outer_shape))
+        return AdditiveArrayShare(numpy.array([x for x in composed], dtype=self._encoder.dtype).reshape(outer_shape))
 
     def bit_decompose(self, operand, num_bits=None):
         """Decompose operand into shares of its bitwise representation.
@@ -289,16 +290,16 @@ class AdditiveProtocol(object):
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         if num_bits is None:
-            num_bits = self.encoder.fieldbits
+            num_bits = self._encoder.fieldbits
         list_o_bits = []
-        two_inv = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        two_inv = numpy.array(pow(2, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
         for element in operand.storage.flat: # Iterates in "C" order.
-            loopop = AdditiveArrayShare(numpy.array(element, dtype=self.encoder.dtype))
+            loopop = AdditiveArrayShare(numpy.array(element, dtype=self._encoder.dtype))
             elebits = []
             for i in range(num_bits):
                 elebits.append(self._lsb(loopop))
                 loopop = self.subtract(loopop, elebits[-1])
-                loopop = AdditiveArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
+                loopop = AdditiveArrayShare(self._encoder.untruncated_multiply(loopop.storage, two_inv))
             list_o_bits.append(elebits[::-1])
         return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
 
@@ -336,7 +337,8 @@ class AdditiveProtocol(object):
 
     @property
     def encoder(self):
-        """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
+        """Deprecated, use :class:`AdditiveProtocol` methods instead."""
+        warnings.warn("AdditiveProtocol.encoder attribute is deprecated, use protocol methods instead.", cicada.DeprecationWarning, stacklevel=2)
         return self._encoder
 
 
@@ -361,7 +363,7 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         diff = self.subtract(lhs, rhs)
-        return self.logical_not(self.private_public_power_field(diff, self.encoder.modulus-1))
+        return self.logical_not(self.private_public_power_field(diff, self._encoder.modulus-1))
 
 
     def floor(self, operand):
@@ -381,19 +383,19 @@ class AdditiveProtocol(object):
         """
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype), shape=operand.storage.shape)
-        shift_op = numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype)
-        pl2 = numpy.full(operand.storage.shape, self.encoder.modulus-1, dtype=self.encoder.dtype)
+        one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**self._encoder.precision, dtype=self._encoder.dtype), shape=operand.storage.shape)
+        shift_op = numpy.full(operand.storage.shape, 2**self._encoder.precision, dtype=self._encoder.dtype)
+        pl2 = numpy.full(operand.storage.shape, self._encoder.modulus-1, dtype=self._encoder.dtype)
 
         abs_op = self.absolute(operand)
-        frac_bits = self.encoder.precision
-        field_bits = self.encoder.fieldbits
-        lsbs = self.bit_decompose(abs_op, self.encoder.precision)
+        frac_bits = self._encoder.precision
+        field_bits = self._encoder.fieldbits
+        lsbs = self.bit_decompose(abs_op, self._encoder.precision)
         lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.additive_inverse(lsbs_composed)
-        two_lsbs = AdditiveArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
+        two_lsbs = AdditiveArrayShare(self._encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self._encoder.dtype)))
         ltz = self.less_than_zero(operand)
-        ones2sub = AdditiveArrayShare(self.encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
+        ones2sub = AdditiveArrayShare(self._encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
         sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz)
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
 
@@ -422,12 +424,12 @@ class AdditiveProtocol(object):
             Secret-shared result of computing `lhs` < `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        one = numpy.full(lhs.storage.shape, 1, dtype=self.encoder.dtype)
-        two = numpy.full(lhs.storage.shape, 2, dtype=self.encoder.dtype)
-        twolhs = AdditiveArrayShare(self.encoder.untruncated_multiply(two, lhs.storage))
-        tworhs = AdditiveArrayShare(self.encoder.untruncated_multiply(two, rhs.storage))
+        one = numpy.full(lhs.storage.shape, 1, dtype=self._encoder.dtype)
+        two = numpy.full(lhs.storage.shape, 2, dtype=self._encoder.dtype)
+        twolhs = AdditiveArrayShare(self._encoder.untruncated_multiply(two, lhs.storage))
+        tworhs = AdditiveArrayShare(self._encoder.untruncated_multiply(two, rhs.storage))
         diff = self.subtract(lhs, rhs)
-        twodiff = AdditiveArrayShare(self.encoder.untruncated_multiply(two, diff.storage))
+        twodiff = AdditiveArrayShare(self._encoder.untruncated_multiply(two, diff.storage))
         w = self.public_private_subtract(one, self._lsb(operand=twolhs))
         x = self.public_private_subtract(one, self._lsb(operand=tworhs))
         y = self.public_private_subtract(one, self._lsb(operand=twodiff))
@@ -462,8 +464,8 @@ class AdditiveProtocol(object):
             Secret-shared result of computing `operand` < `0` elementwise.
         """
         self._assert_unary_compatible(operand, "operand")
-        two = numpy.array(2, dtype=self.encoder.dtype)
-        twoop = AdditiveArrayShare(self.encoder.untruncated_multiply(two, operand.storage))
+        two = numpy.array(2, dtype=self._encoder.dtype)
+        twoop = AdditiveArrayShare(self._encoder.untruncated_multiply(two, operand.storage))
         return self._lsb(operand=twoop)
 
 
@@ -523,7 +525,7 @@ class AdditiveProtocol(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        ones = numpy.full(operand.storage.shape, 1, dtype=self.encoder.dtype)
+        ones = numpy.full(operand.storage.shape, 1, dtype=self._encoder.dtype)
         return self.public_private_subtract(lhs=ones, rhs=operand)
 
 
@@ -554,9 +556,9 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
-        total = self.encoder.add(lhs.storage, rhs.storage)
+        total = self._encoder.add(lhs.storage, rhs.storage)
         product = self.untruncated_multiply(lhs, rhs)
-        return AdditiveArrayShare(self.encoder.subtract(total, product.storage))
+        return AdditiveArrayShare(self._encoder.subtract(total, product.storage))
 
 
     def logical_xor(self, lhs, rhs):
@@ -586,10 +588,10 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
-        total = self.encoder.add(lhs.storage, rhs.storage)
+        total = self._encoder.add(lhs.storage, rhs.storage)
         product = self.untruncated_multiply(lhs, rhs)
-        twice_product = self.encoder.untruncated_multiply(numpy.array(2, dtype=self.encoder.dtype), product.storage)
-        return AdditiveArrayShare(self.encoder.subtract(total, twice_product))
+        twice_product = self._encoder.untruncated_multiply(numpy.array(2, dtype=self._encoder.dtype), product.storage)
+        return AdditiveArrayShare(self._encoder.subtract(total, twice_product))
 
 
     def _lsb(self, operand):
@@ -614,23 +616,23 @@ class AdditiveProtocol(object):
             Additive shared array containing the elementwise least significant
             bits of `operand`.
         """
-        one = numpy.array(1, dtype=self.encoder.dtype)
+        one = numpy.array(1, dtype=self._encoder.dtype)
         lop = AdditiveArrayShare(storage = operand.storage.flatten())
-        tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=lop.storage.shape)
+        tmpBW, tmp = self.random_bitwise_secret(bits=self._encoder._fieldbits, shape=lop.storage.shape)
         maskedlop = self.add(lhs=lop, rhs=tmp)
         c = self.reveal(maskedlop)
         # gotta sort the next function call first
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
-        c0xr0 = numpy.empty(c.shape, dtype = self.encoder.dtype)
+        c0xr0 = numpy.empty(c.shape, dtype = self._encoder.dtype)
         for i, lc in enumerate(c):
             if lc:
-                c0xr0[i] = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self.encoder.dtype))).storage
+                c0xr0[i] = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self._encoder.dtype))).storage
             else:
                 c0xr0[i] = tmpBW.storage[i][-1]
         c0xr0 = AdditiveArrayShare(storage = c0xr0)
         result = self.untruncated_multiply(lhs=comp_result, rhs=c0xr0)
-        result = AdditiveArrayShare(storage=self.encoder.untruncated_multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
+        result = AdditiveArrayShare(storage=self._encoder.untruncated_multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
         result = self.subtract(lhs=c0xr0, rhs=result)
         result = self.add(lhs=comp_result, rhs=result)
         return AdditiveArrayShare(storage = result.storage.reshape(operand.storage.shape))
@@ -663,8 +665,8 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         max_share = self.add(self.add(lhs, rhs), self.absolute(self.subtract(lhs, rhs)))
-        shift_right = numpy.full(lhs.storage.shape, pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
+        shift_right = numpy.full(lhs.storage.shape, pow(2, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
+        max_share.storage = self._encoder.untruncated_multiply(max_share.storage, shift_right)
         return max_share
 
 
@@ -698,8 +700,8 @@ class AdditiveProtocol(object):
         diff = self.subtract(lhs, rhs)
         abs_diff = self.absolute(diff)
         min_share = self.subtract(self.add(lhs, rhs), abs_diff)
-        shift_right = numpy.full(lhs.storage.shape, pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        min_share.storage = self.encoder.untruncated_multiply(min_share.storage, shift_right)
+        shift_right = numpy.full(lhs.storage.shape, pow(2, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
+        min_share.storage = self._encoder.untruncated_multiply(min_share.storage, shift_right)
 
         return min_share
 
@@ -736,9 +738,9 @@ class AdditiveProtocol(object):
         mask = self.uniform(shape=operand.storage.shape)
         masked_op = self.untruncated_multiply(mask, operand)
         revealed_masked_op = self.reveal(masked_op)
-        nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self.encoder.dtype])
-        inv = numpy.array(nppowmod(revealed_masked_op, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        op_inv_share = self.encoder.untruncated_multiply(inv, mask.storage)
+        nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self._encoder.dtype])
+        inv = numpy.array(nppowmod(revealed_masked_op, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
+        op_inv_share = self._encoder.untruncated_multiply(inv, mask.storage)
         return AdditiveArrayShare(op_inv_share)
 
 
@@ -766,7 +768,7 @@ class AdditiveProtocol(object):
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
             rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
             tmp = AdditiveArrayShare(lhse)
-            it_ans = self.share(src = 0, secret=numpy.full(tmp.storage.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=tmp.storage.shape)
+            it_ans = self.share(src = 0, secret=numpy.full(tmp.storage.shape, self._encoder.encode(numpy.array(1)), dtype=self._encoder.dtype),shape=tmp.storage.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
                 if bit:
@@ -776,7 +778,7 @@ class AdditiveProtocol(object):
                     tmp = self.untruncated_multiply(tmp,tmp)
                     tmp = self.truncate(tmp)
             ans.append(it_ans)
-        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape))
+        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._encoder.dtype).reshape(lhs.storage.shape))
 
 
     def private_public_power_field(self, lhs, rhspub):
@@ -797,12 +799,12 @@ class AdditiveProtocol(object):
         if not isinstance(lhs, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         if isinstance(rhspub, int):
-            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
+            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self._encoder.dtype)
         ans = []
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
             rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
             tmp = AdditiveArrayShare(lhse)
-            it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self.encoder.dtype),shape=lhse.shape)
+            it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self._encoder.dtype),shape=lhse.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
                 if bit:
@@ -810,7 +812,7 @@ class AdditiveProtocol(object):
                 if i < limit:
                     tmp = self.untruncated_multiply(tmp,tmp)
             ans.append(it_ans)
-        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape))
+        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._encoder.dtype).reshape(lhs.storage.shape))
 
     def private_public_subtract(self, lhs, rhs):
         """Return the elementwise difference between public and secret shared arrays.
@@ -842,7 +844,7 @@ class AdditiveProtocol(object):
         self._assert_unary_compatible(lhs, "lhs")
 
         if self._communicator.rank == 0:
-            return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs))
+            return AdditiveArrayShare(self._encoder.subtract(lhs.storage, rhs))
         return AdditiveArrayShare(lhs.storage)
 
 
@@ -877,9 +879,9 @@ class AdditiveProtocol(object):
             if len(tmplist) < bitwidth:
                 tmplist = [0 for x in range(bitwidth-len(tmplist))] + tmplist
             lhsbits.append(tmplist)
-        lhsbits = numpy.array(lhsbits, dtype=self.encoder.dtype)
+        lhsbits = numpy.array(lhsbits, dtype=self._encoder.dtype)
         assert(lhsbits.shape == rhs.storage.shape)
-        one = numpy.array(1, dtype=self.encoder.dtype)
+        one = numpy.array(1, dtype=self._encoder.dtype)
         flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
         flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
         results=[]
@@ -889,7 +891,7 @@ class AdditiveProtocol(object):
             msbdiff=[]
             rhs_bit_at_msb_diff = []
             for i in range(bitwidth):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
+                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._encoder.dtype))
                 if flatlhsbits[j][i] == 1:
                     xord.append(self.public_private_subtract(lhs=one, rhs=rhsbit))
                 else:
@@ -901,13 +903,13 @@ class AdditiveProtocol(object):
             for i in range(1,bitwidth):
                 msbdiff.append(self.subtract(lhs=preord[i], rhs=preord[i-1]))
             for i in range(bitwidth):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
+                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._encoder.dtype))
                 rhs_bit_at_msb_diff.append(self.untruncated_multiply(rhsbit, msbdiff[i]))
             result = rhs_bit_at_msb_diff[0]
             for i in range(1,bitwidth):
                 result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
-        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.encoder.dtype).reshape(rhs.storage.shape[:-1]))
+        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self._encoder.dtype).reshape(rhs.storage.shape[:-1]))
 
     def public_private_add(self, lhs, rhs):
         """Return the elementwise sum of public and secret shared arrays.
@@ -939,7 +941,7 @@ class AdditiveProtocol(object):
         self._assert_unary_compatible(rhs, "rhs")
 
         if self.communicator.rank == 0:
-            return AdditiveArrayShare(self.encoder.add(lhs, rhs.storage))
+            return AdditiveArrayShare(self._encoder.add(lhs, rhs.storage))
         return rhs
 
 
@@ -973,9 +975,9 @@ class AdditiveProtocol(object):
         self._assert_unary_compatible(rhs, "rhs")
 
         if self._communicator.rank == 0:
-            return AdditiveArrayShare(self.encoder.subtract(lhs, rhs.storage))
+            return AdditiveArrayShare(self._encoder.subtract(lhs, rhs.storage))
 
-        return AdditiveArrayShare(self.encoder.negative(rhs.storage))
+        return AdditiveArrayShare(self._encoder.negative(rhs.storage))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
@@ -1035,7 +1037,7 @@ class AdditiveProtocol(object):
         for loopop in numzeros.flat:
             # Each participating player generates a vector of random bits.
             if self.communicator.rank in src:
-                local_bits = generator.choice(2, size=bits).astype(self.encoder.dtype)
+                local_bits = generator.choice(2, size=bits).astype(self._encoder.dtype)
             else:
                 local_bits = None
 
@@ -1050,17 +1052,17 @@ class AdditiveProtocol(object):
                 bit_share = self.logical_xor(bit_share, player_bit_share)
 
             # Shift and combine the resulting bits in big-endian order to produce a random value.
-            shift = numpy.power(2, numpy.arange(bits, dtype=self.encoder.dtype)[::-1])
-            shifted = self.encoder.untruncated_multiply(shift, bit_share.storage)
-            secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
+            shift = numpy.power(2, numpy.arange(bits, dtype=self._encoder.dtype)[::-1])
+            shifted = self._encoder.untruncated_multiply(shift, bit_share.storage)
+            secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self._encoder.dtype))
             bit_res.append(bit_share)
             share_res.append(secret_share)
         if shape_was_none:
-            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(bits))
-            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
+            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._encoder.dtype).reshape(bits))
+            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self._encoder.dtype).reshape(shape))#, order="C"))
         else:
-            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(shape+(bits,)))#, order="C"))
-            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
+            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._encoder.dtype).reshape(shape+(bits,)))#, order="C"))
+            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self._encoder.dtype).reshape(shape))#, order="C"))
 
         return bit_share, secret_share
 
@@ -1112,10 +1114,10 @@ class AdditiveProtocol(object):
         for i in range(self.communicator.world_size):
             recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape))
         # Package the result.
-        acc = numpy.zeros(operand.storage.shape, dtype=self.encoder.dtype)
+        acc = numpy.zeros(operand.storage.shape, dtype=self._encoder.dtype)
         for s in recshares:
             acc += s.storage
-        acc %= self.encoder.modulus
+        acc %= self._encoder.modulus
         return AdditiveArrayShare(acc)
 
     def reveal(self, share, dst=None):
@@ -1160,7 +1162,7 @@ class AdditiveProtocol(object):
             if self.communicator.rank == recipient:
                 secret = received_shares[0].copy()
                 for received_share in received_shares[1:]:
-                    self.encoder.inplace_add(secret, received_share)
+                    self._encoder.inplace_add(secret, received_share)
 
         return secret
 
@@ -1195,18 +1197,18 @@ class AdditiveProtocol(object):
         if self.communicator.rank == src:
             if not isinstance(secret, numpy.ndarray):
                 raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
-            if secret.dtype != self.encoder.dtype:
+            if secret.dtype != self._encoder.dtype:
                 raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
             if secret.shape != shape:
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
 
         # Generate a pseudo-random zero sharing ...
-        przs = self.encoder.uniform(size=shape, generator=self._g0)
-        self.encoder.inplace_subtract(przs, self.encoder.uniform(size=shape, generator=self._g1))
+        przs = self._encoder.uniform(size=shape, generator=self._g0)
+        self._encoder.inplace_subtract(przs, self._encoder.uniform(size=shape, generator=self._g1))
 
         # Add the private secret to the PRZS
         if self.communicator.rank == src:
-            self.encoder.inplace_add(przs, secret)
+            self._encoder.inplace_add(przs, secret)
 
         # Package the result.
         return AdditiveArrayShare(przs)
@@ -1233,7 +1235,7 @@ class AdditiveProtocol(object):
             The difference `lhs` - `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return AdditiveArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
+        return AdditiveArrayShare(self._encoder.subtract(lhs.storage, rhs.storage))
 
 
     def sum(self, operand):
@@ -1258,7 +1260,7 @@ class AdditiveProtocol(object):
             Secret-shared sum of `operand`'s elements.
         """
         self._assert_unary_compatible(operand, "operand")
-        return AdditiveArrayShare(self.encoder.sum(operand.storage))
+        return AdditiveArrayShare(self._encoder.sum(operand.storage))
 
 
     def truncate(self, operand, *, bits=None, src=None, generator=None, trunc_mask=None, rem_mask=None):
@@ -1291,13 +1293,13 @@ class AdditiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         if bits is None:
-            bits = self.encoder.precision
+            bits = self._encoder.precision
 
-        fieldbits = self.encoder.fieldbits
+        fieldbits = self._encoder.fieldbits
 
-        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self.encoder.dtype)
+        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self._encoder.dtype)
         # Multiplicative inverse of shift_left.
-        shift_right = numpy.full(operand.storage.shape, pow(2 ** bits, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        shift_right = numpy.full(operand.storage.shape, pow(2 ** bits, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
 
         if trunc_mask:
             truncation_mask = trunc_mask
@@ -1309,7 +1311,7 @@ class AdditiveProtocol(object):
         else:
             # Generate random bits that will mask everything outside the region to be truncated.
             _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
-        remaining_mask.storage = self.encoder.untruncated_multiply(remaining_mask.storage, shift_left)
+        remaining_mask.storage = self._encoder.untruncated_multiply(remaining_mask.storage, shift_left)
 
         # Combine the two masks.
         mask = self.add(remaining_mask, truncation_mask)
@@ -1321,7 +1323,7 @@ class AdditiveProtocol(object):
         masked_element = self.reveal(masked_element)
 
         # Retain just the bits within the region to be truncated, which need to be removed.
-        masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self.encoder.dtype)
+        masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self._encoder.dtype)
 
         # Remove the mask, leaving just the bits to be removed from the
         # truncation region.  Because the result of the subtraction is
@@ -1332,7 +1334,7 @@ class AdditiveProtocol(object):
         result = self.subtract(operand, truncation_bits)
 
         # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
-        result = self.encoder.untruncated_multiply(result.storage, shift_right)
+        result = self._encoder.untruncated_multiply(result.storage, shift_right)
 
         return AdditiveArrayShare(result)
 
@@ -1372,7 +1374,7 @@ class AdditiveProtocol(object):
         if generator is None:
             generator = numpy.random.default_rng()
 
-        return AdditiveArrayShare(self.encoder.uniform(size=shape, generator=generator)) 
+        return AdditiveArrayShare(self._encoder.uniform(size=shape, generator=generator)) 
 
 
     def untruncated_multiply(self, lhs, rhs):
@@ -1413,7 +1415,7 @@ class AdditiveProtocol(object):
 
         rank = self.communicator.rank
         world_size = self.communicator.world_size
-        count = ceil((world_size - 1) / 2)
+        count = math.ceil((world_size - 1) / 2)
         x = lhs.storage
         y = rhs.storage
         X = [] # Storage for shares received from other players.
@@ -1442,7 +1444,7 @@ class AdditiveProtocol(object):
         for other_x, other_y in zip(X, Y):
             result += x * other_y + other_x * y
 
-        return AdditiveArrayShare(numpy.array(result % self.encoder.modulus, dtype=self.encoder.dtype))
+        return AdditiveArrayShare(numpy.array(result % self._encoder.modulus, dtype=self._encoder.dtype))
 
 
     def untruncated_divide(self, lhs, rhs, rmask=None):
@@ -1468,10 +1470,10 @@ class AdditiveProtocol(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         if rmask is None:
-            _, rmask = self.random_bitwise_secret(bits=self.encoder.precision, shape=rhs.storage.shape)
+            _, rmask = self.random_bitwise_secret(bits=self._encoder.precision, shape=rhs.storage.shape)
         rhsmasked = self.untruncated_multiply(rmask, rhs)
         rhsmasked = self.truncate(rhsmasked)
-        revealrhsmasked = self.encoder.decode(self.reveal(rhsmasked))
+        revealrhsmasked = self._encoder.decode(self.reveal(rhsmasked))
         maskquotient = self.untruncated_private_public_divide(self.truncate(self.untruncated_multiply(lhs, rmask)), revealrhsmasked)
         return maskquotient 
 
@@ -1497,8 +1499,8 @@ class AdditiveProtocol(object):
             The secret element-wise result of lhs / rhs.
         """
         self._assert_unary_compatible(lhs, "lhs")
-        divisor = self.encoder.encode(numpy.array(1 / rhs))
-        quotient = AdditiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
+        divisor = self._encoder.encode(numpy.array(1 / rhs))
+        quotient = AdditiveArrayShare(self._encoder.untruncated_multiply(lhs.storage, divisor))
         return quotient
 
     def zigmoid(self, operand):
@@ -1532,17 +1534,17 @@ class AdditiveProtocol(object):
         value: :class:`AdditiveArrayShare`
             Secret-shared elementwise zigmoid of `operand`.
         """
-        ones=self.encoder.encode(numpy.full(operand.storage.shape, 1))
-        half = self.encoder.encode(numpy.full(operand.storage.shape, .5))
+        ones=self._encoder.encode(numpy.full(operand.storage.shape, 1))
+        half = self._encoder.encode(numpy.full(operand.storage.shape, .5))
 
-        secret_plushalf = self.public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self.encoder.add(operand.storage,half))
-        secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self.encoder.subtract(operand.storage, half))
+        secret_plushalf = self.public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self._encoder.add(operand.storage,half))
+        secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self._encoder.subtract(operand.storage, half))
         ltzsmh = self.less_than_zero(secret_minushalf)
         nltzsmh = self.logical_not(ltzsmh)
         ltzsph = self.less_than_zero(secret_plushalf)
         middlins = self.subtract(ltzsmh, ltzsph)
         extracted_middlins = self.untruncated_multiply(middlins, operand)
-        extracted_halfs = cicada.additive.AdditiveArrayShare(self.encoder.untruncated_multiply(middlins.storage, half))
+        extracted_halfs = cicada.additive.AdditiveArrayShare(self._encoder.untruncated_multiply(middlins.storage, half))
         extracted_middlins = self.add(extracted_middlins, extracted_halfs)
-        ones_part = cicada.additive.AdditiveArrayShare(self.encoder.untruncated_multiply(nltzsmh.storage, ones))
+        ones_part = cicada.additive.AdditiveArrayShare(self._encoder.untruncated_multiply(nltzsmh.storage, ones))
         return self.add(ones_part, extracted_middlins)
