@@ -120,14 +120,6 @@ def main(listen_socket, communicator):
             elif command == "commstack":
                 _send_result(client, [repr(communicator) for communicator in communicator_stack])
 
-            # Decode a value on the operand stack.
-            elif command == "decode":
-                protocol = protocol_stack[-1]
-                value = operand_stack.pop()
-                value = protocol.encoder.decode(value)
-                operand_stack.append(value)
-                _send_result(client)
-
             # Encode a value on the operand stack.
             elif command == "encode":
                 protocol = protocol_stack[-1]
