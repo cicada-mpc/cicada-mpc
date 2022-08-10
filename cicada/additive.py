@@ -383,7 +383,7 @@ class AdditiveProtocol(object):
         """
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**self._encoder.precision, dtype=self._encoder.dtype), shape=operand.storage.shape)
+        one = self._share(src=0, secret=numpy.full(operand.storage.shape, 2**self._encoder.precision, dtype=self._encoder.dtype), shape=operand.storage.shape)
         shift_op = numpy.full(operand.storage.shape, 2**self._encoder.precision, dtype=self._encoder.dtype)
         pl2 = numpy.full(operand.storage.shape, self._encoder.modulus-1, dtype=self._encoder.dtype)
 
@@ -620,7 +620,7 @@ class AdditiveProtocol(object):
         lop = AdditiveArrayShare(storage = operand.storage.flatten())
         tmpBW, tmp = self.random_bitwise_secret(bits=self._encoder._fieldbits, shape=lop.storage.shape)
         maskedlop = self.add(lhs=lop, rhs=tmp)
-        c = self.reveal(maskedlop)
+        c = self._reveal(maskedlop)
         # gotta sort the next function call first
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
@@ -737,7 +737,7 @@ class AdditiveProtocol(object):
 
         mask = self.uniform(shape=operand.storage.shape)
         masked_op = self.untruncated_multiply(mask, operand)
-        revealed_masked_op = self.reveal(masked_op)
+        revealed_masked_op = self._reveal(masked_op)
         nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self._encoder.dtype])
         inv = numpy.array(nppowmod(revealed_masked_op, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
         op_inv_share = self._encoder.untruncated_multiply(inv, mask.storage)
@@ -768,7 +768,7 @@ class AdditiveProtocol(object):
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
             rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
             tmp = AdditiveArrayShare(lhse)
-            it_ans = self.share(src = 0, secret=numpy.full(tmp.storage.shape, self._encoder.encode(numpy.array(1)), dtype=self._encoder.dtype),shape=tmp.storage.shape)
+            it_ans = self._share(src = 0, secret=numpy.full(tmp.storage.shape, self._encoder.encode(numpy.array(1)), dtype=self._encoder.dtype),shape=tmp.storage.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
                 if bit:
@@ -804,7 +804,7 @@ class AdditiveProtocol(object):
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
             rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
             tmp = AdditiveArrayShare(lhse)
-            it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self._encoder.dtype),shape=lhse.shape)
+            it_ans = self._share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self._encoder.dtype),shape=lhse.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
                 if bit:
@@ -1044,7 +1044,7 @@ class AdditiveProtocol(object):
             # Each participating player secret shares their bit vectors.
             player_bit_shares = []
             for rank in src:
-                player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,)))
+                player_bit_shares.append(self._share(src=rank, secret=local_bits, shape=(bits,)))
 
             # Generate the final bit vector by xor-ing everything together elementwise.
             bit_share = player_bit_shares[0]
@@ -1112,7 +1112,7 @@ class AdditiveProtocol(object):
         self._assert_unary_compatible(operand, "operand")
         recshares = []
         for i in range(self.communicator.world_size):
-            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape))
+            recshares.append(self._share(src=i, secret=operand.storage, shape=operand.storage.shape))
         # Package the result.
         acc = numpy.zeros(operand.storage.shape, dtype=self._encoder.dtype)
         for s in recshares:
@@ -1120,7 +1120,8 @@ class AdditiveProtocol(object):
         acc %= self._encoder.modulus
         return AdditiveArrayShare(acc)
 
-    def reveal(self, share, dst=None):
+
+    def _reveal(self, share, dst=None):
         """Reveals a secret shared value to a subset of players.
 
         Note
@@ -1166,7 +1167,83 @@ class AdditiveProtocol(object):
 
         return secret
 
-    def share(self, *, src, secret, shape):
+
+    def reveal(self, share, dst=None):
+        """Reveals a secret shared value to a subset of players.
+
+        Note
+        ----
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`AdditiveArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            The revealed secret, if this player is a member of `dst`, or :any:`None`.
+        """
+        return self._encoder.decode(self._reveal(share, dst=dst))
+
+
+    def reveal_bits(self, share, dst=None):
+        """Reveals secret shared bits to a subset of players.
+
+        Note
+        ----
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`AdditiveArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            The revealed secret, if this player is a member of `dst`, or :any:`None`.
+        """
+        return self._reveal(share, dst=dst).astype(bool)
+
+
+    def reveal_ints(self, share, dst=None):
+        """Reveals secret shared integers to a subset of players.
+
+        Note
+        ----
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`AdditiveArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            The revealed secret, if this player is a member of `dst`, or :any:`None`.
+        """
+        return self._reveal(share, dst=dst)
+
+
+    def _share(self, *, src, secret, shape):
         """Convert a private array to an additive secret share.
 
         Note
@@ -1212,6 +1289,60 @@ class AdditiveProtocol(object):
 
         # Package the result.
         return AdditiveArrayShare(przs)
+
+
+    def share(self, *, src, secret, shape):
+        """Convert an array of scalars to an additive secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            The player providing the private array to be secret shared.
+        secret: :class:`numpy.ndarray` or :any:`None`, required
+            The secret array to be shared.  This value is ignored for all
+            players except `src`.
+        shape: :class:`tuple`, required
+            The shape of the secret.  Note that all players must specify the
+            same shape.
+
+        Returns
+        -------
+        share: :class:`AdditiveArrayShare`
+            The local share of the secret shared array.
+        """
+        return self._share(src=src, secret=self._encoder.encode(secret), shape=shape)
+
+
+    def share_bits(self, *, src, secret, shape):
+        """Convert an array of bits to an additive secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            The player providing the private array to be secret shared.
+        secret: :class:`numpy.ndarray` or :any:`None`, required
+            The secret array to be shared.  This value is ignored for all
+            players except `src`.
+        shape: :class:`tuple`, required
+            The shape of the secret.  Note that all players must specify the
+            same shape.
+
+        Returns
+        -------
+        share: :class:`AdditiveArrayShare`
+            The local share of the secret shared array.
+        """
+        return self._share(src=src, secret=numpy.array(secret, dtype=bool).astype(int).astype(object), shape=shape)
 
 
     def subtract(self, lhs, rhs):
@@ -1320,7 +1451,7 @@ class AdditiveProtocol(object):
         masked_element = self.add(mask, operand)
 
         # Reveal the element to all players (because it's masked, no player learns the underlying secret).
-        masked_element = self.reveal(masked_element)
+        masked_element = self._reveal(masked_element)
 
         # Retain just the bits within the region to be truncated, which need to be removed.
         masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self._encoder.dtype)
@@ -1473,7 +1604,7 @@ class AdditiveProtocol(object):
             _, rmask = self.random_bitwise_secret(bits=self._encoder.precision, shape=rhs.storage.shape)
         rhsmasked = self.untruncated_multiply(rmask, rhs)
         rhsmasked = self.truncate(rhsmasked)
-        revealrhsmasked = self._encoder.decode(self.reveal(rhsmasked))
+        revealrhsmasked = self._encoder.decode(self._reveal(rhsmasked))
         maskquotient = self.untruncated_private_public_divide(self.truncate(self.untruncated_multiply(lhs, rmask)), revealrhsmasked)
         return maskquotient 
 

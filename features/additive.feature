@@ -30,7 +30,7 @@ Feature: Additive Protocol
         And a new Additive protocol object
         And player 0 secret shares <a>
         When player <player> adds <b> to the share in-place
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result> to within 4 digits
 
         Examples:
@@ -47,7 +47,7 @@ Feature: Additive Protocol
         And a new Additive protocol object
         And player 0 secret shares <a>
         When player <player> subtracts <b> from the share in-place
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result> to within 4 digits
 
         Examples:
@@ -65,7 +65,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players add the shares
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result>
 
         Examples:
@@ -96,7 +96,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players divide the shares
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result> to within 2 digits
 
         Examples:
@@ -118,7 +118,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compute the dot product of the shares
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result>
 
         Examples:
@@ -137,7 +137,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compare the shares for equality
-        And the players reveal the result without decoding
+        And the players reveal the secret bits
         Then the result should match <result>
 
         Examples:
@@ -160,7 +160,7 @@ Feature: Additive Protocol
         And a new Additive protocol object
         And player 0 secret shares <a>
         When the players compute the floor of the share
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result>
 
         Examples:
@@ -179,7 +179,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compare the shares with less than
-        And the players reveal the result without decoding
+        And the players reveal the secret bits
         Then the result should match <result>
 
         Examples:
@@ -201,10 +201,10 @@ Feature: Additive Protocol
     Scenario Outline: Private Logical And
         Given a calculator service with <players> players
         And a new Additive protocol object
-        And player 0 secret shares <a> without encoding
-        And player 1 secret shares <b> without encoding
+        And player 0 secret shares the bits <a>
+        And player 1 secret shares the bits <b>
         When the players compute the logical and of the shares
-        And the players reveal the result without decoding
+        And the players reveal the secret bits
         Then the result should match <result>
 
         Examples:
@@ -219,10 +219,10 @@ Feature: Additive Protocol
     Scenario Outline: Private Logical Exclusive Or
         Given a calculator service with <players> players
         And a new Additive protocol object
-        And player 0 secret shares <a> without encoding
-        And player 1 secret shares <b> without encoding
+        And player 0 secret shares the bits <a>
+        And player 1 secret shares the bits <b>
         When the players compute the logical exclusive or of the shares
-        And the players reveal the result without decoding
+        And the players reveal the secret bits
         Then the result should match <result>
 
         Examples:
@@ -237,10 +237,10 @@ Feature: Additive Protocol
     Scenario Outline: Private Logical Or
         Given a calculator service with <players> players
         And a new Additive protocol object
-        And player 0 secret shares <a> without encoding
-        And player 1 secret shares <b> without encoding
+        And player 0 secret shares the bits <a>
+        And player 1 secret shares the bits <b>
         When the players compute the logical or of the shares
-        And the players reveal the result without decoding
+        And the players reveal the secret bits
         Then the result should match <result>
 
         Examples:
@@ -258,7 +258,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compute the maximum of the shares
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result>
 
         Examples:
@@ -278,7 +278,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players compute the minimum of the shares
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result>
 
         Examples:
@@ -298,7 +298,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players multiply the shares
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result>
 
         Examples:
@@ -317,7 +317,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         When the players compute the multiplicative inverse
         And the players multiply the shares without truncation
-        And the players reveal the result without decoding
+        And the players reveal the secret integers
         Then the result should match <result>
 
         Examples:
@@ -336,7 +336,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And unencoded public value <b>
         When the players raise the share to a public power
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result>
 
         Examples:
@@ -360,7 +360,7 @@ Feature: Additive Protocol
         And player 0 secret shares <a>
         And public value <b>
         When the players subtract the public value from the share
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result> to within 4 digits
 
         Examples:
@@ -377,7 +377,7 @@ Feature: Additive Protocol
         And a new Additive protocol object
         And player 0 secret shares <a>
         When the players compute the relu of the share
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result> to within 4 digits
 
         Examples:
@@ -395,7 +395,7 @@ Feature: Additive Protocol
         And a new Additive protocol object
         And player 0 secret shares <a>
         When the players compute the sum of the share
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result> to within 4 digits
 
         Examples:
@@ -411,7 +411,7 @@ Feature: Additive Protocol
         And a new Additive protocol object
         And player 0 secret shares <a>
         When the players compute the zigmoid of the share
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result>
 
         Examples:
@@ -434,7 +434,7 @@ Feature: Additive Protocol
         And public value <a>
         And player 1 secret shares <b>
         When the players add the public value and the share
-        And the players reveal the result
+        And the players reveal the secret
         Then the result should match <result>
 
         Examples:
@@ -463,9 +463,9 @@ Feature: Additive Protocol
         Given a calculator service with <players> players
         And a new Additive protocol object
         When the players generate <bits> random bits
-        And the players reveal the result without decoding
+        And the players reveal the secret integers
         And the players swap
-        And the players reveal the result without decoding
+        And the players reveal the secret bits
         And the players swap
         Then the value of the bits in big-endian order should match the random value.
 
@@ -486,7 +486,7 @@ Feature: Additive Protocol
         Given a calculator service with <players> players
         And a new Additive protocol object
         And player <player> secret shares <value>
-        When the players reveal the result
+        When the players reveal the secret
         Then the result should match <value> to within 4 digits
 
         Examples:

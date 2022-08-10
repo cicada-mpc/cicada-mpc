@@ -49,10 +49,10 @@ def main(communicator):
     if communicator.rank == 0:
         print("  answer:", numpy.dot(a, b))
 
-    ashare = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=arguments.vector_size)
-    bshare = protocol.share(src=0, secret=protocol.encoder.encode(b), shape=arguments.vector_size)
+    ashare = protocol.share(src=0, secret=a, shape=arguments.vector_size)
+    bshare = protocol.share(src=0, secret=b, shape=arguments.vector_size)
     cshare = protocol.dot(ashare, bshare)
 
-    print("revealed:", protocol.encoder.decode(protocol.reveal(cshare)))
+    print("revealed:", protocol.reveal(cshare))
 
 SocketCommunicator.run(world_size=arguments.world_size, fn=main, timeout=arguments.timeout)

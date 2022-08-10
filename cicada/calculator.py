@@ -112,17 +112,8 @@ def main(listen_socket, communicator):
             pretty_command = f"{command}({pretty_args})"
             log.debug(f"Player {communicator.rank} received command: {pretty_command}")
 
-            # Encode a binary value on the operand stack.
-            if command == "binary-encode":
-                protocol = protocol_stack[-1]
-                value = operand_stack.pop()
-                value = numpy.array(value, dtype=protocol.encoder.dtype)
-                operand_stack.append(value)
-                _send_result(client)
-                continue
-
             # Peek at the communicator on the top of the communicator stack.
-            elif command == "commget":
+            if command == "commget":
                 _send_result(client, repr(communicator_stack[-1]))
 
             # View the entire contents of the communicator stack.
@@ -215,6 +206,22 @@ def main(listen_socket, communicator):
                 operand_stack.append(secret)
                 _send_result(client)
 
+            # Reveal a secret value containing only zeros and ones.
+            elif command == "reveal_bits":
+                protocol = protocol_stack[-1]
+                share = operand_stack.pop()
+                secret = protocol.reveal_bits(share)
+                operand_stack.append(secret)
+                _send_result(client)
+
+            # Reveal a secret value without decoding.
+            elif command == "reveal_ints":
+                protocol = protocol_stack[-1]
+                share = operand_stack.pop()
+                secret = protocol.reveal_ints(share)
+                operand_stack.append(secret)
+                _send_result(client)
+
             # Secret share a value from the operand stack.
             elif command == "share":
                 src = kwargs["src"]
@@ -222,6 +229,16 @@ def main(listen_socket, communicator):
                 protocol = protocol_stack[-1]
                 secret = operand_stack.pop()
                 share = protocol.share(src=src, secret=secret, shape=shape)
+                operand_stack.append(share)
+                _send_result(client)
+
+            # Secret share bitsfrom the operand stack.
+            elif command == "share_bits":
+                src = kwargs["src"]
+                shape = kwargs["shape"]
+                protocol = protocol_stack[-1]
+                secret = operand_stack.pop()
+                share = protocol.share_bits(src=src, secret=secret, shape=shape)
                 operand_stack.append(share)
                 _send_result(client)
 

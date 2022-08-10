@@ -76,15 +76,14 @@ def step_impl(context, value):
     _require_success(context.calculator.command("encode"))
 
 
-@given(u'player {player} secret shares {secret} without encoding')
+@given(u'player {player} secret shares the bits {secret}')
 def step_impl(context, player, secret):
     player = eval(player)
     secret = numpy.array(eval(secret))
 
     for rank in context.calculator.ranks:
         _require_success(context.calculator.command("oppush", value=secret if player == rank else None, player=rank))
-    _require_success(context.calculator.command("binary-encode"))
-    _require_success(context.calculator.command("share", src=player, shape=secret.shape))
+    _require_success(context.calculator.command("share_bits", src=player, shape=secret.shape))
 
 
 @given(u'player {player} secret shares {secret}')
@@ -94,7 +93,6 @@ def step_impl(context, player, secret):
 
     for rank in context.calculator.ranks:
         _require_success(context.calculator.command("oppush", value=secret if player == rank else None, player=rank))
-    _require_success(context.calculator.command("encode"))
     _require_success(context.calculator.command("share", src=player, shape=secret.shape))
 
 
@@ -226,15 +224,19 @@ def step_impl(context):
     _require_success(context.calculator.command("private_public_power"))
 
 
-@when(u'the players reveal the result')
+@when(u'the players reveal the secret')
 def step_impl(context):
     _require_success(context.calculator.command("reveal"))
-    _require_success(context.calculator.command("decode"))
 
 
-@when(u'the players reveal the result without decoding')
+@when(u'the players reveal the secret bits')
 def step_impl(context):
-    _require_success(context.calculator.command("reveal"))
+    _require_success(context.calculator.command("reveal_bits"))
+
+
+@when(u'the players reveal the secret integers')
+def step_impl(context):
+    _require_success(context.calculator.command("reveal_ints"))
 
 
 @when(u'the players swap')
