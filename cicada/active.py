@@ -271,8 +271,8 @@ class ActiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         a_share = operand[0]
         s_share = operand[1]
-        zero = cicada.shamir.ShamirArrayShare(self.sprotocol.encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.encoder.modulus-2, self.encoder.modulus) * a_share.storage) % self.encoder.modulus, dtype=object)))
-        if all(self.sprotocol.reveal(zero) == numpy.zeros(zero.storage.shape)):
+        zero = cicada.shamir.ShamirArrayShare(self.sprotocol._encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self._encoder.modulus-2, self._encoder.modulus) * a_share.storage) % self._encoder.modulus, dtype=object)))
+        if all(self.sprotocol._reveal(zero) == numpy.zeros(zero.storage.shape)):
             return zero
         else:
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
@@ -306,12 +306,6 @@ class ActiveProtocol(object):
         result = self.sum(result)
         result = self.truncate(result)
         return result
-
-
-    @property
-    def encoder(self):
-        """Return the :class:`cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol."""
-        return self._encoder
 
 
     def equal(self, lhs, rhs):
@@ -672,17 +666,17 @@ k
         """
         self._assert_unary_compatible(lhs, "lhs")
         if not enc:
-            divisor = self.encoder.encode(numpy.array(1/rhspub))
-            rhs_enc = self.encoder.encode(rhspub)
+            divisor = self._encoder.encode(numpy.array(1/rhspub))
+            rhs_enc = self._encoder.encode(rhspub)
         else:
-            divisor = self.encoder.encode(numpy.array(1/self.encoder.decode(rhspub)))
+            divisor = self._encoder.encode(numpy.array(1/self._encoder.decode(rhspub)))
             rhs_enc = rhspub
-        quotient = ActiveArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
+        quotient = ActiveArrayShare(self._encoder.untruncated_multiply(lhs.storage, divisor))
         quotient = self.truncate(quotient)
         quotient = self.floor(quotient)
-        val2subtract = self.truncate(ActiveArrayShare(self.encoder.untruncated_multiply(rhs_enc, quotient.storage)))
+        val2subtract = self.truncate(ActiveArrayShare(self._encoder.untruncated_multiply(rhs_enc, quotient.storage)))
         remainder = self.subtract(lhs, val2subtract)
-        print(f'div: {divisor} rhs_enc: {rhs_enc}, q: {self.encoder.decode(self.reveal(quotient))}')
+        print(f'div: {divisor} rhs_enc: {rhs_enc}, q: {self._encoder.decode(self._reveal(quotient))}')
         return remainder
 
 
@@ -783,7 +777,7 @@ k
         return ActiveArrayShare((self.aprotocol._public_bitwise_less_than(lhspub, rhs[0]), self.sprotocol._public_bitwise_less_than(lhspub, rhs[1])))
 
 
-    def public_private_add(self, lhs, rhs):
+    def _public_private_add(self, lhs, rhs):
         """Return the elementwise sum of public and secret shared arrays.
 
         All players *must* supply the same value of `lhs` when calling this
@@ -811,10 +805,10 @@ k
             The secret shared sum of `lhs` and `rhs`.
         """
         self._assert_unary_compatible(rhs, "rhs")
-        return ActiveArrayShare((self.aprotocol.public_private_add(lhs, rhs[0]), self.sprotocol.public_private_add(lhs, rhs[1])))
+        return ActiveArrayShare((self.aprotocol._public_private_add(lhs, rhs[0]), self.sprotocol._public_private_add(lhs, rhs[1])))
 
 
-    def public_private_subtract(self, lhs, rhs):
+    def _public_private_subtract(self, lhs, rhs):
         """Return the elementwise difference between public and secret shared arrays.
 
         All players *must* supply the same value of `lhs` when calling this
@@ -842,7 +836,7 @@ k
             The secret shared difference `lhs` - `rhs`.
         """
         self._assert_unary_compatible(lhs, "lhs")
-        return ActiveArrayShare((self.aprotocol.public_private_subtract(lhs, rhs[0]), self.sprotocol.public_private_subtract(lhs, rhs[1])))
+        return ActiveArrayShare((self.aprotocol._public_private_subtract(lhs, rhs[0]), self.sprotocol._public_private_subtract(lhs, rhs[1])))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
@@ -876,12 +870,12 @@ k
         bs_add, ss_add = self.aprotocol.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=shape)
         shamadd = []
         for i in self.communicator.ranks:
-            shamadd.append(self.sprotocol.share(src=i, secret=ss_add.storage, shape=ss_add.storage.shape))
-        ss_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.encoder.dtype))
+            shamadd.append(self.sprotocol._share(src=i, secret=ss_add.storage, shape=ss_add.storage.shape))
+        ss_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self._encoder.dtype))
         shamadd = []
         for i in self.communicator.ranks:
-            shamadd.append(self.sprotocol.share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape))
-        bs_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.encoder.dtype))
+            shamadd.append(self.sprotocol._share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape))
+        bs_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self._encoder.dtype))
         return (ActiveArrayShare((bs_add, bs_sham)), ActiveArrayShare((ss_add, ss_sham)))
 
 
@@ -930,7 +924,7 @@ k
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         return ActiveArrayShare((self.aprotocol.reshare(operand=operand[0]), self.sprotocol.reshare(operand=operand[1])))
 
-    def reveal(self, share, dst=None):
+    def _reveal(self, share, dst=None):
         """Reveals a secret shared value to a subset of players.
 
         Note
@@ -956,30 +950,30 @@ k
             Encoded representation of the revealed secret, if this player is a
             member of `dst`, or :any:`None`
         """
-        zshare =  cicada.shamir.ShamirArrayShare(self.sprotocol.encoder.subtract(share[1].storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.encoder.modulus-2, self.encoder.modulus) * share[0].storage) % self.encoder.modulus, dtype=self.encoder.dtype)))
-        
-        a_storage = numpy.array(self.communicator.allgather(share[0].storage), dtype=self.encoder.dtype)
-        z_storage = numpy.array(self.communicator.allgather(zshare.storage), dtype=self.encoder.dtype)
+        zshare = cicada.shamir.ShamirArrayShare(self.sprotocol._encoder.subtract(share[1].storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self._encoder.modulus-2, self._encoder.modulus) * share[0].storage) % self._encoder.modulus, dtype=self._encoder.dtype)))
+
+        a_storage = numpy.array(self.communicator.allgather(share[0].storage), dtype=self._encoder.dtype)
+        z_storage = numpy.array(self.communicator.allgather(zshare.storage), dtype=self._encoder.dtype)
         secret = []
-        revealing_coef = self.sprotocol._revealing_coef 
+        revealing_coef = self.sprotocol._revealing_coef
         for index in numpy.ndindex(z_storage[0].shape):
             secret.append(sum([revealing_coef[i]*z_storage[i][index] for i in range(len(revealing_coef))]))
-        rev = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
+        rev = numpy.array([x%self._encoder.modulus for x in secret], dtype=self._encoder.dtype).reshape(share[0].storage.shape)
         if len(rev.shape) == 0 and rev:
-            #print(f's: {self.sprotocol.reveal(share[1])}\na: {self.aprotocol.reveal(share[0])}')
+            #print(f's: {self.sprotocol._reveal(share[1])}\na: {self.aprotocol._reveal(share[0])}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
         if len(rev.shape) > 0 and numpy.any(rev):
-            #print(f's: {self.sprotocol.reveal(share[1])}\na: {self.aprotocol.reveal(share[0])}')
+            #print(f's: {self.sprotocol._reveal(share[1])}\na: {self.aprotocol._reveal(share[0])}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
 
         secret = []
         for index in numpy.ndindex(a_storage[0].shape):
             secret.append(sum([a_storage[i][index] for i in range(len(revealing_coef))]))
-        reva = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share[0].storage.shape)
-        bs_storage=numpy.zeros(z_storage.shape, dtype=self.encoder.dtype)
+        reva = numpy.array([x%self._encoder.modulus for x in secret], dtype=self._encoder.dtype).reshape(share[0].storage.shape)
+        bs_storage=numpy.zeros(z_storage.shape, dtype=self._encoder.dtype)
         for i, c in enumerate(revealing_coef):
-            bs_storage[i] =  self.sprotocol.encoder.add(z_storage[i], numpy.array((pow(self.sprotocol._revealing_coef[i], self.encoder.modulus-2, self.encoder.modulus) * a_storage[i]) % self.encoder.modulus, dtype=self.encoder.dtype))
-        bs_storage %= self.encoder.modulus
+            bs_storage[i] =  self.sprotocol._encoder.add(z_storage[i], numpy.array((pow(self.sprotocol._revealing_coef[i], self._encoder.modulus-2, self._encoder.modulus) * a_storage[i]) % self._encoder.modulus, dtype=self._encoder.dtype))
+        bs_storage %= self._encoder.modulus
         s1 = random.sample(list(self.sprotocol._indices), self.sprotocol._d+1)
         s1.sort()
         revealing_coef = self.sprotocol._lagrange_coef(s1)
@@ -989,15 +983,15 @@ k
                 loop_acc = 0
                 for i,v in enumerate(s1):
                     loop_acc += revealing_coef[i]*bs_storage[v-1][index] # TODO Problem arises in 0d shared array
-                sub_secret.append(loop_acc % self.encoder.modulus)
-                #sub_secret.append(sum([(revealing_coef[i]*bs_storage[v-1][index]) % self.encoder.modulus for i,v in enumerate(s1)]))
+                sub_secret.append(loop_acc % self._encoder.modulus)
+                #sub_secret.append(sum([(revealing_coef[i]*bs_storage[v-1][index]) % self._encoder.modulus for i,v in enumerate(s1)]))
         else:
             loop_acc = 0
             for i,v in enumerate(s1):
                 loop_acc += revealing_coef[i]*bs_storage[v-1]
-            sub_secret.append(loop_acc % self.encoder.modulus)
+            sub_secret.append(loop_acc % self._encoder.modulus)
 
-        revs = numpy.array(sub_secret, dtype=self.encoder.dtype).reshape(share[0].storage.shape)
+        revs = numpy.array(sub_secret, dtype=self._encoder.dtype).reshape(share[0].storage.shape)
         s2 = random.sample(list(self.sprotocol._indices), self.sprotocol._d+1)
         s2.sort()
         while s2 == s1:
@@ -1010,14 +1004,14 @@ k
                 loop_acc = 0
                 for i,v in enumerate(s2):
                     loop_acc += revealing_coef[i]*bs_storage[v-1][index]
-                sub_secret2.append(loop_acc % self.encoder.modulus)
+                sub_secret2.append(loop_acc % self._encoder.modulus)
         else:
             loop_acc = 0
             for i,v in enumerate(s2):
                 loop_acc += revealing_coef[i]*bs_storage[v-1]
-            sub_secret2.append(loop_acc % self.encoder.modulus)
+            sub_secret2.append(loop_acc % self._encoder.modulus)
 
-        revs2 = numpy.array(sub_secret2, dtype=self.encoder.dtype).reshape(share[0].storage.shape)
+        revs2 = numpy.array(sub_secret2, dtype=self._encoder.dtype).reshape(share[0].storage.shape)
         if len(revs.shape) > 0 or len(revs2.shape) > 0:
             if numpy.any(revs != reva) or numpy.any(revs2 != reva):
                 #print(reva, revs, revs2)
@@ -1026,7 +1020,82 @@ k
             if revs != reva or revs2 != reva:
                 raise ConsistencyError("Secret Shares are inconsistent in the second stage")
         return revs
-            
+
+
+    def reveal(self, share, dst=None):
+        """Reveals a secret shared value to a subset of players.
+
+        Note
+        ----
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`ActiveArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            The revealed secret, if this player is a member of `dst`, or :any:`None`.
+        """
+        return self._encoder.decode(self._reveal(share, dst=dst))
+
+
+    def reveal_bits(self, share, dst=None):
+        """Reveals secret shared bits to a subset of players.
+
+        Note
+        ----
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`ActiveArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            The revealed secret, if this player is a member of `dst`, or :any:`None`.
+        """
+        return self._reveal(share, dst=dst).astype(bool)
+
+
+    def reveal_ints(self, share, dst=None):
+        """Reveals secret shared integers to a subset of players.
+
+        Note
+        ----
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`ActiveArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            The revealed secret, if this player is a member of `dst`, or :any:`None`.
+        """
+        return self._reveal(share, dst=dst)
+
 
     def share(self, *, src, secret, shape):
         """Convert a private array to an additive secret share.
@@ -1053,18 +1122,35 @@ k
         share: :class:`ActiveArrayShare`
             The local share of the secret shared array.
         """
-        if not isinstance(shape, tuple):
-            shape = (shape,)
-
-        if self.communicator.rank == src:
-            if not isinstance(secret, numpy.ndarray):
-                raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
-            if secret.dtype != self.encoder.dtype:
-                raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
-            if secret.shape != shape:
-                raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
-
         return ActiveArrayShare((self.aprotocol.share(src=src, secret=secret, shape=shape), self.sprotocol.share(src=src, secret=secret, shape=shape)))
+
+
+    def share_bits(self, *, src, secret, shape):
+        """Convert an array of bits to an active secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            The player providing the private array to be secret shared.
+        secret: :class:`numpy.ndarray` or :any:`None`, required
+            The secret array to be shared, which must be encoded with this
+            object's :attr:`encoder`.  This value is ignored for all players
+            except `src`.
+        shape: :class:`tuple`, required
+            The shape of the secret.  Note that the shape must be consistently
+            specified by all players.
+
+        Returns
+        -------
+        share: :class:`ShamirArrayShare`
+            The local share of the secret shared array.
+        """
+        return ActiveArrayShare((self.aprotocol.share_bits(src=src, secret=secret, shape=shape), self.sprotocol.share_bits(src=src, secret=secret, shape=shape)))
 
 
     def subtract(self, lhs, rhs):
@@ -1145,9 +1231,9 @@ k
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         if bits is None:
-            bits = self.encoder.precision
+            bits = self._encoder.precision
         tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand[0].storage.shape)
-        rbm, rshare = self.random_bitwise_secret(bits=self.encoder.fieldbits-bits, src=src, generator=generator, shape=operand[0].storage.shape)
+        rbm, rshare = self.random_bitwise_secret(bits=self._encoder.fieldbits-bits, src=src, generator=generator, shape=operand[0].storage.shape)
         atbm = tshare[0]
         stbm = tshare[1]
         arbm = rshare[0]
@@ -1189,8 +1275,8 @@ k
         uniadd = self.aprotocol.uniform(shape=shape, generator=generator)
         shamadd = []
         for i in self.communicator.ranks:
-            shamadd.append(self.sprotocol.share(src=i, secret=uniadd.storage, shape=uniadd.storage.shape))
-        unisham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.encoder.dtype))
+            shamadd.append(self.sprotocol._share(src=i, secret=uniadd.storage, shape=uniadd.storage.shape))
+        unisham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self._encoder.dtype))
         return (uniadd, unisham)
 
     def untruncated_multiply(self, lhs, rhs):
@@ -1243,7 +1329,7 @@ k
             The secret element-wise result of lhs / rhs.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        bits = self.encoder.precision
+        bits = self._encoder.precision
         tbm, tshare = self.random_bitwise_secret(bits=bits, shape=rhs[0].storage.shape)
         atbm = tshare[0]
         stbm = tshare[1]
