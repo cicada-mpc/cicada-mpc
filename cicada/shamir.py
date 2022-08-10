@@ -121,7 +121,7 @@ class ShamirBasicProtocol(object):
 
         if indices is None:
             indices = numpy.array(communicator.ranks) + 1
-        self._indices = numpy.array(indices, dtype=self.encoder.dtype)
+        self._indices = numpy.array(indices, dtype=self._encoder.dtype)
 
         self._revealing_coef = self._lagrange_coef()
 
@@ -143,9 +143,9 @@ class ShamirBasicProtocol(object):
         if src is None:
             src = [int(value) for value in self._indices]
         ls = len(src)
-        coefs=numpy.zeros(ls, dtype=self.encoder.dtype)
+        coefs=numpy.zeros(ls, dtype=self._encoder.dtype)
         for i in range(ls):
-            coefs[i]=prod([-src[j]*pow(src[i]-src[j], self.encoder.modulus-2, self.encoder.modulus) for j in range(ls) if src[j] != src[i]])%self.encoder.modulus
+            coefs[i]=prod([-src[j]*pow(src[i]-src[j], self._encoder.modulus-2, self._encoder.modulus) for j in range(ls) if src[j] != src[i]])%self._encoder.modulus
         return coefs
 
     def add(self, lhs, rhs):
@@ -172,7 +172,7 @@ class ShamirBasicProtocol(object):
             Secret-shared sum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ShamirArrayShare(self.encoder.add(lhs.storage, rhs.storage))
+        return ShamirArrayShare(self._encoder.add(lhs.storage, rhs.storage))
 
 
     def additive_inverse(self, operand):
@@ -200,7 +200,7 @@ class ShamirBasicProtocol(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        return self.public_private_subtract(numpy.full(operand.storage.shape, self.encoder.modulus, dtype=self.encoder.dtype), operand)
+        return self.public_private_subtract(numpy.full(operand.storage.shape, self._encoder.modulus, dtype=self._encoder.dtype), operand)
 
 
     def bit_compose(self, operand):
@@ -228,12 +228,12 @@ class ShamirBasicProtocol(object):
         last_dimension = operand.storage.shape[-1]
         idx = numpy.ndindex(outer_shape)
         composed = []
-        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self.encoder.dtype)[::-1])
+        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self._encoder.dtype)[::-1])
         for x in idx:
-            shifted = self.encoder.untruncated_multiply(operand.storage[x], shift)
-            val_share = numpy.sum(shifted) % self.encoder.modulus
+            shifted = self._encoder.untruncated_multiply(operand.storage[x], shift)
+            val_share = numpy.sum(shifted) % self._encoder.modulus
             composed.append(val_share)
-        return ShamirArrayShare(numpy.array([x for x in composed], dtype=self.encoder.dtype).reshape(outer_shape))
+        return ShamirArrayShare(numpy.array([x for x in composed], dtype=self._encoder.dtype).reshape(outer_shape))
 
     @property
     def communicator(self):
@@ -272,17 +272,6 @@ class ShamirBasicProtocol(object):
 
 
     @property
-    def encoder(self):
-        """Return the :class:`~cicada.encoder.fixedfield.FixedFieldEncoder` used by this protocol.
-
-        Returns
-        -------
-        encoder: :class:`~cicada.encoder.fixedfield.FixedFieldEncoder`
-        """
-        return self._encoder
-
-
-    @property
     def indices(self):
         """Return the :math:`x`-values used by this protocol to reveal secrets.
 
@@ -295,7 +284,7 @@ class ShamirBasicProtocol(object):
         return self._indices
 
 
-    def private_public_subtract(self, lhs, rhs):
+    def _private_public_subtract(self, lhs, rhs):
         """Return the elementwise difference between public and secret shared arrays.
 
         All players *must* supply the same value of `lhs` when calling this
@@ -324,10 +313,10 @@ class ShamirBasicProtocol(object):
         """
         self._assert_unary_compatible(lhs, "lhs")
 
-        return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs))
+        return ShamirArrayShare(self._encoder.subtract(lhs.storage, rhs))
 
 
-    def public_private_add(self, lhs, rhs):
+    def _public_private_add(self, lhs, rhs):
         """Return the elementwise sum of public and secret shared arrays.
 
         All players *must* supply the same value of `lhs` when calling this
@@ -356,7 +345,7 @@ class ShamirBasicProtocol(object):
         """
         self._assert_unary_compatible(rhs, "rhs")
 
-        return ShamirArrayShare(self.encoder.add(lhs, rhs.storage))
+        return ShamirArrayShare(self._encoder.add(lhs, rhs.storage))
 
 
     def public_private_subtract(self, lhs, rhs):
@@ -388,7 +377,7 @@ class ShamirBasicProtocol(object):
         """
         self._assert_unary_compatible(rhs, "rhs")
 
-        return ShamirArrayShare(self.encoder.subtract(lhs, rhs.storage))
+        return ShamirArrayShare(self._encoder.subtract(lhs, rhs.storage))
 
     def reshare(self, *, operand):
         """Convert a private array to an shamir secret share.
@@ -421,15 +410,16 @@ class ShamirBasicProtocol(object):
         ldst=len(dst)
         recshares = []
         for i in dst:
-            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape))
-        acc = numpy.zeros(operand.storage.shape, dtype=self.encoder.dtype)
+            recshares.append(self._share(src=i, secret=operand.storage, shape=operand.storage.shape))
+        acc = numpy.zeros(operand.storage.shape, dtype=self._encoder.dtype)
         for i, s in enumerate(recshares):
             acc += self._revealing_coef[i]*s.storage
-        acc %= self.encoder.modulus
+        acc %= self._encoder.modulus
 
         return ShamirArrayShare(acc)
 
-    def reveal(self, share,*, dst=None):
+
+    def _reveal(self, share,*, dst=None):
         """Reveals a secret shared value to a subset of players.
 
         Note
@@ -474,7 +464,7 @@ class ShamirBasicProtocol(object):
         for recipient in dst:
             received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
             if received_shares:
-                received_storage = numpy.array([x.storage for x in received_shares], dtype=self.encoder.dtype)
+                received_storage = numpy.array([x.storage for x in received_shares], dtype=self._encoder.dtype)
                 if self.communicator.rank == recipient:
                     if revealing_coef is None:
                         revealing_coef = self._lagrange_coef([self._indices[x] for x in src])
@@ -484,12 +474,87 @@ class ShamirBasicProtocol(object):
         if secret is None:
             return secret
         else:
-            ret = numpy.array([x%self.encoder.modulus for x in secret], dtype=self.encoder.dtype).reshape(share.storage.shape)
+            ret = numpy.array([x%self._encoder.modulus for x in secret], dtype=self._encoder.dtype).reshape(share.storage.shape)
             return ret
 
 
-    def share(self, *, src, secret, shape):
-        """Convert a private array to an shamir secret share.
+    def reveal(self, share, dst=None):
+        """Reveals a secret shared value to a subset of players.
+
+        Note
+        ----
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`ShamirArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            The revealed secret, if this player is a member of `dst`, or :any:`None`.
+        """
+        return self._encoder.decode(self._reveal(share, dst=dst))
+
+
+    def reveal_bits(self, share, dst=None):
+        """Reveals secret shared bits to a subset of players.
+
+        Note
+        ----
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`ShamirArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            The revealed secret, if this player is a member of `dst`, or :any:`None`.
+        """
+        return self._reveal(share, dst=dst).astype(bool)
+
+
+    def reveal_ints(self, share, dst=None):
+        """Reveals secret shared integers to a subset of players.
+
+        Note
+        ----
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`ShamirArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            The revealed secret, if this player is a member of `dst`, or :any:`None`.
+        """
+        return self._reveal(share, dst=dst)
+
+
+    def _share(self, *, src, secret, shape):
+        """Convert a private array to a shamir secret share.
 
         Note
         ----
@@ -524,17 +589,73 @@ class ShamirBasicProtocol(object):
         if self.communicator.rank == src:
             if not isinstance(secret, numpy.ndarray):
                 raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
-            if secret.dtype != self.encoder.dtype:
+            if secret.dtype != self._encoder.dtype:
                 raise ValueError("secret must be encoded by this protocol's encoder.") # pragma: no cover
             if secret.shape != shape:
                 raise ValueError(f"secret.shape must match shape parameter.  Expected {secret.shape}, got {shape} instead.") # pragma: no cover
-            coef = self.encoder.uniform(size=shape+(self._d,), generator=self._generator)
+            coef = self._encoder.uniform(size=shape+(self._d,), generator=self._generator)
             for index in numpy.ndindex(shape):
                 for x in self._indices:
-                    shares.append((numpy.dot(numpy.power(numpy.full((self._d,), x),numpy.arange(1, self._d+1)), coef[index])+secret[index])%self.encoder.modulus)
-            sharesn = numpy.array(shares, dtype=self.encoder.dtype).reshape(shape+(ldst,)).T
-        share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.encoder.dtype).T
+                    shares.append((numpy.dot(numpy.power(numpy.full((self._d,), x),numpy.arange(1, self._d+1)), coef[index])+secret[index])%self._encoder.modulus)
+            sharesn = numpy.array(shares, dtype=self._encoder.dtype).reshape(shape+(ldst,)).T
+        share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self._encoder.dtype).T
         return ShamirArrayShare(share)
+
+
+    def share(self, *, src, secret, shape):
+        """Convert an array of scalars to a shamir secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            The player providing the private array to be secret shared.
+        secret: :class:`numpy.ndarray` or :any:`None`, required
+            The secret array to be shared, which must be encoded with this
+            object's :attr:`encoder`.  This value is ignored for all players
+            except `src`.
+        shape: :class:`tuple`, required
+            The shape of the secret.  Note that the shape must be consistently
+            specified by all players.
+
+        Returns
+        -------
+        share: :class:`ShamirArrayShare`
+            The local share of the secret shared array.
+        """
+        return self._share(src=src, secret=self._encoder.encode(secret), shape=shape)
+
+
+    def share_bits(self, *, src, secret, shape):
+        """Convert an array of bits to a shamir secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        src: :class:`int`, required
+            The player providing the private array to be secret shared.
+        secret: :class:`numpy.ndarray` or :any:`None`, required
+            The secret array to be shared, which must be encoded with this
+            object's :attr:`encoder`.  This value is ignored for all players
+            except `src`.
+        shape: :class:`tuple`, required
+            The shape of the secret.  Note that the shape must be consistently
+            specified by all players.
+
+        Returns
+        -------
+        share: :class:`ShamirArrayShare`
+            The local share of the secret shared array.
+        """
+        return self._share(src=src, secret=numpy.array(secret, dtype=bool).astype(int).astype(object), shape=shape)
 
 
     def subtract(self, lhs, rhs):
@@ -558,7 +679,7 @@ class ShamirBasicProtocol(object):
             The difference `lhs` - `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ShamirArrayShare(self.encoder.subtract(lhs.storage, rhs.storage))
+        return ShamirArrayShare(self._encoder.subtract(lhs.storage, rhs.storage))
 
     def sum(self, operand):
         """Return the sum of a secret shared array's elements.
@@ -582,7 +703,7 @@ class ShamirBasicProtocol(object):
             Secret-shared sum of `operand`'s elements.
         """
         self._assert_unary_compatible(operand, "operand")
-        return ShamirArrayShare(self.encoder.sum(operand.storage))
+        return ShamirArrayShare(self._encoder.sum(operand.storage))
 
     @property
     def threshold(self):
@@ -623,10 +744,10 @@ class ShamirBasicProtocol(object):
         if generator is None:
             generator = self._generator
 
-        rand_ints = self.encoder.uniform(size=shape, generator=generator)
-        share = ShamirArrayShare(numpy.zeros(shape, dtype=self.encoder.dtype))
+        rand_ints = self._encoder.uniform(size=shape, generator=generator)
+        share = ShamirArrayShare(numpy.zeros(shape, dtype=self._encoder.dtype))
         for i in self.communicator.ranks:
-            share = self.add(self.share(src=i, secret=rand_ints, shape=rand_ints.shape), share)
+            share = self.add(self._share(src=i, secret=rand_ints, shape=rand_ints.shape), share)
         return share
 
 
@@ -706,7 +827,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         self._assert_unary_compatible(operand, "operand")
         ltz = self.less_than_zero(operand)
         nltz = self.logical_not(ltz)
-        addinvop = ShamirArrayShare(self.encoder.negative(operand.storage))
+        addinvop = ShamirArrayShare(self._encoder.negative(operand.storage))
         ltz_parts = self.untruncated_multiply(ltz, addinvop)
         nltz_parts = self.untruncated_multiply(nltz, operand)
         return self.add(ltz_parts, nltz_parts)
@@ -733,16 +854,16 @@ class ShamirProtocol(ShamirBasicProtocol):
         if not isinstance(operand, ShamirArrayShare):
             raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
         if num_bits is None:
-            num_bits = self.encoder.fieldbits
+            num_bits = self._encoder.fieldbits
         list_o_bits = []
-        two_inv = numpy.array(pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        two_inv = numpy.array(pow(2, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
         for element in operand.storage.flat: # Iterates in "C" order.
-            loopop = ShamirArrayShare(numpy.array(element, dtype=self.encoder.dtype))
+            loopop = ShamirArrayShare(numpy.array(element, dtype=self._encoder.dtype))
             elebits = []
             for i in range(num_bits):
                 elebits.append(self._lsb(loopop))
                 loopop = self.subtract(loopop, elebits[-1])
-                loopop = ShamirArrayShare(self.encoder.untruncated_multiply(loopop.storage, two_inv))
+                loopop = ShamirArrayShare(self._encoder.untruncated_multiply(loopop.storage, two_inv))
             list_o_bits.append(elebits[::-1])
         return ShamirArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
 
@@ -768,7 +889,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         diff = self.subtract(lhs, rhs)
-        return self.logical_not(self.private_public_power_field(diff, self.encoder.modulus-1))
+        return self.logical_not(self.private_public_power_field(diff, self._encoder.modulus-1))
 
 
     def floor(self, operand):
@@ -788,19 +909,19 @@ class ShamirProtocol(ShamirBasicProtocol):
         """
         if not isinstance(operand, ShamirArrayShare):
             raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
-        one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype), shape=operand.storage.shape)
-        shift_op = numpy.full(operand.storage.shape, 2**self.encoder.precision, dtype=self.encoder.dtype)
-        pl2 = numpy.full(operand.storage.shape, self.encoder.modulus-1, dtype=self.encoder.dtype)
+        one = self._share(src=0, secret=numpy.full(operand.storage.shape, 2**self._encoder.precision, dtype=self._encoder.dtype), shape=operand.storage.shape)
+        shift_op = numpy.full(operand.storage.shape, 2**self._encoder.precision, dtype=self._encoder.dtype)
+        pl2 = numpy.full(operand.storage.shape, self._encoder.modulus-1, dtype=self._encoder.dtype)
 
         abs_op = self.absolute(operand)
-        frac_bits = self.encoder.precision
-        field_bits = self.encoder.fieldbits
-        lsbs = self.bit_decompose(abs_op, self.encoder.precision)
+        frac_bits = self._encoder.precision
+        field_bits = self._encoder.fieldbits
+        lsbs = self.bit_decompose(abs_op, self._encoder.precision)
         lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.additive_inverse(lsbs_composed)
-        two_lsbs = ShamirArrayShare(self.encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.encoder.dtype)))
+        two_lsbs = ShamirArrayShare(self._encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self._encoder.dtype)))
         ltz = self.less_than_zero(operand)  
-        ones2sub = ShamirArrayShare(self.encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
+        ones2sub = ShamirArrayShare(self._encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
         sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
 
@@ -830,12 +951,12 @@ class ShamirProtocol(ShamirBasicProtocol):
             Secret-shared result of computing `lhs` < `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        one = numpy.full(lhs.storage.shape, 1, dtype=self.encoder.dtype)
-        two = numpy.full(lhs.storage.shape, 2, dtype=self.encoder.dtype)
-        twolhs = ShamirArrayShare(self.encoder.untruncated_multiply(two, lhs.storage))
-        tworhs = ShamirArrayShare(self.encoder.untruncated_multiply(two, rhs.storage))
+        one = numpy.full(lhs.storage.shape, 1, dtype=self._encoder.dtype)
+        two = numpy.full(lhs.storage.shape, 2, dtype=self._encoder.dtype)
+        twolhs = ShamirArrayShare(self._encoder.untruncated_multiply(two, lhs.storage))
+        tworhs = ShamirArrayShare(self._encoder.untruncated_multiply(two, rhs.storage))
         diff = self.subtract(lhs, rhs)
-        twodiff = ShamirArrayShare(self.encoder.untruncated_multiply(two, diff.storage))
+        twodiff = ShamirArrayShare(self._encoder.untruncated_multiply(two, diff.storage))
         w = self.public_private_subtract(one, self._lsb(operand=twolhs))
         x = self.public_private_subtract(one, self._lsb(operand=tworhs))
         y = self.public_private_subtract(one, self._lsb(operand=twodiff))
@@ -870,8 +991,8 @@ class ShamirProtocol(ShamirBasicProtocol):
             Secret-shared result of computing `operand` < `0` elementwise.
         """
         self._assert_unary_compatible(operand, "operand")
-        two = numpy.array(2, dtype=self.encoder.dtype)
-        twoop = ShamirArrayShare(self.encoder.untruncated_multiply(two, operand.storage))
+        two = numpy.array(2, dtype=self._encoder.dtype)
+        twoop = ShamirArrayShare(self._encoder.untruncated_multiply(two, operand.storage))
         return self._lsb(operand=twoop)
 
 
@@ -931,7 +1052,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        ones = numpy.full(operand.storage.shape, 1, dtype=self.encoder.dtype)
+        ones = numpy.full(operand.storage.shape, 1, dtype=self._encoder.dtype)
         return self.public_private_subtract(lhs=ones, rhs=operand)
 
 
@@ -962,9 +1083,9 @@ class ShamirProtocol(ShamirBasicProtocol):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
-        total = self.encoder.add(lhs.storage, rhs.storage)
+        total = self._encoder.add(lhs.storage, rhs.storage)
         product = self.untruncated_multiply(lhs, rhs)
-        return ShamirArrayShare(self.encoder.subtract(total, product.storage))
+        return ShamirArrayShare(self._encoder.subtract(total, product.storage))
 
 
     def logical_xor(self, lhs, rhs):
@@ -994,10 +1115,10 @@ class ShamirProtocol(ShamirBasicProtocol):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
-        total = self.encoder.add(lhs.storage, rhs.storage)
+        total = self._encoder.add(lhs.storage, rhs.storage)
         product = self.untruncated_multiply(lhs, rhs)
-        twice_product = self.encoder.untruncated_multiply(numpy.array(2, dtype=self.encoder.dtype), product.storage)
-        return ShamirArrayShare(self.encoder.subtract(total, twice_product))
+        twice_product = self._encoder.untruncated_multiply(numpy.array(2, dtype=self._encoder.dtype), product.storage)
+        return ShamirArrayShare(self._encoder.subtract(total, twice_product))
 
 
     def _lsb(self, operand):
@@ -1022,23 +1143,23 @@ class ShamirProtocol(ShamirBasicProtocol):
             Additive shared array containing the elementwise least significant
             bits of `operand`.
         """
-        one = numpy.array(1, dtype=self.encoder.dtype)
+        one = numpy.array(1, dtype=self._encoder.dtype)
         lop = ShamirArrayShare(storage = operand.storage.flatten())
-        tmpBW, tmp = self.random_bitwise_secret(bits=self.encoder._fieldbits, shape=lop.storage.shape)
+        tmpBW, tmp = self.random_bitwise_secret(bits=self._encoder._fieldbits, shape=lop.storage.shape)
         maskedlop = self.add(lhs=lop, rhs=tmp)
-        c = self.reveal(maskedlop)
+        c = self._reveal(maskedlop)
         # gotta sort the next function call first
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
-        c0xr0 = numpy.empty(c.shape, dtype = self.encoder.dtype) 
+        c0xr0 = numpy.empty(c.shape, dtype = self._encoder.dtype) 
         for i, lc in enumerate(c):
             if lc:
-                c0xr0[i] = self.public_private_subtract(lhs=one, rhs=ShamirArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self.encoder.dtype))).storage
+                c0xr0[i] = self.public_private_subtract(lhs=one, rhs=ShamirArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self._encoder.dtype))).storage
             else:
                 c0xr0[i] = tmpBW.storage[i][-1]
         c0xr0 = ShamirArrayShare(storage = c0xr0)
         result = self.untruncated_multiply(lhs=comp_result, rhs=c0xr0)
-        result = ShamirArrayShare(storage=self.encoder.untruncated_multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
+        result = ShamirArrayShare(storage=self._encoder.untruncated_multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
         result = self.subtract(lhs=c0xr0, rhs=result)
         result = self.add(lhs=comp_result, rhs=result)
         return ShamirArrayShare(storage = result.storage.reshape(operand.storage.shape))
@@ -1071,8 +1192,8 @@ class ShamirProtocol(ShamirBasicProtocol):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         max_share = self.add(self.add(lhs, rhs), self.absolute(self.subtract(lhs, rhs)))
-        shift_right = numpy.full(lhs.storage.shape, pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        max_share.storage = self.encoder.untruncated_multiply(max_share.storage, shift_right)
+        shift_right = numpy.full(lhs.storage.shape, pow(2, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
+        max_share.storage = self._encoder.untruncated_multiply(max_share.storage, shift_right)
         return max_share
 
 
@@ -1106,8 +1227,8 @@ class ShamirProtocol(ShamirBasicProtocol):
         diff = self.subtract(lhs, rhs)
         abs_diff = self.absolute(diff)
         min_share = self.subtract(self.add(lhs, rhs), abs_diff)
-        shift_right = numpy.full(lhs.storage.shape, pow(2, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        min_share.storage = self.encoder.untruncated_multiply(min_share.storage, shift_right)
+        shift_right = numpy.full(lhs.storage.shape, pow(2, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
+        min_share.storage = self._encoder.untruncated_multiply(min_share.storage, shift_right)
 
         return min_share
 
@@ -1143,10 +1264,10 @@ class ShamirProtocol(ShamirBasicProtocol):
 
         mask = self.uniform(shape=operand.storage.shape)
         masked_op = self.untruncated_multiply(mask, operand)
-        revealed_masked_op = self.reveal(masked_op)
-        nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self.encoder.dtype])
-        inv = numpy.array(nppowmod(revealed_masked_op, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
-        op_inv_share = self.encoder.untruncated_multiply(inv, mask.storage)
+        revealed_masked_op = self._reveal(masked_op)
+        nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self._encoder.dtype])
+        inv = numpy.array(nppowmod(revealed_masked_op, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
+        op_inv_share = self._encoder.untruncated_multiply(inv, mask.storage)
         return ShamirArrayShare(op_inv_share)
 
 
@@ -1169,12 +1290,12 @@ class ShamirProtocol(ShamirBasicProtocol):
             raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         if isinstance(rhspub, int):
-            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
+            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self._encoder.dtype)
         ans=[]
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
             rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
             tmp = ShamirArrayShare(lhse)
-            it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, self.encoder.encode(numpy.array(1)), dtype=self.encoder.dtype),shape=lhse.shape)
+            it_ans = self._share(src = 0, secret=numpy.full(lhse.shape, self._encoder.encode(numpy.array(1)), dtype=self._encoder.dtype),shape=lhse.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
                 if bit:
@@ -1184,7 +1305,7 @@ class ShamirProtocol(ShamirBasicProtocol):
                     tmp = self.untruncated_multiply(tmp,tmp)
                     tmp = self.truncate(tmp)
             ans.append(it_ans)
-        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
+        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self._encoder.dtype).reshape(lhs.storage.shape)) 
 
 
     def private_public_power_field(self, lhs, rhspub):
@@ -1205,12 +1326,12 @@ class ShamirProtocol(ShamirBasicProtocol):
         if not isinstance(lhs, ShamirArrayShare):
             raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
         if isinstance(rhspub, int):
-            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.encoder.dtype)
+            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self._encoder.dtype)
         ans = []
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
             rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
             tmp = ShamirArrayShare(lhse)
-            it_ans = self.share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self.encoder.dtype),shape=lhse.shape)
+            it_ans = self._share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self._encoder.dtype),shape=lhse.shape)
             limit = len(rhsbits)-1
             for i, bit in enumerate(rhsbits):
                 if bit:
@@ -1218,7 +1339,7 @@ class ShamirProtocol(ShamirBasicProtocol):
                 if i < limit:
                     tmp = self.untruncated_multiply(tmp,tmp)
             ans.append(it_ans)
-        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.encoder.dtype).reshape(lhs.storage.shape)) 
+        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self._encoder.dtype).reshape(lhs.storage.shape)) 
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
         """Comparison Operator
@@ -1251,9 +1372,9 @@ class ShamirProtocol(ShamirBasicProtocol):
             if len(tmplist) < bitwidth:
                 tmplist = [0 for x in range(bitwidth-len(tmplist))] + tmplist
             lhsbits.append(tmplist)
-        lhsbits = numpy.array(lhsbits, dtype=self.encoder.dtype)
+        lhsbits = numpy.array(lhsbits, dtype=self._encoder.dtype)
         assert(lhsbits.shape == rhs.storage.shape)
-        one = numpy.array(1, dtype=self.encoder.dtype)
+        one = numpy.array(1, dtype=self._encoder.dtype)
         flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
         flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
         results=[]
@@ -1263,7 +1384,7 @@ class ShamirProtocol(ShamirBasicProtocol):
             msbdiff=[]
             rhs_bit_at_msb_diff = []
             for i in range(bitwidth):
-                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
+                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._encoder.dtype))
                 if flatlhsbits[j][i] == 1:
                     xord.append(self.public_private_subtract(lhs=one, rhs=rhsbit))
                 else:
@@ -1275,13 +1396,13 @@ class ShamirProtocol(ShamirBasicProtocol):
             for i in range(1,bitwidth):
                 msbdiff.append(self.subtract(lhs=preord[i], rhs=preord[i-1]))
             for i in range(bitwidth):
-                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.encoder.dtype))
+                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._encoder.dtype))
                 rhs_bit_at_msb_diff.append(self.untruncated_multiply(rhsbit, msbdiff[i]))
             result = rhs_bit_at_msb_diff[0]
             for i in range(1,bitwidth):
                 result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
-        return ShamirArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.encoder.dtype).reshape(rhs.storage.shape[:-1]))
+        return ShamirArrayShare(storage = numpy.array([x.storage for x in results], dtype=self._encoder.dtype).reshape(rhs.storage.shape[:-1]))
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
         """Return a vector of randomly generated bits.
@@ -1340,14 +1461,14 @@ class ShamirProtocol(ShamirBasicProtocol):
         for loopop in numzeros.flat:
             # Each participating player generates a vector of random bits.
             if self.communicator.rank in src:
-                local_bits = generator.choice(2, size=bits).astype(self.encoder.dtype)
+                local_bits = generator.choice(2, size=bits).astype(self._encoder.dtype)
             else:
                 local_bits = None
 
             # Each participating player secret shares their bit vectors.
             player_bit_shares = []
             for rank in src:
-                player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,)))
+                player_bit_shares.append(self._share(src=rank, secret=local_bits, shape=(bits,)))
 
             # Generate the final bit vector by xor-ing everything together elementwise.
             bit_share = player_bit_shares[0]
@@ -1355,17 +1476,17 @@ class ShamirProtocol(ShamirBasicProtocol):
                 bit_share = self.logical_xor(bit_share, player_bit_share)
 
             # Shift and combine the resulting bits in big-endian order to produce a random value.
-            shift = numpy.power(2, numpy.arange(bits, dtype=self.encoder.dtype)[::-1])
-            shifted = self.encoder.untruncated_multiply(shift, bit_share.storage)
-            secret_share = ShamirArrayShare(numpy.array(numpy.sum(shifted), dtype=self.encoder.dtype))
+            shift = numpy.power(2, numpy.arange(bits, dtype=self._encoder.dtype)[::-1])
+            shifted = self._encoder.untruncated_multiply(shift, bit_share.storage)
+            secret_share = ShamirArrayShare(numpy.array(numpy.sum(shifted), dtype=self._encoder.dtype))
             bit_res.append(bit_share)
             share_res.append(secret_share)
         if shape_was_none:
-            bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(bits))
-            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
+            bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._encoder.dtype).reshape(bits))
+            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self._encoder.dtype).reshape(shape))#, order="C"))
         else:
-            bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.encoder.dtype).reshape(shape+(bits,)))#, order="C"))
-            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self.encoder.dtype).reshape(shape))#, order="C"))
+            bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._encoder.dtype).reshape(shape+(bits,)))#, order="C"))
+            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self._encoder.dtype).reshape(shape))#, order="C"))
 
         return bit_share, secret_share
 
@@ -1425,13 +1546,13 @@ class ShamirProtocol(ShamirBasicProtocol):
             raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         if bits is None:
-            bits = self.encoder.precision
+            bits = self._encoder.precision
 
-        fieldbits = self.encoder.fieldbits
+        fieldbits = self._encoder.fieldbits
 
-        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self.encoder.dtype)
+        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self._encoder.dtype)
         # Multiplicative inverse of shift_left.
-        shift_right = numpy.full(operand.storage.shape, pow(2 ** bits, self.encoder.modulus-2, self.encoder.modulus), dtype=self.encoder.dtype)
+        shift_right = numpy.full(operand.storage.shape, pow(2 ** bits, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
 
         if trunc_mask:
             truncation_mask = trunc_mask
@@ -1443,7 +1564,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         else:
             # Generate random bits that will mask everything outside the region to be truncated.
             _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
-        remaining_mask.storage = self.encoder.untruncated_multiply(remaining_mask.storage, shift_left)
+        remaining_mask.storage = self._encoder.untruncated_multiply(remaining_mask.storage, shift_left)
 
         # Combine the two masks.
         mask = self.add(remaining_mask, truncation_mask)
@@ -1452,10 +1573,10 @@ class ShamirProtocol(ShamirBasicProtocol):
         masked_element = self.add(mask, operand)
 
         # Reveal the element to all players (because it's masked, no player learns the underlying secret).
-        masked_element = self.reveal(masked_element)
+        masked_element = self._reveal(masked_element)
 
         # Retain just the bits within the region to be truncated, which need to be removed.
-        masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self.encoder.dtype)
+        masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self._encoder.dtype)
 
         # Remove the mask, leaving just the bits to be removed from the
         # truncation region.  Because the result of the subtraction is
@@ -1466,7 +1587,7 @@ class ShamirProtocol(ShamirBasicProtocol):
         result = self.subtract(operand, truncation_bits)
 
         # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
-        result = self.encoder.untruncated_multiply(result.storage, shift_right)
+        result = self._encoder.untruncated_multiply(result.storage, shift_right)
 
         return ShamirArrayShare(result)
 
@@ -1502,14 +1623,14 @@ class ShamirProtocol(ShamirBasicProtocol):
         count = ceil((world_size - 1) / 2)
         x = lhs.storage
         y = rhs.storage
-        xy=numpy.array((x*y)%self.encoder.modulus, dtype=self.encoder.dtype)
+        xy=numpy.array((x*y)%self._encoder.modulus, dtype=self._encoder.dtype)
         lc = self._lagrange_coef()
-        dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.encoder.dtype) 
+        dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self._encoder.dtype) 
         for i, src in enumerate(self.communicator.ranks):
-            dubdeg[i]=self.share(src=src, secret=xy, shape=xy.shape).storage #transpose
-        sharray = numpy.zeros(lhs.storage.shape, dtype=self.encoder.dtype)
+            dubdeg[i]=self._share(src=src, secret=xy, shape=xy.shape).storage #transpose
+        sharray = numpy.zeros(lhs.storage.shape, dtype=self._encoder.dtype)
         for i in range(len(self.communicator.ranks)):
-            sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self.encoder.modulus, dtype=self.encoder.dtype)
+            sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self._encoder.modulus, dtype=self._encoder.dtype)
         return ShamirArrayShare(sharray)
 
 
@@ -1536,10 +1657,10 @@ class ShamirProtocol(ShamirBasicProtocol):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         if rmask is None:
-            _, rmask = self.random_bitwise_secret(bits=self.encoder.precision, shape=rhs.storage.shape)
+            _, rmask = self.random_bitwise_secret(bits=self._encoder.precision, shape=rhs.storage.shape)
         rhsmasked = self.untruncated_multiply(rmask, rhs)
         rhsmasked = self.truncate(rhsmasked)
-        revealrhsmasked = self.encoder.decode(self.reveal(rhsmasked))
+        revealrhsmasked = self._encoder.decode(self._reveal(rhsmasked))
         maskquotient = self.untruncated_private_public_divide(self.truncate(self.untruncated_multiply(lhs, rmask)), revealrhsmasked)
         return maskquotient 
 
@@ -1565,8 +1686,8 @@ class ShamirProtocol(ShamirBasicProtocol):
             The secret element-wise result of lhs / rhs.
         """
         self._assert_unary_compatible(lhs, "lhs")
-        divisor = self.encoder.encode(numpy.array(1 / rhs))
-        quotient = ShamirArrayShare(self.encoder.untruncated_multiply(lhs.storage, divisor))
+        divisor = self._encoder.encode(numpy.array(1 / rhs))
+        quotient = ShamirArrayShare(self._encoder.untruncated_multiply(lhs.storage, divisor))
         return quotient
 
     def zigmoid(self, operand):
@@ -1600,17 +1721,17 @@ class ShamirProtocol(ShamirBasicProtocol):
         value: :class:`ShamirArrayShare`
             Secret-shared elementwise zigmoid of `operand`.
         """
-        ones=self.encoder.encode(numpy.full(operand.storage.shape, 1))
-        half = self.encoder.encode(numpy.full(operand.storage.shape, .5))
+        ones=self._encoder.encode(numpy.full(operand.storage.shape, 1))
+        half = self._encoder.encode(numpy.full(operand.storage.shape, .5))
         
-        secret_plushalf = self.public_private_add(half, operand)
-        secret_minushalf = self.private_public_subtract(operand, half)
+        secret_plushalf = self._public_private_add(half, operand)
+        secret_minushalf = self._private_public_subtract(operand, half)
         ltzsmh = self.less_than_zero(secret_minushalf)
         nltzsmh = self.logical_not(ltzsmh)
         ltzsph = self.less_than_zero(secret_plushalf)
         middlins = self.subtract(ltzsmh, ltzsph)
         extracted_middlins = self.untruncated_multiply(middlins, operand)
-        extracted_halfs = ShamirArrayShare(self.encoder.untruncated_multiply(middlins.storage, half))
+        extracted_halfs = ShamirArrayShare(self._encoder.untruncated_multiply(middlins.storage, half))
         extracted_middlins = self.add(extracted_middlins, extracted_halfs)
-        ones_part = ShamirArrayShare(self.encoder.untruncated_multiply(nltzsmh.storage, ones))
+        ones_part = ShamirArrayShare(self._encoder.untruncated_multiply(nltzsmh.storage, ones))
         return self.add(ones_part, extracted_middlins)
