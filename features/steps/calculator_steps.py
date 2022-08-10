@@ -63,17 +63,10 @@ def step_impl(context, name):
     _require_success(context.calculator.command("protopush", name=name))
 
 
-@given(u'unencoded public value {value}')
-def step_impl(context, value):
-    value = numpy.array(eval(value))
-    _require_success(context.calculator.command("oppush", value=value))
-
-
 @given(u'public value {value}')
 def step_impl(context, value):
     value = numpy.array(eval(value))
     _require_success(context.calculator.command("oppush", value=value))
-    _require_success(context.calculator.command("encode"))
 
 
 @given(u'player {player} secret shares the bits {secret}')
@@ -112,11 +105,6 @@ def step_impl(context, player, value):
     _require_success(context.calculator.command("oppush", value=value, player=player))
     _require_success(context.calculator.command("encode", player=player))
     _require_success(context.calculator.command("inplace_subtract", player=player))
-
-
-@when(u'the players add the public value and the share')
-def step_impl(context):
-    _require_success(context.calculator.command("public_private_add"))
 
 
 @when(u'the players add the shares')
@@ -219,7 +207,7 @@ def step_impl(context):
     _require_success(context.calculator.command("untruncated_multiply"))
 
 
-@when(u'the players raise the share to a public power')
+@when(u'the players raise the share to the public power')
 def step_impl(context):
     _require_success(context.calculator.command("private_public_power"))
 
@@ -242,11 +230,6 @@ def step_impl(context):
 @when(u'the players swap')
 def step_impl(context):
     _require_success(context.calculator.command("opswap"))
-
-
-@when(u'the players subtract the public value from the share')
-def step_impl(context):
-    _require_success(context.calculator.command("private_public_subtract"))
 
 
 @then(u'{count} {name} protocol objects can be created without error')

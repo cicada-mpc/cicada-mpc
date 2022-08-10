@@ -334,8 +334,8 @@ Feature: Additive Protocol
         Given a calculator service with <players> players
         And a new Additive protocol object
         And player 0 secret shares <a>
-        And unencoded public value <b>
-        When the players raise the share to a public power
+        And public value <b>
+        When the players raise the share to the public power
         And the players reveal the secret
         Then the result should match <result>
 
@@ -351,24 +351,6 @@ Feature: Additive Protocol
         Examples:
         | players | a                      | b  | result                                |
         | 3       | [-1, 2, 3.75, -2.0625] | 3  | [-1, 8, 52.734375, -8.773681640625]   |
-
-
-    @calculator
-    Scenario Outline: Private Public Subtract
-        Given a calculator service with <players> players
-        And a new Additive protocol object
-        And player 0 secret shares <a>
-        And public value <b>
-        When the players subtract the public value from the share
-        And the players reveal the secret
-        Then the result should match <result> to within 4 digits
-
-        Examples:
-        | players | a       | b          | result       |
-        | 3       | 5       | 1          | 4            |
-        | 3       | 5       | 1.1        | 3.9          |
-        | 3       | 5       | 1.5        | 3.5          |
-        | 3       | [5, 3]  | [1.1, 3.2] | [3.9, -0.2]  |
 
 
     @calculator
@@ -425,37 +407,6 @@ Feature: Additive Protocol
         | 3       | -.0625                   | .4375                   |
         | 3       | -.5                      | 0                       |
         | 3       | [[0, 3.4],[-1234, 1234]] | [[0.5, 1],[0, 1]]       |
-
-
-    @calculator
-    Scenario Outline: Public Private Add
-        Given a calculator service with <players> players
-        And a new Additive protocol object
-        And public value <a>
-        And player 1 secret shares <b>
-        When the players add the public value and the share
-        And the players reveal the secret
-        Then the result should match <result>
-
-        Examples:
-        | players | a          | b          | result      |
-        | 3       | -2         | -3.5       | -5.5        |
-        | 3       | -20        | -30        | -50         |
-        | 3       | -200       | -300       | -500        |
-        | 2       | -2000      | -3000      | -5000       |
-        | 3       | -20000     | -30000     | -50000      |
-        | 3       | -200000    | -300000    | -500000     |
-        | 3       | -2000000   | -3000000   | -5000000    |
-        | 3       | -20000000  | -30000000  | -50000000   |
-        | 3       | -200000000 | -300000000 | -500000000  |
-        | 3       | -21        | -35        | -56         |
-        | 3       | -212       | -351       | -563        |
-        | 3       | -2123      | -3512      | -5635       |
-        | 3       | -21234     | -35123     | -56357      |
-        | 3       | -212345    | -351234    | -563579     |
-        | 3       | -2123456   | -3512345   | -5635801    |
-        | 3       | -21234567  | -35123458  | -56358025   |
-        | 3       | -212345678 | -351234589 | -563580267  |
 
 
     @calculator

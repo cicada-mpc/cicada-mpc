@@ -814,7 +814,7 @@ class AdditiveProtocol(object):
             ans.append(it_ans)
         return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._encoder.dtype).reshape(lhs.storage.shape))
 
-    def private_public_subtract(self, lhs, rhs):
+    def _private_public_subtract(self, lhs, rhs):
         """Return the elementwise difference between public and secret shared arrays.
 
         All players *must* supply the same value of `lhs` when calling this
@@ -911,7 +911,8 @@ class AdditiveProtocol(object):
             results.append(result)
         return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self._encoder.dtype).reshape(rhs.storage.shape[:-1]))
 
-    def public_private_add(self, lhs, rhs):
+
+    def _public_private_add(self, lhs, rhs):
         """Return the elementwise sum of public and secret shared arrays.
 
         All players *must* supply the same value of `lhs` when calling this
@@ -1668,8 +1669,8 @@ class AdditiveProtocol(object):
         ones=self._encoder.encode(numpy.full(operand.storage.shape, 1))
         half = self._encoder.encode(numpy.full(operand.storage.shape, .5))
 
-        secret_plushalf = self.public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self._encoder.add(operand.storage,half))
-        secret_minushalf = self.private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self._encoder.subtract(operand.storage, half))
+        secret_plushalf = self._public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self._encoder.add(operand.storage,half))
+        secret_minushalf = self._private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self._encoder.subtract(operand.storage, half))
         ltzsmh = self.less_than_zero(secret_minushalf)
         nltzsmh = self.logical_not(ltzsmh)
         ltzsph = self.less_than_zero(secret_plushalf)
