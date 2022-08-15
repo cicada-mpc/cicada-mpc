@@ -973,7 +973,12 @@ k
 
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.reshare(operand=operand[0]), self.sprotocol.reshare(operand=operand[1])))
+        reshared = ActiveArrayShare((self.aprotocol.reshare(operand=operand[0]), self.sprotocol.reshare(operand=operand[1])))
+        if self.verify(reshared):
+            return reshared
+        else:
+            raise ConsistencyError("Secret Shares being reshared are inconsistent")
+        
 
     def _reveal(self, share, dst=None):
         """Reveals a secret shared value to a subset of players.
