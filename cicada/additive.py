@@ -28,6 +28,9 @@ import cicada.encoder
 class AdditiveArrayShare(object):
     """Stores the local share of an additive-shared secret array.
 
+    Instances of :class:`AdditiveArrayShare` should only be created
+    by :class:`AdditiveProtocolSuite`.
+
     Parameters
     ----------
     storage: :class:`numpy.ndarray`, required
@@ -52,12 +55,11 @@ class AdditiveArrayShare(object):
 
         Returns
         -------
-        storage: :class:`numpy.ndarray`
-            The local additive share of the secret array.  The share is encoded
-            using an instance of
-            :class:`cicada.encoder.fixedfield.FixedFieldEncoder` which is owned
-            by an instance of :class:`AdditiveProtocol`, and **must** be used
-            for any modifications to the share value.
+        storage: :class:`object`
+            Private storage for the local share of an additively-shared secret
+            array.  Access is provided only for serialization and communication
+            - callers should use :class:`AdditiveProtocolSuite` to manipulate
+            secret shares.
         """
         return self._storage
 
@@ -69,7 +71,7 @@ class AdditiveArrayShare(object):
         self._storage = storage
 
 
-class AdditiveProtocol(object):
+class AdditiveProtocolSuite(object):
     """Protocol suite implementing computation with additive-shared secrets.
 
     Multiplication is implemented using a generalization of "Protocols for
@@ -370,8 +372,8 @@ class AdditiveProtocol(object):
 
     @property
     def encoder(self):
-        """Deprecated, use :class:`AdditiveProtocol` methods instead."""
-        warnings.warn("AdditiveProtocol.encoder attribute is deprecated, use protocol methods instead.", cicada.DeprecationWarning, stacklevel=2)
+        """Deprecated, use :class:`AdditiveProtocolSuite` methods instead."""
+        warnings.warn("AdditiveProtocolSuite.encoder attribute is deprecated, use protocol methods instead.", cicada.DeprecationWarning, stacklevel=2)
         return self._encoder
 
 

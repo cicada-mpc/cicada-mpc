@@ -58,7 +58,7 @@ def step_impl(context, world_size):
     context.calculator_processes = processes
 
 
-@given(u'a new {name} protocol object')
+@given(u'a new {name} protocol suite')
 def step_impl(context, name):
     _require_success(context.calculator.command("protopush", name=name))
 

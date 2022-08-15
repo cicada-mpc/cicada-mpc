@@ -19,7 +19,7 @@ import argparse
 import numpy
 
 from cicada.communicator import SocketCommunicator
-from cicada.additive import AdditiveProtocol
+from cicada.additive import AdditiveProtcolSuite
 from cicada.shamir import ShamirProtocol
 from cicada.active import ActiveProtocol
 
@@ -33,7 +33,7 @@ arguments = parser.parse_args()
 
 def main(communicator):
     if arguments.protocol == 'additive':
-        protocol = AdditiveProtocol(communicator)
+        protocol = AdditiveProtcolSuite(communicator)
     elif arguments.protocol == 'shamir':
         t = ((arguments.world_size-1)//2)+1
         protocol = ShamirProtocol(communicator, threshold=t)

@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO)
 
 with cicada.communicator.SocketCommunicator.connect(startup_timeout=300) as communicator:
     log = cicada.Logger(logging.getLogger(), communicator)
-    protocol = cicada.additive.AdditiveProtocol(communicator)
+    protocol = cicada.additive.AdditiveProtocolSuite(communicator)
 
     secret = cicada.interactive.secret_input(communicator=communicator, src=0)
     log.info(f"Player {communicator.rank} secret: {secret}")

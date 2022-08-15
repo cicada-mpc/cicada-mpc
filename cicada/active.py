@@ -81,7 +81,7 @@ class ActiveProtocol(object):
     efficiency of SMC primitives against malicious adversaries" by Goss, which
     is secure with abort against a dishonest majority.
 
-    Both :class:`~cicada.additive.AdditiveProtocol` and
+    Both :class:`~cicada.additive.AdditiveProtocolSuite` and
     :class:`~cicada.shamir.ShamirProtocol` are used for the implementation.
 
     Note
@@ -132,7 +132,7 @@ class ActiveProtocol(object):
             raise ValueError(f"threshold must be <= {max_threshold}, or world_size must be >= {min_world_size}")
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
-        self.aprotocol = cicada.additive.AdditiveProtocol(communicator=communicator, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision)
+        self.aprotocol = cicada.additive.AdditiveProtocolSuite(communicator=communicator, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision)
         self.sprotocol = cicada.shamir.ShamirProtocol(communicator=communicator, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision, threshold=threshold)
 
 

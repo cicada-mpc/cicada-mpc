@@ -163,10 +163,10 @@ def main(listen_socket, communicator):
                 operand_stack[-1], operand_stack[-2] = operand_stack[-2], operand_stack[-1]
                 _send_result(client)
 
-            # Push a new AdditiveProtocol object onto the protocol stack.
+            # Push a new AdditiveProtocolSuite onto the protocol stack.
             elif command == "protopush" and kwargs["name"] == "Additive":
-                from cicada.additive import AdditiveProtocol
-                protocol_stack.append(AdditiveProtocol(communicator_stack[-1]))
+                from cicada.additive import AdditiveProtocolSuite
+                protocol_stack.append(AdditiveProtocolSuite(communicator_stack[-1]))
                 _send_result(client)
 
             # Push a new ShamirProtocol object onto the protocol stack.

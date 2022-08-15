@@ -33,7 +33,7 @@ def main(communicator):
     k = 14 # number of hash functions
     n = 100 # of elements in the filter
     log = cicada.Logger(logging.getLogger(), communicator)
-    protocol = cicada.additive.AdditiveProtocol(communicator)
+    protocol = cicada.additive.AdditiveProtocolSuite(communicator)
 
     keys = [x for x in range(k)]
     hashes = []

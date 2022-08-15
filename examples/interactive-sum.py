@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO)
 
 with cicada.communicator.SocketCommunicator.connect(startup_timeout=300) as communicator:
     log = cicada.Logger(logging.getLogger(), communicator)
-    protocol = cicada.additive.AdditiveProtocol(communicator)
+    protocol = cicada.additive.AdditiveProtocolSuite(communicator)
 
     total = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(0)), shape=())
     for i in range(communicator.world_size):
