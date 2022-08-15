@@ -852,6 +852,30 @@ class ShamirProtocol(ShamirBasicProtocol):
         return ShamirArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
 
 
+    def divide(self, lhs, rhs):
+        """Elementwise division of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared array.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared array.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret-shared elementwise division of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_divide(lhs, rhs)
+        result = self.truncate(result)
+        return result
+
+
     def dot(self, lhs, rhs):
         """Return the dot product of two secret shared vectors.
 

@@ -180,8 +180,7 @@ def step_impl(context):
 
 @when(u'the players divide the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("untruncated_divide"))
-    _require_success(context.calculator.command("truncate"))
+    _require_success(context.calculator.command("divide"))
 
 
 @given(u'the players extract the share storage')
