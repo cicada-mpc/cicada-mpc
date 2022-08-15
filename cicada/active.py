@@ -266,16 +266,13 @@ class ActiveProtocol(object):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         return ActiveArrayShare((self.aprotocol.bit_decompose(operand[0], num_bits), self.sprotocol.bit_decompose(operand[1], num_bits)))
 
-    def check_commit(self, operand):
+    def verify(self, operand):
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         a_share = operand[0]
         s_share = operand[1]
         zero = cicada.shamir.ShamirArrayShare(self.sprotocol._encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self._encoder.modulus-2, self._encoder.modulus) * a_share.storage) % self._encoder.modulus, dtype=object)))
-        if all(self.sprotocol._reveal(zero) == numpy.zeros(zero.storage.shape)):
-            return zero
-        else:
-            raise ConsistencyError("Secret Shares are inconsistent in the first stage")
+        return all(self.sprotocol._reveal(zero) == numpy.zeros(zero.storage.shape))
 
     @property
     def communicator(self):
