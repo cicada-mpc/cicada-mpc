@@ -75,8 +75,14 @@ class ConsistencyError(Exception):
     pass
 
 class ActiveProtocol(object):
-    """MPC protocol that uses a communicator to share and manipulate shared secrets
-        such that active adversaries actions are detected.
+    """Protocol suite implementing computation with shared secrets that is secure against an active adversary.
+
+    Implements "Combining Shamir & additive secret sharing to improve
+    efficiency of SMC primitives against malicious adversaries" by Goss, which
+    is secure with abort against a dishonest majority.
+
+    Both :class:`~cicada.additive.AdditiveProtocol` and
+    :class:`~cicada.shamir.ShamirProtocol` are used for the implementation.
 
     Note
     ----

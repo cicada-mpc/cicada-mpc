@@ -64,7 +64,16 @@ class ShamirArrayShare(object):
         self._storage = storage
 
 class ShamirBasicProtocol(object):
-    """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
+    """Protocol suite implementing computation with Shamir-shared secrets.
+
+    Multiplication is based on "Simplified VSS and fast-track multiparty
+    computations with applications to threshold cryptography" by Gennaro,
+    Rabin, and Rabin, which provides semi-honest security and does not require
+    Beaver triples or other offline computation.
+
+    Comparisons are based on "Multiparty computation for interval, equality,
+    and comparison without bit-decomposition protocol" by Nishide and Ohta, and
+    inherit the semi-honest security model from multiplication.
 
     Note
     ----

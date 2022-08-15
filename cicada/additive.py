@@ -70,7 +70,16 @@ class AdditiveArrayShare(object):
 
 
 class AdditiveProtocol(object):
-    """MPC protocol that uses a communicator to share and manipulate additive-shared secrets.
+    """Protocol suite implementing computation with additive-shared secrets.
+
+    Multiplication is implemented using a generalization of "Protocols for
+    secure remote database access with approximate matching" by Du and Atallah,
+    which provides semi-honest security and does not require Beaver triples or
+    other offline computation.
+
+    Comparisons are based on "Multiparty computation for interval, equality,
+    and comparison without bit-decomposition protocol" by Nishide and Ohta, and
+    inherit the semi-honest security model from multiplication.
 
     Note
     ----
