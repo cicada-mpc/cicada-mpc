@@ -70,7 +70,16 @@ class AdditiveArrayShare(object):
 
 
 class AdditiveProtocol(object):
-    """MPC protocol that uses a communicator to share and manipulate additive-shared secrets.
+    """Protocol suite implementing computation with additive-shared secrets.
+
+    Multiplication is implemented using a generalization of "Protocols for
+    secure remote database access with approximate matching" by Du and Atallah,
+    which provides semi-honest security and does not require Beaver triples or
+    other offline computation.
+
+    Comparisons are based on "Multiparty computation for interval, equality,
+    and comparison without bit-decomposition protocol" by Nishide and Ohta, and
+    inherit the semi-honest security model from multiplication.
 
     Note
     ----
@@ -308,6 +317,30 @@ class AdditiveProtocol(object):
     def communicator(self):
         """Return the :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
         return self._communicator
+
+
+    def divide(self, lhs, rhs):
+        """Elementwise division of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared elementwise division of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_divide(lhs, rhs)
+        result = self.truncate(result)
+        return result
 
 
     def dot(self, lhs, rhs):
@@ -742,6 +775,30 @@ class AdditiveProtocol(object):
         inv = numpy.array(nppowmod(revealed_masked_op, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
         op_inv_share = self._encoder.untruncated_multiply(inv, mask.storage)
         return AdditiveArrayShare(op_inv_share)
+
+
+    def multiply(self, lhs, rhs):
+        """Return the elementwise product of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared elementwise product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.truncate(result)
+        return result
 
 
     def private_public_power(self, lhs, rhspub):

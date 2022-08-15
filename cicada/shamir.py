@@ -64,7 +64,16 @@ class ShamirArrayShare(object):
         self._storage = storage
 
 class ShamirBasicProtocol(object):
-    """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
+    """Protocol suite implementing computation with Shamir-shared secrets.
+
+    Multiplication is based on "Simplified VSS and fast-track multiparty
+    computations with applications to threshold cryptography" by Gennaro,
+    Rabin, and Rabin, which provides semi-honest security and does not require
+    Beaver triples or other offline computation.
+
+    Comparisons are based on "Multiparty computation for interval, equality,
+    and comparison without bit-decomposition protocol" by Nishide and Ohta, and
+    inherit the semi-honest security model from multiplication.
 
     Note
     ----
@@ -244,31 +253,6 @@ class ShamirBasicProtocol(object):
         communicator: :class:`~cicada.communicator.interface.Communicator`
         """
         return self._communicator
-
-
-    def dot(self, lhs, rhs):
-        """Return the dot product of two secret shared vectors.
-
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`ShamirArrayShare`, required
-            Secret shared vector.
-        rhs: :class:`ShamirArrayShare`, required
-            Secret shared vector.
-
-        Returns
-        -------
-        result: :class:`ShamirArrayShare`
-            Secret-shared dot product of `lhs` and `rhs`.
-        """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        result = self.untruncated_multiply(lhs, rhs)
-        result = self.sum(result)
-        result = self.truncate(result)
-        return result
 
 
     @property
@@ -868,6 +852,55 @@ class ShamirProtocol(ShamirBasicProtocol):
         return ShamirArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
 
 
+    def divide(self, lhs, rhs):
+        """Elementwise division of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared array.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared array.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret-shared elementwise division of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_divide(lhs, rhs)
+        result = self.truncate(result)
+        return result
+
+
+    def dot(self, lhs, rhs):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.sum(result)
+        result = self.truncate(result)
+        return result
+
+
     def equal(self, lhs, rhs):
         """Return an elementwise probabilistic equality comparison between secret shared arrays.
 
@@ -1269,6 +1302,30 @@ class ShamirProtocol(ShamirBasicProtocol):
         inv = numpy.array(nppowmod(revealed_masked_op, self._encoder.modulus-2, self._encoder.modulus), dtype=self._encoder.dtype)
         op_inv_share = self._encoder.untruncated_multiply(inv, mask.storage)
         return ShamirArrayShare(op_inv_share)
+
+
+    def multiply(self, lhs, rhs):
+        """Return the elementwise product of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared array.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared array.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret-shared elementwise product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.truncate(result)
+        return result
 
 
     def private_public_power(self, lhs, rhspub):
