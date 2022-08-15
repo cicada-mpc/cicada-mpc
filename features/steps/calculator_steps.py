@@ -198,8 +198,7 @@ def step_impl(context, bits):
 
 @when(u'the players multiply the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("untruncated_multiply"))
-    _require_success(context.calculator.command("truncate"))
+    _require_success(context.calculator.command("multiply"))
 
 
 @when(u'the players multiply the shares without truncation')

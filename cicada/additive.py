@@ -753,6 +753,30 @@ class AdditiveProtocol(object):
         return AdditiveArrayShare(op_inv_share)
 
 
+    def multiply(self, lhs, rhs):
+        """Return the elementwise product of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared elementwise product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.truncate(result)
+        return result
+
+
     def private_public_power(self, lhs, rhspub):
         """Raise the array contained in lhs to the power rshpub on an elementwise basis
 

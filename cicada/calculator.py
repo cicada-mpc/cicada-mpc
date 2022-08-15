@@ -249,7 +249,7 @@ def main(listen_socket, communicator):
                 _send_result(client)
 
             # Binary operations.
-            elif command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "private_public_power", "untruncated_divide", "untruncated_multiply"]:
+            elif command in ["add", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "multiply", "private_public_power", "untruncated_divide", "untruncated_multiply"]:
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()

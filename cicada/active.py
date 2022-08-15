@@ -297,14 +297,14 @@ class ActiveProtocol(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ActiveArrayShare`, required
             Secret shared vector.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ActiveArrayShare`, required
             Secret shared vector.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        result: :class:`ActiveArrayShare`
             Secret-shared dot product of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -642,6 +642,30 @@ k
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         return ActiveArrayShare((self.aprotocol.multiplicative_inverse(operand[0]), self.sprotocol.multiplicative_inverse(operand[1])))
+
+
+    def multiply(self, lhs, rhs):
+        """Return the elementwise product of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared arrays.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared arrays.
+
+        Returns
+        -------
+        result: :class:`ActiveArrayShare`
+            Secret-shared elementwise product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.untruncated_multiply(lhs, rhs)
+        result = self.truncate(result)
+        return result
 
 
     def _private_public_mod(self, lhs, rhspub, *, enc=False):
@@ -1196,12 +1220,12 @@ k
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
+        operand: :class:`ActiveArrayShare`, required
             Secret shared array to be summed.
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
+        value: :class:`ActiveArrayShare`
             Secret-shared sum of `operand`'s elements.
         """
         self._assert_unary_compatible(operand, "operand")
