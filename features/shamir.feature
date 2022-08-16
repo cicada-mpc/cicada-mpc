@@ -283,7 +283,7 @@ Feature: Shamir Protocol
         And player 0 secret shares <a>
         When the players compute the multiplicative inverse
         And the players multiply the shares without truncation
-        And the players reveal the secret integers
+        And the players reveal the field values
         Then the result should match <result>
 
         Examples:
@@ -380,7 +380,7 @@ Feature: Shamir Protocol
         Given a calculator service with <players> players
         And a new Shamir protocol suite
         When the players generate <bits> random bits
-        And the players reveal the secret integers
+        And the players reveal the field values
         And the players swap
         And the players reveal the secret bits
         And the players swap

@@ -1125,11 +1125,11 @@ k
         value: :class:`numpy.ndarray` or :any:`None`
             The revealed secret, if this player is a member of `dst`, or :any:`None`.
         """
-        return self._reveal(share, dst=dst).astype(bool)
+        return self._reveal(share, dst=dst).astype(bool).astype(numpy.uint8)
 
 
-    def reveal_ints(self, share, dst=None):
-        """Reveals secret shared integers to a subset of players.
+    def reveal_field(self, share, dst=None):
+        """Reveals secret shared field values to a subset of players.
 
         Note
         ----

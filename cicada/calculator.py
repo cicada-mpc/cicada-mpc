@@ -206,11 +206,11 @@ def main(listen_socket, communicator):
                 operand_stack.append(secret)
                 _send_result(client)
 
-            # Reveal a secret value without decoding.
-            elif command == "reveal_ints":
+            # Reveal a secret field value without decoding.
+            elif command == "reveal_field":
                 protocol = protocol_stack[-1]
                 share = operand_stack.pop()
-                secret = protocol.reveal_ints(share)
+                secret = protocol.reveal_field(share)
                 operand_stack.append(secret)
                 _send_result(client)
 

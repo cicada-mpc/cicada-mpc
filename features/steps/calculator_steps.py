@@ -220,9 +220,9 @@ def step_impl(context):
     _require_success(context.calculator.command("reveal_bits"))
 
 
-@when(u'the players reveal the secret integers')
+@when(u'the players reveal the field values')
 def step_impl(context):
-    _require_success(context.calculator.command("reveal_ints"))
+    _require_success(context.calculator.command("reveal_field"))
 
 
 @when(u'the players swap')
