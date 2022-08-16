@@ -28,14 +28,12 @@ import cicada.shamir
 import random
 
 class ActiveArrayShare(object):
-    """Stores the local share of an shared secret array for the Active protocol suite. It's just a tuple
-    of an AdditiveArrayShare and a ShamirArrayShare.
+    """Stores the local share of a shared secret array for the Active protocol suite.
 
     Parameters
     ----------
-    storage: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`) required
-        Local share of a secret array, which *must* have been encoded
-        using :class:`cicada.encoder.fixedfield.FixedFieldEncoder`.
+    storage: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`), required
+        Local share of a secret array.
     """
     def __init__(self, storage):
         self.storage = storage
@@ -55,12 +53,11 @@ class ActiveArrayShare(object):
 
         Returns
         -------
-        storage: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)
-            The local share of the secret array compatible with the active protocol suite.  The share is encoded
-            using an instance of
-            :class:`cicada.encoder.fixedfield.FixedFieldEncoder` which is owned
-            by an instance of :class:`ActiveProtocol`, and **must** be used
-            for any modifications to the share value.
+        storage: :class:`object`
+            Private storage for the local share of a secret array created by
+            the active protocol suite.  Access is provided only for
+            serialization and communication - callers must use
+            :class:`ActiveProtocolSuite` to manipulate secret shares.
         """
         return self._storage
 
@@ -105,7 +102,7 @@ class ActiveProtocol(object):
         rank.
     modulus: :class:`int`, optional
         Field size for storing encoded values.  Defaults to the largest prime
-        less than 2^64 (2**64-59).
+        less than :math:`2^{64}`.
     precision: :class:`int`, optional
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
@@ -376,9 +373,7 @@ class ActiveProtocol(object):
 
 
     def floor(self, operand):
-        """Remove the `self.precision` least significant bits from each element in a secret shared array
-            then shift back left so that only the original integer part of 'operand' remains.
-k
+        """Return the largest integer less-than-or-equal-to `operand`.
 
         Parameters
         ----------
@@ -388,11 +383,12 @@ k
         Returns
         -------
         array: :class:`ActiveArrayShare`
-            Share of the shared integer part of operand.
+            Share of the floor value.
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         return ActiveArrayShare((self.aprotocol.floor(operand[0]), self.sprotocol.floor(operand[1])))
+
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.

@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Implements a client and a server for an MPC-as-a-service calculator."""
+
 import logging
 import pickle
 import socket
@@ -28,11 +30,32 @@ from cicada import Logger
 class Client(object):
     """Client for working with the privacy-preserving RPN calculator service.
 
+    Parameters
+    ----------
+    addresses: sequence of :class:`str`, required
+        Socket addresses of the players providing an RPN calculator service.
     """
     def __init__(self, addresses):
         self._addresses = addresses
 
     def command(self, command, *, player=None, **kwargs):
+        """Sends a command to the players providing an RPN calculator service.
+
+        Parameters
+        ----------
+        command: :class:`str`
+            The command to be executed by the RPN calculator service.
+        player: :class:`int` or sequence of :class:`int`, optional
+            The player(s) that will execute the command.  By default, the
+            command will be sent to all players.
+        kwargs:
+            Keyword arguments that will be included with the command.
+
+        Returns
+        -------
+        results: sequence of :class:`object`
+            Contains the result value returned by each `player`.
+        """
         if player is None:
             player = self.ranks
         if not isinstance(player, list):
@@ -66,10 +89,12 @@ class Client(object):
 
     @property
     def ranks(self):
+        """Returns a :class:`list` of player ranks provided by the service."""
         return list(range(len(self._addresses)))
 
 
 class PlayerError(Exception):
+    """Returned from the RPN calculator service when a player raises an exception."""
     def __init__(self, exception, traceback):
         self.exception = exception
         self.traceback = traceback

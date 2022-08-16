@@ -102,7 +102,7 @@ class AdditiveProtocolSuite(object):
         rank.
     modulus: :class:`int`, optional
         Field size for storing encoded values.  Defaults to the largest prime
-        less than 2^64 (2**64-59).
+        less than :math:`2^{64}`.
     precision: :class:`int`, optional
         The number of bits for storing fractions in encoded values.  Defaults
         to 16.
