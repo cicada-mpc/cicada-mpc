@@ -29,13 +29,12 @@ class AdditiveArrayShare(object):
     """Stores the local share of an additive-shared secret array.
 
     Instances of :class:`AdditiveArrayShare` should only be created
-    by :class:`AdditiveProtocolSuite`.
+    using instances of :class:`AdditiveProtocolSuite`.
 
     Parameters
     ----------
     storage: :class:`numpy.ndarray`, required
-        Local additive share of a secret array, which *must* have been encoded
-        using :class:`cicada.encoder.fixedfield.FixedFieldEncoder`.
+        Local additive share of a secret array.
     """
     def __init__(self, storage):
         self.storage = storage
@@ -58,7 +57,7 @@ class AdditiveArrayShare(object):
         storage: :class:`object`
             Private storage for the local share of an additively-shared secret
             array.  Access is provided only for serialization and communication
-            - callers should use :class:`AdditiveProtocolSuite` to manipulate
+            - callers must use :class:`AdditiveProtocolSuite` to manipulate
             secret shares.
         """
         return self._storage

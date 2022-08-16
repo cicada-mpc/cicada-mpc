@@ -171,8 +171,8 @@ def main(listen_socket, communicator):
 
             # Push a new ShamirProtocol object onto the protocol stack.
             elif command == "protopush" and kwargs["name"] == "Shamir":
-                from cicada.shamir import ShamirProtocol
-                protocol_stack.append(ShamirProtocol(communicator_stack[-1], threshold=2))
+                from cicada.shamir import ShamirProtocolSuite
+                protocol_stack.append(ShamirProtocolSuite(communicator_stack[-1], threshold=2))
                 _send_result(client)
 
             # Push a new ActiveProtocol object onto the protocol stack.

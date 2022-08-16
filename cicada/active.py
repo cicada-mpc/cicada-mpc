@@ -82,7 +82,7 @@ class ActiveProtocol(object):
     is secure with abort against a dishonest majority.
 
     Both :class:`~cicada.additive.AdditiveProtocolSuite` and
-    :class:`~cicada.shamir.ShamirProtocol` are used for the implementation.
+    :class:`~cicada.shamir.ShamirProtocolSuite` are used for the implementation.
 
     Note
     ----
@@ -133,7 +133,7 @@ class ActiveProtocol(object):
         self._communicator = communicator
         self._encoder = cicada.encoder.FixedFieldEncoder(modulus=modulus, precision=precision)
         self.aprotocol = cicada.additive.AdditiveProtocolSuite(communicator=communicator, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision)
-        self.sprotocol = cicada.shamir.ShamirProtocol(communicator=communicator, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision, threshold=threshold)
+        self.sprotocol = cicada.shamir.ShamirProtocolSuite(communicator=communicator, seed=seed, seed_offset=seed_offset, modulus=modulus, precision=precision, threshold=threshold)
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):

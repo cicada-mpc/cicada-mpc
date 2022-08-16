@@ -26,13 +26,15 @@ from cicada.communicator.interface import Communicator
 import cicada.encoder
 
 class ShamirArrayShare(object):
-    """Stores the local share of an shamir-shared secret array.
+    """Stores the local share of a Shamir-shared secret array.
+
+    Instances of :class:`ShamirArrayShare` should only be created using
+    methods from :class:`ShamirBasicProtocolSuite` or :class:`ShamirProtocolSuite`.
 
     Parameters
     ----------
     storage: :class:`numpy.ndarray`, required
-        Local shamir share of a secret array, which *must* have been encoded
-        using :class:`cicada.encoder.fixedfield.FixedFieldEncoder`.
+        Local Shamir share of a secret array.
     """
     def __init__(self, storage):
         self.storage = storage
@@ -43,16 +45,15 @@ class ShamirArrayShare(object):
 
     @property
     def storage(self):
-        """Local share of an shamir-shared secret array.
+        """Local share of a Shamir-shared secret array.
 
         Returns
         -------
         storage: :class:`numpy.ndarray`
-            The local shamir share of the secret array.  The share is encoded
-            using an instance of
-            :class:`cicada.encoder.fixedfield.FixedFieldEncoder` which is owned
-            by an instance of :class:`ShamirProtocol`, and **must** be used
-            for any modifications to the share value.
+            Private storage for the local share of a Shamir-shared secret
+            array.  Access is provided only for serialization and communication
+            - callers must use :class:`ShamirBasicProtocolSuite` or
+            :class:`ShamirProtocolSuite` to manipulate secret shares.
         """
         return self._storage
 
@@ -63,7 +64,7 @@ class ShamirArrayShare(object):
             raise ValueError(f"Expected storage to be an instance of numpy.ndarray, got {type(storage)} instead.") # pragma: no cover
         self._storage = storage
 
-class ShamirBasicProtocol(object):
+class ShamirBasicProtocolSuite(object):
     """Protocol suite implementing computation with Shamir-shared secrets.
 
     Multiplication is based on "Simplified VSS and fast-track multiparty
@@ -735,7 +736,7 @@ class ShamirBasicProtocol(object):
         return share
 
 
-class ShamirProtocol(ShamirBasicProtocol):
+class ShamirProtocolSuite(ShamirBasicProtocolSuite):
     """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
 
     Note

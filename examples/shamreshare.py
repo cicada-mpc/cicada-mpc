@@ -17,14 +17,14 @@
 import numpy
 
 from cicada.communicator import SocketCommunicator
-from cicada.shamir import ShamirProtocol
+from cicada.shamir import ShamirProtocolSuite
 
 def main(communicator):
-    protocol = ShamirProtocol(communicator, threshold=2)
+    protocol = ShamirProtocolSuite(communicator, threshold=2)
     a = numpy.arange(24).reshape((2,3,4))
 
     ashare = protocol.share(src=0, secret=protocol.encoder.encode(a), shape=a.shape)
-    
+
     print("revealed:", protocol.encoder.decode(protocol.reveal(ashare)))
     arshare = protocol.reshare(operand=ashare)
     print("revealed reshare:", protocol.encoder.decode(protocol.reveal(arshare)))

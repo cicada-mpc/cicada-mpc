@@ -28,7 +28,7 @@ def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     encoder = cicada.encoder.FixedFieldEncoder()#modulus=11311, precision=2)
     shamirk = cicada.shamir.ShamirBasic(communicator, threshold=2)#, modulus=11311, precision=2)
-    shamir = cicada.shamir.ShamirProtocol(communicator, threshold=2)#, modulus=11311, precision=2)
+    shamir = cicada.shamir.ShamirProtocolSuite(communicator, threshold=2)#, modulus=11311, precision=2)
 
     print(f'indicies: {shamir.indices}')
 

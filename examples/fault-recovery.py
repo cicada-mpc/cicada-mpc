@@ -24,7 +24,7 @@ import numpy
 
 from cicada.communicator import SocketCommunicator
 from cicada.logging import Logger
-from cicada.shamir import ShamirBasicProtocol
+from cicada.shamir import ShamirBasicProtocolSuite
 
 parser = argparse.ArgumentParser(description="Failure recovery tester.")
 parser.add_argument("--pfail", type=float, default="0.01", help="Probability that a process will fail during the current iteration. Default: %(default)s")
@@ -51,10 +51,9 @@ def main(communicator):
     failure = random_failures(pfail=arguments.pfail, seed=arguments.seed + communicator.rank)
 
     log = Logger(logging.getLogger(), communicator)
-    protocol = ShamirBasicProtocol(communicator, threshold=2)
+    protocol = ShamirBasicProtocolSuite(communicator, threshold=2)
 
-    total = numpy.array(0) if communicator.rank == 0 else None
-    total_share = protocol.share(src=0, secret=protocol.encoder.encode(total), shape=())
+    total_share = protocol.share(src=0, secret=numpy.array(0), shape=())
 
     # Main iteration loop.
     for iteration in itertools.count():
@@ -66,11 +65,11 @@ def main(communicator):
             # Increment the total.
             contributor = iteration % communicator.world_size
             increment = numpy.array(1) if communicator.rank == contributor else None
-            increment_share = protocol.share(src=contributor, secret=protocol.encoder.encode(increment), shape=())
+            increment_share = protocol.share(src=contributor, secret=increment, shape=())
             total_share = protocol.add(total_share, increment_share)
 
             # Print the current total.
-            total = protocol.encoder.decode(protocol.reveal(total_share))
+            total = protocol.reveal(total_share)
             log.info(f"Iteration {iteration} comm {communicator.name} total: {total}", src=0)
 
         # Implement failure recovery in this block. Be careful here! Many
@@ -98,7 +97,7 @@ def main(communicator):
             # Recreate the protocol since objects that depend on the old,
             # revoked communicator must be rebuilt from scratch using the
             # new communicator.
-            protocol = ShamirBasicProtocol(newcommunicator, threshold=2, indices=protocol.indices[oldranks])
+            protocol = ShamirBasicProtocolSuite(newcommunicator, threshold=2, indices=protocol.indices[oldranks])
 
             # Cleanup the old communicator.
             communicator.free()
