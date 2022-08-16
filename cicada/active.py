@@ -28,12 +28,13 @@ import cicada.shamir
 import random
 
 class ActiveArrayShare(object):
-    """Stores the local share of an additive-shared secret array.
+    """Stores the local share of an shared secret array for the Active protocol suite. It's just a tuple
+    of an AdditiveArrayShare and a ShamirArrayShare.
 
     Parameters
     ----------
-    storage: :class:`numpy.ndarray`, required
-        Local additive share of a secret array, which *must* have been encoded
+    storage: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`) required
+        Local share of a secret array, which *must* have been encoded
         using :class:`cicada.encoder.fixedfield.FixedFieldEncoder`.
     """
     def __init__(self, storage):
@@ -54,8 +55,8 @@ class ActiveArrayShare(object):
 
         Returns
         -------
-        storage: :class:`numpy.ndarray`
-            The local additive share of the secret array.  The share is encoded
+        storage: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)
+            The local share of the secret array compatible with the active protocol suite.  The share is encoded
             using an instance of
             :class:`cicada.encoder.fixedfield.FixedFieldEncoder` which is owned
             by an instance of :class:`ActiveProtocol`, and **must** be used
@@ -273,12 +274,28 @@ class ActiveProtocol(object):
         return ActiveArrayShare((self.aprotocol.bit_decompose(operand[0], num_bits), self.sprotocol.bit_decompose(operand[1], num_bits)))
 
     def verify(self, operand):
+        """Provides a means by which consistency of shares can be checked among all the parties by the use of a ZKP
+        This method allows the parties to prove to one another (in zero knowledge) that a consistent set of shares is known by all parties.
+        It can provide a 'safe' point at which calculations were known to be good that parties can 'rewind' to if consistency problems are 
+        later discovered in the protocol.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Shared secret to have its consistency verified.
+
+        Returns
+        -------
+        consistency: :class:`bool`
+            True if ZKP is successful i.e., everyone has demonstrated that they know consistent shares, and False otherwise.
+        """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         a_share = operand[0]
         s_share = operand[1]
         zero = cicada.shamir.ShamirArrayShare(self.sprotocol._encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self._encoder.modulus-2, self._encoder.modulus) * a_share.storage) % self._encoder.modulus, dtype=object)))
-        return all(self.sprotocol._reveal(zero) == numpy.zeros(zero.storage.shape))
+        consistency = all(self.sprotocol._reveal(zero) == numpy.zeros(zero.storage.shape))
+        return consistency
 
     @property
     def communicator(self):
@@ -359,7 +376,7 @@ class ActiveProtocol(object):
 
 
     def floor(self, operand):
-        """Remove the `bits` least significant bits from each element in a secret shared array
+        """Remove the `self.precision` least significant bits from each element in a secret shared array
             then shift back left so that only the original integer part of 'operand' remains.
 k
 
