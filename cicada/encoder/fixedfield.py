@@ -36,7 +36,7 @@ class FixedFieldEncoder(object):
     ----------
     modulus: :class:`int`, optional
         Field size for storing encoded values.  Defaults to the largest prime
-        less than 2^64 (i.e. 2**64-59).
+        less than :math:`2^{64}`.
     precision: :class:`int`, optional
         The number of bits reserved to store fractions in encoded values.  Defaults
         to 16.
