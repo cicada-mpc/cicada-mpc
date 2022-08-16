@@ -72,7 +72,7 @@ class ActiveArrayShare(object):
 class ConsistencyError(Exception):
     pass
 
-class ActiveProtocol(object):
+class ActiveProtocolSuite(object):
     """Protocol suite implementing computation with shared secrets that is secure against an active adversary.
 
     Implements "Combining Shamir & additive secret sharing to improve

@@ -21,7 +21,7 @@ import numpy
 from cicada.communicator import SocketCommunicator
 from cicada.additive import AdditiveProtcolSuite
 from cicada.shamir import ShamirProtocolSuite
-from cicada.active import ActiveProtocol
+from cicada.active import ActiveProtocolSuite
 
 parser = argparse.ArgumentParser(description="Dot product example.")
 parser.add_argument("--seed", type=int, default=1234, help="Random seed. Default: %(default)s")
@@ -39,7 +39,7 @@ def main(communicator):
         protocol = ShamirProtocolSuite(communicator, threshold=t)
     elif arguments.protocol == 'active':
         t = ((arguments.world_size-1)//2)+1
-        protocol = ActiveProtocol(communicator, threshold=t)
+        protocol = ActiveProtocolSuite(communicator, threshold=t)
     else:
         raise ValueError('Invalid argument passed for protocol')
     generator = numpy.random.default_rng(seed=arguments.seed + communicator.rank)

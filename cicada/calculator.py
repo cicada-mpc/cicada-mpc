@@ -203,7 +203,7 @@ def main(listen_socket, communicator):
             # Push a new ActiveProtocol object onto the protocol stack.
             elif command == "protopush" and kwargs["name"] == "Active":
                 import cicada.active
-                protocol_stack.append(cicada.active.ActiveProtocol(communicator_stack[-1], threshold=2))
+                protocol_stack.append(cicada.active.ActiveProtocolSuite(communicator_stack[-1], threshold=2))
                 _send_result(client)
 
             # Exit the service immediately.

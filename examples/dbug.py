@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     encoder = cicada.encoder.FixedFieldEncoder()#modulus=11311, precision=2)
-    protocol = cicada.active.ActiveProtocol(communicator, threshold=3)#, modulus=11311, precision=2)
+    protocol = cicada.active.ActiveProtocolSuite(communicator, threshold=3)#, modulus=11311, precision=2)
 
 
     # Player 0 will provide a secret.

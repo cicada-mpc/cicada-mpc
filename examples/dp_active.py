@@ -32,7 +32,7 @@ smart_change = not dumb_change
 
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
-    protocol = cicada.active.ActiveProtocol(communicator, threshold=3)
+    protocol = cicada.active.ActiveProtocolSuite(communicator, threshold=3)
     dp_len = 100000
     # Player 0 will provide a secret which is a scalar.
     secret = numpy.full((dp_len,),1) #if communicator.rank == 0 else None

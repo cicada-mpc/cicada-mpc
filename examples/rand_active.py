@@ -30,7 +30,7 @@ smart_change = not dumb_change
 
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
-    protocol = cicada.active.ActiveProtocol(communicator, threshold=3)
+    protocol = cicada.active.ActiveProtocolSuite(communicator, threshold=3)
 
     u = protocol.uniform()
     log.info(protocol.reveal(u))
