@@ -291,7 +291,7 @@ class ActiveProtocolSuite(object):
         a_share = operand[0]
         s_share = operand[1]
         zero = cicada.shamir.ShamirArrayShare(self.sprotocol._encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self._encoder.modulus-2, self._encoder.modulus) * a_share.storage) % self._encoder.modulus, dtype=object)))
-        consistency = all(self.sprotocol._reveal(zero) == numpy.zeros(zero.storage.shape))
+        consistency = numpy.all(self.sprotocol._reveal(zero) == numpy.zeros(zero.storage.shape))
         return consistency
 
     @property
