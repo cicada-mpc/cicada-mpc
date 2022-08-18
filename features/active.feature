@@ -25,6 +25,50 @@ Feature: Active Protocol
 
 
     @calculator
+    Scenario Outline: Active Verification
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        When the players verify the share
+        Then the result should match <result>
+
+        Examples:
+        | players | a              | result       |
+        | 3       | 42             | True         |
+        | 3       | [1, 2.5, -3.1] | True         |
+
+
+    @calculator
+    Scenario Outline: Active Verification With Additive Tampering
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        And player 1 tampers with the additive portion of its ActiveArrayShare
+        When the players verify the share
+        Then the result should match <result>
+
+        Examples:
+        | players | a              | result        |
+        | 3       | 42             | False         |
+        | 3       | [1, 2.5, -3.1] | False         |
+
+
+    @calculator
+    Scenario Outline: Active Verification With Shamir Tampering
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        And player 1 tampers with the Shamir portion of its ActiveArrayShare
+        When the players verify the share
+        Then the result should match <result>
+
+        Examples:
+        | players | a              | result        |
+        | 3       | 42             | False         |
+        | 3       | [1, 2.5, -3.1] | False         |
+
+
+    @calculator
     Scenario Outline: Private Add
         Given a calculator service with <players> players
         And a new Active protocol suite

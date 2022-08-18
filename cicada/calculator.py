@@ -84,7 +84,7 @@ class Client(object):
                 result += data
             results.append(pickle.loads(result))
 
-        return results
+        return players, results
 
 
     @property
@@ -137,55 +137,37 @@ def main(listen_socket, communicator):
             pretty_command = f"{command}({pretty_args})"
             log.debug(f"Player {communicator.rank} received command: {pretty_command}")
 
-            # Peek at the communicator on the top of the communicator stack.
-            if command == "commget":
+
+            #############################################################
+            # Commands related to the MPC service.
+
+            # Exit the service immediately.
+            if command == "quit":
+                _send_result(client)
+                break
+
+            # Raise an exception for testing.
+            elif command == "raise":
+                raise kwargs["exception"]
+
+            #############################################################
+            # Commands related to the communicator stack.
+
+            # View the communicator on the top of the communicator stack.
+            elif command == "commget":
                 _send_result(client, repr(communicator_stack[-1]))
 
             # View the entire contents of the communicator stack.
             elif command == "commstack":
                 _send_result(client, [repr(communicator) for communicator in communicator_stack])
 
-            # Encode a value on the operand stack.
-            elif command == "encode":
-                protocol = protocol_stack[-1]
-                value = operand_stack.pop()
-                value = protocol.encoder.encode(value)
-                operand_stack.append(value)
-                _send_result(client)
+            #############################################################
+            # Commands related to the protocol stack.
 
-            # Duplicate the value on the top of the operand stack.
-            elif command == "opdup":
-                value = operand_stack[-1]
-                operand_stack.append(value)
-                _send_result(client)
-
-            # Get the value on the top of the operand stack.
-            elif command == "opget":
-                _send_result(client, operand_stack[-1])
-
-            # Get n values from the top of the operand stack.
-            elif command == "opgetn":
-                n = kwargs["n"]
-                _send_result(client, operand_stack[-n:])
-
-            # Pop a value from the operand stack.
-            elif command == "oppop":
-                value = operand_stack.pop()
-                _send_result(client, value)
-
-            # Push a new value onto the operand stack.
-            elif command == "oppush":
-                operand = kwargs["value"]
-                operand_stack.append(operand)
-                _send_result(client)
-
-            # Return a copy of the operand stack.
-            elif command == "opstack":
-                _send_result(client, operand_stack)
-
-            # Swap the topmost two values on the operand stack
-            elif command == "opswap":
-                operand_stack[-1], operand_stack[-2] = operand_stack[-2], operand_stack[-1]
+            # Push a new ActiveProtocolSuite object onto the protocol stack.
+            elif command == "protopush" and kwargs["name"] == "Active":
+                import cicada.active
+                protocol_stack.append(cicada.active.ActiveProtocolSuite(communicator_stack[-1], threshold=2))
                 _send_result(client)
 
             # Push a new AdditiveProtocolSuite onto the protocol stack.
@@ -194,53 +176,123 @@ def main(listen_socket, communicator):
                 protocol_stack.append(AdditiveProtocolSuite(communicator_stack[-1]))
                 _send_result(client)
 
-            # Push a new ShamirProtocol object onto the protocol stack.
+            # Push a new ShamirProtocolSuite object onto the protocol stack.
             elif command == "protopush" and kwargs["name"] == "Shamir":
                 from cicada.shamir import ShamirProtocolSuite
                 protocol_stack.append(ShamirProtocolSuite(communicator_stack[-1], threshold=2))
                 _send_result(client)
 
-            # Push a new ActiveProtocol object onto the protocol stack.
-            elif command == "protopush" and kwargs["name"] == "Active":
-                import cicada.active
-                protocol_stack.append(cicada.active.ActiveProtocolSuite(communicator_stack[-1], threshold=2))
+            #############################################################
+            # Commands related to the operand stack.
+
+            # Combine the top n values on the operand stack into a single operand.
+            elif command == "opcatn":
+                value = [operand_stack.pop() for index in range(kwargs["n"])]
+                value.reverse()
+                operand_stack.append(value)
                 _send_result(client)
 
-            # Exit the service immediately.
-            elif command == "quit":
+            # Duplicate the value on top of the operand stack.
+            elif command == "opdup":
+                value = operand_stack[-1]
+                operand_stack.append(value)
                 _send_result(client)
-                break
 
-            # Raise an exception (for testing).
-            elif command == "raise":
-                raise kwargs["exception"]
+            # Get the value on top of the operand stack.
+            elif command == "opget":
+                _send_result(client, operand_stack[-1])
 
-            # Reveal a secret shared value.
-            elif command == "reveal":
+            # Get n values from the top of the operand stack.
+            elif command == "opgetn":
+                n = kwargs["n"]
+                _send_result(client, operand_stack[-n:])
+
+            # Pop a value from the top of the operand stack.
+            elif command == "oppop":
+                value = operand_stack.pop()
+                _send_result(client, value)
+
+            # Push a new value on top of the operand stack.
+            elif command == "oppush":
+                operand = kwargs["value"]
+                operand_stack.append(operand)
+                _send_result(client)
+
+            # Split a sequence value on the top of the operand stack into separate stack values.
+            elif command == "opsplit":
+                value = operand_stack.pop()
+                for item in value:
+                    operand_stack.append(item)
+                _send_result(client)
+
+            # Return a copy of the entire operand stack.
+            elif command == "opstack":
+                _send_result(client, operand_stack)
+
+            # Swap the top two values on the operand stack
+            elif command == "opswap":
+                operand_stack[-1], operand_stack[-2] = operand_stack[-2], operand_stack[-1]
+                _send_result(client)
+
+            #############################################################
+            # Commands related to "normal" arithmetic.
+
+            elif command == "add":
+                operand_stack.append(operand_stack.pop() + operand_stack.pop())
+                _send_result(client)
+
+            #############################################################
+            # Commands related to secret shares.
+
+            # Extract the storage from a secret share on top of the operand stack.
+            elif command == "share" and kwargs["subcommand"] == "getstorage":
+                share = operand_stack.pop()
+                operand_stack.append(share.storage)
+                _send_result(client)
+
+            # Replace the storage for a secret share on top of the operand stack.
+            elif command == "share" and kwargs["subcommand"] == "setstorage":
+                storage = operand_stack.pop()
+                operand_stack[-1].storage = storage
+                _send_result(client)
+
+            #############################################################
+            # Commands related to protocol suites.
+
+            # Encode the value on top of the operand stack.
+            elif command == "protocol" and kwargs["subcommand"] == "encode":
+                protocol = protocol_stack[-1]
+                value = operand_stack.pop()
+                value = protocol.encoder.encode(value)
+                operand_stack.append(value)
+                _send_result(client)
+
+            # Reveal a secret shared value from the top of the operand stack.
+            elif command == "protocol" and kwargs["subcommand"] == "reveal":
                 protocol = protocol_stack[-1]
                 share = operand_stack.pop()
                 secret = protocol.reveal(share)
                 operand_stack.append(secret)
                 _send_result(client)
 
-            # Reveal a secret value containing only zeros and ones.
-            elif command == "reveal_bits":
+            # Reveal a secret value containing only zeros and ones from the top of the operand stack.
+            elif command == "protocol" and kwargs["subcommand"] == "reveal_bits":
                 protocol = protocol_stack[-1]
                 share = operand_stack.pop()
                 secret = protocol.reveal_bits(share)
                 operand_stack.append(secret)
                 _send_result(client)
 
-            # Reveal a secret field value without decoding.
-            elif command == "reveal_field":
+            # Reveal a secret field value from the top of the operand stack without decoding.
+            elif command == "protocol" and kwargs["subcommand"] == "reveal_field":
                 protocol = protocol_stack[-1]
                 share = operand_stack.pop()
                 secret = protocol.reveal_field(share)
                 operand_stack.append(secret)
                 _send_result(client)
 
-            # Secret share a value from the operand stack.
-            elif command == "share":
+            # Secret share a value from the top of the operand stack.
+            elif command == "protocol" and kwargs["subcommand"] == "share":
                 src = kwargs["src"]
                 shape = kwargs["shape"]
                 protocol = protocol_stack[-1]
@@ -249,8 +301,8 @@ def main(listen_socket, communicator):
                 operand_stack.append(share)
                 _send_result(client)
 
-            # Secret share bitsfrom the operand stack.
-            elif command == "share_bits":
+            # Secret share bits from the top of the operand stack.
+            elif command == "protocol" and kwargs["subcommand"] == "share_bits":
                 src = kwargs["src"]
                 shape = kwargs["shape"]
                 protocol = protocol_stack[-1]
@@ -259,40 +311,34 @@ def main(listen_socket, communicator):
                 operand_stack.append(share)
                 _send_result(client)
 
-            # Extract the storage from a secret share.
-            elif command == "sharestorage":
-                value = operand_stack.pop()
-                operand_stack.append(value.storage)
-                _send_result(client)
-
             # Unary operations.
-            elif command in ["floor", "multiplicative_inverse", "relu", "sum", "truncate", "zigmoid"]:
+            elif command == "protocol" and kwargs["subcommand"] in ["floor", "multiplicative_inverse", "relu", "sum", "truncate", "verify", "zigmoid"]:
                 protocol = protocol_stack[-1]
                 a = operand_stack.pop()
-                share = getattr(protocol, command)(a)
-                operand_stack.append(share)
+                result = getattr(protocol, kwargs["subcommand"])(a)
+                operand_stack.append(result)
                 _send_result(client)
 
             # Binary operations.
-            elif command in ["add", "divide", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "multiply", "private_public_power", "untruncated_divide", "untruncated_multiply"]:
+            elif command == "protocol" and kwargs["subcommand"] in ["add", "divide", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "multiply", "private_public_power", "untruncated_divide", "untruncated_multiply"]:
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()
-                share = getattr(protocol, command)(a, b)
+                share = getattr(protocol, kwargs["subcommand"])(a, b)
                 operand_stack.append(share)
                 _send_result(client)
 
             # Random bitwise secret.
-            elif command == "random_bitwise_secret":
-                bits = operand_stack.pop()
+            elif command == "protocol" and kwargs["subcommand"] == "random_bitwise_secret":
                 protocol = protocol_stack[-1]
+                bits = operand_stack.pop()
                 bits, secret = protocol.random_bitwise_secret(bits=bits)
                 operand_stack.append(bits)
                 operand_stack.append(secret)
                 _send_result(client)
 
             # Inplace addition.
-            elif command == "inplace_add":
+            elif command == "protocol" and kwargs["subcommand"] == "inplace_add":
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()
@@ -301,7 +347,7 @@ def main(listen_socket, communicator):
                 _send_result(client)
 
             # Inplace subtraction.
-            elif command == "inplace_subtract":
+            elif command == "protocol" and kwargs["subcommand"] == "inplace_subtract":
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()

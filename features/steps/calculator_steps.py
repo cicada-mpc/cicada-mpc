@@ -29,17 +29,22 @@ import test
 #logging.basicConfig(level=logging.INFO)
 
 
-def _print_stacks(context):
-    stacks = _require_success(context.calculator.command("opstack"))
-    for rank, stack in enumerate(stacks):
-        print(f"Player {rank} stack:")
-        for item in stack:
-            print(item)
+def _print_stacks(context, player=None):
+    results = context.calculator.command("opstack", player=player)
+    stacks = _require_success(results)
+    players, results = results
+
+    for rank, stack in zip(players, stacks):
+        print(f"====== Remote stack (player {rank}) ======")
+        for level, item in zip(range(len(stack)-1, -1, -1), stack):
+            print(f"Level {level}: {item}")
 
 
 def _require_success(results):
+    players, results = results
+
     exceptions = {}
-    for rank, result in enumerate(results):
+    for rank, result in zip(players, results):
         if isinstance(result, PlayerError):
             print(f"====== Remote traceback (player {rank}) ======\n{result.traceback}")
             exceptions[rank] = result
@@ -76,7 +81,7 @@ def step_impl(context, player, secret):
 
     for rank in context.calculator.ranks:
         _require_success(context.calculator.command("oppush", value=secret if player == rank else None, player=rank))
-    _require_success(context.calculator.command("share_bits", src=player, shape=secret.shape))
+    _require_success(context.calculator.command("protocol", subcommand="share_bits", src=player, shape=secret.shape))
 
 
 @given(u'player {player} secret shares {secret}')
@@ -86,7 +91,39 @@ def step_impl(context, player, secret):
 
     for rank in context.calculator.ranks:
         _require_success(context.calculator.command("oppush", value=secret if player == rank else None, player=rank))
-    _require_success(context.calculator.command("share", src=player, shape=secret.shape))
+    _require_success(context.calculator.command("protocol", subcommand="share", src=player, shape=secret.shape))
+
+
+@given(u'player {player} tampers with the additive portion of its ActiveArrayShare')
+def step_impl(context, player):
+    player = eval(player)
+    _require_success(context.calculator.command("opdup", player=player))
+    _require_success(context.calculator.command("share", subcommand="getstorage", player=player))
+    _require_success(context.calculator.command("opsplit", player=player))
+    _require_success(context.calculator.command("opswap", player=player))
+    _require_success(context.calculator.command("opdup", player=player))
+    _require_success(context.calculator.command("share", subcommand="getstorage", player=player))
+    _require_success(context.calculator.command("oppush", value=numpy.array(1), player=player))
+    _require_success(context.calculator.command("add", player=player))
+    _require_success(context.calculator.command("share", subcommand="setstorage", player=player))
+    _require_success(context.calculator.command("opswap", player=player))
+    _require_success(context.calculator.command("opcatn", player=player, n=2))
+    _require_success(context.calculator.command("share", subcommand="setstorage", player=player))
+
+
+@given(u'player {player} tampers with the shamir portion of its ActiveArrayShare')
+def step_impl(context, player):
+    player = eval(player)
+    _require_success(context.calculator.command("opdup", player=player))
+    _require_success(context.calculator.command("share", subcommand="getstorage", player=player))
+    _require_success(context.calculator.command("opsplit", player=player))
+    _require_success(context.calculator.command("opdup", player=player))
+    _require_success(context.calculator.command("share", subcommand="getstorage", player=player))
+    _require_success(context.calculator.command("oppush", value=numpy.array(1), player=player))
+    _require_success(context.calculator.command("add", player=player))
+    _require_success(context.calculator.command("share", subcommand="setstorage", player=player))
+    _require_success(context.calculator.command("opcatn", player=player, n=2))
+    _require_success(context.calculator.command("share", subcommand="setstorage", player=player))
 
 
 @when(u'player {player} adds {value} to the share in-place')
@@ -94,8 +131,8 @@ def step_impl(context, player, value):
     player = eval(player)
     value = numpy.array(eval(value))
     _require_success(context.calculator.command("oppush", value=value, player=player))
-    _require_success(context.calculator.command("encode", player=player))
-    _require_success(context.calculator.command("inplace_add", player=player))
+    _require_success(context.calculator.command("protocol", subcommand="encode", player=player))
+    _require_success(context.calculator.command("protocol", subcommand="inplace_add", player=player))
 
 
 @when(u'player {player} subtracts {value} from the share in-place')
@@ -103,131 +140,136 @@ def step_impl(context, player, value):
     player = eval(player)
     value = numpy.array(eval(value))
     _require_success(context.calculator.command("oppush", value=value, player=player))
-    _require_success(context.calculator.command("encode", player=player))
-    _require_success(context.calculator.command("inplace_subtract", player=player))
+    _require_success(context.calculator.command("protocol", subcommand="encode", player=player))
+    _require_success(context.calculator.command("protocol", subcommand="inplace_subtract", player=player))
 
 
 @when(u'the players add the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("add"))
+    _require_success(context.calculator.command("protocol", subcommand="add"))
 
 
 @when(u'the players compare the shares for equality')
 def step_impl(context):
-    _require_success(context.calculator.command("equal"))
+    _require_success(context.calculator.command("protocol", subcommand="equal"))
 
 
 @when(u'the players compare the shares with less than')
 def step_impl(context):
-    _require_success(context.calculator.command("less"))
+    _require_success(context.calculator.command("protocol", subcommand="less"))
 
 
 @when(u'the players compute the dot product of the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("dot"))
+    _require_success(context.calculator.command("protocol", subcommand="dot"))
 
 
 @when(u'the players compute the floor of the share')
 def step_impl(context):
-    _require_success(context.calculator.command("floor"))
+    _require_success(context.calculator.command("protocol", subcommand="floor"))
 
 
 @when(u'the players compute the logical and of the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("logical_and"))
+    _require_success(context.calculator.command("protocol", subcommand="logical_and"))
 
 
 @when(u'the players compute the logical exclusive or of the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("logical_xor"))
+    _require_success(context.calculator.command("protocol", subcommand="logical_xor"))
 
 
 @when(u'the players compute the logical or of the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("logical_or"))
+    _require_success(context.calculator.command("protocol", subcommand="logical_or"))
 
 
 @when(u'the players compute the maximum of the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("max"))
+    _require_success(context.calculator.command("protocol", subcommand="max"))
 
 
 @when(u'the players compute the minimum of the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("min"))
+    _require_success(context.calculator.command("protocol", subcommand="min"))
 
 
 @when(u'the players compute the multiplicative inverse')
 def step_impl(context):
     _require_success(context.calculator.command("opdup"))
-    _require_success(context.calculator.command("multiplicative_inverse"))
+    _require_success(context.calculator.command("protocol", subcommand="multiplicative_inverse"))
 
 
 @when(u'the players compute the relu of the share')
 def step_impl(context):
-    _require_success(context.calculator.command("relu"))
+    _require_success(context.calculator.command("protocol", subcommand="relu"))
 
 
 @when(u'the players compute the sum of the share')
 def step_impl(context):
-    _require_success(context.calculator.command("sum"))
+    _require_success(context.calculator.command("protocol", subcommand="sum"))
 
 
 @when(u'the players compute the zigmoid of the share')
 def step_impl(context):
-    _require_success(context.calculator.command("zigmoid"))
+    _require_success(context.calculator.command("protocol", subcommand="zigmoid"))
 
 
 @when(u'the players divide the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("divide"))
+    _require_success(context.calculator.command("protocol", subcommand="divide"))
 
 
 @given(u'the players extract the share storage')
 def step_impl(context):
-    _require_success(context.calculator.command("sharestorage"))
+    _require_success(context.calculator.command("share", subcommand="getstorage"))
 
 
 @when(u'the players generate {bits} random bits')
 def step_impl(context, bits):
     bits = eval(bits)
     _require_success(context.calculator.command("oppush", value=bits))
-    _require_success(context.calculator.command("random_bitwise_secret"))
+    _require_success(context.calculator.command("protocol", subcommand="random_bitwise_secret"))
 
 
 @when(u'the players multiply the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("multiply"))
+    _require_success(context.calculator.command("protocol", subcommand="multiply"))
 
 
 @when(u'the players multiply the shares without truncation')
 def step_impl(context):
-    _require_success(context.calculator.command("untruncated_multiply"))
+    _require_success(context.calculator.command("protocol", subcommand="untruncated_multiply"))
 
 
 @when(u'the players raise the share to the public power')
 def step_impl(context):
-    _require_success(context.calculator.command("private_public_power"))
+    _require_success(context.calculator.command("protocol", subcommand="private_public_power"))
 
 
 @when(u'the players reveal the secret')
 def step_impl(context):
-    _require_success(context.calculator.command("reveal"))
+    _require_success(context.calculator.command("protocol", subcommand="reveal"))
 
 
 @when(u'the players reveal the secret bits')
 def step_impl(context):
-    _require_success(context.calculator.command("reveal_bits"))
+    _require_success(context.calculator.command("protocol", subcommand="reveal_bits"))
 
 
 @when(u'the players reveal the field values')
 def step_impl(context):
-    _require_success(context.calculator.command("reveal_field"))
+    _require_success(context.calculator.command("protocol", subcommand="reveal_field"))
 
 
 @when(u'the players swap')
 def step_impl(context):
     _require_success(context.calculator.command("opswap"))
+
+
+@when(u'the players verify the share')
+def step_impl(context):
+    _require_success(context.calculator.command("protocol", subcommand="verify"))
 
 
 @then(u'{count} {name} protocol objects can be created without error')
@@ -274,7 +316,7 @@ def step_impl(context):
 @when(u'the players raise {exception}')
 def step_impl(context, exception):
     exception = eval(exception)
-    results = context.calculator.command("raise", exception=exception)
+    players, results = context.calculator.command("raise", exception=exception)
     context.errors = results
 
 
