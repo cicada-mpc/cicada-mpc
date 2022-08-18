@@ -40,11 +40,11 @@ class ActiveArrayShare(object):
 
 
     def __repr__(self):
-        return f"cicada.additive.ActiveArrayShare(storage={self._storage})" # pragma: no cover
+        return f"cicada.active.ActiveArrayShare(storage={self._storage})" # pragma: no cover
 
 
     def __getitem__(self, index):
-        return self.storage[index]
+        return self._storage[index]
 
 
     @property
@@ -64,9 +64,13 @@ class ActiveArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
-        if not isinstance(storage, tuple) or not isinstance(storage[0].storage, numpy.ndarray) or not isinstance(storage[1].storage, numpy.ndarray):#should this check that the elements are additive and shamir array shares todo?
-            raise ValueError(f"Expected storage to be a tuple containing two instances of numpy.ndarray, got {type(storage)} of {type(storage[0])} and {type(storage[1])} instead.") # pragma: no cover
-        self._storage = storage
+        if not len(storage) == 2:
+            raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.")
+        if not isinstance(storage[0], cicada.additive.AdditiveArrayShare):
+            raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.")
+        if not isinstance(storage[1], cicada.shamir.ShamirArrayShare):
+            raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.")
+        self._storage = (storage[0], storage[1])
 
 
 class ConsistencyError(Exception):

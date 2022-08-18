@@ -45,7 +45,7 @@ class AdditiveArrayShare(object):
 
 
     def __getitem__(self, index):
-        return AdditiveArrayShare(numpy.array(self.storage[index], dtype=self.storage.dtype))
+        return AdditiveArrayShare(numpy.array(self._storage[index], dtype=self._storage.dtype))
 
 
     @property
@@ -65,9 +65,7 @@ class AdditiveArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
-        if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected storage to be an instance of numpy.ndarray, got {type(storage)} instead.") # pragma: no cover
-        self._storage = storage
+        self._storage = numpy.array(storage, dtype=object)
 
 
 class AdditiveProtocolSuite(object):

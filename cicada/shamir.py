@@ -60,9 +60,7 @@ class ShamirArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
-        if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected storage to be an instance of numpy.ndarray, got {type(storage)} instead.") # pragma: no cover
-        self._storage = storage
+        self._storage = numpy.array(storage, dtype=object)
 
 class ShamirBasicProtocolSuite(object):
     """Protocol suite implementing computation with Shamir-shared secrets.
