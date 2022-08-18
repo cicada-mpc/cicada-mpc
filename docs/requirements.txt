@@ -1,6 +1,6 @@
 ipython
 netifaces
-nbsphinx
+nbsphinx < 0.11
 numpy
 pynetstring
 shamir
