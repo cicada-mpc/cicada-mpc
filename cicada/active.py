@@ -81,7 +81,7 @@ class ActiveProtocolSuite(object):
 
     Implements "Combining Shamir & additive secret sharing to improve
     efficiency of SMC primitives against malicious adversaries" by Goss, which
-    is secure with abort against a dishonest majority.
+    provides honest majority security with abort.
 
     Both :class:`~cicada.additive.AdditiveProtocolSuite` and
     :class:`~cicada.shamir.ShamirProtocolSuite` are used for the implementation.
