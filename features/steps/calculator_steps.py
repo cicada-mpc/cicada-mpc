@@ -159,6 +159,11 @@ def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="less"))
 
 
+@when(u'the players compute the absolute value of the share')
+def step_impl(context):
+    _require_success(context.calculator.command("protocol", subcommand="absolute"))
+
+
 @when(u'the players compute the dot product of the shares')
 def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="dot"))

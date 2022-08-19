@@ -311,15 +311,15 @@ def main(listen_socket, communicator):
                 operand_stack.append(share)
                 _send_result(client)
 
-            # Unary operations.
-            elif command == "protocol" and kwargs["subcommand"] in ["floor", "multiplicative_inverse", "relu", "sum", "truncate", "verify", "zigmoid"]:
+            # Unary protocol suite operations.
+            elif command == "protocol" and kwargs["subcommand"] in ["absolute", "floor", "multiplicative_inverse", "relu", "sum", "truncate", "verify", "zigmoid"]:
                 protocol = protocol_stack[-1]
                 a = operand_stack.pop()
                 result = getattr(protocol, kwargs["subcommand"])(a)
                 operand_stack.append(result)
                 _send_result(client)
 
-            # Binary operations.
+            # Binary protocol suite operations.
             elif command == "protocol" and kwargs["subcommand"] in ["add", "divide", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "multiply", "private_public_power", "untruncated_divide", "untruncated_multiply"]:
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
