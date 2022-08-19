@@ -65,11 +65,11 @@ class ActiveArrayShare(object):
     @storage.setter
     def storage(self, storage):
         if not len(storage) == 2:
-            raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.")
+            raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.") # pragma: no cover
         if not isinstance(storage[0], cicada.additive.AdditiveArrayShare):
-            raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.")
+            raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.") # pragma: no cover
         if not isinstance(storage[1], cicada.shamir.ShamirArrayShare):
-            raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.")
+            raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.") # pragma: no cover
         self._storage = (storage[0], storage[1])
 
 
