@@ -778,17 +778,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
             raise ValueError(f"threshold must be <= {max_threshold}, or world_size must be >= {min_world_size}")
 
 
-    def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
-        self._assert_unary_compatible(lhs, lhslabel)
-        self._assert_unary_compatible(rhs, rhslabel)
-        if lhs.storage.shape != rhs.storage.shape:
-            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.")
-
-    def _assert_unary_compatible(self, share, label):
-        if not isinstance(share, ShamirArrayShare):
-            raise ValueError(f"{label} must be an instance of ShamirArrayShare, got {type(share)} instead.")
-
-
     def absolute(self, operand):
         """Return the elementwise absolute value of a secret shared array.
 
@@ -1418,7 +1407,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         a shamir shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
         """
         if lhspub.shape != rhs.storage.shape[:-1]:
-            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension')
+            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension') # pragma: no cover
         bitwidth = rhs.storage.shape[-1]
         lhsbits = []
         for val in lhspub:
