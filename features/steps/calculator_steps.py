@@ -272,6 +272,11 @@ def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="reveal_field"))
 
 
+@when(u'the players subtract the shares')
+def step_impl(context):
+    _require_success(context.calculator.command("protocol", subcommand="subtract"))
+
+
 @when(u'the players swap')
 def step_impl(context):
     _require_success(context.calculator.command("opswap"))
