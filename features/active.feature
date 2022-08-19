@@ -138,6 +138,7 @@ Feature: Active Protocol
         | 3       | 2    | -16  | -1/8          |
         | 3       | -37  | 1    | -37.0         |
 
+        @wip
         Examples:
         | players | a    | b    | result        |
         | 3       | 0.5  | 0.3  | 1.6666        |
