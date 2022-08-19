@@ -564,32 +564,6 @@ class ActiveProtocolSuite(object):
         return ActiveArrayShare((self.aprotocol.logical_xor(lhs[0], rhs[0]), self.sprotocol.logical_xor(lhs[1], rhs[1])))
 
 
-    def _lsb(self, operand):
-        """Return the elementwise least significant bit of a secret shared array.
-
-        When revealed, the result will contain the values `0` or `1`, which do
-        not need to be decoded.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        operand: :class:`ActiveArrayShare`, required
-            Secret shared array from which the least significant bits will be extracted
-
-        Returns
-        -------
-        lsb: :class:`ActiveArrayShare`
-            Active shared array containing the elementwise least significant
-            bits of `operand`.
-        """
-        if not isinstance(operand, ActiveArrayShare):
-            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol._lsb(operand[0]), self.sprotocol._lsb(operand[1])))
-
     def max(self, lhs, rhs):
         """Return the elementwise maximum of two secret shared arrays.
 
@@ -775,94 +749,6 @@ class ActiveProtocolSuite(object):
         self._assert_unary_compatible(lhs, "lhs")
 
         return ActiveArrayShare((self.aprotocol.private_public_subtract(lhs[0], rhs), self.sprotocol.private_public_subtract(lhs[1], rhs)))
-
-
-    def _public_bitwise_less_than(self,*, lhspub, rhs):
-        """Comparison Operator
-
-        Parameters
-        ----------
-        lhs: :class:`ndarray`, required
-            a publically known numpy array of integers and one of the two objects to be compared
-        rhs: :class:`ActiveArrayShare`, required 
-            bit decomposed shared secret(s) and the other of the two objects to be compared 
-            the bitwidth of each value in rhs (deduced from its shape) is taken to be the 
-            bitwidth of interest for the comparison if the values in lhspub require more bits 
-            for their representation, the computation will be incorrect
-
-        note: this method is private as it does not consider the semantic mapping of meaning 
-        onto the field. The practical result of this is that every negative value will register as 
-        greater than every positive value due to the encoding.
-
-
-        Returns
-        -------
-        an additive shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
-        """
-        self._assert_unary_compatible(rhs, "rhs")
-        return ActiveArrayShare((self.aprotocol._public_bitwise_less_than(lhspub, rhs[0]), self.sprotocol._public_bitwise_less_than(lhspub, rhs[1])))
-
-
-    def _public_private_add(self, lhs, rhs):
-        """Return the elementwise sum of public and secret shared arrays.
-
-        All players *must* supply the same value of `lhs` when calling this
-        method.  The result will be the secret shared elementwise sum of the
-        public (known to all players) `lhs` array and the private (secret
-        shared) `rhs` array.  If revealed, the result will need to be decoded
-        to obtain the actual sum.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            Public value to be added, which must have been encoded
-            with this protocol's :attr:`encoder`.
-        rhs: :class:`ActiveArrayShare`, required
-            Secret shared value to be added.
-
-        Returns
-        -------
-        value: :class:`ActiveArrayShare`
-            The secret shared sum of `lhs` and `rhs`.
-        """
-        self._assert_unary_compatible(rhs, "rhs")
-        return ActiveArrayShare((self.aprotocol._public_private_add(lhs, rhs[0]), self.sprotocol._public_private_add(lhs, rhs[1])))
-
-
-    def _public_private_subtract(self, lhs, rhs):
-        """Return the elementwise difference between public and secret shared arrays.
-
-        All players *must* supply the same value of `lhs` when calling this
-        method.  The result will be the secret shared elementwise difference
-        between the public (known to all players) `lhs` array and the private
-        (secret shared) `rhs` array.  If revealed, the result will need to be
-        decoded to obtain the actual difference.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            Public value, which must have been encoded with this protocol's
-            :attr:`encoder`.
-        rhs: :class:`ActiveArrayShare`, required
-            Secret shared value to be subtracted.
-
-        Returns
-        -------
-        value: :class:`ActiveArrayShare`
-            The secret shared difference `lhs` - `rhs`.
-        """
-        self._assert_unary_compatible(lhs, "lhs")
-        return ActiveArrayShare((self.aprotocol._public_private_subtract(lhs, rhs[0]), self.sprotocol._public_private_subtract(lhs, rhs[1])))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
