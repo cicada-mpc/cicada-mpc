@@ -217,6 +217,25 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Private Less Than Zero
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        When the players compare the shares with less than zero
+        And the players reveal the secret bits
+        Then the result should match <result>
+
+        Examples:
+        | players  | a                 | result          |
+        | 3        | 0                 | 0               |
+        | 3        | 100               | 0               |
+        | 3        | -100              | 1               |
+        | 3        | 2**-16            | 0               |
+        | 3        | -2**-16           | 1               |
+        | 3        | [[0,100],[-3,4]]  | [[0,0],[1,0]]   |
+
+
+    @calculator
     Scenario Outline: Private Logical And
         Given a calculator service with <players> players
         And a new Additive protocol suite
