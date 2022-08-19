@@ -818,8 +818,6 @@ class AdditiveProtocolSuite(object):
         if not isinstance(lhs, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
-        if isinstance(rhspub, int):
-            rhspub = numpy.full(lhs.storage.shape, rhspub)
         ans=[]
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
             rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]

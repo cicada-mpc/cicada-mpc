@@ -1345,8 +1345,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         if not isinstance(lhs, ShamirArrayShare):
             raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
 
-        if isinstance(rhspub, int):
-            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self._encoder.dtype)
         ans=[]
         for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
             rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
