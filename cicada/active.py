@@ -706,48 +706,6 @@ class ActiveProtocolSuite(object):
         return result
 
 
-    def _private_public_mod(self, lhs, rhspub, *, enc=False):
-        """Return an elementwise result of applying moduli contained in rhspub to lhs
-        in the context of the underlying finite field. Explicitly, this
-        function returns a same shape array which contains an approximation
-        of the division in which lhs is the secret shared dividend and
-        rhspub is a publicly known divisor.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`ActiveArrayShare`, required
-            Secret shared array to act as the dend.
-        rhspub: :class:`numpy.ndarray`, required
-            Public value to act as divisor, it is assumed to not
-            be encoded, but we optionally provide an argument to
-            handle the case in which it is
-
-        Returns
-        -------
-        value: :class:`ActiveArrayShare`
-            The secret approximate result of lhs/rhspub on an elementwise basis.
-        """
-        self._assert_unary_compatible(lhs, "lhs")
-        if not enc:
-            divisor = self._encoder.encode(numpy.array(1/rhspub))
-            rhs_enc = self._encoder.encode(rhspub)
-        else:
-            divisor = self._encoder.encode(numpy.array(1/self._encoder.decode(rhspub)))
-            rhs_enc = rhspub
-        quotient = ActiveArrayShare(self._encoder.untruncated_multiply(lhs.storage, divisor))
-        quotient = self.truncate(quotient)
-        quotient = self.floor(quotient)
-        val2subtract = self.truncate(ActiveArrayShare(self._encoder.untruncated_multiply(rhs_enc, quotient.storage)))
-        remainder = self.subtract(lhs, val2subtract)
-        print(f'div: {divisor} rhs_enc: {rhs_enc}, q: {self._encoder.decode(self._reveal(quotient))}')
-        return remainder
-
-
     def private_public_power(self, lhs, rhspub):
         """Raise the array contained in lhs to the power rshpub on an elementwise basis
 
