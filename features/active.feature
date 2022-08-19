@@ -267,6 +267,21 @@ Feature: Active Protocol
 
 
     @calculator
+    Scenario Outline: Private Logical Not
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares the bits <a>
+        When the players compute the logical not of the share
+        And the players reveal the secret bits
+        Then the result should match <result>
+
+        Examples:
+        | players | a | result |
+        | 3       | 0 | 1      |
+        | 3       | 1 | 0      |
+
+
+    @calculator
     Scenario Outline: Private Logical Or
         Given a calculator service with <players> players
         And a new Active protocol suite

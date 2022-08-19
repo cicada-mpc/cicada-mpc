@@ -312,7 +312,7 @@ def main(listen_socket, communicator):
                 _send_result(client)
 
             # Unary protocol suite operations.
-            elif command == "protocol" and kwargs["subcommand"] in ["absolute", "floor", "multiplicative_inverse", "relu", "sum", "truncate", "verify", "zigmoid"]:
+            elif command == "protocol" and kwargs["subcommand"] in ["absolute", "floor", "logical_not", "multiplicative_inverse", "relu", "sum", "truncate", "verify", "zigmoid"]:
                 protocol = protocol_stack[-1]
                 a = operand_stack.pop()
                 result = getattr(protocol, kwargs["subcommand"])(a)

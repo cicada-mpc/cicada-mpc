@@ -184,6 +184,11 @@ def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="logical_xor"))
 
 
+@when(u'the players compute the logical not of the share')
+def step_impl(context):
+    _require_success(context.calculator.command("protocol", subcommand="logical_not"))
+
+
 @when(u'the players compute the logical or of the shares')
 def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="logical_or"))
