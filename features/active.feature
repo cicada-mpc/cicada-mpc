@@ -422,7 +422,7 @@ Feature: Active Protocol
     @calculator
     Scenario Outline: Private Subtract
         Given a calculator service with <players> players
-        And a new Shamir protocol suite
+        And a new Active protocol suite
         And player 0 secret shares <a>
         And player 1 secret shares <b>
         When the players subtract the shares
