@@ -242,6 +242,12 @@ def step_impl(context, bits):
     _require_success(context.calculator.command("protocol", subcommand="random_bitwise_secret"))
 
 
+@when(u'the players generate a private uniform array with shape {shape}')
+def step_impl(context, shape):
+    shape = eval(shape)
+    _require_success(context.calculator.command("protocol", subcommand="uniform", shape=shape))
+
+
 @when(u'the players multiply the shares')
 def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="multiply"))
@@ -341,5 +347,21 @@ def step_impl(context, exception):
     for error in context.errors:
         test.assert_is(type(error.exception), type(exception))
         test.assert_equal(error.exception.args, exception.args)
+
+
+@then(u'the results should match shape {shape}')
+def step_impl(context, shape):
+    shape = eval(shape)
+    results = _require_success(context.calculator.command("opget"))
+    for result in results:
+        test.assert_equal(shape, result.shape)
+
+
+@then(u'the results should be between 0 and 1')
+def step_impl(context):
+    results = _require_success(context.calculator.command("opget"))
+    for result in results:
+        print(result)
+    raise NotImplementedError()
 
 

@@ -440,6 +440,21 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Private Uniform
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        When the players generate a private uniform array with shape <shape>
+        And the players reveal the secret
+        Then the results should match shape <shape>
+
+        Examples:
+        | players | shape  |
+        | 3       | ()     |
+        | 3       | (1,)   |
+        | 3       | (2, 2) |
+
+
+    @calculator
     Scenario Outline: Private Zigmoid
         Given a calculator service with <players> players
         And a new Additive protocol suite

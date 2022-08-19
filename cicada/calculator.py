@@ -337,6 +337,14 @@ def main(listen_socket, communicator):
                 operand_stack.append(secret)
                 _send_result(client)
 
+            # Uniform random secret generation.
+            elif command == "protocol" and kwargs["subcommand"] == "uniform":
+                protocol = protocol_stack[-1]
+                shape = kwargs["shape"]
+                secret = protocol.uniform(shape=shape)
+                operand_stack.append(secret)
+                _send_result(client)
+
             # Inplace addition.
             elif command == "protocol" and kwargs["subcommand"] == "inplace_add":
                 protocol = protocol_stack[-1]

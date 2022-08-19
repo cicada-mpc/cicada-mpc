@@ -1539,7 +1539,7 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         shape: :class:`tuple`, optional
-            Shape of the array to populate. By default, 
+            Shape of the array to populate. By default,
             a shapeless array of one random element will be generated.
         src: sequence of :class:`int`, optional
             Players that will contribute to random array generation.  By default,
@@ -1560,7 +1560,7 @@ class AdditiveProtocolSuite(object):
         if generator is None:
             generator = numpy.random.default_rng()
 
-        return AdditiveArrayShare(self._encoder.uniform(size=shape, generator=generator)) 
+        return AdditiveArrayShare(self._encoder.uniform(size=shape, generator=generator))
 
 
     def untruncated_multiply(self, lhs, rhs):
