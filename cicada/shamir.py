@@ -138,11 +138,11 @@ class ShamirBasicProtocolSuite(object):
         self._assert_unary_compatible(lhs, lhslabel)
         self._assert_unary_compatible(rhs, rhslabel)
         if lhs.storage.shape != rhs.storage.shape:
-            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.")
+            raise ValueError(f"{lhslabel} and {rhslabel} must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
 
     def _assert_unary_compatible(self, share, label):
         if not isinstance(share, ShamirArrayShare):
-            raise ValueError(f"{label} must be an instance of ShamirArrayShare, got {type(share)} instead.")
+            raise ValueError(f"{label} must be an instance of ShamirArrayShare, got {type(share)} instead.") # pragma: no cover
 
     def _lagrange_coef(self, src=None):
         # Given a set of indices, it returns an array containing the lagrange coefficients
