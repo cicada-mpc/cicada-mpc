@@ -18,7 +18,7 @@ import logging
 
 from behave import *
 
-import cicada.communicator
+from cicada.communicator import SocketCommunicator
 import cicada.logging
 
 import test
@@ -30,7 +30,7 @@ def step_impl(context):
         log = cicada.logging.Logger(logging.getLogger(), communicator)
         test.assert_equal(log.logger, logging.getLogger())
 
-    cicada.communicator.SocketCommunicator.run(world_size=context.players, fn=operation)
+    SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
 @when(u'the players create a Cicada logger, they can temporarily override the sync attribute')
@@ -41,6 +41,8 @@ def step_impl(context):
         with log.override(sync=False):
             test.assert_equal(log.sync, False)
         test.assert_equal(log.sync, True)
+
+    SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
 @when(u'the players log {message} with level {level}, the message is logged at the correct level')
@@ -75,5 +77,7 @@ def step_impl(context, message, level):
     for log_watcher in results:
         test.assert_equal(len(log_watcher.records), 1)
         test.assert_equal(log_watcher.records[0].getMessage(), message)
+
+    SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
