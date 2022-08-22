@@ -43,6 +43,9 @@ def assert_is_none(expr, msg=None):
 def assert_logs(logger=None, level=None):
     return unittest.TestCase().assertLogs(logger, level)
 
+def assert_no_logs(logger=None, level=None):
+    return unittest.TestCase().assertNoLogs(logger, level)
+
 def assert_raises(exception, *, msg=None):
     return unittest.TestCase().assertRaises(exception, msg)
 

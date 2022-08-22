@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import logging
+import numbers
 
 from behave import *
 
@@ -22,6 +23,15 @@ from cicada.communicator import SocketCommunicator
 import cicada.logging
 
 import test
+
+
+class LogWatcher(logging.Handler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.records = []
+
+    def emit(self, record):
+        self.records.append(record)
 
 
 @when(u'the players create a Cicada logger, they can access the underlying Python logger')
@@ -33,7 +43,18 @@ def step_impl(context):
     SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
-@when(u'the players create a Cicada logger, they can temporarily override the sync attribute')
+@when(u'the players create a Cicada logger, they can change the sync attribute')
+def step_impl(context):
+    def operation(communicator):
+        log = cicada.logging.Logger(logging.getLogger(), communicator)
+        test.assert_equal(log.sync, True)
+        log.sync = False
+        test.assert_equal(log.sync, False)
+
+    SocketCommunicator.run(world_size=context.players, fn=operation)
+
+
+@when(u'the players create a Cicada logger, they can temporarily change the sync attribute')
 def step_impl(context):
     def operation(communicator):
         log = cicada.logging.Logger(logging.getLogger(), communicator)
@@ -45,39 +66,59 @@ def step_impl(context):
     SocketCommunicator.run(world_size=context.players, fn=operation)
 
 
-@when(u'the players log {message} with level {level}, the message is logged at the correct level')
-def step_impl(context, message, level):
+@when(u'the players log {message} with level {level} and src {src}, the message is logged correctly')
+def step_impl(context, src, message, level):
+    src = eval(src)
     message = eval(message)
     level = eval(level)
 
-    def operation(communicator, message, level):
+    def operation(communicator, src, message, level):
+        logwatcher = LogWatcher()
+
         logger = logging.getLogger()
+        oldlevel = logger.level
+        logger.level = level
+        oldhandlers = logger.handlers[:]
+        logger.handlers = [logwatcher]
+
         log = cicada.logging.Logger(logger, communicator)
-        with test.assert_logs(logger, level=level) as log_watcher:
-            if level == logging.DEBUG:
-                log.debug(message)
-            elif level == logging.INFO:
-                log.info(message)
-            elif level == logging.WARNING:
-                log.warning(message)
-            elif level == logging.ERROR:
-                log.error(message)
-            elif level == logging.CRITICAL:
-                log.critical(message)
-        return log_watcher
+
+        if level == logging.DEBUG:
+            log.debug(message, src=src)
+        elif level == logging.INFO:
+            log.info(message, src=src)
+        elif level == logging.WARNING:
+            log.warning(message, src=src)
+        elif level == logging.ERROR:
+            log.error(message, src=src)
+        elif level == logging.CRITICAL:
+            log.critical(message, src=src)
+
+        logger.handlers = oldhandlers
+        logger.level = oldlevel
+
+        return logwatcher.records
+
 
     results = cicada.communicator.SocketCommunicator.run(
         world_size=context.players,
         fn=operation,
-        args=(message, level),
+        args=(src, message, level),
         identities=context.identities,
         trusted=context.trusted,
         )
 
-    for log_watcher in results:
-        test.assert_equal(len(log_watcher.records), 1)
-        test.assert_equal(log_watcher.records[0].getMessage(), message)
+    if src is None:
+        src = list(range(context.players))
+    elif isinstance(src, numbers.Integral):
+        src = [src]
 
-    SocketCommunicator.run(world_size=context.players, fn=operation)
+    for rank, records in enumerate(results):
+        if rank in src:
+            test.assert_equal(len(records), 1)
+            test.assert_equal(records[0].getMessage(), message)
+            test.assert_equal(records[0].levelno, level)
+        else:
+            test.assert_equal(len(records), 0)
 
 

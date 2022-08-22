@@ -138,17 +138,19 @@ class Logger(object):
         src: :class:`int` or sequence of :class:`int`, optional
             If specified, only the given player(s) will produce log output.
         """
-        if isinstance(src, numbers.Integral):
-            src = [src]
-
         communicator = self._communicator
+
+        if src is None:
+            src = communicator.ranks
+        elif isinstance(src, numbers.Integral):
+            src = [src]
 
         # Wait for our turn to generate output.
         if self._sync and communicator.rank:
             communicator.recv(src=communicator.rank-1, tag=Tag.LOGSYNC)
 
         # Generate output.
-        if src is None or communicator.rank in src:
+        if communicator.rank in src:
             self._logger.log(level, msg, *args, **kwargs)
 
         # Notify the next player that it's their turn.
