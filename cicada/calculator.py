@@ -153,13 +153,8 @@ def main(listen_socket, communicator):
             #############################################################
             # Commands related to the communicator stack.
 
-            # View the communicator on the top of the communicator stack.
-            elif command == "commget":
-                _send_result(client, repr(communicator_stack[-1]))
-
-            # View the entire contents of the communicator stack.
-            elif command == "commstack":
-                _send_result(client, [repr(communicator) for communicator in communicator_stack])
+            # Placeholder for operations to split, shrink, or connect
+            # new communicators.
 
             #############################################################
             # Commands related to the protocol stack.
