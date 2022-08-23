@@ -63,6 +63,14 @@ def step_impl(context, world_size):
     context.calculator_processes = processes
 
 
+@given(u'a calculator service with {world_size} players using unix domain sockets')
+def step_impl(context, world_size):
+    world_size = eval(world_size)
+    addresses, processes = SocketCommunicator.run_forever(world_size=world_size, fn=main, family="file")
+    context.calculator = Client(addresses)
+    context.calculator_processes = processes
+
+
 @given(u'a new {name} protocol suite')
 def step_impl(context, name):
     _require_success(context.calculator.command("protopush", name=name))
@@ -308,7 +316,6 @@ def step_impl(context, count, name):
 @then(u'the players can retrieve a complete copy of the operand stack')
 def step_impl(context):
     context.opstack = _require_success(context.calculator.command("opstack"))
-    print(context.opstack)
 
 
 @then(u'the stack should match {stack} for all players')
@@ -317,7 +324,6 @@ def step_impl(context, stack):
     for playerstack in context.opstack:
         test.assert_equal(len(stack), len(playerstack))
         for lhs, rhs in zip(stack, playerstack):
-            print(lhs, rhs)
             numpy.testing.assert_array_equal(lhs, rhs)
 
 
@@ -349,7 +355,6 @@ def step_impl(context):
 def step_impl(context):
     values = _require_success(context.calculator.command("oppop"))
     bits = _require_success(context.calculator.command("oppop"))
-    print(bits, values)
 
     for bits, value in zip(bits, values):
         test.assert_equal(value, numpy.sum(numpy.power(2, numpy.arange(len(bits))[::-1]) * bits))
@@ -376,13 +381,5 @@ def step_impl(context, shape):
     results = _require_success(context.calculator.command("opget"))
     for result in results:
         test.assert_equal(shape, result.shape)
-
-
-@then(u'the results should be between 0 and 1')
-def step_impl(context):
-    results = _require_success(context.calculator.command("opget"))
-    for result in results:
-        print(result)
-    raise NotImplementedError()
 
 

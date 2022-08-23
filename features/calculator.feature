@@ -1,6 +1,13 @@
 Feature: MPC Calculator Service
 
     @calculator
+    Scenario: Unix Domain Sockets
+        Given a calculator service with 3 players using unix domain sockets
+        And public value 4
+        Then the players can retrieve a complete copy of the operand stack
+
+
+    @calculator
     Scenario Outline: Exception Handling
         Given a calculator service with <players> players
         When the players raise <exception>

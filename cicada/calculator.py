@@ -67,7 +67,14 @@ class Client(object):
         for player in players:
             address = self._addresses[player]
             address = urllib.parse.urlparse(address)
-            sockets.append(socket.create_connection((address.hostname, address.port)))
+            if address.scheme == "file":
+                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                sock.connect(address.path)
+                sockets.append(sock)
+            elif address.scheme == "tcp":
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect((address.hostname, address.port))
+                sockets.append(sock)
 
         # Send commands
         for sock in sockets:
