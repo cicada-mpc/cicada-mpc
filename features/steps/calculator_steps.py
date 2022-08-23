@@ -305,6 +305,22 @@ def step_impl(context, count, name):
         _require_success(context.calculator.command("protopush", name=name))
 
 
+@then(u'the players can retrieve a complete copy of the operand stack')
+def step_impl(context):
+    context.opstack = _require_success(context.calculator.command("opstack"))
+    print(context.opstack)
+
+
+@then(u'the stack should match {stack} for all players')
+def step_impl(context, stack):
+    stack = eval(stack)
+    for playerstack in context.opstack:
+        test.assert_equal(len(stack), len(playerstack))
+        for lhs, rhs in zip(stack, playerstack):
+            print(lhs, rhs)
+            numpy.testing.assert_array_equal(lhs, rhs)
+
+
 @then(u'the result should match {rhs} to within {digits} digits')
 def step_impl(context, rhs, digits):
     rhs = eval(rhs)
