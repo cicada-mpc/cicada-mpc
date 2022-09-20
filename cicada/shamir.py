@@ -884,9 +884,9 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         result = self.untruncated_multiply(lhs, rhs)
-        print(f'utmult shape: {result.storage.shape}')
+        #print(f'utmult shape: {result.storage.shape}')
         result = self.sum(result)
-        print(f'sum shape: {result.storage.shape}')
+        #print(f'sum shape: {result.storage.shape}')
         result = self.truncate(result)
         return result
 
@@ -988,9 +988,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         for i in range(len(self.communicator.ranks)):
             sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self._encoder.modulus, dtype=self._encoder.dtype)
         trunc_sharray = self.truncate(ShamirArrayShare(sharray))
-        if self.communicator.rank==0:
-            bits = numpy.sum(numpy.array([64 for x in dubdeg.flatten()]) )
-            print(f'{bits} bits communicated')
 
         return trunc_sharray
 
@@ -1748,7 +1745,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         if rmask is None:
             _, rmask = self.random_bitwise_secret(bits=self._encoder.precision, shape=rhs.storage.shape)
-        print(f'ud rev s mask: {self.reveal(rmask)}')
+        #print(f'ud rev s mask: {self.reveal(rmask)}')
         rhsmasked = self.untruncated_multiply(rmask, rhs)
         rhsmasked = self.truncate(rhsmasked)
         revealrhsmasked = self._encoder.decode(self._reveal(rhsmasked))

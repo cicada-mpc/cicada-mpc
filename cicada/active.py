@@ -1251,7 +1251,7 @@ class ActiveProtocolSuite(object):
         atbm = tshare[0]
         stbm = tshare[1]
         rev = self.reveal(tshare)
-        print(f'rev tshare: {rev}')
+        #print(f'rev tshare: {rev}')
         return ActiveArrayShare((self.aprotocol.untruncated_divide(lhs[0], rhs[0], atbm), self.sprotocol.untruncated_divide(lhs[1], rhs[1],stbm)))
 
 
