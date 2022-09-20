@@ -884,7 +884,9 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         result = self.untruncated_multiply(lhs, rhs)
+        print(f'utmult shape: {result.storage.shape}')
         result = self.sum(result)
+        print(f'sum shape: {result.storage.shape}')
         result = self.truncate(result)
         return result
 
@@ -946,6 +948,51 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
 
+    def folklore_dot(self, lhs, rhs):
+        """folklore dot product of two shared arrays.
+
+        The operands are assumed to be vectors or matrices and their dot product is
+        computed. Multiplication with shared secrets and
+        public scalars is implemented in the encoder.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            secret value to be multiplied.
+        rhs: :class:`ShamirArrayShare`, required
+            secret value to be multiplied.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+
+        world_size = self.communicator.world_size
+        count = ceil((world_size - 1) / 2)
+        x = lhs.storage
+        y = rhs.storage
+        z = numpy.dot(x,y)
+        xy=numpy.array((z)%self._encoder.modulus, dtype=self._encoder.dtype)
+        lc = self._lagrange_coef()
+        dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self._encoder.dtype) 
+        for i, src in enumerate(self.communicator.ranks):
+            dubdeg[i]=self._share(src=src, secret=xy, shape=xy.shape).storage #transpose
+        sharray = numpy.zeros(lhs.storage.shape, dtype=self._encoder.dtype)
+        for i in range(len(self.communicator.ranks)):
+            sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self._encoder.modulus, dtype=self._encoder.dtype)
+        trunc_sharray = self.truncate(ShamirArrayShare(sharray))
+        if self.communicator.rank==0:
+            bits = numpy.sum(numpy.array([64 for x in dubdeg.flatten()]) )
+            print(f'{bits} bits communicated')
+
+        return trunc_sharray
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
@@ -1701,6 +1748,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         if rmask is None:
             _, rmask = self.random_bitwise_secret(bits=self._encoder.precision, shape=rhs.storage.shape)
+        print(f'ud rev s mask: {self.reveal(rmask)}')
         rhsmasked = self.untruncated_multiply(rmask, rhs)
         rhsmasked = self.truncate(rhsmasked)
         revealrhsmasked = self._encoder.decode(self._reveal(rhsmasked))

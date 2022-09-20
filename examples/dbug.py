@@ -32,13 +32,14 @@ def main(communicator):
 
 
     # Player 0 will provide a secret.
-    share3 = protocol.share(secret=protocol.encoder.encode(numpy.array(.3)), src=0, shape=())
-    share5 = protocol.share(secret=protocol.encoder.encode(numpy.array(.5)), src=0, shape=())
-    q = protocol.untruncated_divide(share5, share3)
+    sharen = protocol.share(secret=numpy.array(44.0625), src=0, shape=())
+    shared = protocol.share(secret=numpy.array(1), src=0, shape=())
+    q = protocol.untruncated_divide(sharen, shared)
+    revq = protocol.reveal(q)
     qtruncd = protocol.truncate(q)
-
-    log.info(f"Player {communicator.rank} q: {protocol.encoder.decode(protocol.reveal(q))}")
-    log.info(f"Player {communicator.rank} qtruncd: {protocol.encoder.decode(protocol.reveal(qtruncd))}")
+    revtruncdq = protocol.reveal(qtruncd)
+    log.info(f"Player {communicator.rank} q: {revq}")
+    log.info(f"Player {communicator.rank} qtruncd: {protocol.reveal(qtruncd)}")
 
 
 

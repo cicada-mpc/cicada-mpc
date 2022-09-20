@@ -141,7 +141,7 @@ Feature: Active Protocol
         @wip
         Examples:
         | players | a    | b    | result        |
-        | 3       | 0.5  | 0.3  | 1.6666        |
+        | 3       | 0.5  | 3  | .16666        |
 
 
     @calculator
