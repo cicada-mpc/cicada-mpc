@@ -535,6 +535,25 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Resharing
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player <player> secret shares <value>
+        And the players reshare the secret
+        And the players subtract the shares
+        When the players reveal the secret
+        Then the results should match <result> to within 4 digits
+
+        @wip
+        Examples:
+        | players | player | value         | result |
+        | 3       | 0      | 1             | 0      |
+        | 3       | 1      | 2.56          | 0      |
+        | 3       | 2      | -3.5          | 0      |
+        | 3       | 2      | [2.3, 7.9]    | [0,0]  |
+
+
+    @calculator
     Scenario Outline: Startup Reliability
         Given a calculator service with <players> players
         Then <count> Additive protocol objects can be created without error

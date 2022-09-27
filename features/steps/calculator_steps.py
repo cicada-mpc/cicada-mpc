@@ -102,6 +102,11 @@ def step_impl(context, player, secret):
     _require_success(context.calculator.command("protocol", subcommand="share", src=player, shape=secret.shape))
 
 
+@given(u'the players reshare the secret')
+def step_impl(context):
+    _require_success(context.calculator.command("protocol", subcommand="reshare"))
+
+
 @given(u'player {player} tampers with the additive portion of its ActiveArrayShare')
 def step_impl(context, player):
     player = eval(player)
@@ -335,6 +340,14 @@ def step_impl(context, rhs, digits):
     for lhs in _require_success(context.calculator.command("opget")):
         numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
 
+@then(u'the results should match {rhs} to within {digits} digits')
+def step_impl(context, rhs, digits):
+    rhs = eval(rhs)
+    digits = eval(digits)
+
+    for lhs in _require_success(context.calculator.command("opget")):
+        print(lhs)
+        numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
 
 @then(u'the result should match {rhs}')
 def step_impl(context, rhs):
