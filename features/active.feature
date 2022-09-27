@@ -119,6 +119,24 @@ Feature: Active Protocol
 
 
     @calculator
+    Scenario Outline: Additive Inverse
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player <player> secret shares <value>
+        And the players compute the additive inverse
+        When the players reveal the secret
+        Then the results should match <result> to within 4 digits
+
+        @wip
+        Examples:
+        | players | player | value         | result      |
+        | 3       | 0      | 1             | -1          |
+        | 3       | 1      | 2.56          | -2.56       |
+        | 3       | 2      | -3.5          | 3.5         |
+        | 3       | 2      | [2.3, 7.9]    | [-2.3, -7.9]|
+
+
+    @calculator
     Scenario Outline: Private Divide
         Given a calculator service with <players> players
         And a new Active protocol suite

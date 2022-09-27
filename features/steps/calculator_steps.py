@@ -182,6 +182,11 @@ def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="absolute"))
 
 
+@when(u'the players compute the additive inverse')
+def step_impl(context):
+    _require_success(context.calculator.command("protocol", subcommand="additive_inverse"))
+
+
 @when(u'the players compute the dot product of the shares')
 def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="dot"))
