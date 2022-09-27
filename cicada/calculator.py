@@ -269,6 +269,14 @@ def main(listen_socket, communicator):
                 operand_stack.append(value)
                 _send_result(client)
 
+            # Secret share a value from the top of the operand stack.
+            elif command == "protocol" and kwargs["subcommand"] == "reshare":
+                protocol = protocol_stack[-1]
+                secret = operand_stack.pop()
+                share = protocol.reshare(operand = secret)
+                operand_stack.append(share)
+                _send_result(client)
+
             # Reveal a secret shared value from the top of the operand stack.
             elif command == "protocol" and kwargs["subcommand"] == "reveal":
                 protocol = protocol_stack[-1]
