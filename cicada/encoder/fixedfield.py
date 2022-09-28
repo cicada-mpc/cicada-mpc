@@ -294,9 +294,13 @@ class FixedFieldEncoder(object):
         random: :class:`numpy.ndarray`
             Encoded array containing uniform random values with shape `size`.
         """
+        elements = int(numpy.prod(size))
+        elementbytes = self.fieldbytes
+        randombytes = generator.bytes(elements * elementbytes)
+
         values = []
-        for index in range(int(numpy.prod(size))):
-            values.append(int.from_bytes(generator.bytes(self.fieldbytes), 'big') % self._modulus)
+        for start in range(0, elements * elementbytes, elementbytes):
+            values.append(int.from_bytes(randombytes[start : start+elementbytes], "big"))
         result = numpy.array(values, dtype=self.dtype).reshape(size)
         self._assert_unary_compatible(result, "result")
         return result
