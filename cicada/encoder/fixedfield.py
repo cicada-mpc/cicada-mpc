@@ -298,9 +298,7 @@ class FixedFieldEncoder(object):
         elementbytes = self.fieldbytes
         randombytes = generator.bytes(elements * elementbytes)
 
-        values = []
-        for start in range(0, elements * elementbytes, elementbytes):
-            values.append(int.from_bytes(randombytes[start : start+elementbytes], "big"))
+        values = [int.from_bytes(randombytes[start : start+elementbytes], "big") for start in range(0, elements * elementbytes, elementbytes)]
         result = numpy.array(values, dtype=self.dtype).reshape(size)
         self._assert_unary_compatible(result, "result")
         return result
