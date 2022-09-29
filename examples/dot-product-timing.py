@@ -21,12 +21,13 @@ import time
 import numpy
 
 from cicada.additive import AdditiveProtocolSuite
+from cicada.shamir import ShamirProtocolSuite
 from cicada.communicator import SocketCommunicator
 
 
 def main(communicator, n):
     with Profile() as profile:
-        proto = AdditiveProtocolSuite(communicator)
+        proto = ShamirProtocolSuite(communicator, threshold=2)
 
         generator = numpy.random.default_rng()
         a = generator.uniform(size=n) if communicator.rank==0 else None
@@ -34,13 +35,14 @@ def main(communicator, n):
 
         ashare = proto.share(src=0, secret=a, shape=n)
         bshare = proto.share(src=1, secret=b, shape=n)
-        cshare = proto.dot(ashare, bshare)
+        cshare = proto.folklore_dot(ashare, bshare)
         c = proto.reveal(cshare)
 
         if communicator.rank == 0:
+            print(c)
             stats = pstats.Stats(profile)
             stats.sort_stats(pstats.SortKey.CUMULATIVE)
-            stats.print_stats(20)
+            stats.print_stats(30)
 
-SocketCommunicator.run(world_size=3, fn=main, args=[100000], timeout=100)
+SocketCommunicator.run(world_size=3, fn=main, args=[100], timeout=100)
 
