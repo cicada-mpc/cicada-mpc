@@ -1,4 +1,4 @@
-# CICADA
+# Cicada
 
 Welcome to Cicada … a set of tools for working with fault-tolerant secure multiparty computation. Notable Cicada features include:
 
