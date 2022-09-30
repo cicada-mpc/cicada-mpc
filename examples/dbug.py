@@ -33,13 +33,22 @@ def main(communicator):
 
     # Player 0 will provide a secret.
     sharen = protocol.share(secret=numpy.array(44.0625), src=0, shape=())
+    #sharen = protocol.share(secret=numpy.array(44), src=0, shape=())
     shared = protocol.share(secret=numpy.array(1), src=0, shape=())
-    q = protocol.untruncated_divide(sharen, shared)
-    revq = protocol.reveal(q)
-    qtruncd = protocol.truncate(q)
-    revtruncdq = protocol.reveal(qtruncd)
+    success = 0
+    for i in range(100):
+        try:
+            q = protocol.untruncated_divide(sharen, shared)
+            revq = protocol.reveal(q)
+            qtruncd = protocol.truncate(q)
+            revtruncdq = protocol.reveal(qtruncd)
+            success += 1
+            log.info(f"round {i} success", src=0)
+        except:
+            log.info(f"round {i} failed", src=0)
     log.info(f"Player {communicator.rank} q: {revq}")
     log.info(f"Player {communicator.rank} qtruncd: {protocol.reveal(qtruncd)}")
+    log.info(f"Succeeded {success}%", src=0)
 
 
 

@@ -1657,7 +1657,7 @@ class AdditiveProtocolSuite(object):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         if rmask is None:
             _, rmask = self.random_bitwise_secret(bits=self._encoder.precision, shape=rhs.storage.shape)
-        print(f'ud rev a mask: {self.reveal(rmask)}')
+        #print(f'ud rev a mask: {self.reveal(rmask)}')
         rhsmasked = self.untruncated_multiply(rmask, rhs)
         rhsmasked = self.truncate(rhsmasked)
         revealrhsmasked = self._encoder.decode(self._reveal(rhsmasked))

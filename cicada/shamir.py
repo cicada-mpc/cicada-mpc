@@ -981,10 +981,10 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         z = numpy.dot(x,y)
         xy=numpy.array((z)%self._encoder.modulus, dtype=self._encoder.dtype)
         lc = self._lagrange_coef()
-        dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self._encoder.dtype) 
+        dubdeg = numpy.zeros((len(lc),)+xy.shape, dtype=self._encoder.dtype) 
         for i, src in enumerate(self.communicator.ranks):
             dubdeg[i]=self._share(src=src, secret=xy, shape=xy.shape).storage #transpose
-        sharray = numpy.zeros(lhs.storage.shape, dtype=self._encoder.dtype)
+        sharray = numpy.zeros(xy.shape, dtype=self._encoder.dtype)
         for i in range(len(self.communicator.ranks)):
             sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self._encoder.modulus, dtype=self._encoder.dtype)
         trunc_sharray = self.truncate(ShamirArrayShare(sharray))
