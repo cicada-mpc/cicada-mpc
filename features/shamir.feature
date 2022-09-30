@@ -112,6 +112,25 @@ Feature: Shamir Protocol
 
 
     @calculator
+    Scenario Outline: Private Bit Decompose 
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        When the players compute the decomposition of the shared secrets
+        And the players reveal the secret bits
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a         | result                   |
+        | 3       |  5        |  [0]*44+[0,1,0,1]+[0]*16 |
+        | 3       |  0        |  [0]*44+[0,0,0,0]+[0]*16 |
+        | 3       |  15       |  [0]*44+[1,1,1,1]+[0]*16 |
+        | 3       |  10       |  [0]*44+[1,0,1,0]+[0]*16 |
+        | 3       |  12       |  [0]*44+[1,1,0,0]+[0]*16 |
+        | 3       |  3        |  [0]*44+[0,0,1,1]+[0]*16 |
+
+
+    @calculator
     Scenario Outline: Private Divide
         Given a calculator service with <players> players
         And a new Shamir protocol suite

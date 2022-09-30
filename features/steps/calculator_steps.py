@@ -192,6 +192,11 @@ def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="bit_compose"))
 
 
+@when(u'the players compute the decomposition of the shared secrets')
+def step_impl(context):
+    _require_success(context.calculator.command("protocol", subcommand="bit_decompose"))
+
+
 @when(u'the players compute the dot product of the shares')
 def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="dot"))
