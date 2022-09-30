@@ -75,7 +75,7 @@ Feature: Shamir Protocol
 
 
     @calculator
-    Scenario Outline: Additive Inverse
+    Scenario Outline: Private Additive Inverse
         Given a calculator service with <players> players
         And a new Shamir protocol suite
         And player <player> secret shares <value>
@@ -90,6 +90,25 @@ Feature: Shamir Protocol
         | 3       | 1      | 2.56          | -2.56       |
         | 3       | 2      | -3.5          | 3.5         |
         | 3       | 2      | [2.3, 7.9]    | [-2.3, -7.9]|
+
+
+    @calculator
+    Scenario Outline: Private Bit Compose 
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        When the players compute the composition of the shared bits
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a         | result        |
+        | 3       | [0,1,0,1] | 5             |
+        | 3       | [0,0,0,0] | 0             |
+        | 3       | [1,1,1,1] | 15            |
+        | 3       | [1,0,1,0] | 10            |
+        | 3       | [1,1,0,0] | 12            |
+        | 3       | [0,0,1,1] | 3             |
 
 
     @calculator
