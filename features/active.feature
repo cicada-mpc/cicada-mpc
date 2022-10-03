@@ -139,7 +139,7 @@ Feature: Active Protocol
     @calculator
     Scenario Outline: Private Bit Compose 
         Given a calculator service with <players> players
-        And a new Additive protocol suite
+        And a new Active protocol suite
         And player 0 secret shares <a>
         When the players compute the composition of the shared bits
         And the players reveal the secret
@@ -158,7 +158,7 @@ Feature: Active Protocol
     @calculator
     Scenario Outline: Private Bit Decompose 
         Given a calculator service with <players> players
-        And a new Additive protocol suite
+        And a new Active protocol suite
         And player 0 secret shares <a>
         When the players compute the decomposition of the shared secrets
         And the players reveal the secret bits
@@ -479,7 +479,7 @@ Feature: Active Protocol
     @calculator
     Scenario Outline: Private Public Power Field
         Given a calculator service with <players> players
-        And a new Additive protocol suite
+        And a new Active protocol suite
         And player 0 secret shares <a>
         And public value <b>
         When the players raise the share to the public power in the field
