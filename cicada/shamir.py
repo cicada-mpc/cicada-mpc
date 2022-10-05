@@ -883,12 +883,34 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
             Secret-shared dot product of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        result = self.untruncated_multiply(lhs, rhs)
-        #print(f'utmult shape: {result.storage.shape}')
-        result = self.sum(result)
-        #print(f'sum shape: {result.storage.shape}')
-        result = self.truncate(result)
-        return result
+
+        # The following implementation is efficient because
+        # it uses the distributive property so that only a
+        # single truncation is performed, regardless of
+        # input shape.
+#        result = self.untruncated_multiply(lhs, rhs)
+#        result = self.sum(result)
+#        result = self.truncate(result)
+#        return result
+
+        # The following folklore implementation is even better because
+        # reasons.
+        world_size = self.communicator.world_size
+        count = ceil((world_size - 1) / 2)
+        x = lhs.storage
+        y = rhs.storage
+        z = numpy.dot(x,y)
+        xy=numpy.array((z)%self._encoder.modulus, dtype=self._encoder.dtype)
+        lc = self._lagrange_coef()
+        dubdeg = numpy.zeros((len(lc),)+xy.shape, dtype=self._encoder.dtype)
+        for i, src in enumerate(self.communicator.ranks):
+            dubdeg[i]=self._share(src=src, secret=xy, shape=xy.shape).storage #transpose
+        sharray = numpy.zeros(xy.shape, dtype=self._encoder.dtype)
+        for i in range(len(self.communicator.ranks)):
+            sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self._encoder.modulus, dtype=self._encoder.dtype)
+        trunc_sharray = self.truncate(ShamirArrayShare(sharray))
+
+        return trunc_sharray
 
 
     def equal(self, lhs, rhs):
@@ -948,48 +970,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
         return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
 
-    def folklore_dot(self, lhs, rhs):
-        """folklore dot product of two shared arrays.
-
-        The operands are assumed to be vectors or matrices and their dot product is
-        computed. Multiplication with shared secrets and
-        public scalars is implemented in the encoder.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`ShamirArrayShare`, required
-            secret value to be multiplied.
-        rhs: :class:`ShamirArrayShare`, required
-            secret value to be multiplied.
-
-        Returns
-        -------
-        value: :class:`ShamirArrayShare`
-            The secret dot product of `lhs` and `rhs`.
-        """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-
-        world_size = self.communicator.world_size
-        count = ceil((world_size - 1) / 2)
-        x = lhs.storage
-        y = rhs.storage
-        z = numpy.dot(x,y)
-        xy=numpy.array((z)%self._encoder.modulus, dtype=self._encoder.dtype)
-        lc = self._lagrange_coef()
-        dubdeg = numpy.zeros((len(lc),)+xy.shape, dtype=self._encoder.dtype) 
-        for i, src in enumerate(self.communicator.ranks):
-            dubdeg[i]=self._share(src=src, secret=xy, shape=xy.shape).storage #transpose
-        sharray = numpy.zeros(xy.shape, dtype=self._encoder.dtype)
-        for i in range(len(self.communicator.ranks)):
-            sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self._encoder.modulus, dtype=self._encoder.dtype)
-        trunc_sharray = self.truncate(ShamirArrayShare(sharray))
-
-        return trunc_sharray
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
