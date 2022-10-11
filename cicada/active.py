@@ -61,6 +61,33 @@ class ActiveArrayShare(object):
         """
         return self._storage
 
+    @property
+    def additive_subshare(self):
+        """Local share of an shared secret array.
+
+        Returns
+        -------
+        storage: :class:`object`
+            Private storage for the local share of a secret array created by
+            the active protocol suite.  Access is provided only for
+            serialization and communication - callers must use
+            :class:`ActiveProtocolSuite` to manipulate secret shares.
+        """
+        return self._storage[0]
+
+    @property
+    def shamir_subshare(self):
+        """Local share of an shared secret array.
+
+        Returns
+        -------
+        storage: :class:`object`
+            Private storage for the local share of a secret array created by
+            the active protocol suite.  Access is provided only for
+            serialization and communication - callers must use
+            :class:`ActiveProtocolSuite` to manipulate secret shares.
+        """
+        return self._storage[1]
 
     @storage.setter
     def storage(self, storage):
@@ -141,10 +168,10 @@ class ActiveProtocolSuite(object):
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
         self._assert_unary_compatible(lhs, lhslabel)
         self._assert_unary_compatible(rhs, rhslabel)
-        if lhs[0].storage.shape != rhs[0].storage.shape :
-            raise ValueError(f"{lhslabel} and {rhslabel} additive shares, ActiveShare[0], must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
-        if lhs[1].storage.shape != rhs[1].storage.shape:
-            raise ValueError(f"{lhslabel} and {rhslabel} shamir shares, ActiveShare[1], must be the same shape, got {lhs.storage.shape} and {rhs.storage.shape} instead.") # pragma: no cover
+        if lhs.additive_subshare.storage.shape != rhs.additive_subshare.storage.shape :
+            raise ValueError(f"{lhslabel} and {rhslabel} additive shares, the additive subshares must be the same shape, got {lhs.additive_subshare.storage.shape} and {rhs.additive_subshare.storage.shape} instead.") # pragma: no cover
+        if lhs.shamir_subshare.storage.shape != rhs.shamir_subshare.storage.shape:
+            raise ValueError(f"{lhslabel} and {rhslabel} shamir shares, the Shamir subshares must be the same shape, got {lhs.shamir_subshare.storage.shape} and {rhs.shamir_subshare.storage.shape} instead.") # pragma: no cover
 
 
     def _assert_unary_compatible(self, share, label):
@@ -171,7 +198,7 @@ class ActiveProtocolSuite(object):
             Secret-shared elementwise absolute value of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
-        return ActiveArrayShare((self.aprotocol.absolute(operand[0]), self.sprotocol.absolute(operand[1])))
+        return ActiveArrayShare((self.aprotocol.absolute(operand.additive_subshare), self.sprotocol.absolute(operand.shamir_subshare)))
 
 
     def add(self, lhs, rhs):
@@ -198,7 +225,7 @@ class ActiveProtocolSuite(object):
             Secret-shared sum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.add(lhs[0], rhs[0]), self.sprotocol.add(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.add(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.add(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def additive_inverse(self, operand):
@@ -226,7 +253,7 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        return ActiveArrayShare((self.aprotocol.additive_inverse(operand[0]), self.sprotocol.additive_inverse(operand[1])))
+        return ActiveArrayShare((self.aprotocol.additive_inverse(operand.additive_subshare), self.sprotocol.additive_inverse(operand.shamir_subshare)))
 
     def bit_compose(self, operand):
         """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
@@ -249,7 +276,7 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.bit_compose(operand[0]), self.sprotocol.bit_compose(operand[1])))
+        return ActiveArrayShare((self.aprotocol.bit_compose(operand.additive_subshare), self.sprotocol.bit_compose(operand.shamir_subshare)))
 
     def bit_decompose(self, operand, num_bits=None):
         """Decompose operand into shares of its bitwise representation.
@@ -272,7 +299,7 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.bit_decompose(operand[0], num_bits), self.sprotocol.bit_decompose(operand[1], num_bits)))
+        return ActiveArrayShare((self.aprotocol.bit_decompose(operand.additive_subshare, num_bits), self.sprotocol.bit_decompose(operand.shamir_subshare, num_bits)))
 
     def verify(self, operand):
         """Provides a means by which consistency of shares can be checked among all the parties by the use of a ZKP
@@ -292,8 +319,8 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        a_share = operand[0]
-        s_share = operand[1]
+        a_share = operand.additive_subshare
+        s_share = operand.shamir_subshare
         zero = cicada.shamir.ShamirArrayShare(self.sprotocol._encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self._encoder.modulus-2, self._encoder.modulus) * a_share.storage) % self._encoder.modulus, dtype=object)))
         consistency = numpy.all(self.sprotocol._reveal(zero) == numpy.zeros(zero.storage.shape))
         return consistency
@@ -373,7 +400,7 @@ class ActiveProtocolSuite(object):
             Secret-shared result of computing `lhs` == `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.equal(lhs[0], rhs[0]), self.sprotocol.equal(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.equal(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.equal(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def floor(self, operand):
@@ -391,7 +418,7 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.floor(operand[0]), self.sprotocol.floor(operand[1])))
+        return ActiveArrayShare((self.aprotocol.floor(operand.additive_subshare), self.sprotocol.floor(operand.shamir_subshare)))
 
 
     def less(self, lhs, rhs):
@@ -419,7 +446,7 @@ class ActiveProtocolSuite(object):
             Secret-shared result of computing `lhs` < `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.less(lhs[0], rhs[0]), self.sprotocol.less(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.less(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.less(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def less_than_zero(self, operand):
@@ -446,7 +473,7 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.less_than_zero(operand[0]), self.sprotocol.less_than_zero(operand[1])))
+        return ActiveArrayShare((self.aprotocol.less_than_zero(operand.additive_subshare), self.sprotocol.less_than_zero(operand.shamir_subshare)))
 
 
     def logical_and(self, lhs, rhs):
@@ -475,7 +502,7 @@ class ActiveProtocolSuite(object):
             The secret elementwise logical AND of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.logical_and(lhs[0], rhs[0]), self.sprotocol.logical_and(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.logical_and(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.logical_and(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def logical_not(self, operand):
@@ -503,7 +530,7 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.logical_not(operand[0]), self.sprotocol.logical_not(operand[1])))
+        return ActiveArrayShare((self.aprotocol.logical_not(operand.additive_subshare), self.sprotocol.logical_not(operand.shamir_subshare)))
 
 
     def logical_or(self, lhs, rhs):
@@ -532,7 +559,7 @@ class ActiveProtocolSuite(object):
             The secret elementwise logical OR of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.logical_or(lhs[0], rhs[0]), self.sprotocol.logical_or(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.logical_or(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.logical_or(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def logical_xor(self, lhs, rhs):
@@ -561,7 +588,7 @@ class ActiveProtocolSuite(object):
             The secret elementwise logical exclusive OR of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.logical_xor(lhs[0], rhs[0]), self.sprotocol.logical_xor(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.logical_xor(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.logical_xor(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def max(self, lhs, rhs):
@@ -591,7 +618,7 @@ class ActiveProtocolSuite(object):
             Secret-shared elementwise maximum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.max(lhs[0], rhs[0]), self.sprotocol.max(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.max(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.max(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def min(self, lhs, rhs):
@@ -621,7 +648,7 @@ class ActiveProtocolSuite(object):
             Secret-shared elementwise minimum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.min(lhs[0], rhs[0]), self.sprotocol.min(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.min(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.min(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def multiplicative_inverse(self, operand):
@@ -653,7 +680,7 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.multiplicative_inverse(operand[0]), self.sprotocol.multiplicative_inverse(operand[1])))
+        return ActiveArrayShare((self.aprotocol.multiplicative_inverse(operand.additive_subshare), self.sprotocol.multiplicative_inverse(operand.shamir_subshare)))
 
 
     def multiply(self, lhs, rhs):
@@ -697,7 +724,7 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(lhs, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.private_public_power(lhs[0], rhspub), self.sprotocol.private_public_power(lhs[1], rhspub)))
+        return ActiveArrayShare((self.aprotocol.private_public_power(lhs.additive_subshare, rhspub), self.sprotocol.private_public_power(lhs.shamir_subshare, rhspub)))
 
 
     def private_public_power_field(self, lhs, rhspub):
@@ -717,7 +744,7 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(lhs, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.private_public_power_field(lhs[0], rhspub), self.sprotocol.private_public_power_field(lhs[1], rhspub)))
+        return ActiveArrayShare((self.aprotocol.private_public_power_field(lhs.additive_subshare, rhspub), self.sprotocol.private_public_power_field(lhs.shamir_subshare, rhspub)))
 
     def private_public_subtract(self, lhs, rhs):
         """Return the elementwise difference between public and secret shared arrays.
@@ -748,7 +775,7 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(lhs, "lhs")
 
-        return ActiveArrayShare((self.aprotocol.private_public_subtract(lhs[0], rhs), self.sprotocol.private_public_subtract(lhs[1], rhs)))
+        return ActiveArrayShare((self.aprotocol.private_public_subtract(lhs.additive_subshare, rhs), self.sprotocol.private_public_subtract(lhs.shamir_subshare, rhs)))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
@@ -811,7 +838,7 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.relu(operand[0]), self.sprotocol.relu(operand[1])))
+        return ActiveArrayShare((self.aprotocol.relu(operand.additive_subshare), self.sprotocol.relu(operand.shamir_subshare)))
 
     def reshare(self, *, operand):
         """Convert a private array to an additive secret share.
@@ -834,7 +861,7 @@ class ActiveProtocolSuite(object):
 
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        reshared = ActiveArrayShare((self.aprotocol.reshare(operand=operand[0]), self.sprotocol.reshare(operand=operand[1])))
+        reshared = ActiveArrayShare((self.aprotocol.reshare(operand=operand.additive_subshare), self.sprotocol.reshare(operand=operand.shamir_subshare)))
         if self.verify(reshared):
             return reshared
         else:
@@ -867,26 +894,28 @@ class ActiveProtocolSuite(object):
             Encoded representation of the revealed secret, if this player is a
             member of `dst`, or :any:`None`
         """
-        zshare = cicada.shamir.ShamirArrayShare(self.sprotocol._encoder.subtract(share[1].storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self._encoder.modulus-2, self._encoder.modulus) * share[0].storage) % self._encoder.modulus, dtype=self._encoder.dtype)))
+        if not isinstance(share, ActiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(share)} instead.") # pragma: no cover
+        zshare = cicada.shamir.ShamirArrayShare(self.sprotocol._encoder.subtract(share.shamir_subshare.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self._encoder.modulus-2, self._encoder.modulus) * share.additive_subshare.storage) % self._encoder.modulus, dtype=self._encoder.dtype)))
 
-        a_storage = numpy.array(self.communicator.allgather(share[0].storage), dtype=self._encoder.dtype)
+        a_storage = numpy.array(self.communicator.allgather(share.additive_subshare.storage), dtype=self._encoder.dtype)
         z_storage = numpy.array(self.communicator.allgather(zshare.storage), dtype=self._encoder.dtype)
         secret = []
         revealing_coef = self.sprotocol._revealing_coef
         for index in numpy.ndindex(z_storage[0].shape):
             secret.append(sum([revealing_coef[i]*z_storage[i][index] for i in range(len(revealing_coef))]))
-        rev = numpy.array([x%self._encoder.modulus for x in secret], dtype=self._encoder.dtype).reshape(share[0].storage.shape)
+        rev = numpy.array([x%self._encoder.modulus for x in secret], dtype=self._encoder.dtype).reshape(share.additive_subshare.storage.shape)
         if len(rev.shape) == 0 and rev:
-            #print(f's: {self.sprotocol._reveal(share[1])}\na: {self.aprotocol._reveal(share[0])}')
+            #print(f's: {self.sprotocol._reveal(share.shamir_subshare)}\na: {self.aprotocol._reveal(share.additive_subshare)}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
         if len(rev.shape) > 0 and numpy.any(rev):
-            #print(f's: {self.sprotocol._reveal(share[1])}\na: {self.aprotocol._reveal(share[0])}')
+            #print(f's: {self.sprotocol._reveal(share.shamir_subshare)}\na: {self.aprotocol._reveal(share.additive_subshare)}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
 
         secret = []
         for index in numpy.ndindex(a_storage[0].shape):
             secret.append(sum([a_storage[i][index] for i in range(len(revealing_coef))]))
-        reva = numpy.array([x%self._encoder.modulus for x in secret], dtype=self._encoder.dtype).reshape(share[0].storage.shape)
+        reva = numpy.array([x%self._encoder.modulus for x in secret], dtype=self._encoder.dtype).reshape(share.additive_subshare.storage.shape)
         bs_storage=numpy.zeros(z_storage.shape, dtype=self._encoder.dtype)
         for i, c in enumerate(revealing_coef):
             bs_storage[i] =  self.sprotocol._encoder.add(z_storage[i], numpy.array((pow(self.sprotocol._revealing_coef[i], self._encoder.modulus-2, self._encoder.modulus) * a_storage[i]) % self._encoder.modulus, dtype=self._encoder.dtype))
@@ -908,7 +937,7 @@ class ActiveProtocolSuite(object):
                 loop_acc += revealing_coef[i]*bs_storage[v-1]
             sub_secret.append(loop_acc % self._encoder.modulus)
 
-        revs = numpy.array(sub_secret, dtype=self._encoder.dtype).reshape(share[0].storage.shape)
+        revs = numpy.array(sub_secret, dtype=self._encoder.dtype).reshape(share.additive_subshare.storage.shape)
         s2 = random.sample(list(self.sprotocol._indices), self.sprotocol._d+1)
         s2.sort()
         while s2 == s1:
@@ -928,7 +957,7 @@ class ActiveProtocolSuite(object):
                 loop_acc += revealing_coef[i]*bs_storage[v-1]
             sub_secret2.append(loop_acc % self._encoder.modulus)
 
-        revs2 = numpy.array(sub_secret2, dtype=self._encoder.dtype).reshape(share[0].storage.shape)
+        revs2 = numpy.array(sub_secret2, dtype=self._encoder.dtype).reshape(share.additive_subshare.storage.shape)
         if len(revs.shape) > 0 or len(revs2.shape) > 0:
             if numpy.any(revs != reva) or numpy.any(revs2 != reva):
                 #print(reva, revs, revs2)
@@ -1091,7 +1120,7 @@ class ActiveProtocolSuite(object):
             The difference `lhs` - `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.subtract(lhs[0], rhs[0]), self.sprotocol.subtract(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.subtract(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.subtract(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def sum(self, operand):
@@ -1116,7 +1145,7 @@ class ActiveProtocolSuite(object):
             Secret-shared sum of `operand`'s elements.
         """
         self._assert_unary_compatible(operand, "operand")
-        return ActiveArrayShare((self.aprotocol.sum(operand[0]), self.sprotocol.sum(operand[1])))
+        return ActiveArrayShare((self.aprotocol.sum(operand.additive_subshare), self.sprotocol.sum(operand.shamir_subshare)))
 
 
     def truncate(self, operand, *, bits=None, src=None, generator=None):
@@ -1149,14 +1178,14 @@ class ActiveProtocolSuite(object):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
         if bits is None:
             bits = self._encoder.precision
-        tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand[0].storage.shape)
-        rbm, rshare = self.random_bitwise_secret(bits=self._encoder.fieldbits-bits, src=src, generator=generator, shape=operand[0].storage.shape)
-        atbm = tshare[0]
-        stbm = tshare[1]
-        arbm = rshare[0]
-        srbm = rshare[1]
+        tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
+        rbm, rshare = self.random_bitwise_secret(bits=self._encoder.fieldbits-bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
+        atbm = tshare.additive_subshare
+        stbm = tshare.shamir_subshare
+        arbm = rshare.additive_subshare
+        srbm = rshare.shamir_subshare
 
-        return ActiveArrayShare((self.aprotocol.truncate(operand[0], bits=bits, src=src, generator=generator, trunc_mask=atbm, rem_mask=arbm), self.sprotocol.truncate(operand[1], bits=bits, src=src, generator=generator, trunc_mask=stbm, rem_mask=srbm)))
+        return ActiveArrayShare((self.aprotocol.truncate(operand.additive_subshare, bits=bits, src=src, generator=generator, trunc_mask=atbm, rem_mask=arbm), self.sprotocol.truncate(operand.shamir_subshare, bits=bits, src=src, generator=generator, trunc_mask=stbm, rem_mask=srbm)))
 
 
 
@@ -1194,7 +1223,7 @@ class ActiveProtocolSuite(object):
         for i in self.communicator.ranks:
             shamadd.append(self.sprotocol._share(src=i, secret=uniadd.storage, shape=uniadd.storage.shape))
         unisham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self._encoder.dtype))
-        return (uniadd, unisham)
+        return ActiveArrayShare((uniadd, unisham))
 
     def untruncated_multiply(self, lhs, rhs):
         """Element-wise multiplication of two shared arrays.
@@ -1221,7 +1250,7 @@ class ActiveProtocolSuite(object):
             The secret elementwise product of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return ActiveArrayShare((self.aprotocol.untruncated_multiply(lhs[0], rhs[0]), self.sprotocol.untruncated_multiply(lhs[1], rhs[1])))
+        return ActiveArrayShare((self.aprotocol.untruncated_multiply(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.untruncated_multiply(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     def untruncated_divide(self, lhs, rhs):
@@ -1247,12 +1276,12 @@ class ActiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         bits = self._encoder.precision
-        tbm, tshare = self.random_bitwise_secret(bits=bits, shape=rhs[0].storage.shape)
-        atbm = tshare[0]
-        stbm = tshare[1]
+        tbm, tshare = self.random_bitwise_secret(bits=bits, shape=rhs.additive_subshare.storage.shape)
+        atbm = tshare.additive_subshare
+        stbm = tshare.shamir_subshare
         rev = self.reveal(tshare)
         #print(f'rev tshare: {rev}')
-        return ActiveArrayShare((self.aprotocol.untruncated_divide(lhs[0], rhs[0], atbm), self.sprotocol.untruncated_divide(lhs[1], rhs[1],stbm)))
+        return ActiveArrayShare((self.aprotocol.untruncated_divide(lhs.additive_subshare, rhs.additive_subshare, atbm), self.sprotocol.untruncated_divide(lhs.shamir_subshare, rhs.shamir_subshare,stbm)))
 
 
     def untruncated_private_public_divide(self, lhs, rhs):
@@ -1276,7 +1305,7 @@ class ActiveProtocolSuite(object):
             The secret element-wise result of lhs / rhs.
         """
         self._assert_unary_compatible(lhs, "lhs")
-        return ActiveArrayShare((self.aprotocol.untruncated_private_public_divide(lhs[0], rhs), self.sprotocol.untruncated_private_public_divide(lhs[1], rhs)))
+        return ActiveArrayShare((self.aprotocol.untruncated_private_public_divide(lhs.additive_subshare, rhs), self.sprotocol.untruncated_private_public_divide(lhs.shamir_subshare, rhs)))
 
     def zigmoid(self, operand):
         r"""Compute the elementwise zigmoid function of a secret value.
@@ -1311,4 +1340,4 @@ class ActiveProtocolSuite(object):
         """
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-        return ActiveArrayShare((self.aprotocol.zigmoid(operand[0]), self.sprotocol.zigmoid(operand[1])))
+        return ActiveArrayShare((self.aprotocol.zigmoid(operand.additive_subshare), self.sprotocol.zigmoid(operand.shamir_subshare)))
