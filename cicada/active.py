@@ -1275,9 +1275,9 @@ class ActiveProtocolSuite(object):
         tbm, tshare = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
 
         tbm, mask1 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
-        tbm, rem1 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+        tbm, rem1 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive_subshare.storage.shape)
         tbm, mask2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
-        tbm, rem2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+        tbm, rem2 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive_subshare.storage.shape)
         rev = self.reveal(tshare)
         #print(f'rev tshare: {rev}')
         resa = self.aprotocol.untruncated_divide(lhs.additive_subshare, rhs.additive_subshare, tshare.additive_subshare, mask1.additive_subshare, rem1.additive_subshare, mask2.additive_subshare, rem2.additive_subshare)

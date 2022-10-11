@@ -1667,8 +1667,6 @@ class AdditiveProtocolSuite(object):
             almost_there = self.truncate(self.untruncated_multiply(lhs, rmask), trunc_mask=mask2, rem_mask=rem2)
         else:
             almost_there = self.truncate(self.untruncated_multiply(lhs, rmask))
-
-                                                                                
         maskquotient = self.untruncated_private_public_divide(almost_there, revealrhsmasked)
         return maskquotient 
 

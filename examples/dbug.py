@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.INFO)
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     encoder = cicada.encoder.FixedFieldEncoder()#modulus=11311, precision=2)
-    protocol = cicada.shamir.ShamirProtocolSuite(communicator, threshold=3)#, modulus=11311, precision=2)
+    protocol = cicada.active.ActiveProtocolSuite(communicator, threshold=3)#, modulus=11311, precision=2)
 
 
     # Player 0 will provide a secret.
@@ -40,16 +40,16 @@ def main(communicator):
     #sharen = protocol.share(secret=numpy.array(44), src=0, shape=())
     shared = protocol.share(secret=numpy.array(denominator), src=0, shape=())
     success = 0
-    numRuns = 10
+    numRuns = 1000
     for i in range(numRuns):
         try:
             q = protocol.divide(sharen, shared)
             revq = protocol.reveal(q)
-            assert numpy.isclose(revq, rat)
+            assert numpy.isclose(revq, rat, atol=.1)
             success += 1
             log.info(f"round {i} success", src=0)
         except:
-            log.info(f"round {i} failed", src=0)
+            log.info(f"round {i} failed: Player {communicator.rank} q: {revq}", src=0)
     log.info(f"Player {communicator.rank} q: {revq}")
     log.info(f"Succeeded {100*success/numRuns}%", src=0)
 
