@@ -1193,7 +1193,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         tmpBW, tmp = self.random_bitwise_secret(bits=self._encoder._fieldbits, shape=lop.storage.shape)
         maskedlop = self.add(lhs=lop, rhs=tmp)
         c = self._reveal(maskedlop)
-        # gotta sort the next function call first
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
         c0xr0 = numpy.empty(c.shape, dtype = self._encoder.dtype) 
@@ -1550,10 +1549,10 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
             share_res.append(secret_share)
         if shape_was_none:
             bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._encoder.dtype).reshape(bits))
-            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self._encoder.dtype).reshape(shape))#, order="C"))
+            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self._encoder.dtype).reshape(shape))
         else:
-            bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._encoder.dtype).reshape(shape+(bits,)))#, order="C"))
-            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self._encoder.dtype).reshape(shape))#, order="C"))
+            bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._encoder.dtype).reshape(shape+(bits,)))
+            secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self._encoder.dtype).reshape(shape))
 
         return bit_share, secret_share
 

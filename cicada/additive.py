@@ -653,7 +653,6 @@ class AdditiveProtocolSuite(object):
         tmpBW, tmp = self.random_bitwise_secret(bits=self._encoder._fieldbits, shape=lop.storage.shape)
         maskedlop = self.add(lhs=lop, rhs=tmp)
         c = self._reveal(maskedlop)
-        # gotta sort the next function call first
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
         c0xr0 = numpy.empty(c.shape, dtype = self._encoder.dtype)
@@ -1168,7 +1167,6 @@ class AdditiveProtocolSuite(object):
         recshares = []
         for i in range(self.communicator.world_size):
             recshares.append(self._share(src=i, secret=operand.storage, shape=operand.storage.shape))
-        # Package the result.
         acc = numpy.zeros(operand.storage.shape, dtype=self._encoder.dtype)
         for s in recshares:
             acc += s.storage
@@ -1730,8 +1728,8 @@ class AdditiveProtocolSuite(object):
         ones=self._encoder.encode(numpy.full(operand.storage.shape, 1))
         half = self._encoder.encode(numpy.full(operand.storage.shape, .5))
 
-        secret_plushalf = self._public_private_add(half, operand)#cicada.additive.AdditiveArrayShare(self._encoder.add(operand.storage,half))
-        secret_minushalf = self._private_public_subtract(operand, half)#cicada.additive.AdditiveArrayShare(self._encoder.subtract(operand.storage, half))
+        secret_plushalf = self._public_private_add(half, operand)
+        secret_minushalf = self._private_public_subtract(operand, half)
         ltzsmh = self.less_than_zero(secret_minushalf)
         nltzsmh = self.logical_not(ltzsmh)
         ltzsph = self.less_than_zero(secret_plushalf)

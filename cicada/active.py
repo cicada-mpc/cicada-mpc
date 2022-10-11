@@ -906,10 +906,8 @@ class ActiveProtocolSuite(object):
             secret.append(sum([revealing_coef[i]*z_storage[i][index] for i in range(len(revealing_coef))]))
         rev = numpy.array([x%self._encoder.modulus for x in secret], dtype=self._encoder.dtype).reshape(share.additive_subshare.storage.shape)
         if len(rev.shape) == 0 and rev:
-            #print(f's: {self.sprotocol._reveal(share.shamir_subshare)}\na: {self.aprotocol._reveal(share.additive_subshare)}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
         if len(rev.shape) > 0 and numpy.any(rev):
-            #print(f's: {self.sprotocol._reveal(share.shamir_subshare)}\na: {self.aprotocol._reveal(share.additive_subshare)}')
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
 
         secret = []
@@ -928,9 +926,8 @@ class ActiveProtocolSuite(object):
             for index in numpy.ndindex(z_storage[0].shape):
                 loop_acc = 0
                 for i,v in enumerate(s1):
-                    loop_acc += revealing_coef[i]*bs_storage[v-1][index] # TODO Problem arises in 0d shared array
+                    loop_acc += revealing_coef[i]*bs_storage[v-1][index]
                 sub_secret.append(loop_acc % self._encoder.modulus)
-                #sub_secret.append(sum([(revealing_coef[i]*bs_storage[v-1][index]) % self._encoder.modulus for i,v in enumerate(s1)]))
         else:
             loop_acc = 0
             for i,v in enumerate(s1):
@@ -960,7 +957,6 @@ class ActiveProtocolSuite(object):
         revs2 = numpy.array(sub_secret2, dtype=self._encoder.dtype).reshape(share.additive_subshare.storage.shape)
         if len(revs.shape) > 0 or len(revs2.shape) > 0:
             if numpy.any(revs != reva) or numpy.any(revs2 != reva):
-                #print(reva, revs, revs2)
                 raise ConsistencyError("Secret Shares are inconsistent in the second stage")
         else:
             if revs != reva or revs2 != reva:
@@ -1211,8 +1207,6 @@ class ActiveProtocolSuite(object):
         secret: :class:`ActiveArrayShare`
             A share of the random generated value.
         """
-    # TODO should the shares from both schemes match? YES!!!
-
         uniadd = self.aprotocol.uniform(shape=shape, generator=generator)
         shamadd = []
         for i in self.communicator.ranks:
@@ -1279,7 +1273,6 @@ class ActiveProtocolSuite(object):
         tbm, mask2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
         tbm, rem2 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive_subshare.storage.shape)
         rev = self.reveal(tshare)
-        #print(f'rev tshare: {rev}')
         resa = self.aprotocol.untruncated_divide(lhs.additive_subshare, rhs.additive_subshare, tshare.additive_subshare, mask1.additive_subshare, rem1.additive_subshare, mask2.additive_subshare, rem2.additive_subshare)
         ress = self.sprotocol.untruncated_divide(lhs.shamir_subshare, rhs.shamir_subshare,tshare.shamir_subshare, mask1.shamir_subshare, rem1.shamir_subshare, mask2.shamir_subshare, rem2.shamir_subshare)
         return ActiveArrayShare((resa, ress))
