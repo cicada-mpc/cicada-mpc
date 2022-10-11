@@ -44,8 +44,8 @@ class ActiveArrayShare(object):
 
 
     def __getitem__(self, index):
-        return self._storage[index]
-
+        return ActiveArrayShare((cicada.additive.AdditiveArrayShare(self.additive_subshare.storage[index]), cicada.shamir.ShamirArrayShare(self.shamir_subshare.storage[index])))
+                
 
     @property
     def storage(self):
