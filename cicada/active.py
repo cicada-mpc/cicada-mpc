@@ -1180,12 +1180,7 @@ class ActiveProtocolSuite(object):
             bits = self._encoder.precision
         tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
         rbm, rshare = self.random_bitwise_secret(bits=self._encoder.fieldbits-bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
-        atbm = tshare.additive_subshare
-        stbm = tshare.shamir_subshare
-        arbm = rshare.additive_subshare
-        srbm = rshare.shamir_subshare
-
-        return ActiveArrayShare((self.aprotocol.truncate(operand.additive_subshare, bits=bits, src=src, generator=generator, trunc_mask=atbm, rem_mask=arbm), self.sprotocol.truncate(operand.shamir_subshare, bits=bits, src=src, generator=generator, trunc_mask=stbm, rem_mask=srbm)))
+        return ActiveArrayShare((self.aprotocol.truncate(operand.additive_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.additive_subshare, rem_mask=rshare.additive_subshare), self.sprotocol.truncate(operand.shamir_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.shamir_subshare, rem_mask=rshare.shamir_subshare)))
 
 
 
@@ -1275,13 +1270,19 @@ class ActiveProtocolSuite(object):
             The secret element-wise result of lhs / rhs.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        bits = self._encoder.precision
-        tbm, tshare = self.random_bitwise_secret(bits=bits, shape=rhs.additive_subshare.storage.shape)
-        atbm = tshare.additive_subshare
-        stbm = tshare.shamir_subshare
+        fieldbits = self._encoder.fieldbits
+        truncbits = self._encoder.precision
+        tbm, tshare = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+
+        tbm, mask1 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+        tbm, rem1 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+        tbm, mask2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+        tbm, rem2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
         rev = self.reveal(tshare)
         #print(f'rev tshare: {rev}')
-        return ActiveArrayShare((self.aprotocol.untruncated_divide(lhs.additive_subshare, rhs.additive_subshare, atbm), self.sprotocol.untruncated_divide(lhs.shamir_subshare, rhs.shamir_subshare,stbm)))
+        resa = self.aprotocol.untruncated_divide(lhs.additive_subshare, rhs.additive_subshare, tshare.additive_subshare, mask1.additive_subshare, rem1.additive_subshare, mask2.additive_subshare, rem2.additive_subshare)
+        ress = self.sprotocol.untruncated_divide(lhs.shamir_subshare, rhs.shamir_subshare,tshare.shamir_subshare, mask1.shamir_subshare, rem1.shamir_subshare, mask2.shamir_subshare, rem2.shamir_subshare)
+        return ActiveArrayShare((resa, ress))
 
 
     def untruncated_private_public_divide(self, lhs, rhs):

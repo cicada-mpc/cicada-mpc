@@ -1701,7 +1701,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         return ShamirArrayShare(sharray)
 
 
-    def untruncated_divide(self, lhs, rhs, rmask=None):
+    def untruncated_divide(self, lhs, rhs, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
         """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
         close to or bigger than 2^precision
 
@@ -1725,12 +1725,18 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         if rmask is None:
             _, rmask = self.random_bitwise_secret(bits=self._encoder.precision, shape=rhs.storage.shape)
-        #print(f'ud rev s mask: {self.reveal(rmask)}')
         rhsmasked = self.untruncated_multiply(rmask, rhs)
-        rhsmasked = self.truncate(rhsmasked)
+        if mask1 != None and rem1 != None:
+            rhsmasked = self.truncate(rhsmasked, trunc_mask=mask1, rem_mask=rem1)
+        else:
+            rhsmasked = self.truncate(rhsmasked)
         revealrhsmasked = self._encoder.decode(self._reveal(rhsmasked))
-        maskquotient = self.untruncated_private_public_divide(self.truncate(self.untruncated_multiply(lhs, rmask)), revealrhsmasked)
-        return maskquotient 
+        if mask2 != None and rem2 != None:
+            almost_there = self.truncate(self.untruncated_multiply(lhs, rmask), trunc_mask=mask2, rem_mask=rem2)
+        else:
+            almost_there = self.truncate(self.untruncated_multiply(lhs, rmask))
+        maskquotient = self.untruncated_private_public_divide(almost_there, revealrhsmasked)
+        return maskquotient
 
 
     def untruncated_private_public_divide(self, lhs, rhs):

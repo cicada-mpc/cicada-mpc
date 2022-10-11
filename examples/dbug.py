@@ -22,33 +22,36 @@ import numpy
 import cicada.communicator
 import cicada.encoder
 import cicada.active
+import cicada.shamir
 
 logging.basicConfig(level=logging.INFO)
 
 def main(communicator):
     log = cicada.Logger(logging.getLogger(), communicator)
     encoder = cicada.encoder.FixedFieldEncoder()#modulus=11311, precision=2)
-    protocol = cicada.active.ActiveProtocolSuite(communicator, threshold=3)#, modulus=11311, precision=2)
+    protocol = cicada.shamir.ShamirProtocolSuite(communicator, threshold=3)#, modulus=11311, precision=2)
 
 
     # Player 0 will provide a secret.
-    sharen = protocol.share(secret=numpy.array(44.0625), src=0, shape=())
+    numerator = -37
+    denominator = 1
+    rat = numpy.array(numerator/denominator)
+    sharen = protocol.share(secret=numpy.array(numerator), src=0, shape=())
     #sharen = protocol.share(secret=numpy.array(44), src=0, shape=())
-    shared = protocol.share(secret=numpy.array(1), src=0, shape=())
+    shared = protocol.share(secret=numpy.array(denominator), src=0, shape=())
     success = 0
-    for i in range(100):
+    numRuns = 10
+    for i in range(numRuns):
         try:
-            q = protocol.untruncated_divide(sharen, shared)
+            q = protocol.divide(sharen, shared)
             revq = protocol.reveal(q)
-            qtruncd = protocol.truncate(q)
-            revtruncdq = protocol.reveal(qtruncd)
+            assert numpy.isclose(revq, rat)
             success += 1
             log.info(f"round {i} success", src=0)
         except:
             log.info(f"round {i} failed", src=0)
     log.info(f"Player {communicator.rank} q: {revq}")
-    log.info(f"Player {communicator.rank} qtruncd: {protocol.reveal(qtruncd)}")
-    log.info(f"Succeeded {success}%", src=0)
+    log.info(f"Succeeded {100*success/numRuns}%", src=0)
 
 
 
