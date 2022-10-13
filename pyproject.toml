@@ -28,8 +28,8 @@ name = "cicada-mpc"
 requires-python = ">=3.8"
 
 [project.scripts]
-cicada = "cicada.cli:main"
-cicada-perf = "cicada.perf:main"
+cicada = "cicada.cli.main:main"
+cicada-perf = "cicada.cli.perf:main"
 
 [project.urls]
 "Chat" = "https://github.com/cicada-mpc/cicada-mpc/discussions"
