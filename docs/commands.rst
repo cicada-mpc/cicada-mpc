@@ -9,8 +9,7 @@ cicada
 ------
 
 .. argparse::
-    :module: cicada.cli
+    :module: cicada.cli.main
     :func: parser
     :prog: cicada
-
 
