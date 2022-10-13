@@ -598,9 +598,8 @@ class ShamirBasicProtocolSuite(object):
         src: :class:`int`, required
             The player providing the private array to be secret shared.
         secret: :class:`numpy.ndarray` or :any:`None`, required
-            The secret array to be shared, which must be encoded with this
-            object's :attr:`encoder`.  This value is ignored for all players
-            except `src`.
+            The secret array to be shared.  This value is ignored for all
+            players except `src`.
         shape: :class:`tuple`, required
             The shape of the secret.  Note that the shape must be consistently
             specified by all players.
@@ -626,9 +625,8 @@ class ShamirBasicProtocolSuite(object):
         src: :class:`int`, required
             The player providing the private array to be secret shared.
         secret: :class:`numpy.ndarray` or :any:`None`, required
-            The secret array to be shared, which must be encoded with this
-            object's :attr:`encoder`.  This value is ignored for all players
-            except `src`.
+            The secret array to be shared.  This value is ignored for all
+            players except `src`.
         shape: :class:`tuple`, required
             The shape of the secret.  Note that the shape must be consistently
             specified by all players.

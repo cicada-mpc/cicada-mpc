@@ -316,7 +316,7 @@ class FixedFieldEncoder(object):
         ----
         Shifting untruncated shares of secret shared values will produce
         nonsense results!  See
-        :meth:`cicada.additive.AdditiveProtocol.truncate` for a way to truncate
+        :meth:`cicada.additive.AdditiveProtocolSuite.truncate` for a way to truncate
         untruncated secret shared values.
 
         Parameters
@@ -349,7 +349,7 @@ class FixedFieldEncoder(object):
         ----
         Shifting untruncated shares of secret shared values will produce
         nonsense results!  See
-        :meth:`cicada.additive.AdditiveProtocol.truncate` for a way to truncate
+        :meth:`cicada.additive.AdditiveProtocolSuite.truncate` for a way to truncate
         untruncated secret shared values.
 
 

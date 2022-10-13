@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Provides a command line interface for running Cicada programs.
+"""
+
 import argparse
 import logging
 import os

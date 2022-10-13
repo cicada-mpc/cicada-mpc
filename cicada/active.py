@@ -1052,9 +1052,8 @@ class ActiveProtocolSuite(object):
         src: :class:`int`, required
             The player providing the private array to be secret shared.
         secret: :class:`numpy.ndarray` or :any:`None`, required
-            The secret array to be shared, which must be encoded with this
-            object's :attr:`encoder`.  This value is ignored for all players
-            except `src`.
+            The secret array to be shared.  This value is ignored for all
+            players except `src`.
         shape: :class:`tuple`, required
             The shape of the secret.  Note that the shape must be consistently
             specified by all players.
@@ -1080,16 +1079,15 @@ class ActiveProtocolSuite(object):
         src: :class:`int`, required
             The player providing the private array to be secret shared.
         secret: :class:`numpy.ndarray` or :any:`None`, required
-            The secret array to be shared, which must be encoded with this
-            object's :attr:`encoder`.  This value is ignored for all players
-            except `src`.
+            The secret array to be shared.  This value is ignored for all
+            players except `src`.
         shape: :class:`tuple`, required
             The shape of the secret.  Note that the shape must be consistently
             specified by all players.
 
         Returns
         -------
-        share: :class:`ShamirArrayShare`
+        share: :class:`ActiveArrayShare`
             The local share of the secret shared array.
         """
         return ActiveArrayShare((self.aprotocol.share_bits(src=src, secret=secret, shape=shape), self.sprotocol.share_bits(src=src, secret=secret, shape=shape)))
