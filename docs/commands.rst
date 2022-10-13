@@ -13,3 +13,13 @@ cicada
     :func: parser
     :prog: cicada
 
+.. _cicada-perf:
+
+cicada-perf
+-----------
+
+.. argparse::
+    :module: cicada.cli.perf
+    :func: parser
+    :prog: cicada-perf
+
