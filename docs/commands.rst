@@ -9,7 +9,7 @@ cicada
 ------
 
 .. argparse::
-    :filename: ../bin/cicada
+    :module: cicada.cli
     :func: parser
     :prog: cicada
 

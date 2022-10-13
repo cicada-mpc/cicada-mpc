@@ -1,3 +1,19 @@
+# Copyright 2021 National Technology & Engineering Solutions
+# of Sandia, LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS,
+# the U.S. Government retains certain rights in this software.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import logging
 import os
@@ -161,53 +177,54 @@ frontends = {
 }
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Cicada MPC tools.")
-    subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
+parser = argparse.ArgumentParser(description="Cicada MPC tools.")
+subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
 
 # credentials
-    credentials_subparser = subparsers.add_parser("credentials", help="Generate player credentials for TLS encryption.")
-    credentials_subparser.add_argument("--certificate", default="player-{rank}.cert", help="Output certificate file. Default: %(default)s")
-    credentials_subparser.add_argument("--country", default="US", help="Certificate country. Default: %(default)s")
-    credentials_subparser.add_argument("--days", type=int, default=365, help="Length of time the certificate will be valid. Default: %(default)s")
-    credentials_subparser.add_argument("--email", default=None, help="Certificate email. Default: %(default)s")
-    credentials_subparser.add_argument("--identity", default="player-{rank}.pem", help="Output identity (private key and certificate) file. Default: %(default)s")
-    credentials_subparser.add_argument("--locality", default="Albuquerque", help="Certificate locality. Default: %(default)s")
-    credentials_subparser.add_argument("--name", default=None, help="Common name. Default: based on player rank.")
-    credentials_subparser.add_argument("--organization", default="Cicada", help="Certificate organization. Default: %(default)s")
-    credentials_subparser.add_argument("--rank", required=True, help="Player rank.")
-    credentials_subparser.add_argument("--state", default="New Mexico", help="Certificate state. Default: %(default)s")
-    credentials_subparser.add_argument("--unit", default=None, help="Certificate organizational unit. Default: %(default)s")
+credentials_subparser = subparsers.add_parser("credentials", help="Generate player credentials for TLS encryption.")
+credentials_subparser.add_argument("--certificate", default="player-{rank}.cert", help="Output certificate file. Default: %(default)s")
+credentials_subparser.add_argument("--country", default="US", help="Certificate country. Default: %(default)s")
+credentials_subparser.add_argument("--days", type=int, default=365, help="Length of time the certificate will be valid. Default: %(default)s")
+credentials_subparser.add_argument("--email", default=None, help="Certificate email. Default: %(default)s")
+credentials_subparser.add_argument("--identity", default="player-{rank}.pem", help="Output identity (private key and certificate) file. Default: %(default)s")
+credentials_subparser.add_argument("--locality", default="Albuquerque", help="Certificate locality. Default: %(default)s")
+credentials_subparser.add_argument("--name", default=None, help="Common name. Default: based on player rank.")
+credentials_subparser.add_argument("--organization", default="Cicada", help="Certificate organization. Default: %(default)s")
+credentials_subparser.add_argument("--rank", required=True, help="Player rank.")
+credentials_subparser.add_argument("--state", default="New Mexico", help="Certificate state. Default: %(default)s")
+credentials_subparser.add_argument("--unit", default=None, help="Certificate organizational unit. Default: %(default)s")
 
 # run
-    run_subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
-    run_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
-    run_subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
-    run_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
-    run_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
-    run_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
-    run_subparser.add_argument("--root-address", default="tcp://127.0.0.1:25252", help="Root address.  Default: %(default)s")
-    run_subparser.add_argument("--tmux-layout", default="even-vertical", choices=["even-horizontal", "even-vertical", "tiled"], help="Pane layout for the tmux frontend. Default: %(default)s")
-    run_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
-    run_subparser.add_argument("program", help="Program to execute.")
-    run_subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
+run_subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
+run_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
+run_subparser.add_argument("--frontend", "-f", choices=frontends.keys(), default="basic", help="Frontend to execute processes.")
+run_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
+run_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
+run_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
+run_subparser.add_argument("--root-address", default="tcp://127.0.0.1:25252", help="Root address.  Default: %(default)s")
+run_subparser.add_argument("--tmux-layout", default="even-vertical", choices=["even-horizontal", "even-vertical", "tiled"], help="Pane layout for the tmux frontend. Default: %(default)s")
+run_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+run_subparser.add_argument("program", help="Program to execute.")
+run_subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
 
 # start
-    start_subparser = subparsers.add_parser("start", help="Start one Cicada process.")
-    start_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
-    start_subparser.add_argument("--address", default=None, help=f"Network address. Default: tcp://{public_ip()}:25252 for player 0, otherwise tcp://{public_ip()}")
-    start_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
-    start_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
-    start_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
-    start_subparser.add_argument("--root-address", default=None, help="Root address. Default: same as --address for player 0, required otherwise.")
-    start_subparser.add_argument("--rank", type=int, required=True, help="Player rank.")
-    start_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
-    start_subparser.add_argument("program", help="Program to execute.")
-    start_subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
+start_subparser = subparsers.add_parser("start", help="Start one Cicada process.")
+start_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
+start_subparser.add_argument("--address", default=None, help=f"Network address. Default: tcp://{public_ip()}:25252 for player 0, otherwise tcp://{public_ip()}")
+start_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
+start_subparser.add_argument("--inspect", "-i", action="store_true", help="Start a Python prompt after running program.")
+start_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
+start_subparser.add_argument("--root-address", default=None, help="Root address. Default: same as --address for player 0, required otherwise.")
+start_subparser.add_argument("--rank", type=int, required=True, help="Player rank.")
+start_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+start_subparser.add_argument("program", help="Program to execute.")
+start_subparser.add_argument("args", nargs=argparse.REMAINDER, help="Program arguments.")
 
 # version
-    version_subparser = subparsers.add_parser("version", help="Print the Cicada version.")
+version_subparser = subparsers.add_parser("version", help="Print the Cicada version.")
 
+
+def main():
     arguments = parser.parse_args()
 
     if arguments.command is None:

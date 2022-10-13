@@ -14,6 +14,7 @@ API Reference
     cicada.active.rst
     cicada.additive.rst
     cicada.calculator.rst
+    cicada.cli.rst
     cicada.communicator.rst
     cicada.communicator.interface.rst
     cicada.communicator.socket.rst
@@ -22,4 +23,5 @@ API Reference
     cicada.encoder.fixedfield.rst
     cicada.interactive.rst
     cicada.logging.rst
+    cicada.perf.rst
     cicada.shamir.rst
