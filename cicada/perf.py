@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import argparse
 import logging
 import os
@@ -58,52 +56,51 @@ def positive_integer(string):
     return value
 
 
-parser = argparse.ArgumentParser(description="Cicada MPC performance tests.")
-subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
+def main():
+    parser = argparse.ArgumentParser(description="Cicada MPC performance tests.")
+    subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
 
 # broadcast
-broadcast_subparser = subparsers.add_parser("broadcast", help="Test broadcast performance on the local machine.")
-broadcast_subparser.add_argument("--count", default=10000, type=positive_integer, help="Number of broadcast operations. Default: %(default)s")
-broadcast_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
-broadcast_subparser.add_argument("--seed", default=1234, type=positive_integer, help="Random seed. Default: %(default)s")
-broadcast_subparser.add_argument("--size", default=1000, type=positive_integer, help="Broadcast message size in bytes. Default: %(default)s")
-broadcast_subparser.add_argument("--src", default=0, type=nonnegative_integer, help="Broadcast src player. Default: %(default)s")
-broadcast_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
-broadcast_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+    broadcast_subparser = subparsers.add_parser("broadcast", help="Test broadcast performance on the local machine.")
+    broadcast_subparser.add_argument("--count", default=10000, type=positive_integer, help="Number of broadcast operations. Default: %(default)s")
+    broadcast_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
+    broadcast_subparser.add_argument("--seed", default=1234, type=positive_integer, help="Random seed. Default: %(default)s")
+    broadcast_subparser.add_argument("--size", default=1000, type=positive_integer, help="Broadcast message size in bytes. Default: %(default)s")
+    broadcast_subparser.add_argument("--src", default=0, type=nonnegative_integer, help="Broadcast src player. Default: %(default)s")
+    broadcast_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
+    broadcast_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 
 # floor
-floor_subparser = subparsers.add_parser("floor", help="Test floor() performance on the local machine.")
-floor_subparser.add_argument("--count", default=1, type=positive_integer, help="Number of floor() operations. Default: %(default)s")
-floor_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
-floor_subparser.add_argument("--seed", default=1234, type=positive_integer, help="Random seed. Default: %(default)s")
-floor_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
-floor_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+    floor_subparser = subparsers.add_parser("floor", help="Test floor() performance on the local machine.")
+    floor_subparser.add_argument("--count", default=1, type=positive_integer, help="Number of floor() operations. Default: %(default)s")
+    floor_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
+    floor_subparser.add_argument("--seed", default=1234, type=positive_integer, help="Random seed. Default: %(default)s")
+    floor_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
+    floor_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 
 # gather
-gather_subparser = subparsers.add_parser("gather", help="Test gather performance on the local machine.")
-gather_subparser.add_argument("--count", default=10000, type=positive_integer, help="Number of gather operations. Default: %(default)s")
-gather_subparser.add_argument("--dst", default=0, type=nonnegative_integer, help="Gather dst player. Default: %(default)s")
-gather_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
-gather_subparser.add_argument("--seed", default=1234, type=positive_integer, help="Random seed. Default: %(default)s")
-gather_subparser.add_argument("--size", default=1000, type=positive_integer, help="Gather message size in bytes. Default: %(default)s")
-gather_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
-gather_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+    gather_subparser = subparsers.add_parser("gather", help="Test gather performance on the local machine.")
+    gather_subparser.add_argument("--count", default=10000, type=positive_integer, help="Number of gather operations. Default: %(default)s")
+    gather_subparser.add_argument("--dst", default=0, type=nonnegative_integer, help="Gather dst player. Default: %(default)s")
+    gather_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
+    gather_subparser.add_argument("--seed", default=1234, type=positive_integer, help="Random seed. Default: %(default)s")
+    gather_subparser.add_argument("--size", default=1000, type=positive_integer, help="Gather message size in bytes. Default: %(default)s")
+    gather_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
+    gather_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 
 # scatterv
-scatterv_subparser = subparsers.add_parser("scatterv", help="Test scatterv performance on the local machine.")
-scatterv_subparser.add_argument("--count", default=10000, type=positive_integer, help="Number of scatterv operations. Default: %(default)s")
-scatterv_subparser.add_argument("--src", default=0, type=nonnegative_integer, help="Scatterv src player. Default: %(default)s")
-scatterv_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
-scatterv_subparser.add_argument("--seed", default=1234, type=positive_integer, help="Random seed. Default: %(default)s")
-scatterv_subparser.add_argument("--size", default=1000, type=positive_integer, help="Scatterv message size in bytes. Default: %(default)s")
-scatterv_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
-scatterv_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+    scatterv_subparser = subparsers.add_parser("scatterv", help="Test scatterv performance on the local machine.")
+    scatterv_subparser.add_argument("--count", default=10000, type=positive_integer, help="Number of scatterv operations. Default: %(default)s")
+    scatterv_subparser.add_argument("--src", default=0, type=nonnegative_integer, help="Scatterv src player. Default: %(default)s")
+    scatterv_subparser.add_argument("--identity", default="player-{rank}.pem", help="Player private key and certificate in PEM format. Default: %(default)s file, if it exists.")
+    scatterv_subparser.add_argument("--seed", default=1234, type=positive_integer, help="Random seed. Default: %(default)s")
+    scatterv_subparser.add_argument("--size", default=1000, type=positive_integer, help="Scatterv message size in bytes. Default: %(default)s")
+    scatterv_subparser.add_argument("--trusted", default="player-{rank}.cert", help="Trusted certificates in PEM format. Default: %(default)s files, if they exist.")
+    scatterv_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 
 # version
-version_subparser = subparsers.add_parser("version", help="Print the Cicada version.")
+    version_subparser = subparsers.add_parser("version", help="Print the Cicada version.")
 
-
-if __name__ == "__main__":
     arguments = parser.parse_args()
 
     if arguments.command is None:

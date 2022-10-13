@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Topic :: Communications",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "netifaces",
+    "numpy",
+    "pynetstring",
+]
+description = "Flexible toolkit for fault tolerant secure multiparty computation."
+dynamic = ["version"]
+maintainers = [{name="Timothy M. Shead", email="tshead@sandia.gov"}]
+name = "cicada-mpc"
+requires-python = ">=3.8"
+
+[project.scripts]
+cicada = "cicada.cli:main"
+cicada-perf = "cicada.perf:main"
+
+[project.urls]
+"Chat" = "https://github.com/cicada-mpc/cicada-mpc/discussions"
+"Coverage" = "https://coveralls.io/r/cicada-mpc/cicada-mpc"
+"Documentation" = "https://cicada-mpc.readthedocs.io"
+"Issue Tracker" = "https://github.com/cicada-mpc/cicada-mpc/issues"
+"Source" = "https://github.com/cicada-mpc/cicada-mpc"
+
+[tool.setuptools.dynamic]
+version = {attr = "cicada.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["cicada"]
