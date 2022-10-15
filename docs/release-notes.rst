@@ -7,13 +7,32 @@
 Release Notes
 =============
 
+Cicada 0.8.0 - October 14th, 2022
+---------------------------------
+
+* Renamed ActiveProtocol -> ActiveProtocolSuite.
+* Renamed AdditiveProtocol -> AdditiveProtocolSuite.
+* Renamed ShamirProtocol -> ShamirProtocolSuite.
+* Renamed ShamirBasicProtocol -> ShamirBasicProtocolSuite.
+* Protocol suite encoders have been removed from the public API.
+* Added multiply(), divide(), and reshare() methods to all protocol suites.
+* Significantly improved FixedFieldEncoder.uniform() performance.
+* Switched to a faster dot-product implementation for ShamirProtocolSuite.
+* Added documentation on active security.
+* ActiveProtocolSuite.verify() didn't work with scalar secrets.
+* Calculator service supports unix domain sockets.
+* Improved test coverage.
+* Switched from setuptools to flit for builds.
+
+
 Cicada 0.7.0 - August 9th, 2022
+-------------------------------
 
 * Added ActiveProtocol, our first protocol with a security model against active adversaries.
 * Added private summation and private dot product operations to all protocol objects.
 * Added TLS support to SocketCommunicator.split() and SocketCommunicator.shrink().
 * Added SocketCommunicator.run_forever() for starting MPC services.
-* Created cicada.communicator as an example of MPC-as-a-service.
+* Created cicada.calculator as an example of MPC-as-a-service.
 * Regression tests use the calculator service, eliminating lots of repetitive test code.
 * Rename Tags -> Tag for consistency, clarity.
 * Rename all_gather() -> allgather() for consistency, clarity.
@@ -23,6 +42,7 @@ Cicada 0.7.0 - August 9th, 2022
 
 
 Cicada 0.6.0 - June 17th, 2022
+------------------------------
 
 * SocketCommunicator.run() would sometimes hang returning results from large numbers of players.
 * Sped-up regression tests significantly by removing unnecessary redundancy.
