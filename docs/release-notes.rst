@@ -7,6 +7,11 @@
 Release Notes
 =============
 
+Cicada 0.8.1 - October 15th, 2022
+---------------------------------
+
+* Reorganized the documentation and added instructions for building the docs locally.
+
 Cicada 0.8.0 - October 14th, 2022
 ---------------------------------
 
