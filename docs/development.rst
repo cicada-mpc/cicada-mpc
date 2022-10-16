@@ -2,27 +2,30 @@
   :width: 200px
   :align: right
 
-Contributing
-============
+Development
+===========
 
 Getting Started
 ---------------
 
 If you haven't already, you'll want to get familiar with the Cicada repository
-at https://github.com/sandialabs/cicada ... there, you'll find the Cicada
-sources, issue tracker, and wiki.
+at https://github.com/cicada-mpc/cicada-mpc ... there, you'll find the Cicada
+source code, issue tracker, discussions, and wiki.
 
-Next, you'll need to install Cicada's :ref:`dependencies`.  Then, you'll be
-ready to get Cicada's source code and use setuptools to install it. To do
-this, you'll almost certainly want to use "develop mode".  Develop mode is a a
-feature provided by setuptools that links the Cicada source code into the
-install directory instead of copying it ... that way you can edit the source
-code in your git sandbox, and you don't have to re-install it to test your
-changes::
+Next, you'll need to install all of the extra dependencies needed for Cicada
+development::
 
-    $ git clone https://github.com/sandialabs/cicada.git
-    $ cd cicada
-    $ python setup.py develop
+    $ pip install cicada-mpc[all]
+
+Then, you'll be ready to obtain Cicada's source code and install it using
+"editable mode".  Editable mode is a feature provided by `pip` that links the
+Cicada source code into the install directory instead of copying it ... that
+way you can edit the source code in your git sandbox, and you don't have to
+keep re-installing it to test your changes::
+
+    $ git clone https://github.com/cicada-mpc/cicada-mpc.git
+    $ cd cicada-mpc
+    $ pip install --editable .
 
 Versioning
 ----------
@@ -40,7 +43,7 @@ Running Regression Tests
 To run the Cicada test suite, simply run `regression.py` from the
 top-level source directory::
 
-    $ cd cicada
+    $ cd cicada-mpc
     $ python regression.py
 
 The tests will run, providing feedback on successes / failures.
@@ -57,7 +60,7 @@ Building the Documentation
 
 To build the documentation, run::
 
-    $ cd cicada/docs
+    $ cd cicada-mpc/docs
     $ make html
 
 Once the documentation is built, you can view it by opening

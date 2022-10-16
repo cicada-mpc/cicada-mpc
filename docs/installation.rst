@@ -7,46 +7,37 @@
 Installation
 ============
 
-Using a Package Manager
------------------------------
+Cicada
+------
 
-A package manager (conda, apt, yum, MacPorts, etc) should generally be your
-first stop for installing Cicada - it will make it easy to install Cicada and
-its dependencies, keep them up-to-date, and even (gasp!) uninstall them
-cleanly.  If your package manager doesn't support Cicada yet, drop them a line
-and let them know you'd like them to add it!
+To install the latest stable version of Cicada and its dependencies, use `pip`::
 
-If you're new to Python or unsure where to start, we strongly recommend taking
-a look at :ref:`Anaconda <anaconda-installation>`, which the Cicada developers
-use during their day-to-day work.
+    $ pip install cicada-mpc
 
-.. toctree::
-  :maxdepth: 2
+... once it completes, you'll be able to use all of Cicada's features.
 
-  anaconda-installation.rst
+Documentation
+-------------
 
-Using Pip
----------
+We assume that you'll normally access this documentation online, but if
+you want a local copy on your own computer, just do the following:
 
-If your package manager doesn't support Cicada, or doesn't have the latest
-version, your next option should be Python setup tools like `pip`.  You can
-always install the latest stable version of Cicada and its required
-dependencies using::
+First, install Cicada, along with all of the dependencies needed to build
+the docs::
 
-    $ pip install cicada
+    $ pip install cicada-mpc[doc]
 
-... following that, you'll be able to use all of Cicada's features.
+Next, do the following to download a tarball to the current directory containing
+all of the Cicada source code, including the documentation::
 
-From Source
------------
+    $ pip download cicada-mpc --no-binary=:all: --no-deps
 
-Finally, if you want to work with the latest, bleeding-edge Cicada goodness,
-you can install it using the source code::
+Now, you can extract the tarball contents and build the source (note that your
+version number will likely be different)::
 
-    $ git clone https://github.com/sandialabs/cicada
-    $ cd cicada
-    $ sudo python setup.py install
+    $ tar xzvf cicada-mpc-0.8.0.tar.gz
+    $ cd cicada-mpc-0.8.0/docs
+    $ make html
 
-The setup script installs Cicada's required dependencies and copies Cicada into
-your Python site-packages directory, ready to go.
-
+Once the documentation is built, you can view it by opening
+`cicada-mpc-0.8.0/docs/_build/html/index.html` in a web browser.

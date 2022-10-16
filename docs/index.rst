@@ -42,14 +42,13 @@ Documentation
 .. toctree::
     :maxdepth: 2
 
+    installation.rst
     tutorial.ipynb
     user-guide.rst
     commands.rst
+    development.rst
     reference.rst
-    installation.rst
-    dependencies.rst
     compatibility.rst
-    contributing.rst
     release-notes.rst
     support.rst
 

@@ -31,6 +31,16 @@ name = "cicada-mpc"
 requires-python = ">=3.8"
 
 [project.optional-dependencies]
+all = [
+    "behave",
+    "coverage",
+    "ipython",
+    "nbsphinx",
+    "sphinx >= 3.5",
+    "sphinx-argparse",
+    "sphinx-gallery < 0.11",
+    "sphinx_rtd_theme",
+]
 doc = [
     "ipython",
     "nbsphinx",
