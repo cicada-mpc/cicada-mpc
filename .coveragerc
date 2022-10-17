@@ -1,5 +1,5 @@
 [run]
 branch = False
 concurrency = multiprocessing, thread
-omit = features/steps/*.py
+omit = features/steps/*.py cicada/cli/*.py
 parallel = True
