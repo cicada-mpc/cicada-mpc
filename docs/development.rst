@@ -12,8 +12,8 @@ If you haven't already, you'll want to get familiar with the Cicada repository
 at https://github.com/cicada-mpc/cicada-mpc ... there, you'll find the Cicada
 source code, issue tracker, discussions, and wiki.
 
-Next, you'll need to install all of the extra dependencies needed for Cicada
-development::
+Next, you'll need to install Cicada and its dependencies, plus all of the
+additional dependencies needed for development::
 
     $ pip install cicada-mpc[all]
 
@@ -53,7 +53,7 @@ Test Coverage
 
 When you run the test suite with `regression.py`, it also automatically
 generates code coverage statistics.  To see the coverage results, open
-`cicada/.cover/index.html` in a web browser.
+`cicada-mpc/.cover/index.html` in a web browser.
 
 Building the Documentation
 --------------------------
@@ -63,5 +63,8 @@ To build the documentation, run::
     $ cd cicada-mpc/docs
     $ make html
 
-Once the documentation is built, you can view it by opening
-`cicada/docs/_build/html/index.html` in a web browser.
+Once the documentation is built, you can view it by opening::
+
+    cicada-mpc/docs/_build/html/index.html
+
+in a web browser.

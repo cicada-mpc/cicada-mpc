@@ -16,28 +16,32 @@ To install the latest stable version of Cicada and its dependencies, use `pip`::
 
 ... once it completes, you'll be able to use all of Cicada's features.
 
-Documentation
--------------
+Local Documentation
+-------------------
 
 We assume that you'll normally access this documentation online, but if
-you want a local copy on your own computer, just do the following:
+you want a local copy on your own computer, do the following instead:
 
-First, install Cicada, along with all of the dependencies needed to build
-the docs::
+First, install Cicada and its dependencies, plus all of the dependencies
+required to build the docs::
 
     $ pip install cicada-mpc[doc]
 
-Next, do the following to download a tarball to the current directory containing
-all of the Cicada source code, including the documentation::
+Next, do the following to download a tarball containing
+the Cicada source code, which includes the documentation::
 
     $ pip download cicada-mpc --no-binary=:all: --no-deps
 
-Now, you can extract the tarball contents and build the source (note that your
-version number will likely be different)::
+The file will be downloaded to the current directory.  Now, you can extract its
+contents and build the source (substitute the correct version number for the
+file you downloaded)::
 
-    $ tar xzvf cicada-mpc-0.8.0.tar.gz
-    $ cd cicada-mpc-0.8.0/docs
+    $ tar xzvf cicada-mpc-<version>.tar.gz
+    $ cd cicada-mpc-<version>/docs
     $ make html
 
-Once the documentation is built, you can view it by opening
-`cicada-mpc-0.8.0/docs/_build/html/index.html` in a web browser.
+Once the documentation is built, you can view it by opening::
+
+    cicada-mpc-<version>/docs/_build/html/index.html
+
+in a web browser.
