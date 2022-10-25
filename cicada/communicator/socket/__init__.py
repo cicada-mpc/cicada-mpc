@@ -709,13 +709,13 @@ class SocketCommunicator(Communicator):
         :class:`list` of results from each, in rank order.  Special sentinel
         classes are used to indicate whether a process raised an exception or
         terminated unexpectedly.  This is extremely useful for running examples
-        and regression tests on one machine.
+        and regression tests on a single machine.
 
-        The given function *must* accept a communicator as its first argument.
+        The given function `fn` *must* accept a communicator as its first argument.
         Additional caller-provided positional and keyword arguments are passed
-        to the function after the communicator.
+        to the function following the communicator.
 
-        To run computation using multiple hosts, you should use
+        To perform computation using multiple hosts, you should use
         :meth:`~cicada.communicator.socket.SocketCommunicator.connect` and the
         :ref:`cicada` command line executable instead.
 
@@ -749,13 +749,13 @@ class SocketCommunicator(Communicator):
         Returns
         -------
         results: :class:`list`
-            The return value from the function for each player, in rank order.
-            Returned only if `return_results` is :any:`True`. If a player
-            process terminates unexpectedly, the result will be an instance of
-            :class:`Terminated`, which can be used to access the process exit
-            code.  If the player process raises a Python exception, the result
-            will be an instance of :class:`Failed`, which can be used to access
-            the Python exception and a traceback of the failing code.
+            A value returned from `fn` for each player, in rank order.  If a
+            player process terminates unexpectedly, its value will be an
+            instance of :class:`Terminated`, which can be used to access the
+            process exit code.  If the player process raises a Python
+            exception, its value will be an instance of :class:`Failed`, which
+            can be used to access the Python exception and a traceback for the
+            failing code.
         """
         def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, family, name, timeout, startup_timeout):
             # Run the work function.
@@ -921,11 +921,9 @@ class SocketCommunicator(Communicator):
         Returns
         -------
         addresses: :class:`list` of :class:`str`
-            A listening address for each player, in rank order.  Returned only
-            if `return_results` is :any:`False`.
+            A listening address for each player, in rank order.
         processes: :class:`list` of :class:`multiprocessing.Process`
-            A listening address for each player, in rank order.  Returned only
-            if `return_results` is :any:`False`.
+            An instance of :class:`multiprocessing.Process` for each player, in rank order.
         """
         def launch(*, parent_queue, child_queue, rank, fn, identity, trusted, args, kwargs, family, name, timeout, startup_timeout):
             # Run the work function.
