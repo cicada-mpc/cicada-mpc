@@ -41,11 +41,16 @@ class FixedFieldEncoder(object):
         The number of bits reserved to store fractions in encoded values.  Defaults
         to 16.
     """
-    def __init__(self, modulus=18446744073709551557, precision=16):
-        if not isinstance(modulus, numbers.Integral):
-            raise ValueError(f"Expected integer modulus, got {type(modulus)} instead.") # pragma: no cover
-        if modulus < 0:
-            raise ValueError(f"Expected non-negative modulus, got {modulus} instead.") # pragma: no cover
+    def __init__(self, modulus=None, precision=16):
+        if modulus is None:
+            modulus = 18446744073709551557
+        else:
+            if not isinstance(modulus, numbers.Integral):
+                raise ValueError(f"Expected integer modulus, got {type(modulus)} instead.") # pragma: no cover
+            if modulus < 0:
+                raise ValueError(f"Expected non-negative modulus, got {modulus} instead.") # pragma: no cover
+            if not self._is_prob_prime(modulus):
+                raise ValueError(f"Expected modulus to be prime, got a composite instead.")
         if not isinstance(precision, numbers.Integral):
             raise ValueError(f"Expected integer precision, got {type(precision)} instead.") # pragma: no cover
         if precision < 0:
@@ -207,6 +212,43 @@ class FixedFieldEncoder(object):
         lhs -= rhs
         lhs %= self._modulus
 
+    def _is_prob_prime(self, n):# Rabin-Miller probabalistic primality test
+        """
+        Miller-Rabin primality test.
+
+        A return value of False means n is certainly not prime. A return value of
+        True means n is very likely a prime.
+        """
+        if not isinstance(n, int):
+            raise ValueError('Expected argument to primality test to be integral')
+            return False
+        if n in [0,1,4,6,8,9]:
+            return False
+
+        if n in [2,3,5,7]:
+            return True
+
+        s = 0
+        d = n-1
+        while d%2==0:
+            d>>=1
+            s+=1
+        assert(2**s * d == n-1)
+
+        def trial_composite(a):
+            if pow(a, d, n) == 1:
+                return False
+            for i in range(s):
+                if pow(a, 2**i * d, n) == n-1:
+                    return False
+            return True
+
+        for i in range(128):#number of trials more means higher accuracy - 128 -> error probability ~4^-128
+            a = int(numpy.random.random() * n)
+            if trial_composite(a):
+                return False
+
+        return True
 
     @property
     def modulus(self):
