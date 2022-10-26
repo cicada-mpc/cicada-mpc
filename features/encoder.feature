@@ -9,7 +9,7 @@ Feature: Encoders
         | lhs                       | rhs                                              | result   |
         | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder                         | equal    |
         | 16 bit FixedFieldEncoder  | 13 bit FixedFieldEncoder                         | unequal  |
-        | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder mod 123456789           | unequal  |
+        | 16 bit FixedFieldEncoder  | 16 bit FixedFieldEncoder mod 2147483647          | unequal  |
 
 
     Scenario Outline: Encoded Array Shape
