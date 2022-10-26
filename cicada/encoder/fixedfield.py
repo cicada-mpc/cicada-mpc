@@ -55,6 +55,8 @@ class FixedFieldEncoder(object):
             raise ValueError(f"Expected integer precision, got {type(precision)} instead.") # pragma: no cover
         if precision < 0:
             raise ValueError(f"Expected non-negative precision, got {precision} instead.") # pragma: no cover
+        if 2**precision > modulus:
+            raise ValueError(f"Expected modulus to be bigger than the space required for the fractional part of the desired fixed point representation")
 
         self._dtype = numpy.dtype(object)
         self._decoded_type = numpy.float64
@@ -242,9 +244,11 @@ class FixedFieldEncoder(object):
                 if pow(a, 2**i * d, n) == n-1:
                     return False
             return True
-
-        for i in range(128):#number of trials more means higher accuracy - 128 -> error probability ~4^-128
-            a = int(numpy.random.random() * n)
+        num_bytes = ceil(log2(n)/8)
+        for i in range(32):#number of trials more means higher accuracy - 32 -> error probability ~4^-32 ~2^-64
+            a =0
+            while a == 0 or a == 1:
+                a = int.from_bytes(numpy.random.bytes(num_bytes), 'big')%n
             if trial_composite(a):
                 return False
 
