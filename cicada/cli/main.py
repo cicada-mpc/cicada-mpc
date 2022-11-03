@@ -27,9 +27,13 @@ import tempfile
 import urllib.parse
 
 import netifaces
+import numpy
 
 import cicada
+from cicada.additive import AdditiveProtocolSuite
+from cicada.communicator import SocketCommunicator
 from cicada.communicator.socket.connect import geturl
+from cicada.logging import Logger
 
 
 def get_environment(world_size, rank, address, root_address, identity, trusted):
@@ -197,6 +201,13 @@ credentials_subparser.add_argument("--rank", required=True, help="Player rank.")
 credentials_subparser.add_argument("--state", default="New Mexico", help="Certificate state. Default: %(default)s")
 credentials_subparser.add_argument("--unit", default=None, help="Certificate organizational unit. Default: %(default)s")
 
+# generate-shares
+generate_subparser = subparsers.add_parser("generate-shares", help="Generate secret shares for pedagogy.")
+generate_subparser.add_argument("--modulus", "-m", type=int, default=18446744073709551557, help="Field modulus. Default: %(default)s")
+generate_subparser.add_argument("--precision", "-p", type=int, default=16, help="Fractional precision. Default: %(default)s")
+generate_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
+generate_subparser.add_argument("secret", help="Secret value.")
+
 # run
 run_subparser = subparsers.add_parser("run", help="Run all Cicada processes on the local machine.")
 run_subparser.add_argument("--dry-run", "-y", action="store_true", help="Don't start actual processes.")
@@ -268,6 +279,20 @@ def main():
                 target.write(source.read())
         os.remove(key_path)
 
+    # generate-shares
+    if arguments.command == "generate-shares":
+        logging.basicConfig(level=logging.INFO)
+
+        def main(communicator, precision, modulus, secret):
+            log = Logger(logging.getLogger(), communicator)
+
+            protocol = AdditiveProtocolSuite(communicator, modulus=modulus, precision=precision)
+            secret = numpy.array(secret, dtype=float)
+            share = protocol.share(src=0, secret=secret, shape=secret.shape)
+
+            log.info(f"Player {communicator.rank} secret share: {share.storage}")
+
+        SocketCommunicator.run(world_size=arguments.world_size, fn=main, args=(arguments.precision, arguments.modulus, arguments.secret))
 
     # run
     if arguments.command == "run":
