@@ -370,7 +370,7 @@ class AdditiveProtocolSuite(object):
     @property
     def encoder(self):
         """Deprecated, use :class:`AdditiveProtocolSuite` methods instead."""
-        warnings.warn("AdditiveProtocolSuite.encoder attribute is deprecated, use protocol methods instead.", cicada.DeprecationWarning, stacklevel=2)
+        warnings.warn("AdditiveProtocolSuite.encoder attribute is deprecated, use protocol methods instead.", DeprecationWarning, stacklevel=2)
         return self._encoder
 
 
