@@ -28,39 +28,39 @@ class Field(object):
 
     Encoded values are :class:`numpy.ndarray` instances containing Python
     integers, with `precision` bits reserved for encoding fractional digits.
-    For a prime constant modulus, values greater than (modulus+1)/2 are
+    For a prime constant order, values greater than (order+1)/2 are
     interpreted to be negative.  Encoded values are decoded as 64-bit
     floating-point arrays.
 
     Parameters
     ----------
-    modulus: :class:`int`, optional
+    order: :class:`int`, optional
         Field size for storing encoded values.  Defaults to the largest prime
         less than :math:`2^{64}`.
     """
-    def __init__(self, modulus=None):
-        if modulus is None:
-            modulus = 18446744073709551557
+    def __init__(self, order=None):
+        if order is None:
+            order = 18446744073709551557
         else:
-            if not isinstance(modulus, numbers.Integral):
-                raise ValueError(f"Expected integer modulus, got {type(modulus)} instead.") # pragma: no cover
-            if modulus < 0:
-                raise ValueError(f"Expected non-negative modulus, got {modulus} instead.") # pragma: no cover
-            if not self._is_prob_prime(modulus):
-                raise ValueError(f"Expected modulus to be prime, got a composite instead.")
+            if not isinstance(order, numbers.Integral):
+                raise ValueError(f"Expected integer order, got {type(order)} instead.") # pragma: no cover
+            if order < 0:
+                raise ValueError(f"Expected non-negative order, got {order} instead.") # pragma: no cover
+            if not self._is_prob_prime(order):
+                raise ValueError(f"Expected order to be prime, got a composite instead.")
 
         self._dtype = numpy.dtype(object)
         self._decoded_type = numpy.float64
-        self._modulus = modulus
-        self._fieldbits = modulus.bit_length()
+        self._order = order
+        self._fieldbits = order.bit_length()
 
 
     def __eq__(self, other):
-        return isinstance(other, Field) and self._modulus == other._modulus
+        return isinstance(other, Field) and self._order == other._order
 
 
     def __repr__(self):
-        return f"cicada.arithmetic.Field(modulus={self._modulus})" # pragma: no cover
+        return f"cicada.arithmetic.Field(order={self._order})" # pragma: no cover
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -98,7 +98,7 @@ class Field(object):
         # and/or unwanted conversion from a numpy scalar to a Python int.
         result = lhs.copy()
         result += rhs
-        result %= self._modulus
+        result %= self._order
         self._assert_unary_compatible(result, "result")
         return result
 
@@ -134,7 +134,7 @@ class Field(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         lhs += rhs
-        lhs %= self._modulus
+        lhs %= self._order
 
 
     def inplace_subtract(self, lhs, rhs):
@@ -150,7 +150,7 @@ class Field(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         lhs -= rhs
-        lhs %= self._modulus
+        lhs %= self._order
 
     def _is_prob_prime(self, n):# Rabin-Miller probabalistic primality test
         """
@@ -193,15 +193,9 @@ class Field(object):
         return True
 
     @property
-    def modulus(self):
-        """Return the field size (modulus)."""
-        return self._modulus
-
-
-    @property
     def order(self):
         """Return the field order."""
-        return self._modulus
+        return self._order
 
 
     def negative(self, array):
@@ -219,7 +213,7 @@ class Field(object):
             elements.
         """
         self._assert_unary_compatible(array, "array")
-        result = numpy.array((0 - array) % self._modulus, dtype=self.dtype)
+        result = numpy.array((0 - array) % self._order, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")
         return result
 
@@ -245,7 +239,7 @@ class Field(object):
             The difference of the two operands.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        result = numpy.array((lhs - rhs) % self._modulus, dtype=self.dtype)
+        result = numpy.array((lhs - rhs) % self._order, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")
         return result
 
@@ -264,7 +258,7 @@ class Field(object):
             The sum of the input array elements.
         """
         self._assert_unary_compatible(operand, "operand")
-        result = numpy.array(numpy.sum(operand, axis=None) % self._modulus, dtype=self.dtype)
+        result = numpy.array(numpy.sum(operand, axis=None) % self._order, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")
         return result
 
@@ -356,7 +350,7 @@ class Field(object):
             Encoded, untruncated elementwise product of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        result = numpy.array((lhs * rhs) % self._modulus, dtype=self.dtype)
+        result = numpy.array((lhs * rhs) % self._order, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")
         return result
 

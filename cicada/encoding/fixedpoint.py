@@ -17,7 +17,6 @@
 
 import numbers
 
-import galois
 import numpy
 
 
@@ -59,8 +58,8 @@ class FixedPoint(object):
 
         Parameters
         ----------
-        array: :class:`galois.Array`, or :any:`None`, required
-            Array of fixed point field values created with :meth:`encode`.
+        array: :class:`numpy.ndarray`, or :any:`None`, required
+            Array of field values created with :meth:`encode`.
 
         Returns
         -------
@@ -93,12 +92,12 @@ class FixedPoint(object):
         array: :class:`numpy.ndarray` or :any:`None`, required
             The array to convert.
 
-        field: :class:`galois.FieldArray`, required
+        field: :class:`cicada.arithmetic.Field`, required
             The returned array elements will be members of this field.
 
         Returns
         -------
-        encoded: :class:`galois.Array` or :any:`None`
+        encoded: :class:`numpy.ndarray` or :any:`None`
             Encoded array with the same shape as the input, containing the
             fixed precision integer representation of `array`, or :any:`None`
             if the input was :any:`None`.
