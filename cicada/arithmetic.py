@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Functionality for encoding and manipulating real values using integer fields.
+"""Functionality for working with field arithmetic.
 """
 
 from math import log2, ceil
@@ -24,19 +24,15 @@ import numpy
 
 
 class Field(object):
-    """Encodes real values as non-negative integers in a field with fixed precision.
+    """Performs arithmetic in an integer field.
 
-    Encoded values are :class:`numpy.ndarray` instances containing Python
-    integers, with `precision` bits reserved for encoding fractional digits.
-    For a prime constant order, values greater than (order+1)/2 are
-    interpreted to be negative.  Encoded values are decoded as 64-bit
-    floating-point arrays.
+    Field values are :class:`numpy.ndarray` instances containing Python
+    integers.
 
     Parameters
     ----------
     order: :class:`int`, optional
-        Field size for storing encoded values.  Defaults to the largest prime
-        less than :math:`2^{64}`.
+        Field size.  Defaults to the largest prime less than :math:`2^{64}`.
     """
     def __init__(self, order=None):
         if order is None:

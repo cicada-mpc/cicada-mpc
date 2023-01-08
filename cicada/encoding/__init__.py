@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Array encoding and decoding."""
+"""Functionality for encoding real values in a field."""
 
 from cicada.encoding.fixedpoint import FixedPoint
 
