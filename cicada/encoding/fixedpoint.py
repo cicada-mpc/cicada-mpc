@@ -40,7 +40,6 @@ class FixedPoint(object):
         if precision < 0:
             raise ValueError(f"Expected non-negative precision, got {precision} instead.") # pragma: no cover
 
-        self._dtype = numpy.dtype(object)
         self._precision = precision
         self._scale = int(2**self._precision)
 
@@ -125,3 +124,6 @@ class FixedPoint(object):
         return result
 
 
+    @property
+    def precision(self):
+        return self._precision

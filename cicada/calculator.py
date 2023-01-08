@@ -265,7 +265,7 @@ def main(listen_socket, communicator):
             elif command == "protocol" and kwargs["subcommand"] == "encode":
                 protocol = protocol_stack[-1]
                 value = operand_stack.pop()
-                value = protocol.encoder.encode(value)
+                value = protocol.encoding.encode(value, protocol.field)
                 operand_stack.append(value)
                 _send_result(client)
 
@@ -360,7 +360,7 @@ def main(listen_socket, communicator):
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()
-                protocol.encoder.inplace_add(a.storage, b)
+                protocol.field.inplace_add(a.storage, b)
                 operand_stack.append(a)
                 _send_result(client)
 
@@ -369,7 +369,7 @@ def main(listen_socket, communicator):
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()
-                protocol.encoder.inplace_subtract(a.storage, b)
+                protocol.field.inplace_subtract(a.storage, b)
                 operand_stack.append(a)
                 _send_result(client)
 
