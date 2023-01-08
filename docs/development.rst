@@ -2,6 +2,8 @@
   :width: 200px
   :align: right
 
+.. _development:
+
 Development
 ===========
 
@@ -12,8 +14,13 @@ If you haven't already, you'll want to get familiar with the Cicada repository
 at https://github.com/cicada-mpc/cicada-mpc ... there, you'll find the Cicada
 source code, issue tracker, discussions, and wiki.
 
-Next, you'll need to install Cicada and its dependencies, plus all of the
-additional dependencies needed for development::
+You'll need to install `pandoc <https://pandoc.org>`_,
+which can't be installed via pip.  If you use `Conda <https://docs.conda.io/en/latest/>`_
+(which we strongly recommend), you can install it as follows::
+
+    $ conda install pandoc
+
+Next, you'll need to install all of the extra dependencies needed for Cicada development::
 
     $ pip install cicada-mpc[all]
 
