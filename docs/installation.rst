@@ -20,21 +20,25 @@ Local Documentation
 -------------------
 
 We assume that you'll normally access this documentation online, but if
-you want a local copy on your own computer, do the following instead:
+you want a local copy on your own computer, do the following:
 
-First, install Cicada and its dependencies, plus all of the dependencies
-required to build the docs::
+First, you'll need the `pandoc <https://pandoc.org>`_ universal document
+converter, which can't be installed with pip ... if you use `Conda <https://docs.conda.io/en/latest/>`_
+(strongly recommended), you can install it with the following::
+
+    $ conda install pandoc
+
+Once you have pandoc, install Cicada along with all of the dependencies needed to build the docs::
 
     $ pip install cicada-mpc[doc]
 
-Next, do the following to download a tarball containing
-the Cicada source code, which includes the documentation::
+Next, do the following to download a tarball to the current directory
+containing all of the Cicada source code, which includes the documentation::
 
     $ pip download cicada-mpc --no-binary=:all: --no-deps
 
-The file will be downloaded to the current directory.  Now, you can extract its
-contents and build the source (substitute the correct version number for the
-file you downloaded)::
+Now, you can extract the tarball contents and build the documentation (adjust the
+following for the version you downloaded)::
 
     $ tar xzvf cicada-mpc-<version>.tar.gz
     $ cd cicada-mpc-<version>/docs
