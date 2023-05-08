@@ -38,6 +38,31 @@ def step_impl(context, order):
     context.fields.append(cicada.arithmetic.Field(order=order))
 
 
+@when(u'generating a field array of zeros with shape {shape}')
+def step_impl(context, shape):
+    shape = eval(shape)
+    field = context.fields[-1]
+    if "fieldarrays" not in context:
+        context.fieldarrays = []
+    context.fieldarrays.append(field.zeros(shape))
+
+
+@when(u'generating a field array of zeros like {other}')
+def step_impl(context, other):
+    other = numpy.array(eval(other))
+    field = context.fields[-1]
+    if "fieldarrays" not in context:
+        context.fieldarrays = []
+    context.fieldarrays.append(field.zeros_like(other))
+
+
+@then(u'the field array should match {result}')
+def step_impl(context, result):
+    result = numpy.array(eval(result))
+    fieldarray = context.fieldarrays[-1]
+    numpy.testing.assert_array_equal(fieldarray, result)
+
+
 @then(u'the fields should compare equal')
 def step_impl(context):
     lhs, rhs = context.fields
@@ -86,26 +111,6 @@ def step_impl(context):
 #    test.assert_is_none(encoded)
 #    decoded = encoder.decode(encoded)
 #    test.assert_is_none(decoded)
-#
-#
-#@when(u'generating zeros with shape {shape} the result should match {result}')
-#def step_impl(context, shape, result):
-#    shape = eval(shape)
-#    result = eval(result)
-#
-#    encoder = context.encoders[-1]
-#    encoded = encoder.zeros(shape)
-#    numpy.testing.assert_array_equal(encoded, result)
-#
-#
-#@when(u'generating zeros like {other} the result should match {result}')
-#def step_impl(context, other, result):
-#    other = numpy.array(eval(other))
-#    result = numpy.array(eval(result))
-#
-#    encoder = context.encoders[-1]
-#    encoded = encoder.zeros_like(other)
-#    numpy.testing.assert_array_equal(encoded, result)
 #
 #
 #@when(u'{x} is encoded and decoded the result should match {y}')

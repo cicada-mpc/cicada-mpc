@@ -11,6 +11,30 @@ Feature: Arithmetic
         | Field with default order  | Field with order 251                             | unequal  |
 
 
+    Scenario Outline: Zeros
+        Given a <field>
+	When generating a field array of zeros with shape <shape>
+	Then the field array should match <result>
+
+        Examples:
+        | field                           | shape              | result                |
+        | Field with default order        | ()                 | 0                     |
+        | Field with default order        | 1                  | [0]                   |
+        | Field with default order        | (2, 3)             | [[0, 0, 0],[0, 0, 0]] |
+
+
+    Scenario Outline: Zeros Like
+        Given a <field>
+        When generating a field array of zeros like <other>
+	Then the field array should match <result>
+
+        Examples:
+        | field                           | other              | result                |
+        | field with default order        | 3                  | 0                     |
+        | field with default order        | [3, 4]             | [0, 0]                |
+        | field with default order        | [[3,4,5],[5,6,7]]  | [[0, 0, 0],[0, 0, 0]] |
+
+
 	#    Scenario Outline: Encoded Array Shape
 	#        Given a <encoder>
 	#        When <x> is encoded the shape of the encoded array should be <shape>
@@ -89,28 +113,6 @@ Feature: Arithmetic
 	#    Scenario: Encoding and Decoding None
 	#        Given a FixedFieldEncoder
 	#        When None is encoded and decoded the result should be None
-	#
-	#
-	#    Scenario Outline: Zeros
-	#        Given a <encoder>
-	#        When generating zeros with shape <shape> the result should match <result>
-	#
-	#        Examples:
-	#        | encoder                  | shape              | result             |
-	#        | FixedFieldEncoder        | ()                 | 0                  |
-	#        | FixedFieldEncoder        | 1                  | [0]                |
-	#        | FixedFieldEncoder        | (2, 3)             | [[0, 0, 0],[0, 0, 0]] |
-	#
-	#
-	#    Scenario Outline: Zeros Like
-	#        Given a <encoder>
-	#        When generating zeros like <other> the result should match <result>
-	#
-	#        Examples:
-	#        | encoder                  | other              | result             |
-	#        | FixedFieldEncoder        | 3                  | 0                  |
-	#        | FixedFieldEncoder        | [3, 4]             | [0, 0]             |
-	#        | FixedFieldEncoder        | [[3,4,5],[5,6,7]]  | [[0, 0, 0],[0, 0, 0]] |
 	#
 	#
 	#    Scenario Outline: Subtraction
