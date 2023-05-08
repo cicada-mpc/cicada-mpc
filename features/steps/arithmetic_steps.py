@@ -56,6 +56,15 @@ def step_impl(context, other):
     context.fieldarrays.append(field.zeros_like(other))
 
 
+@when(u'generating a field array {x}')
+def step_impl(context, x):
+    x = numpy.array(eval(x))
+    field = context.fields[-1]
+    if "fieldarrays" not in context:
+        context.fieldarrays = []
+    context.fieldarrays.append(field(x))
+
+
 @then(u'the field array should match {result}')
 def step_impl(context, result):
     result = numpy.array(eval(result))
@@ -75,35 +84,6 @@ def step_impl(context):
     test.assert_true(lhs != rhs)
 
 
-#def assert_is_fixed_field_representation(array):
-#    test.assert_is_instance(array, numpy.ndarray)
-#    test.assert_equal(array.dtype, object)
-#    for value in array.flat:
-#        test.assert_is_instance(value, int)
-#
-#
-#@when(u'{x} is encoded the shape of the encoded array should be {shape}')
-#def step_impl(context, x, shape):
-#    x = numpy.array(eval(x))
-#    shape = eval(shape)
-#
-#    encoder = context.encoders[-1]
-#    encoded = encoder.encode(x)
-#    assert_is_fixed_field_representation(encoded)
-#    test.assert_equal(encoded.shape, shape)
-#
-#
-#@when(u'{x} is encoded the shape of the decoded array should be {shape}')
-#def step_impl(context, x, shape):
-#    x = numpy.array(eval(x))
-#    shape = eval(shape)
-#
-#    encoder = context.encoders[-1]
-#    encoded = encoder.encode(x)
-#    assert_is_fixed_field_representation(encoded)
-#    decoded = encoder.decode(encoded)
-#    test.assert_equal(decoded.shape, shape)
-#
 #@when(u'None is encoded and decoded the result should be None')
 #def step_impl(context):
 #    encoder = context.encoders[-1]

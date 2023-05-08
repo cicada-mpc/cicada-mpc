@@ -1,5 +1,18 @@
 Feature: Arithmetic
 
+    Scenario Outline: Field Array
+        Given a <field>
+	When generating a field array <x>
+	Then the field array should match <x>
+
+        Examples:
+        | field                     | x                  |
+        | Field with default order  | 1                  |
+        | Field with default order  | [1]                |
+        | Field with default order  | [1,2,3]            |
+        | Field with default order  | [[1,2,3],[4,5,6]]  |
+
+
     Scenario Outline: Field Equality
         Given a <lhs>
         And a <rhs>
@@ -11,7 +24,7 @@ Feature: Arithmetic
         | Field with default order  | Field with order 251                             | unequal  |
 
 
-    Scenario Outline: Zeros
+    Scenario Outline: Field Zeros
         Given a <field>
 	When generating a field array of zeros with shape <shape>
 	Then the field array should match <result>
@@ -23,7 +36,7 @@ Feature: Arithmetic
         | Field with default order        | (2, 3)             | [[0, 0, 0],[0, 0, 0]] |
 
 
-    Scenario Outline: Zeros Like
+    Scenario Outline: Field Zeros Like
         Given a <field>
         When generating a field array of zeros like <other>
 	Then the field array should match <result>
@@ -35,81 +48,6 @@ Feature: Arithmetic
         | field with default order        | [[3,4,5],[5,6,7]]  | [[0, 0, 0],[0, 0, 0]] |
 
 
-	#    Scenario Outline: Encoded Array Shape
-	#        Given a <encoder>
-	#        When <x> is encoded the shape of the encoded array should be <shape>
-	#
-	#        Examples:
-	#        | encoder            | x                  | shape             |
-	#        | FixedFieldEncoder  | 1                  | ()                |
-	#        | FixedFieldEncoder  | [1]                | (1,)              |
-	#        | FixedFieldEncoder  | [1,2,3]            | (3,)              |
-	#        | FixedFieldEncoder  | [[1,2,3],[4,5,6]]  | (2, 3)            |
-	#
-	#
-	#    Scenario Outline: Decoded Array Shape
-	#        Given a <encoder>
-	#        When <x> is encoded the shape of the decoded array should be <shape>
-	#
-	#        Examples:
-	#        | encoder            | x                  | shape             |
-	#        | FixedFieldEncoder  | 1                  | ()                |
-	#        | FixedFieldEncoder  | [1]                | (1,)              |
-	#        | FixedFieldEncoder  | [1,2,3]            | (3,)              |
-	#        | FixedFieldEncoder  | [[1,2,3],[4,5,6]]  | (2, 3)            |
-	#
-	#
-	#    Scenario Outline: Round Trip Encoding
-	#        Given a <encoder>
-	#        When <x> is encoded and decoded the result should match <y>
-	#
-	#        Examples:
-	#        | encoder                  | x                  | y                  |
-	#        | 4 bit FixedFieldEncoder  | 1                  | 1                  |
-	#        | FixedFieldEncoder        | 1                  | 1                  |
-	#        | FixedFieldEncoder        | 2**8               | 2**8               |
-	#        | FixedFieldEncoder        | 2**8+1             | 2**8+1             |
-	#        | FixedFieldEncoder        | 2**8+1.5           | 2**8+1.5           |
-	#        | FixedFieldEncoder        | 2**16              | 2**16              |
-	#        | FixedFieldEncoder        | 2**16+1            | 2**16+1            |
-	#        | FixedFieldEncoder        | 2**16+1.5          | 2**16+1.5          |
-	#        | FixedFieldEncoder        | 2**24              | 2**24              |
-	#        | FixedFieldEncoder        | 2**24+1            | 2**24+1            |
-	#        | FixedFieldEncoder        | 2**24+1.5          | 2**24+1.5          |
-	#        | FixedFieldEncoder        | 2**32              | 2**32              |
-	#        | FixedFieldEncoder        | 2**32+1            | 2**32+1            |
-	#        | FixedFieldEncoder        | 2**32+1.5          | 2**32+1.5          |
-	#        | FixedFieldEncoder        | 2**46              | 2**46              |
-	#        | FixedFieldEncoder        | 2**46 + 1          | 2**46 + 1          |
-	#        | FixedFieldEncoder        | 2**46 + 101        | 2**46 + 101        |
-	#        | FixedFieldEncoder        | 2**46 + 101.5      | 2**46 + 101.5      |
-	#        | FixedFieldEncoder        | 2**47 - 1          | 2**47 - 1          |
-	#        | FixedFieldEncoder        | 2**47 - 2          | 2**47 - 2          |
-	#        | FixedFieldEncoder        | 2**47 - 2.5        | 2**47 - 2.5        |
-	#        | FixedFieldEncoder        | -2**16             | -2**16             |
-	#        | FixedFieldEncoder        | -2**24             | -2**24             |
-	#        | FixedFieldEncoder        | -2**24 + 1         | -2**24 + 1         |
-	#        | FixedFieldEncoder        | -2**24 + 1.5       | -2**24 + 1.5       |
-	#        | FixedFieldEncoder        | -2**24 - 1         | -2**24 - 1         |
-	#        | FixedFieldEncoder        | -2**24 - 1.5       | -2**24 - 1.5       |
-	#        | FixedFieldEncoder        | -2**24 - 1.25      | -2**24 - 1.25      |
-	#        | FixedFieldEncoder        | -2**24 - 1.125     | -2**24 - 1.125     |
-	#        | FixedFieldEncoder        | -2**24 - 1.0625    | -2**24 - 1.0625    |
-	#        | FixedFieldEncoder        | -2**24 - 1.03125   | -2**24 - 1.03125   |
-	#        | FixedFieldEncoder        | -2**24 - 1.015625  | -2**24 - 1.015625  |
-	#        | FixedFieldEncoder        | -2**24 - 1.0078125 | -2**24 - 1.0078125 |
-	#        | FixedFieldEncoder        | 35123458           | 35123458           |
-	#        | FixedFieldEncoder        | -35123458          | -35123458          |
-	#        | FixedFieldEncoder        | 2**25 - 1          | 2**25 - 1          |
-	#        | FixedFieldEncoder        | -56358025          | -56358025          |
-	#        | FixedFieldEncoder        | 56358025           | 56358025           |
-	#        | FixedFieldEncoder        | 1.5                | 1.5                |
-	#        | FixedFieldEncoder        | -1.5               | -1.5               |
-	#        | FixedFieldEncoder        | [1.5]              | [1.5]              |
-	#        | FixedFieldEncoder        | [1.5,2.5,3.5]      | [1.5,2.5,3.5]      |
-	#        | FixedFieldEncoder        | [[1.5,2.5],[3.5,4.5]] | [[1.5,2.5],[3.5,4.5]] |
-	#
-	#
 	#    Scenario: Encoding and Decoding None
 	#        Given a FixedFieldEncoder
 	#        When None is encoded and decoded the result should be None
