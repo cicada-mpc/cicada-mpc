@@ -38,6 +38,15 @@ def step_impl(context, order):
     context.fields.append(cicada.arithmetic.Field(order=order))
 
 
+@given(u'a field array {x}')
+def step_impl(context, x):
+    x = numpy.array(eval(x))
+    field = context.fields[-1]
+    if "fieldarrays" not in context:
+        context.fieldarrays = []
+    context.fieldarrays.append(field(x))
+
+
 @when(u'generating a field array of zeros with shape {shape}')
 def step_impl(context, shape):
     shape = eval(shape)
@@ -56,13 +65,11 @@ def step_impl(context, other):
     context.fieldarrays.append(field.zeros_like(other))
 
 
-@when(u'generating a field array {x}')
-def step_impl(context, x):
-    x = numpy.array(eval(x))
+@when(u'the field array is negated')
+def step_impl(context):
     field = context.fields[-1]
-    if "fieldarrays" not in context:
-        context.fieldarrays = []
-    context.fieldarrays.append(field(x))
+    fieldarray = context.fieldarrays[-1]
+    context.fieldarrays.append(field.negative(fieldarray))
 
 
 @then(u'the field array should match {result}')

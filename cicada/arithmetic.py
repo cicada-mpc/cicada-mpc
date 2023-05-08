@@ -72,7 +72,9 @@ class Field(object):
 
     def __call__(self, array):
         # Convert an existing array to a field array.
-        return numpy.array(array, dtype=self._dtype)
+        result = numpy.array(array, dtype=self._dtype)
+        result %= self._order
+        return result
 
 
     def add(self, lhs, rhs):
