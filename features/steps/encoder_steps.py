@@ -25,7 +25,7 @@ import cicada.encoder
 
 def assert_is_fixed_field_representation(array):
     test.assert_is_instance(array, numpy.ndarray)
-    test.assert_equal(array.dtype, numpy.object)
+    test.assert_equal(array.dtype, object)
     for value in array.flat:
         test.assert_is_instance(value, int)
 

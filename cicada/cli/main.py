@@ -187,6 +187,10 @@ frontends = {
 parser = argparse.ArgumentParser(description="Cicada MPC tools.")
 subparsers = parser.add_subparsers(title="commands (choose one)", dest="command")
 
+# certificate-info
+certificate_info_subparser = subparsers.add_parser("certificate-info", help="Display information about a TLS certificate.")
+certificate_info_subparser.add_argument("path", help="Path to the certificate file.")
+
 # credentials
 credentials_subparser = subparsers.add_parser("credentials", help="Generate player credentials for TLS encryption.")
 credentials_subparser.add_argument("--certificate", default="player-{rank}.cert", help="Output certificate file. Default: %(default)s")
@@ -247,6 +251,11 @@ def main():
     logging.basicConfig(level=logging.INFO)
     log = logging.getLogger()
     log.name = os.path.basename(sys.argv[0])
+
+
+    # certificate-info
+    if arguments.command == "certificate-info":
+        subprocess.run(["openssl", "x509", "-in", arguments.path, "-text"], check=True)
 
     # credentials
     if arguments.command == "credentials":
