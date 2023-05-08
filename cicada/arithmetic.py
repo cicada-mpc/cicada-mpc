@@ -71,11 +71,12 @@ class Field(object):
             raise ValueError(f"Expected {label} to be created with a compatible instance of this encoder.") # pragma: no cover
 
     def __call__(self, array):
+        # Convert an existing array to a field array.
         return numpy.array(array, dtype=self._dtype)
 
 
     def add(self, lhs, rhs):
-        """Add two encoded arrays.
+        """Add two field arrays.
 
         Parameters
         ----------
@@ -101,7 +102,7 @@ class Field(object):
 
     @property
     def dtype(self):
-        """Return the :class:`numpy.dtype` used for arrays encoded with this encoder."""
+        """Return the :class:`numpy.dtype` used for field arrays."""
         return self._dtype
 
 
@@ -118,7 +119,7 @@ class Field(object):
 
 
     def inplace_add(self, lhs, rhs):
-        """In-place addition of an encoded array.
+        """Add field arrays in-place.
 
         Parameters
         ----------
@@ -134,7 +135,7 @@ class Field(object):
 
 
     def inplace_subtract(self, lhs, rhs):
-        """In-place subtraction of an encoded array.
+        """Subtract field arrays in-place.
 
         Parameters
         ----------
@@ -195,7 +196,7 @@ class Field(object):
 
 
     def negative(self, array):
-        """Element-wise numerical negative.
+        """Element-wise negation of a field array. 
 
         Parameters
         ----------
@@ -214,14 +215,8 @@ class Field(object):
         return result
 
 
-    @property
-    def precision(self):
-        """Return the number of bits used to store fractional values."""
-        return self._precision
-
-
     def subtract(self, lhs, rhs):
-        """ Subtraction of two encoded arrays.
+        """Return the difference between two field arrays.
 
         Parameters
         ----------
@@ -232,7 +227,7 @@ class Field(object):
         Returns
         -------
         dif: :class:`numpy.ndarray`
-            The difference of the two operands.
+            The difference between the two operands.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         result = numpy.array((lhs - rhs) % self._order, dtype=self.dtype)
@@ -241,7 +236,7 @@ class Field(object):
 
 
     def sum(self, operand):
-        """Sum array elements.
+        """Sum the elements of a field array.
 
         Parameters
         ----------
@@ -260,7 +255,7 @@ class Field(object):
 
 
     def uniform(self, *, size, generator):
-        """Return a random encoded array, uniformly distributed over the ring.
+        """Return a random encoded array, uniformly distributed over the field.
 
         Parameters
         ----------
@@ -284,75 +279,75 @@ class Field(object):
         return result
 
 
-    def untruncated_matvec(self, A, x):
-        """Return a matrix-vector product, without truncation.
-
-        The results are shifted to the left by :attr:`precision` bits,
-        which we refer to as `untruncated` values.  To recover the actual
-        values, the results should be shifted to the right by :attr:`precision`
-        bits.
-
-        Note
-        ----
-        Shifting untruncated shares of secret shared values will produce
-        nonsense results!  See
-        :meth:`cicada.additive.AdditiveProtocolSuite.truncate` for a way to truncate
-        untruncated secret shared values.
-
-        Parameters
-        ----------
-        A: :class:`numpy.ndarray`, required
-           Encoded :math:`M \\times N` matrix.
-        x: :class:`numpy.ndarray`, required
-           Encoded size :math:`N` vector.
-
-        Returns
-        -------
-        y: :class:`numpy.ndarray`
-           Encoded, untruncated size :math:`M` vector.
-        """
-        self._assert_binary_compatible(A, x, "A", "x")
-        result = numpy.array(numpy.dot(A, x), dtype=self.dtype)
-        self._assert_unary_compatible(result, "result")
-        return result
-
-
-    def untruncated_multiply(self, lhs, rhs):
-        """Multiply two arrays element-wise, without truncation.
-
-        The results are shifted to the left by :attr:`precision` bits,
-        which we refer to as `untruncated` values.  To recover the actual
-        values, the results should be shifted to the right by :attr:`precision`
-        bits.
-
-        Note
-        ----
-        Shifting untruncated shares of secret shared values will produce
-        nonsense results!  See
-        :meth:`cicada.additive.AdditiveProtocolSuite.truncate` for a way to truncate
-        untruncated secret shared values.
-
-
-        Parameters
-        ----------
-        lhs: :class:`numpy.ndarray`, required
-            First operand.
-        rhs: :class:`numpy.ndarray`, required
-            Second operand.
-
-        Returns
-        -------
-        product: :class:`numpy.ndarray`
-            Encoded, untruncated elementwise product of `lhs` and `rhs`.
-        """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        result = numpy.array((lhs * rhs) % self._order, dtype=self.dtype)
-        self._assert_unary_compatible(result, "result")
-        return result
+#    def untruncated_matvec(self, A, x):
+#        """Return a matrix-vector product, without truncation.
+#
+#        The results are shifted to the left by :attr:`precision` bits,
+#        which we refer to as `untruncated` values.  To recover the actual
+#        values, the results should be shifted to the right by :attr:`precision`
+#        bits.
+#
+#        Note
+#        ----
+#        Shifting untruncated shares of secret shared values will produce
+#        nonsense results!  See
+#        :meth:`cicada.additive.AdditiveProtocolSuite.truncate` for a way to truncate
+#        untruncated secret shared values.
+#
+#        Parameters
+#        ----------
+#        A: :class:`numpy.ndarray`, required
+#           Encoded :math:`M \\times N` matrix.
+#        x: :class:`numpy.ndarray`, required
+#           Encoded size :math:`N` vector.
+#
+#        Returns
+#        -------
+#        y: :class:`numpy.ndarray`
+#           Encoded, untruncated size :math:`M` vector.
+#        """
+#        self._assert_binary_compatible(A, x, "A", "x")
+#        result = numpy.array(numpy.dot(A, x), dtype=self.dtype)
+#        self._assert_unary_compatible(result, "result")
+#        return result
+#
+#
+#    def untruncated_multiply(self, lhs, rhs):
+#        """Multiply two arrays element-wise, without truncation.
+#
+#        The results are shifted to the left by :attr:`precision` bits,
+#        which we refer to as `untruncated` values.  To recover the actual
+#        values, the results should be shifted to the right by :attr:`precision`
+#        bits.
+#
+#        Note
+#        ----
+#        Shifting untruncated shares of secret shared values will produce
+#        nonsense results!  See
+#        :meth:`cicada.additive.AdditiveProtocolSuite.truncate` for a way to truncate
+#        untruncated secret shared values.
+#
+#
+#        Parameters
+#        ----------
+#        lhs: :class:`numpy.ndarray`, required
+#            First operand.
+#        rhs: :class:`numpy.ndarray`, required
+#            Second operand.
+#
+#        Returns
+#        -------
+#        product: :class:`numpy.ndarray`
+#            Encoded, untruncated elementwise product of `lhs` and `rhs`.
+#        """
+#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+#        result = numpy.array((lhs * rhs) % self._order, dtype=self.dtype)
+#        self._assert_unary_compatible(result, "result")
+#        return result
 
 
     def zeros(self, shape):
-        """Return an encoded array of zeros.
+        """Return a field array containing zeros.
 
         Parameters
         ----------
@@ -370,7 +365,7 @@ class Field(object):
 
 
     def zeros_like(self, other):
-        """Return an encoded array of zeros with the same shape as another array.
+        """Return an field array of zeros with the same shape as another field array.
 
         Parameters
         ----------
