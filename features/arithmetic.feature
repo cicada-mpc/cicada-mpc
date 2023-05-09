@@ -42,17 +42,19 @@ Feature: Arithmetic
         | Field with order 251      | [1, 2]    | [250, 249]         |
 
 
-	#    Scenario Outline: Field Array Subtraction
-	#        Given a <encoder>
-	#        When <b> is subtracted from <a> the result should match <c>
-	#
-	#        Examples:
-	#        | encoder            | a         | b         | c        |
-	#        | FixedFieldEncoder  | 1         | 1         | 0        |
-	#        | FixedFieldEncoder  | 1         | 3         | -2       |
-	#        | FixedFieldEncoder  | 1.2       | 3.5       | -2.3     |
-	#        | FixedFieldEncoder  | 1.2       | 0         | 1.2      |
-	#        | FixedFieldEncoder  | 0         | 1.2       | -1.2     |
+    Scenario Outline: Field Array Subtraction
+	Given a <field>
+	And a field array <a>
+	And a field array <b>
+	When the second field array is subtracted from the first
+	Then the field array should match <c>
+
+        Examples:
+        | field                     | a         | b         | c        |
+        | Field with default order  | 1         | 1         | 0        |
+        | Field with default order  | 1         | 3         | -2       |
+        | Field with default order  | 1         | 0         | 1        |
+        | Field with default order  | 0         | 1         | -1       |
 
 
     Scenario Outline: Field Array Summation

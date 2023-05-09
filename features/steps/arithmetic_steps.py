@@ -68,21 +68,30 @@ def step_impl(context, other):
 @when(u'the field array is negated')
 def step_impl(context):
     field = context.fields[-1]
-    fieldarray = context.fieldarrays[-1]
+    fieldarray = context.fieldarrays.pop()
     context.fieldarrays.append(field.negative(fieldarray))
 
 
 @when(u'the field array is summed')
 def step_impl(context):
     field = context.fields[-1]
-    fieldarray = context.fieldarrays[-1]
+    fieldarray = context.fieldarrays.pop()
     context.fieldarrays.append(field.sum(fieldarray))
+
+
+@when(u'the second field array is subtracted from the first')
+def step_impl(context):
+    field = context.fields[-1]
+    b = context.fieldarrays.pop()
+    a = context.fieldarrays.pop()
+    context.fieldarrays.append(field.subtract(a, b))
 
 
 @then(u'the field array should match {result}')
 def step_impl(context, result):
-    result = numpy.array(eval(result))
-    fieldarray = context.fieldarrays[-1]
+    field = context.fields[-1]
+    result = field(eval(result))
+    fieldarray = context.fieldarrays.pop()
     numpy.testing.assert_array_equal(fieldarray, result)
 
 
@@ -98,76 +107,3 @@ def step_impl(context):
     test.assert_true(lhs != rhs)
 
 
-#@when(u'None is encoded and decoded the result should be None')
-#def step_impl(context):
-#    encoder = context.encoders[-1]
-#    encoded = encoder.encode(None)
-#    test.assert_is_none(encoded)
-#    decoded = encoder.decode(encoded)
-#    test.assert_is_none(decoded)
-#
-#
-#@when(u'{x} is encoded and decoded the result should match {y}')
-#def step_impl(context, x, y):
-#    x = numpy.array(eval(x), dtype=numpy.float64)
-#    y = numpy.array(eval(y), dtype=numpy.float64)
-#
-#    encoder = context.encoders[-1]
-#    encoded = encoder.encode(x)
-#    assert_is_fixed_field_representation(encoded)
-#    decoded = encoder.decode(encoded)
-#
-#    numpy.testing.assert_almost_equal(decoded, y, decimal=4)
-#
-#
-#@when(u'matrix {A} and vector {x} are encoded and multiplied without truncation, the decoded result should match {y}')
-#def step_impl(context, A, x, y):
-#    encoder = context.encoders[-1]
-#    A = encoder.encode(numpy.array(eval(A)))
-#    x = encoder.encode(numpy.array(eval(x)))
-#    y = numpy.array(eval(y))
-#
-#    result = encoder.untruncated_matvec(A,x)
-#    assert_is_fixed_field_representation(result)
-#    decoded = encoder.decode(result)
-#    if not numpy.allclose(decoded, y, rtol=0, atol=0.001):
-#       raise ValueError("result mismatch")
-#
-#
-#@when(u'{b} is subtracted from {a} the result should match {c}')
-#def step_impl(context, a, b, c):
-#    encoder = context.encoders[-1]
-#    a = encoder.encode(numpy.array(eval(a)))
-#    b = encoder.encode(numpy.array(eval(b)))
-#    c = numpy.array(eval(c))
-#
-#    result = encoder.subtract(a, b)
-#    assert_is_fixed_field_representation(result)
-#    decoded = encoder.decode(result)
-#    numpy.testing.assert_almost_equal(decoded, c, decimal=4)
-#
-#
-#
-#@when(u'{a} is negated the result should match {b}')
-#def step_impl(context, a, b):
-#    encoder = context.encoders[-1]
-#    a = encoder.encode(numpy.array(eval(a)))
-#    b = numpy.array(eval(b))
-#
-#    result = encoder.negative(a)
-#    assert_is_fixed_field_representation(result)
-#    decoded = encoder.decode(result)
-#    numpy.testing.assert_almost_equal(decoded, b, decimal=4)
-#
-#
-#@when(u'{a} is summed the result should match {b}')
-#def step_impl(context, a, b):
-#    encoder = context.encoders[-1]
-#    a = encoder.encode(numpy.array(eval(a)))
-#    b = numpy.array(eval(b))
-#
-#    result = encoder.sum(a)
-#    assert_is_fixed_field_representation(result)
-#    decoded = encoder.decode(result)
-#    numpy.testing.assert_almost_equal(decoded, b, decimal=4)
-#
