@@ -38,6 +38,18 @@ def step_impl(context, bits):
     context.encodings.append(cicada.encoding.FixedPoint(precision=bits))
 
 
+@when(u'{value} is encoded and decoded')
+def step_impl(context, value):
+    value = eval(value)
+
+    encoding = context.encodings[-1]
+    field = context.fields[-1]
+
+    encoded = encoding.encode(value, field)
+    decoded = encoding.decode(encoded, field)
+    context.decoded = decoded
+
+
 @then(u'the encodings should compare equal')
 def step_impl(context):
     lhs, rhs = context.encodings
@@ -50,40 +62,22 @@ def step_impl(context):
     test.assert_true(lhs != rhs)
 
 
+@then(u'the decoded value should match None')
+def step_impl(context):
+    test.assert_equal(context.decoded, None)
+
+
+@then(u'the decoded value should match {value}')
+def step_impl(context, value):
+    value = numpy.array(eval(value))
+    numpy.testing.assert_array_equal(context.decoded, value)
+
+
 #def assert_is_fixed_field_representation(array):
 #    test.assert_is_instance(array, numpy.ndarray)
 #    test.assert_equal(array.dtype, object)
 #    for value in array.flat:
 #        test.assert_is_instance(value, int)
-#
-#
-#@given(u'a {precision} bit FixedFieldEncoder mod {modulus}')
-#def step_impl(context, precision, modulus):
-#    precision = eval(precision)
-#    modulus = eval(modulus)
-#    if "encoders" not in context:
-#        context.encoders = []
-#    context.encoders.append(cicada.encoder.FixedFieldEncoder(precision=precision, modulus=modulus))
-#
-#
-#@given(u'a {precision} bit FixedFieldEncoder')
-#def step_impl(context, precision):
-#    precision = eval(precision)
-#    if "encoders" not in context:
-#        context.encoders = []
-#    context.encoders.append(cicada.encoder.FixedFieldEncoder(precision=precision))
-#
-#
-#@then(u'the encoders should compare equal')
-#def step_impl(context):
-#    lhs, rhs = context.encoders
-#    test.assert_true(lhs == rhs)
-#
-#
-#@then(u'the encoders should compare unequal')
-#def step_impl(context):
-#    lhs, rhs = context.encoders
-#    test.assert_true(lhs != rhs)
 #
 #
 #@when(u'{x} is encoded the shape of the encoded array should be {shape}')

@@ -23,7 +23,7 @@ import numpy
 import cicada.arithmetic
 
 
-@given(u'a Field with default order')
+@given(u'a default Field')
 def step_impl(context):
     if "fields" not in context:
         context.fields = []
