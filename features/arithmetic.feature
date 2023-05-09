@@ -42,6 +42,30 @@ Feature: Arithmetic
         | Field with order 251      | [1, 2]    | [250, 249]         |
 
 
+	#    Scenario Outline: Field Array Subtraction
+	#        Given a <encoder>
+	#        When <b> is subtracted from <a> the result should match <c>
+	#
+	#        Examples:
+	#        | encoder            | a         | b         | c        |
+	#        | FixedFieldEncoder  | 1         | 1         | 0        |
+	#        | FixedFieldEncoder  | 1         | 3         | -2       |
+	#        | FixedFieldEncoder  | 1.2       | 3.5       | -2.3     |
+	#        | FixedFieldEncoder  | 1.2       | 0         | 1.2      |
+	#        | FixedFieldEncoder  | 0         | 1.2       | -1.2     |
+
+
+    Scenario Outline: Field Array Summation
+	Given a <field>
+	And a field array <a>
+	When the field array is summed
+	Then the field array should match <b>
+
+        Examples:
+        | field                     | a         | b         |
+	| Field with default order  | [1, 2, 3] | 6         |
+
+
     Scenario Outline: Field Zeros
         Given a <field>
 	When generating a field array of zeros with shape <shape>
@@ -66,23 +90,3 @@ Feature: Arithmetic
         | field with default order        | [[3,4,5],[5,6,7]]  | [[0, 0, 0],[0, 0, 0]] |
 
 
-	#    Scenario Outline: Subtraction
-	#        Given a <encoder>
-	#        When <b> is subtracted from <a> the result should match <c>
-	#
-	#        Examples:
-	#        | encoder            | a         | b         | c        |
-	#        | FixedFieldEncoder  | 1         | 1         | 0        |
-	#        | FixedFieldEncoder  | 1         | 3         | -2       |
-	#        | FixedFieldEncoder  | 1.2       | 3.5       | -2.3     |
-	#        | FixedFieldEncoder  | 1.2       | 0         | 1.2      |
-	#        | FixedFieldEncoder  | 0         | 1.2       | -1.2     |
-	#
-	#
-	#    Scenario Outline: Summation
-	#        Given a <encoder>
-	#        When <a> is summed the result should match <b>
-	#
-	#        Examples:
-	#        | encoder            | a         | b         |
-	#        | FixedFieldEncoder  | [1, 2, 3] | 6         |

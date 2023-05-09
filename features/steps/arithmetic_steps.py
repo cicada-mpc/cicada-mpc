@@ -72,6 +72,13 @@ def step_impl(context):
     context.fieldarrays.append(field.negative(fieldarray))
 
 
+@when(u'the field array is summed')
+def step_impl(context):
+    field = context.fields[-1]
+    fieldarray = context.fieldarrays[-1]
+    context.fieldarrays.append(field.sum(fieldarray))
+
+
 @then(u'the field array should match {result}')
 def step_impl(context, result):
     result = numpy.array(eval(result))
