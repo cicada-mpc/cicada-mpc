@@ -23,6 +23,33 @@ import numpy
 import cicada.encoding
 
 
+@given(u'a default FixedPoint encoding')
+def step_impl(context):
+    if "encodings" not in context:
+        context.encodings = []
+    context.encodings.append(cicada.encoding.FixedPoint())
+
+
+@given(u'a {bits} bit FixedPoint encoding')
+def step_impl(context, bits):
+    bits = eval(bits)
+    if "encodings" not in context:
+        context.encodings = []
+    context.encodings.append(cicada.encoding.FixedPoint(precision=bits))
+
+
+@then(u'the encodings should compare equal')
+def step_impl(context):
+    lhs, rhs = context.encodings
+    test.assert_true(lhs == rhs)
+
+
+@then(u'the encodings should compare unequal')
+def step_impl(context):
+    lhs, rhs = context.encodings
+    test.assert_true(lhs != rhs)
+
+
 #def assert_is_fixed_field_representation(array):
 #    test.assert_is_instance(array, numpy.ndarray)
 #    test.assert_equal(array.dtype, object)
@@ -45,13 +72,6 @@ import cicada.encoding
 #    if "encoders" not in context:
 #        context.encoders = []
 #    context.encoders.append(cicada.encoder.FixedFieldEncoder(precision=precision))
-#
-#
-#@given(u'a FixedFieldEncoder')
-#def step_impl(context):
-#    if "encoders" not in context:
-#        context.encoders = []
-#    context.encoders.append(cicada.encoder.FixedFieldEncoder())
 #
 #
 #@then(u'the encoders should compare equal')

@@ -44,6 +44,10 @@ class FixedPoint(object):
         self._scale = int(2**self._precision)
 
 
+    def __eq__(self, other):
+        return isinstance(other, FixedPoint) and self._precision == other._precision
+
+
     def __repr__(self):
         return f"cicada.encoding.fixedpoint.FixedPoint(precision={self._precision})" # pragma: no cover
 
