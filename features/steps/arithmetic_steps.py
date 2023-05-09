@@ -95,6 +95,14 @@ def step_impl(context):
     context.fieldarrays.append(field.add(a, b))
 
 
+@when(u'the second field array is added inplace to the first')
+def step_impl(context):
+    field = context.fields[-1]
+    b = context.fieldarrays.pop()
+    a = context.fieldarrays[-1]
+    field.inplace_add(a, b)
+
+
 @then(u'the field array should match {result}')
 def step_impl(context, result):
     field = context.fields[-1]
