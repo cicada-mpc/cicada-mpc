@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Functionality for encoding real values in fields using a fixed precision representation."""
+"""Functionality for encoding real values in fields."""
 
 import numbers
 
@@ -22,11 +22,11 @@ import numpy
 
 
 class FixedPoint(object):
-    """Converts between real and field values using a fixed-point representation.
+    """Encodes real values in a field using a fixed-point representation.
 
     Encoded values are :class:`numpy.ndarray` instances containing Python
     integers, with `precision` bits reserved for encoding fractional digits.
-    Encoded values are decoded as 64-bit floating-point arrays.
+    Encoded values will be decoded as 64-bit floating-point arrays.
 
     Parameters
     ----------
