@@ -15,15 +15,20 @@ Feature: Arithmetic
         | Field with order 251      | 252                | 1                  |
 
 
-    Scenario Outline: Field Equality
-        Given a <lhs>
-        And a <rhs>
-        Then the fields should compare <result>
+    Scenario Outline: Field Array Addition
+	Given a <field>
+	And a field array <a>
+	And a field array <b>
+	When the second field array is added to the first
+	Then the field array should match <c>
 
         Examples:
-        | lhs                       | rhs                              | result   |
-        | Field with default order  | Field with default order         | equal    |
-        | Field with default order  | Field with order 251             | unequal  |
+        | field                     | a         | b         | c        |
+        | Field with default order  | 1         | 1         | 2        |
+        | Field with default order  | 1         | 3         | 4        |
+        | Field with default order  | 1         | 0         | 1        |
+        | Field with default order  | 0         | 1         | 1        |
+        | Field with default order  | -1        | 1         | 0        |
 
 
     Scenario Outline: Field Array Negation
@@ -66,6 +71,17 @@ Feature: Arithmetic
         Examples:
         | field                     | a         | b         |
 	| Field with default order  | [1, 2, 3] | 6         |
+
+
+    Scenario Outline: Field Equality
+        Given a <lhs>
+        And a <rhs>
+        Then the fields should compare <result>
+
+        Examples:
+        | lhs                       | rhs                              | result   |
+        | Field with default order  | Field with default order         | equal    |
+        | Field with default order  | Field with order 251             | unequal  |
 
 
     Scenario Outline: Field Zeros

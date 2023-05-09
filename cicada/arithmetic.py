@@ -78,7 +78,7 @@ class Field(object):
 
 
     def add(self, lhs, rhs):
-        """Add two field arrays.
+        """Element-wise addition of two field arrays.
 
         Parameters
         ----------
@@ -218,7 +218,7 @@ class Field(object):
 
 
     def subtract(self, lhs, rhs):
-        """Return the difference between two field arrays.
+        """Return the element-wise difference between two field arrays.
 
         Parameters
         ----------
