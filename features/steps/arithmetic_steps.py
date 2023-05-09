@@ -47,6 +47,16 @@ def step_impl(context, x):
     context.fieldarrays.append(field(x))
 
 
+@when(u'generating a field array of uniform random values with shape {shape}')
+def step_impl(context, shape):
+    shape = eval(shape)
+    field = context.fields[-1]
+    generator = numpy.random.default_rng()
+    if "fieldarrays" not in context:
+        context.fieldarrays = []
+    context.fieldarrays.append(field.uniform(size=shape, generator=generator))
+
+
 @when(u'generating a field array of zeros with shape {shape}')
 def step_impl(context, shape):
     shape = eval(shape)
@@ -115,7 +125,7 @@ def step_impl(context):
 def step_impl(context, result):
     field = context.fields[-1]
     result = field(eval(result))
-    fieldarray = context.fieldarrays.pop()
+    fieldarray = context.fieldarrays[-1]
     numpy.testing.assert_array_equal(fieldarray, result)
 
 
@@ -129,5 +139,21 @@ def step_impl(context):
 def step_impl(context):
     lhs, rhs = context.fields
     test.assert_true(lhs != rhs)
+
+
+@then(u'the field array shape should match {shape}')
+def step_impl(context, shape):
+    shape = eval(shape)
+    fieldarray = context.fieldarrays[-1]
+    test.assert_equal(shape, fieldarray.shape)
+
+
+@then(u'the field array values should be in-range for the field')
+def step_impl(context):
+    field = context.fields[-1]
+    fieldarray = context.fieldarrays[-1]
+    test.assert_true(numpy.all(fieldarray >= 0))
+    test.assert_true(numpy.all(fieldarray < field.order))
+
 
 

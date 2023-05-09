@@ -115,6 +115,19 @@ Feature: Arithmetic
         | Field with default order  | Field with order 251             | unequal  |
 
 
+    Scenario Outline: Field Uniform Random
+        Given a <field>
+	When generating a field array of uniform random values with shape <shape>
+	Then the field array shape should match <shape>
+	And the field array values should be in-range for the field
+
+        Examples:
+        | field                           | shape              |
+        | Field with default order        | ()                 |
+        | Field with default order        | (1,)               |
+        | Field with default order        | (2, 3)             |
+
+
     Scenario Outline: Field Zeros
         Given a <field>
 	When generating a field array of zeros with shape <shape>
