@@ -35,7 +35,7 @@ Feature: Arithmetic
 	Given a <field>
 	And a field array <a>
 	And a field array <b>
-	When the second field array is added inplace to the first
+	When the second field array is added in-place to the first
 	Then the field array should match <c>
 
         Examples:
@@ -45,6 +45,21 @@ Feature: Arithmetic
         | Field with default order  | 1         | 0         | 1        |
         | Field with default order  | 0         | 1         | 1        |
         | Field with default order  | -1        | 1         | 0        |
+
+
+    Scenario Outline: Field Array In-Place Subtraction
+	Given a <field>
+	And a field array <a>
+	And a field array <b>
+	When the second field array is subtracted in-place from the first
+	Then the field array should match <c>
+
+        Examples:
+        | field                     | a         | b         | c        |
+        | Field with default order  | 1         | 1         | 0        |
+        | Field with default order  | 1         | 3         | -2       |
+        | Field with default order  | 1         | 0         | 1        |
+        | Field with default order  | 0         | 1         | -1       |
 
 
     Scenario Outline: Field Array Negation
