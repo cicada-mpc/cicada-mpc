@@ -149,6 +149,26 @@ class AdditiveSharing(object):
         self._encoding = encoding
 
 
+    def __repr__(self):
+        return f"cicada.additive.AdditiveSharing(order={self._field.order}, encoding={self._encoding})" # pragma: no cover
+
+
+    @property
+    def communicator(self):
+        """Return the :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
+        return self._communicator
+
+
+    @property
+    def encoding(self):
+        return self._encoding
+
+
+    @property
+    def field(self):
+        return self._field
+
+
     def reveal(self, share, dst=None, encoding=None):
         """Reveals a secret shared value to a subset of players.
 
@@ -488,12 +508,6 @@ class AdditiveSharing(object):
 #        return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
 #
 #
-#    @property
-#    def communicator(self):
-#        """Return the :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
-#        return self._communicator
-#
-#
 #    def divide(self, lhs, rhs):
 #        """Elementwise division of two secret shared arrays.
 #
@@ -543,11 +557,6 @@ class AdditiveSharing(object):
 #        return result
 #
 #
-#    @property
-#    def encoding(self):
-#        return self._encoding
-#
-#
 #    def equal(self, lhs, rhs):
 #        """Return an elementwise probabilistic equality comparison between secret shared arrays.
 #
@@ -570,11 +579,6 @@ class AdditiveSharing(object):
 #        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 #        diff = self.subtract(lhs, rhs)
 #        return self.logical_not(self.private_public_power_field(diff, self._field.order-1))
-#
-#
-#    @property
-#    def field(self):
-#        return self._field
 #
 #
 #    def floor(self, operand):
