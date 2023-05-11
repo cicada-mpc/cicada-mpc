@@ -13,13 +13,13 @@ Feature: Encodings
 
 
     Scenario Outline: Round Trip Encoding
-	Given a <encoder>
+	Given a <encoding>
 	And a <field>
 	When <x> is encoded and decoded
 	Then the decoded value should match <x>
 
         Examples:
-        | encoder                            | field                 | x                     |
+        | encoding                           | field                 | x                     |
         | default FixedPoint encoding        | default Field         | 1                     |
         | default FixedPoint encoding        | default Field         | 2**8                  |
         | default FixedPoint encoding        | default Field         | 2**8+1                |
