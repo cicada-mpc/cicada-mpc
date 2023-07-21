@@ -103,11 +103,12 @@ class AdditiveProtocolSuite(object):
     modulus: :class:`int`, optional
         Field size for storing encoded values.  Defaults to the largest prime
         less than :math:`2^{64}`.
-    precision: :class:`int`, optional
-        The number of bits for storing fractions in encoded values.  Defaults
-        to 16.
+    encoding: :class:`object`, optional
+        Encoding to use by default for operations that require encoding/decoding.
+        Defaults to an instance of :class:`FixedPoint` with 16 bits of floating-point
+        precision.
     """
-    def __init__(self, communicator, seed=None, seed_offset=None, order=None, precision=16):
+    def __init__(self, communicator, seed=None, seed_offset=None, order=None, encoding=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
@@ -118,7 +119,7 @@ class AdditiveProtocolSuite(object):
         # NOTE: Chosen seed can be any number, but we choose a random 64-bit
         # integer here so other players cannot guess its value.
 
-        # We sometimes get here from a forked process, which causes all players
+        # We typically get here from a forked process, which causes all players
         # to have the same RNG state. Reset the seed to make sure RNG streams
         # are different for all the players. We use numpy's random generator
         # here since initializing it without a seed will produce different
@@ -129,6 +130,9 @@ class AdditiveProtocolSuite(object):
             if seed_offset is None:
                 seed_offset = communicator.rank
             seed += seed_offset
+
+        if encoding is None:
+            encoding = cicada.encoding.FixedPoint()
 
         # Send random seed to next party, receive random seed from prev party
         if communicator.world_size >= 2:  # Otherwise sending seeds will segfault.
@@ -151,7 +155,7 @@ class AdditiveProtocolSuite(object):
 
         self._communicator = communicator
         self._field = cicada.arithmetic.Field(order=order)
-        self._encoding = cicada.encoding.FixedPoint(precision=precision)
+        self._encoding = encoding
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
