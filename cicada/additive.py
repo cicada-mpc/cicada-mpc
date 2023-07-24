@@ -201,35 +201,35 @@ class AdditiveProtocolSuite(object):
 #        ltz_parts = self.untruncated_multiply(ltz, addinvop)
 #        nltz_parts = self.untruncated_multiply(nltz, operand)
 #        return self.add(ltz_parts, nltz_parts)
-#
-#
-#    def add(self, lhs, rhs):
-#        """Return the elementwise sum of two secret shared arrays.
-#
-#        The result is the secret shared elementwise sum of the operands.  If
-#        revealed, the result will need to be decoded to obtain the actual sum.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared value to be added.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared value to be added.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            Secret-shared sum of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
-#
-#
+
+
+    def field_add(self, lhs, rhs):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
+
+
 #    def additive_inverse(self, operand):
 #        """Return an elementwise additive inverse of a shared array
 #        in the context of the underlying finite field. Explicitly, this

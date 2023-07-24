@@ -157,9 +157,9 @@ def step_impl(context, player, value):
     _require_success(context.calculator.command("protocol", subcommand="inplace_subtract", player=player))
 
 
-@when(u'the players add the shares')
+@when(u'the players add the shares in the field')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="add"))
+    _require_success(context.calculator.command("protocol", subcommand="field_add"))
 
 
 @when(u'the players compare the shares for equality')
