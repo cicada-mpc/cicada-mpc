@@ -39,6 +39,8 @@ class AdditiveArrayShare(object):
         Local additive share of a secret array.
     """
     def __init__(self, storage):
+        if not isinstance(storage, numpy.ndarray):
+            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.")
         self.storage = storage
 
 
@@ -682,36 +684,36 @@ class AdditiveProtocolSuite(object):
         return self.field_subtract(lhs=self._field.ones(operand.storage.shape), rhs=operand)
 
 
-#    def logical_or(self, lhs, rhs):
-#        """Return an elementwise logical OR of two secret shared arrays.
-#
-#        The operands *must* contain the *field* values `0` or `1`.  The result
-#        will be the secret shared elementwise logical OR of `lhs` and `rhs`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array to be OR'd.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array to be OR'd.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret elementwise logical OR of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#
-#        total = self._field.add(lhs.storage, rhs.storage)
-#        product = self.untruncated_multiply(lhs, rhs)
-#        return AdditiveArrayShare(self._field.subtract(total, product.storage))
+    def logical_or(self, lhs, rhs):
+        """Return an elementwise logical OR of two secret shared arrays.
+
+        The operands *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical OR of `lhs` and `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to be OR'd.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to be OR'd.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise logical OR of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+
+        total = self.field_add(lhs, rhs)
+        product = self.field_multiply(lhs, rhs)
+        return self.field_subtract(total, product)
 
 
     def logical_xor(self, lhs, rhs):

@@ -106,6 +106,24 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Logical Or
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares the bits <a>
+        And player 1 secret shares the bits <b>
+        When the players compute the logical or of the shares
+        And the players reveal the secret bits
+        Then the result should match <result>
+
+        Examples:
+        | players | a | b | result |
+        | 3       | 0 | 0 | 0      |
+        | 3       | 0 | 1 | 1      |
+        | 3       | 1 | 0 | 1      |
+        | 3       | 1 | 1 | 1      |
+
+
+    @calculator
     Scenario Outline: Multiply
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -422,24 +440,6 @@ Feature: Additive Protocol
 #        | 3        | 1 | 1 | 1      |
 
 
-#    @calculator
-#    Scenario Outline: Private Logical Or
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares the bits <a>
-#        And player 1 secret shares the bits <b>
-#        When the players compute the logical or of the shares
-#        And the players reveal the secret bits
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a | b | result |
-#        | 3       | 0 | 0 | 0      |
-#        | 3       | 0 | 1 | 1      |
-#        | 3       | 1 | 0 | 1      |
-#        | 3       | 1 | 1 | 1      |
-#
-#
 #    @calculator
 #    Scenario Outline: Private Max
 #        Given a calculator service with <players> players
