@@ -328,31 +328,34 @@ class AdditiveProtocolSuite(object):
 #        result = self.untruncated_divide(lhs, rhs)
 #        result = self.truncate(result)
 #        return result
-#
-#
-#    def dot(self, lhs, rhs):
-#        """Return the dot product of two secret shared vectors.
-#
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared vector.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared vector.
-#
-#        Returns
-#        -------
-#        result: :class:`AdditiveArrayShare`
-#            Secret-shared dot product of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        result = self.untruncated_multiply(lhs, rhs)
-#        result = self.sum(result)
-#        result = self.truncate(result)
-#        return result
+
+
+    def dot(self, lhs, rhs, encoding=None):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+
+        if encoding is None:
+            encoding = self._encoding
+
+        result = self.field_dot(lhs, rhs)
+        result = self.right_shift(result, bits=encoding.precision)
+        return result
 
 
     @property
@@ -414,6 +417,30 @@ class AdditiveProtocolSuite(object):
         # Private-private addition.
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
+
+
+    def field_dot(self, lhs, rhs):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.field_multiply(lhs, rhs)
+        result = self.sum(result)
+        return result
 
 
     def field_multiply(self, lhs, rhs):
@@ -1419,35 +1446,33 @@ class AdditiveProtocolSuite(object):
         if self.communicator.rank == src:
             secret = encoding.encode(secret, self._field)
             self._field.inplace_add(przs, secret)
-
         # Package the result.
         return AdditiveArrayShare(przs)
 
 
-#    def sum(self, operand):
-#        """Return the sum of a secret shared array's elements.
-#
-#        The result is the secret shared sum of the array elements.  If
-#        revealed, the result will need to be decoded to obtain the actual sum.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`, required
-#            Secret shared array to be summed.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            Secret-shared sum of `operand`'s elements.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#        return AdditiveArrayShare(self._field.sum(operand.storage))
+    def sum(self, operand):
+        """Return the sum of a secret shared array's elements.
 
+        The result is the secret shared sum of the array elements.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be summed.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `operand`'s elements.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return AdditiveArrayShare(self._field.sum(operand.storage))
 
 
 #    def uniform(self, *, shape=None, generator=None):

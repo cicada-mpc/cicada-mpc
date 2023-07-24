@@ -1,6 +1,25 @@
 Feature: Additive Protocol
 
     @calculator
+    Scenario Outline: Dot Product
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players compute the dot product of the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b       | result |
+        | 3       | 5          | 2       | 10     |
+        | 3       | [5, 3.5]   | [2, 4]  | 24     |
+        | 3       | 5          | -2.5    | -12.5  |
+        | 3       | -5         | -2.5    | 12.5   |
+        | 3       | [5, 3.5]   | [2, 4]  | 24     |
+
+
+    @calculator
     Scenario Outline: Field Add
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -204,6 +223,23 @@ Feature: Additive Protocol
         | 10      | 10    |
 
 
+    @calculator
+    Scenario Outline: Sum
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        When the players compute the sum of the share
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a             | result |
+        | 3       | 1             | 1      |
+        | 3       | 1.1           | 1.1    |
+        | 3       | [1.2, -3.4]   | -2.2   |
+        | 3       | [1, 2, 3, 4]  | 10     |
+
+
 #    @calculator
 #    Scenario Outline: Local Add
 #        Given a calculator service with <players> players
@@ -333,27 +369,8 @@ Feature: Additive Protocol
 #        | 3       | 2    | -16  | -1/8          |
 #        | 3       | -37  | 1    | -37.0         |
 #        | 3       | 0.5  | 0.3  | 1.6666        |
-#
-#
-#    @calculator
-#    Scenario Outline: Private Dot Product
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players compute the dot product of the shares
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a          | b       | result |
-#        | 3       | 5          | 2       | 10     |
-#        | 3       | [5, 3.5]   | [2, 4]  | 24     |
-#        | 3       | 5          | -2.5    | -12.5  |
-#        | 3       | -5         | -2.5    | 12.5   |
-#        | 3       | [5, 3.5]   | [2, 4]  | 24     |
-#
-#
+
+
 #    @calculator
 #    Scenario Outline: Private Equality
 #        Given a calculator service with <players> players
@@ -565,22 +582,6 @@ Feature: Additive Protocol
 #        | 3       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
 
 
-#    @calculator
-#    Scenario Outline: Private Sum
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the sum of the share
-#        And the players reveal the secret
-#        Then the result should match <result> to within 4 digits
-#
-#        Examples:
-#        | players | a             | result |
-#        | 3       | 1             | 1      |
-#        | 3       | 1.1           | 1.1    |
-#        | 3       | [1.2, -3.4]   | -2.2   |
-#
-#
 #    @calculator
 #    Scenario Outline: Private Uniform
 #        Given a calculator service with <players> players

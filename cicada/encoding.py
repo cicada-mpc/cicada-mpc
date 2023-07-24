@@ -122,7 +122,7 @@ class FixedPoint(object):
         if numpy.any(numpy.abs(result) >= posbound):
             raise ValueError("Values to be encoded are too large for representation in the field.") # pragma: no cover
         # Convert to integers, using the Python modulo operator to handle negative values.
-        result = numpy.array([int(x) % order for x in numpy.nditer(result)]).reshape(result.shape)
+        result = numpy.array([int(x) % order for x in numpy.nditer(result)], dtype=field.dtype).reshape(result.shape)
         # Convert to a field.
         result = field(result)
 
