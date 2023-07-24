@@ -530,6 +530,12 @@ class AdditiveProtocolSuite(object):
                 return AdditiveArrayShare(self._field.subtract(lhs, rhs.storage))
             return AdditiveArrayShare(self._field.negative(rhs.storage))
 
+        # Private-public subtraction.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            if self.communicator.rank == 0:
+                return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs))
+            return AdditiveArrayShare(lhs.storage)
+
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
@@ -1000,39 +1006,6 @@ class AdditiveProtocolSuite(object):
 #                    tmp = self.untruncated_multiply(tmp,tmp)
 #            ans.append(it_ans)
 #        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._field.dtype).reshape(lhs.storage.shape))
-#
-#    def _private_public_subtract(self, lhs, rhs):
-#        """Return the elementwise difference between public and secret shared arrays.
-#
-#        All players *must* supply the same value of `lhs` when calling this
-#        method.  The result will be the secret shared elementwise difference
-#        between the public (known to all players) `lhs` array and the private
-#        (secret shared) `rhs` array.  If revealed, the result will need to be
-#        decoded to obtain the actual difference.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared value from which rhs should be subtracted.
-#        rhs: :class:`numpy.ndarray`, required
-#            Public value, which must have been encoded with this protocol's
-#            :attr:`encoder`.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret shared difference `lhs` - `rhs`.
-#        """
-#        self._assert_unary_compatible(lhs, "lhs")
-#
-#        if self.communicator.rank == 0:
-#            return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs))
-#        return AdditiveArrayShare(lhs.storage)
 #
 #
 #    def _public_bitwise_less_than(self,*, lhspub, rhs):
