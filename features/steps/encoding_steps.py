@@ -23,6 +23,13 @@ import numpy
 import cicada.encoding
 
 
+@given(u'a Identity encoding')
+def step_impl(context):
+    if "encodings" not in context:
+        context.encodings = []
+    context.encodings.append(cicada.encoding.Identity())
+
+
 @given(u'a default FixedPoint encoding')
 def step_impl(context):
     if "encodings" not in context:

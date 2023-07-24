@@ -49,7 +49,7 @@ class FixedPoint(object):
 
 
     def __repr__(self):
-        return f"cicada.encoding.fixedpoint.FixedPoint(precision={self._precision})" # pragma: no cover
+        return f"cicada.encoding.FixedPoint(precision={self._precision})" # pragma: no cover
 
 
     def _assert_unary_compatible(self, array, label):
@@ -64,6 +64,8 @@ class FixedPoint(object):
         ----------
         array: :class:`numpy.ndarray`, or :any:`None`, required
             Array of field values created with :meth:`encode`.
+        field: :class:`cicada.arithmetic.Field`, required
+            Field used to create `array`.
 
         Returns
         -------
@@ -131,3 +133,72 @@ class FixedPoint(object):
     @property
     def precision(self):
         return self._precision
+
+
+class Identity(object):
+    """Encodes and decodes field values without modification.
+
+    Encoded values are :class:`numpy.ndarray` instances containing Python
+    integers.  Decoded values will be the same.
+
+    """
+
+    def __eq__(self, other):
+        return isinstance(other, Identity)
+
+
+    def __repr__(self):
+        return f"cicada.encoding.Identity()" # pragma: no cover
+
+
+    def _assert_unary_compatible(self, array, label):
+        if not isinstance(array, numpy.ndarray) and array.dtype == numpy.dtype(object):
+            raise ValueError(f"Expected {label} to be an instance of numpy.ndarray with dtype 'object', got {type(array)} instead.") # pragma: no cover
+
+
+    def decode(self, array, field):
+        """Return an array of field values without modification.
+
+        Parameters
+        ----------
+        array: :class:`numpy.ndarray`, or :any:`None`, required
+            Array of field values created with :meth:`encode`.
+
+        Returns
+        -------
+        decoded: :class:`numpy.ndarray` or :any:`None`
+            An array of Python integers, or :any:`None` if the input was
+            :any:`None`.
+        """
+        if array is None:
+            return array
+        self._assert_unary_compatible(array, "array")
+        return array
+
+
+    def encode(self, array, field):
+        """Convert array of integer values to an array of field values without modification.
+
+        Parameters
+        ----------
+        array: :class:`numpy.ndarray` or :any:`None`, required
+            The array to convert.
+
+        field: :class:`cicada.arithmetic.Field`, required
+            The returned array elements will be members of this field.
+
+        Returns
+        -------
+        encoded: :class:`numpy.ndarray` or :any:`None`
+            Encoded array with the same shape as the input, containing the
+            fixed precision integer representation of `array`, or :any:`None`
+            if the input was :any:`None`.
+        """
+        if array is None:
+            return array
+
+        # Convert to a field.
+        result = field(array)
+
+        self._assert_unary_compatible(result, "result")
+        return result

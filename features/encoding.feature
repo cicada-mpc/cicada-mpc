@@ -10,6 +10,8 @@ Feature: Encodings
         | default FixedPoint encoding  | Default FixedPoint encoding  | equal    |
         | default FixedPoint encoding  | 16 bit FixedPoint encoding   | equal    |
         | default FixedPoint encoding  | 13 bit FixedPoint encoding   | unequal  |
+        | Identity encoding            | Default FixedPoint encoding  | unequal  |
+        | Identity encoding            | Identity encoding            | equal    |
 
 
     Scenario Outline: Round Trip Encoding
@@ -63,4 +65,10 @@ Feature: Encodings
         | default FixedPoint encoding        | default Field         | [1.5,2.5,3.5]         |
         | default FixedPoint encoding        | default Field         | [[1.5,2.5],[3.5,4.5]] |
         | default FixedPoint encoding        | default Field         | None                  |
+        | Identity encoding                  | default Field         | None                  |
+        | Identity encoding                  | default Field         | 1                     |
+        | Identity encoding                  | default Field         | 256                   |
+        | Identity encoding                  | default Field         | [1]                   |
+        | Identity encoding                  | default Field         | [1, 256]              |
+        | Identity encoding                  | default Field         | [[1, 2], [3, 4]]      |
 
