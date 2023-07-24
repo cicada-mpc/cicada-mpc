@@ -390,8 +390,7 @@ class AdditiveProtocolSuite(object):
     def field_add(self, lhs, rhs):
         """Return the elementwise sum of two secret shared arrays.
 
-        The result is the secret shared elementwise sum of the operands.  If
-        revealed, the result will need to be decoded to obtain the actual sum.
+        The result is the secret shared elementwise sum of the operands.
 
         Note
         ----
@@ -410,6 +409,7 @@ class AdditiveProtocolSuite(object):
         value: :class:`AdditiveArrayShare`
             Secret-shared sum of `lhs` and `rhs`.
         """
+        # Private-private addition.
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
 
@@ -484,7 +484,7 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(numpy.array(result % self._field.order, dtype=self._field.dtype))
 
 
-    def field_subtract(self, lhs, rhs, encoding=None):
+    def field_subtract(self, lhs, rhs):
         """Privacy-preserving subtraction of elements in the field.
 
         Two cases are currently supported - either `lhs` and `rhs` are secret shares,
@@ -508,46 +508,17 @@ class AdditiveProtocolSuite(object):
         value: :class:`AdditiveArrayShare`
             The difference `lhs` - `rhs`.
         """
+        # Private-private subtraction.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
             return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs.storage))
 
+        # Public-private subtraction.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             if self.communicator.rank == 0:
-                if encoding is None:
-                    encoding = self._encoding
-                return AdditiveArrayShare(self._field.subtract(encoding.encode(lhs, self._field), rhs.storage))
+                return AdditiveArrayShare(self._field.subtract(lhs, rhs.storage))
             return AdditiveArrayShare(self._field.negative(rhs.storage))
 
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
-
-
-    def multiply(self, lhs, rhs, encoding=None):
-        """Return the elementwise product of two secret shared arrays.
-
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Secret shared array.
-        rhs: :class:`AdditiveArrayShare`, required
-            Secret shared array.
-        encoding: :class:`object`, optional
-            Encoding originally used to convert the secrets into field values.
-            The protocol's default encoding will be used if `None`.
-
-        Returns
-        -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared elementwise product of `lhs` and `rhs`.
-        """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        if encoding is None:
-            encoding = self._encoding
-        result = self.field_multiply(lhs, rhs)
-        result = self.right_shift(result, bits=encoding.precision)
-        return result
 
 
 #    def floor(self, operand):
@@ -682,37 +653,35 @@ class AdditiveProtocolSuite(object):
 #
 #        product = self.untruncated_multiply(lhs, rhs)
 #        return product
-#
-#
-#    def logical_not(self, operand):
-#        """Return an elementwise logical NOT of two secret shared array.
-#
-#        The operand *must* contain the *field* values `0` or `1`.  The result
-#        will be the secret shared elementwise logical negation of `operand`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`, required
-#            Secret shared array to be negated.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret elementwise logical NOT of `operand`.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#
-#        ones = numpy.full(operand.storage.shape, 1, dtype=self._field.dtype)
-#        return self.public_private_subtract(lhs=ones, rhs=operand)
-#
-#
+
+
+    def logical_not(self, operand):
+        """Return the elementwise logical NOT of a secret shared arrays.
+
+        The operand *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical negation of `operand`.
+        When revealed, the result will contain the field values `0` or `1`, which do
+        not require decoding.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be negated.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise logical NOT of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return self.field_subtract(lhs=self._field.ones(operand.storage.shape), rhs=operand)
+
+
 #    def logical_or(self, lhs, rhs):
 #        """Return an elementwise logical OR of two secret shared arrays.
 #
@@ -887,8 +856,37 @@ class AdditiveProtocolSuite(object):
 #        min_share.storage = self._field.untruncated_multiply(min_share.storage, shift_right)
 #
 #        return min_share
-#
-#
+
+
+    def multiply(self, lhs, rhs, encoding=None):
+        """Return the elementwise product of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+        encoding: :class:`object`, optional
+            Encoding originally used to convert the secrets into field values.
+            The protocol's default encoding will be used if `None`.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared elementwise product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        if encoding is None:
+            encoding = self._encoding
+        result = self.field_multiply(lhs, rhs)
+        result = self.right_shift(result, bits=encoding.precision)
+        return result
+
+
 #    def multiplicative_inverse(self, operand):
 #        """Return an elementwise multiplicative inverse of a shared array
 #        in the context of the underlying finite field. Explicitly, this
@@ -1382,7 +1380,7 @@ class AdditiveProtocolSuite(object):
         # Remove the mask, leaving just the bits to be removed from the
         # truncation region.  Because the result of the subtraction is
         # secret shared, the secret still isn't revealed.
-        truncation_bits = self.field_subtract(masked_truncation_bits, truncation_mask, encoding=cicada.encoding.Identity())
+        truncation_bits = self.field_subtract(masked_truncation_bits, truncation_mask)
 
         # Remove the bits in the truncation region from the element.  The result can be safely truncated.
         result = self.field_subtract(operand, truncation_bits)
