@@ -233,6 +233,24 @@ class Field(object):
         return result
 
 
+    def ones(self, shape):
+        """Return a field array containing ones.
+
+        Parameters
+        ----------
+        shape: :class:`tuple`, required
+            The shape of the output array.
+
+        Returns
+        -------
+        array: :class:`numpy.ndarray`
+            Encoded array of ones with shape `shape`.
+        """
+        result = numpy.ones(shape, dtype=self.dtype)
+        self._assert_unary_compatible(result, "result")
+        return result
+
+
     @property
     def order(self):
         """Return the field order."""
