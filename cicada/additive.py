@@ -730,41 +730,41 @@ class AdditiveProtocolSuite(object):
 #        total = self._field.add(lhs.storage, rhs.storage)
 #        product = self.untruncated_multiply(lhs, rhs)
 #        return AdditiveArrayShare(self._field.subtract(total, product.storage))
-#
-#
-#    def logical_xor(self, lhs, rhs):
-#        """Return an elementwise logical exclusive OR of two secret shared arrays.
-#
-#        The operands *must* contain the *field* values `0` or `1`.  The result
-#        will be the secret shared elementwise logical XOR of `lhs` and `rhs`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array to be exclusive OR'd.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array to be exclusive OR'd.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret elementwise logical exclusive OR of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#
-#        total = self._field.add(lhs.storage, rhs.storage)
-#        product = self.untruncated_multiply(lhs, rhs)
-#        twice_product = self._field.untruncated_multiply(numpy.array(2, dtype=self._field.dtype), product.storage)
-#        return AdditiveArrayShare(self._field.subtract(total, twice_product))
-#
-#
+
+
+    def logical_xor(self, lhs, rhs):
+        """Return an elementwise logical exclusive OR of two secret shared arrays.
+
+        The operands *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical XOR of `lhs` and `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to be exclusive OR'd.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to be exclusive OR'd.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise logical exclusive OR of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+
+        total = self._field.add(lhs.storage, rhs.storage)
+        product = self.field_multiply(lhs, rhs)
+        twice_product = self._field.multiply(self._field(2), product.storage)
+        return AdditiveArrayShare(self._field.subtract(total, twice_product))
+
+
 #    def _lsb(self, operand):
 #        """Return the elementwise least significant bit of a secret shared array.
 #
@@ -1147,95 +1147,95 @@ class AdditiveProtocolSuite(object):
 #            return AdditiveArrayShare(self._field.subtract(lhs, rhs.storage))
 #
 #        return AdditiveArrayShare(self._field.negative(rhs.storage))
-#
-#
-#    def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
-#        """Return a vector of randomly generated bits.
-#
-#        This method is secure against non-colluding semi-honest adversaries.  A
-#        subset of players (by default: all) generate and secret share vectors
-#        of pseudo-random bits which are then xor-ed together elementwise.
-#        Communication and computation costs increase with the number of bits
-#        and the number of players, while security increases with the number of
-#        players.
-#
-#        .. warning::
-#
-#             If you supply your own generators, be careful to ensure that each
-#             has a unique seed value to preserve privacy (for example: a
-#             constant plus the player's rank).  If players receive generators
-#             with identical seed values, even numbers of players will produce
-#             all zero bits.
-#
-#        Parameters
-#        ----------
-#        bits: :class:`int`, required
-#            Number of bits to generate.
-#        src: sequence of :class:`int`, optional
-#            Players that will contribute to random bit generation.  By default,
-#            all players contribute.
-#        generator: :class:`numpy.random.Generator`, optional
-#            A psuedorandom number generator for sampling.  By default,
-#            `numpy.random.default_rng()` will be used.
-#
-#        Returns
-#        -------
-#        bits: :class:`AdditiveArrayShare`
-#            A share of the randomly-generated bits that make-up the secret.
-#        secret: :class:`AdditiveArrayShare`
-#            A share of the value defined by `bits` (in big-endian order).
-#        """
-#        bits = int(bits)
-#        shape_was_none = False
-#        if bits < 1:
-#            raise ValueError(f"bits must be a positive integer, got {bits} instead.") # pragma: no cover
-#
-#        if src is None:
-#            src = self.communicator.ranks
-#        if not src:
-#            raise ValueError(f"src must include at least one player, got {src} instead.") # pragma: no cover
-#
-#        if generator is None:
-#            generator = numpy.random.default_rng()
-#        if shape is None:
-#            shape = ()
-#            shape_was_none = True
-#        bit_res = []
-#        share_res = []
-#        numzeros = numpy.zeros(shape)
-#        for loopop in numzeros.flat:
-#            # Each participating player generates a vector of random bits.
-#            if self.communicator.rank in src:
-#                local_bits = generator.choice(2, size=bits).astype(self._field.dtype)
-#            else:
-#                local_bits = None
-#
-#            # Each participating player secret shares their bit vectors.
-#            player_bit_shares = []
-#            for rank in src:
-#                player_bit_shares.append(self._share(src=rank, secret=local_bits, shape=(bits,)))
-#
-#            # Generate the final bit vector by xor-ing everything together elementwise.
-#            bit_share = player_bit_shares[0]
-#            for player_bit_share in player_bit_shares[1:]:
-#                bit_share = self.logical_xor(bit_share, player_bit_share)
-#
-#            # Shift and combine the resulting bits in big-endian order to produce a random value.
-#            shift = numpy.power(2, numpy.arange(bits, dtype=self._field.dtype)[::-1])
-#            shifted = self._field.untruncated_multiply(shift, bit_share.storage)
-#            secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self._field.dtype))
-#            bit_res.append(bit_share)
-#            share_res.append(secret_share)
-#        if shape_was_none:
-#            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._field.dtype).reshape(bits))
-#            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self._field.dtype).reshape(shape))#, order="C"))
-#        else:
-#            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._field.dtype).reshape(shape+(bits,)))#, order="C"))
-#            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self._field.dtype).reshape(shape))#, order="C"))
-#
-#        return bit_share, secret_share
-#
-#
+
+
+    def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
+        """Return a vector of randomly generated bits.
+
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random bits which are then xor-ed together elementwise.
+        Communication and computation costs increase with the number of bits
+        and the number of players, while security increases with the number of
+        players.
+
+        .. warning::
+
+             If you supply your own generators, be careful to ensure that each
+             has a unique seed value to preserve privacy (for example: a
+             constant plus the player's rank).  If players receive generators
+             with identical seed values, even numbers of players will produce
+             all zero bits.
+
+        Parameters
+        ----------
+        bits: :class:`int`, required
+            Number of bits to generate.
+        src: sequence of :class:`int`, optional
+            Players that will contribute to random bit generation.  By default,
+            all players contribute.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        bits: :class:`AdditiveArrayShare`
+            A share of the randomly-generated bits that make-up the secret.
+        secret: :class:`AdditiveArrayShare`
+            A share of the value defined by `bits` (in big-endian order).
+        """
+        bits = int(bits)
+        shape_was_none = False
+        if bits < 1:
+            raise ValueError(f"bits must be a positive integer, got {bits} instead.") # pragma: no cover
+
+        if src is None:
+            src = self.communicator.ranks
+        if not src:
+            raise ValueError(f"src must include at least one player, got {src} instead.") # pragma: no cover
+
+        if generator is None:
+            generator = numpy.random.default_rng()
+        if shape is None:
+            shape = ()
+            shape_was_none = True
+        bit_res = []
+        share_res = []
+        numzeros = numpy.zeros(shape)
+        for loopop in numzeros.flat:
+            # Each participating player generates a vector of random bits.
+            if self.communicator.rank in src:
+                local_bits = generator.choice(2, size=bits).astype(self._field.dtype)
+            else:
+                local_bits = None
+
+            # Each participating player secret shares their bit vectors.
+            player_bit_shares = []
+            for rank in src:
+                player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,), encoding=cicada.encoding.Identity()))
+
+            # Generate the final bit vector by xor-ing everything together elementwise.
+            bit_share = player_bit_shares[0]
+            for player_bit_share in player_bit_shares[1:]:
+                bit_share = self.logical_xor(bit_share, player_bit_share)
+
+            # Shift and combine the resulting bits in big-endian order to produce a random value.
+            shift = numpy.power(2, numpy.arange(bits, dtype=self._field.dtype)[::-1])
+            shifted = self._field.untruncated_multiply(shift, bit_share.storage)
+            secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self._field.dtype))
+            bit_res.append(bit_share)
+            share_res.append(secret_share)
+        if shape_was_none:
+            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._field.dtype).reshape(bits))
+            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self._field.dtype).reshape(shape))#, order="C"))
+        else:
+            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._field.dtype).reshape(shape+(bits,)))#, order="C"))
+            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self._field.dtype).reshape(shape))#, order="C"))
+
+        return bit_share, secret_share
+
+
 #    def relu(self, operand):
 #        """Return the elementwise ReLU of a secret shared array.
 #

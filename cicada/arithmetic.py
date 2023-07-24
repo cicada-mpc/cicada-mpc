@@ -191,14 +191,30 @@ class Field(object):
 
         return True
 
-    @property
-    def order(self):
-        """Return the field order."""
-        return self._order
+
+    def multiply(self, lhs, rhs):
+        """Element-wise multiplication of two field arrays.
+
+        Parameters
+        ----------
+        lhs: :class:`numpy.ndarray`, required
+            First operand.
+        rhs: :class:`numpy.ndarray`, required
+            Second operand.
+
+        Returns
+        -------
+        product: :class:`numpy.ndarray`
+            Element-wise product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = numpy.array((lhs * rhs) % self._order, dtype=self.dtype)
+        self._assert_unary_compatible(result, "result")
+        return result
 
 
     def negative(self, array):
-        """Element-wise negation of a field array. 
+        """Element-wise negation of a field array.
 
         Parameters
         ----------
@@ -215,6 +231,12 @@ class Field(object):
         result = numpy.array((0 - array) % self._order, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")
         return result
+
+
+    @property
+    def order(self):
+        """Return the field order."""
+        return self._order
 
 
     def subtract(self, lhs, rhs):
@@ -310,40 +332,6 @@ class Field(object):
 #        """
 #        self._assert_binary_compatible(A, x, "A", "x")
 #        result = numpy.array(numpy.dot(A, x), dtype=self.dtype)
-#        self._assert_unary_compatible(result, "result")
-#        return result
-#
-#
-#    def untruncated_multiply(self, lhs, rhs):
-#        """Multiply two arrays element-wise, without truncation.
-#
-#        The results are shifted to the left by :attr:`precision` bits,
-#        which we refer to as `untruncated` values.  To recover the actual
-#        values, the results should be shifted to the right by :attr:`precision`
-#        bits.
-#
-#        Note
-#        ----
-#        Shifting untruncated shares of secret shared values will produce
-#        nonsense results!  See
-#        :meth:`cicada.additive.AdditiveProtocolSuite.truncate` for a way to truncate
-#        untruncated secret shared values.
-#
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`numpy.ndarray`, required
-#            First operand.
-#        rhs: :class:`numpy.ndarray`, required
-#            Second operand.
-#
-#        Returns
-#        -------
-#        product: :class:`numpy.ndarray`
-#            Encoded, untruncated elementwise product of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        result = numpy.array((lhs * rhs) % self._order, dtype=self.dtype)
 #        self._assert_unary_compatible(result, "result")
 #        return result
 

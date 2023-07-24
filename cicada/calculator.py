@@ -279,25 +279,10 @@ def main(listen_socket, communicator):
 
             # Reveal a secret shared value from the top of the operand stack.
             elif command == "protocol" and kwargs["subcommand"] == "reveal":
+                encoding = kwargs.get("encoding", None)
                 protocol = protocol_stack[-1]
                 share = operand_stack.pop()
-                secret = protocol.reveal(share)
-                operand_stack.append(secret)
-                _send_result(client)
-
-            # Reveal a secret value containing only zeros and ones from the top of the operand stack.
-            elif command == "protocol" and kwargs["subcommand"] == "reveal_bits":
-                protocol = protocol_stack[-1]
-                share = operand_stack.pop()
-                secret = protocol.reveal_bits(share)
-                operand_stack.append(secret)
-                _send_result(client)
-
-            # Reveal a secret field value from the top of the operand stack without decoding.
-            elif command == "protocol" and kwargs["subcommand"] == "reveal_field":
-                protocol = protocol_stack[-1]
-                share = operand_stack.pop()
-                secret = protocol.reveal_field(share)
+                secret = protocol.reveal(share, encoding=encoding)
                 operand_stack.append(secret)
                 _send_result(client)
 
@@ -305,19 +290,10 @@ def main(listen_socket, communicator):
             elif command == "protocol" and kwargs["subcommand"] == "share":
                 src = kwargs["src"]
                 shape = kwargs["shape"]
+                encoding = kwargs.get("encoding", None)
                 protocol = protocol_stack[-1]
                 secret = operand_stack.pop()
-                share = protocol.share(src=src, secret=secret, shape=shape)
-                operand_stack.append(share)
-                _send_result(client)
-
-            # Secret share bits from the top of the operand stack.
-            elif command == "protocol" and kwargs["subcommand"] == "share_bits":
-                src = kwargs["src"]
-                shape = kwargs["shape"]
-                protocol = protocol_stack[-1]
-                secret = operand_stack.pop()
-                share = protocol.share_bits(src=src, secret=secret, shape=shape)
+                share = protocol.share(src=src, secret=secret, shape=shape, encoding=encoding)
                 operand_stack.append(share)
                 _send_result(client)
 

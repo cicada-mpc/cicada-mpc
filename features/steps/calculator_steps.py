@@ -23,6 +23,7 @@ import numpy
 
 from cicada.calculator import Client, PlayerError, main
 from cicada.communicator import SocketCommunicator
+import cicada.encoding
 
 import test
 
@@ -89,7 +90,7 @@ def step_impl(context, player, secret):
 
     for rank in context.calculator.ranks:
         _require_success(context.calculator.command("oppush", value=secret if player == rank else None, player=rank))
-    _require_success(context.calculator.command("protocol", subcommand="share_bits", src=player, shape=secret.shape))
+    _require_success(context.calculator.command("protocol", subcommand="share", src=player, shape=secret.shape, encoding=cicada.encoding.Identity()))
 
 
 @given(u'player {player} secret shares {secret}')
@@ -308,12 +309,12 @@ def step_impl(context):
 
 @when(u'the players reveal the secret bits')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="reveal_bits"))
+    _require_success(context.calculator.command("protocol", subcommand="reveal", encoding=cicada.encoding.Identity()))
 
 
 @when(u'the players reveal the field values')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="reveal_field"))
+    _require_success(context.calculator.command("protocol", subcommand="reveal", encoding=cicada.encoding.Identity()))
 
 
 @when(u'the players subtract the shares in the field')

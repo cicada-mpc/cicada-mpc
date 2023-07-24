@@ -1,76 +1,5 @@
 Feature: Additive Protocol
 
-    # Scheme-Specific Operations
-
-    @calculator
-    Scenario Outline: Startup Reliability
-        Given a calculator service with <players> players
-        Then <count> Additive protocol objects can be created without error
-
-        Examples:
-        | players | count |
-        | 3       | 10    |
-        | 10      | 10    |
-
-
-    @calculator
-    Scenario Outline: Resharing
-        Given a calculator service with <players> players
-        And a new Additive protocol suite
-        And player <player> secret shares <value>
-        And the players reshare the secret
-        When the players reveal the secret
-        Then the results should match <result> to within 4 digits
-
-        Examples:
-        | players | player | value         | result      |
-        | 3       | 0      | 1             | 1           |
-        | 3       | 1      | 2.56          | 2.56        |
-        | 3       | 2      | -3.5          | -3.5        |
-        | 3       | 2      | [2.3, 7.9]    | [2.3, 7.9]  |
-
-
-    @calculator
-    Scenario Outline: Round Trip Sharing
-        Given a calculator service with <players> players
-        And a new Additive protocol suite
-        And player <player> secret shares <value>
-        When the players reveal the secret
-        Then the result should match <value> to within 4 digits
-
-        Examples:
-        | players | player | value         |
-        | 3       | 0      | 1             |
-        | 3       | 1      | 2.56          |
-        | 3       | 2      | -3.5          |
-        | 3       | 2      | [2.3, 7.9]    |
-
-
-    @calculator
-	Scenario: Inter Protocol Share Repetition
-        Given a calculator service with 3 players
-        And a new Additive protocol suite
-        And player 1 secret shares 5
-        And the players extract the share storage
-        And a new Additive protocol suite
-        And player 1 secret shares 5
-        And the players extract the share storage
-        Then the two values should not be equal
-
-
-    @calculator
-	Scenario: Intra Protocol Share Repetition
-        Given a calculator service with 3 players
-        And a new Additive protocol suite
-        And player 1 secret shares 5
-        And the players extract the share storage
-        And player 1 secret shares 5
-        And the players extract the share storage
-        Then the two values should not be equal
-
-
-    # Scheme-Specific Field Arithmetic Operations
-
     @calculator
     Scenario Outline: Field Add
         Given a calculator service with <players> players
@@ -120,29 +49,108 @@ Feature: Additive Protocol
         | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
 
 
-    # Scheme-Agnostic Field Arithmetic Operations
-
-
-    # Scheme-Agnostic Encoding-Specific Operations
+    @calculator
+	Scenario: Inter Protocol Share Repetition
+        Given a calculator service with 3 players
+        And a new Additive protocol suite
+        And player 1 secret shares 5
+        And the players extract the share storage
+        And a new Additive protocol suite
+        And player 1 secret shares 5
+        And the players extract the share storage
+        Then the two values should not be equal
 
 
     @calculator
-    Scenario Outline: Multiply
+	Scenario: Intra Protocol Share Repetition
+        Given a calculator service with 3 players
+        And a new Additive protocol suite
+        And player 1 secret shares 5
+        And the players extract the share storage
+        And player 1 secret shares 5
+        And the players extract the share storage
+        Then the two values should not be equal
+
+
+    @calculator
+    Scenario Outline: Logical Exclusive Or
         Given a calculator service with <players> players
         And a new Additive protocol suite
-        And player 0 secret shares <a>
-        And player 1 secret shares <b>
-        When the players multiply the shares
-        And the players reveal the secret
+        And player 0 secret shares the bits <a>
+        And player 1 secret shares the bits <b>
+        When the players compute the logical exclusive or of the shares
+        And the players reveal the secret bits
         Then the result should match <result>
 
         Examples:
-        | players | a          | b       | result        |
-        | 3       | 5          | 2       | 10            |
-        | 3       | 5          | 2.5     | 12.5          |
-        | 3       | 5          | -2.5    | -12.5         |
-        | 3       | -5         | -2.5    | 12.5          |
-        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+        | players | a | b | result |
+        | 3       | 0 | 0 | 0      |
+        | 3       | 0 | 1 | 1      |
+        | 3       | 1 | 0 | 1      |
+        | 3       | 1 | 1 | 0      |
+
+
+#    @calculator
+#    Scenario Outline: Multiply
+#        Given a calculator service with <players> players
+#        And a new Additive protocol suite
+#        And player 0 secret shares <a>
+#        And player 1 secret shares <b>
+#        When the players multiply the shares
+#        And the players reveal the secret
+#        Then the result should match <result>
+#
+#        Examples:
+#        | players | a          | b       | result        |
+#        | 3       | 5          | 2       | 10            |
+#        | 3       | 5          | 2.5     | 12.5          |
+#        | 3       | 5          | -2.5    | -12.5         |
+#        | 3       | -5         | -2.5    | 12.5          |
+#        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+
+
+    @calculator
+    Scenario Outline: Resharing
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player <player> secret shares <value>
+        And the players reshare the secret
+        When the players reveal the secret
+        Then the results should match <result> to within 4 digits
+
+        Examples:
+        | players | player | value         | result      |
+        | 3       | 0      | 1             | 1           |
+        | 3       | 1      | 2.56          | 2.56        |
+        | 3       | 2      | -3.5          | -3.5        |
+        | 3       | 2      | [2.3, 7.9]    | [2.3, 7.9]  |
+
+
+    @calculator
+    Scenario Outline: Round Trip Sharing
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player <player> secret shares <value>
+        When the players reveal the secret
+        Then the result should match <value> to within 4 digits
+
+        Examples:
+        | players | player | value         |
+        | 3       | 0      | 1             |
+        | 3       | 1      | 2.56          |
+        | 3       | 2      | -3.5          |
+        | 3       | 2      | [2.3, 7.9]    |
+
+
+    @calculator
+    Scenario Outline: Startup Reliability
+        Given a calculator service with <players> players
+        Then <count> Additive protocol objects can be created without error
+
+        Examples:
+        | players | count |
+        | 3       | 10    |
+        | 10      | 10    |
 
 
 #    @calculator
@@ -397,26 +405,8 @@ Feature: Additive Protocol
 #        | 3        | 0 | 1 | 0      |
 #        | 3        | 1 | 0 | 0      |
 #        | 3        | 1 | 1 | 1      |
-#
-#
-#    @calculator
-#    Scenario Outline: Private Logical Exclusive Or
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares the bits <a>
-#        And player 1 secret shares the bits <b>
-#        When the players compute the logical exclusive or of the shares
-#        And the players reveal the secret bits
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a | b | result |
-#        | 3       | 0 | 0 | 0      |
-#        | 3       | 0 | 1 | 1      |
-#        | 3       | 1 | 0 | 1      |
-#        | 3       | 1 | 1 | 0      |
-#
-#
+
+
 #    @calculator
 #    Scenario Outline: Private Logical Not
 #        Given a calculator service with <players> players
