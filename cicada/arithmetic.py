@@ -120,6 +120,24 @@ class Field(object):
         return ceil(self._fieldbits / 8)
 
 
+    def full_like(self, other, fill_value):
+        """Return a field array of ones with the same shape as another field array.
+
+        Parameters
+        ----------
+        other: :class:`numpy.ndarray`, required
+            The result will have the same shape as this array.
+
+        Returns
+        -------
+        array: :class:`numpy.ndarray`
+            Encoded array of zeros with the same shape as `other`.
+        """
+        result = numpy.full_like(other, fill_value, dtype=self.dtype)
+        self._assert_unary_compatible(result, "result")
+        return result
+
+
     def inplace_add(self, lhs, rhs):
         """Add field arrays in-place.
 
@@ -247,6 +265,24 @@ class Field(object):
             Encoded array of ones with shape `shape`.
         """
         result = numpy.ones(shape, dtype=self.dtype)
+        self._assert_unary_compatible(result, "result")
+        return result
+
+
+    def ones_like(self, other):
+        """Return a field array of ones with the same shape as another field array.
+
+        Parameters
+        ----------
+        other: :class:`numpy.ndarray`, required
+            The result will have the same shape as this array.
+
+        Returns
+        -------
+        array: :class:`numpy.ndarray`
+            Encoded array of zeros with the same shape as `other`.
+        """
+        result = numpy.ones(other.shape, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")
         return result
 
