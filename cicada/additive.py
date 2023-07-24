@@ -488,7 +488,8 @@ class AdditiveProtocolSuite(object):
         """Privacy-preserving subtraction of elements in the field.
 
         Two cases are currently supported - either `lhs` and `rhs` are secret shares,
-        or `lhs` is a public value and `rhs` is a secret share.
+        or `lhs` is a public value and `rhs` is a secret share.  In the latter case, *all*
+        players *must* supply the same value for `lhs`.
 
         Note
         ----
