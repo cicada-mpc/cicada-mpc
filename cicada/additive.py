@@ -484,8 +484,11 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(numpy.array(result % self._field.order, dtype=self._field.dtype))
 
 
-    def field_subtract(self, lhs, rhs):
-        """Subtract a secret shared value from a secret shared value.
+    def field_subtract(self, lhs, rhs, encoding=None):
+        """Privacy-preserving subtraction of elements in the field.
+
+        Two cases are currently supported - either `lhs` and `rhs` are secret shares,
+        or `lhs` is a public value and `rhs` is a secret share.
 
         Note
         ----
@@ -494,7 +497,7 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`AdditiveArrayShare`or :class:`numpy.ndarray`, required
             Shared value.
         rhs: :class:`AdditiveArrayShare`, required
             Shared value to be subtracted.
@@ -504,8 +507,17 @@ class AdditiveProtocolSuite(object):
         value: :class:`AdditiveArrayShare`
             The difference `lhs` - `rhs`.
         """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs.storage))
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs.storage))
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            if self.communicator.rank == 0:
+                if encoding is None:
+                    encoding = self._encoding
+                return AdditiveArrayShare(self._field.subtract(encoding.encode(lhs, self._field), rhs.storage))
+            return AdditiveArrayShare(self._field.negative(rhs.storage))
+
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def multiply(self, lhs, rhs, encoding=None):
@@ -1112,41 +1124,6 @@ class AdditiveProtocolSuite(object):
 #        if self.communicator.rank == 0:
 #            return AdditiveArrayShare(self._field.add(lhs, rhs.storage))
 #        return rhs
-#
-#
-#    def public_private_subtract(self, lhs, rhs):
-#        """Return the elementwise difference between public and secret shared arrays.
-#
-#        All players *must* supply the same value of `lhs` when calling this
-#        method.  The result will be the secret shared elementwise difference
-#        between the public (known to all players) `lhs` array and the private
-#        (secret shared) `rhs` array.  If revealed, the result will need to be
-#        decoded to obtain the actual difference.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`numpy.ndarray`, required
-#            Public value, which must have been encoded with this protocol's
-#            :attr:`encoder`.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared value to be subtracted.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret shared difference `lhs` - `rhs`.
-#        """
-#        self._assert_unary_compatible(rhs, "rhs")
-#
-#        if self.communicator.rank == 0:
-#            return AdditiveArrayShare(self._field.subtract(lhs, rhs.storage))
-#
-#        return AdditiveArrayShare(self._field.negative(rhs.storage))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
@@ -1222,7 +1199,7 @@ class AdditiveProtocolSuite(object):
 
             # Shift and combine the resulting bits in big-endian order to produce a random value.
             shift = numpy.power(2, numpy.arange(bits, dtype=self._field.dtype)[::-1])
-            shifted = self._field.untruncated_multiply(shift, bit_share.storage)
+            shifted = self._field.multiply(shift, bit_share.storage)
             secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self._field.dtype))
             bit_res.append(bit_share)
             share_res.append(secret_share)
@@ -1387,16 +1364,16 @@ class AdditiveProtocolSuite(object):
         else:
             # Generate random bits that will mask everything outside the region to be truncated.
             _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
-        remaining_mask.storage = self._field.untruncated_multiply(remaining_mask.storage, shift_left)
+        remaining_mask.storage = self._field.multiply(remaining_mask.storage, shift_left)
 
         # Combine the two masks.
-        mask = self.add(remaining_mask, truncation_mask)
+        mask = self.field_add(remaining_mask, truncation_mask)
 
         # Mask the array element.
-        masked_element = self.add(mask, operand)
+        masked_element = self.field_add(mask, operand)
 
         # Reveal the element to all players (because it's masked, no player learns the underlying secret).
-        masked_element = self._reveal(masked_element)
+        masked_element = self.reveal(masked_element, encoding=cicada.encoding.Identity())
 
         # Retain just the bits within the region to be truncated, which need to be removed.
         masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self._field.dtype)
@@ -1404,13 +1381,13 @@ class AdditiveProtocolSuite(object):
         # Remove the mask, leaving just the bits to be removed from the
         # truncation region.  Because the result of the subtraction is
         # secret shared, the secret still isn't revealed.
-        truncation_bits = self.public_private_subtract(masked_truncation_bits, truncation_mask)
+        truncation_bits = self.field_subtract(masked_truncation_bits, truncation_mask, encoding=cicada.encoding.Identity())
 
         # Remove the bits in the truncation region from the element.  The result can be safely truncated.
-        result = self.subtract(operand, truncation_bits)
+        result = self.field_subtract(operand, truncation_bits)
 
         # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
-        result = self._field.untruncated_multiply(result.storage, shift_right)
+        result = self._field.multiply(result.storage, shift_right)
 
         return AdditiveArrayShare(result)
 

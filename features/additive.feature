@@ -90,23 +90,23 @@ Feature: Additive Protocol
         | 3       | 1 | 1 | 0      |
 
 
-#    @calculator
-#    Scenario Outline: Multiply
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players multiply the shares
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a          | b       | result        |
-#        | 3       | 5          | 2       | 10            |
-#        | 3       | 5          | 2.5     | 12.5          |
-#        | 3       | 5          | -2.5    | -12.5         |
-#        | 3       | -5         | -2.5    | 12.5          |
-#        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+    @calculator
+    Scenario Outline: Multiply
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players multiply the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b       | result        |
+        | 3       | 5          | 2       | 10            |
+        | 3       | 5          | 2.5     | 12.5          |
+        | 3       | 5          | -2.5    | -12.5         |
+        | 3       | -5         | -2.5    | 12.5          |
+        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
 
 
     @calculator
