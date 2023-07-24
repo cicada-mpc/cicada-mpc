@@ -912,7 +912,7 @@ class AdditiveProtocolSuite(object):
 #        """
 #        self._assert_unary_compatible(lhs, "lhs")
 #
-#        if self._communicator.rank == 0:
+#        if self.communicator.rank == 0:
 #            return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs))
 #        return AdditiveArrayShare(lhs.storage)
 #
@@ -1044,7 +1044,7 @@ class AdditiveProtocolSuite(object):
 #        """
 #        self._assert_unary_compatible(rhs, "rhs")
 #
-#        if self._communicator.rank == 0:
+#        if self.communicator.rank == 0:
 #            return AdditiveArrayShare(self._field.subtract(lhs, rhs.storage))
 #
 #        return AdditiveArrayShare(self._field.negative(rhs.storage))
@@ -1160,34 +1160,35 @@ class AdditiveProtocolSuite(object):
 #        nltz = self.logical_not(ltz)
 #        nltz_parts = self.untruncated_multiply(nltz, operand)
 #        return nltz_parts
-#
-#    def reshare(self, *, operand):
-#        """Rerandomize an additive secret share.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`
-#            The local share of the secret shared array.
-#
-#        Returns
-#        -------
-#        share: :class:`AdditiveArrayShare`
-#            The local share of the secret shared array, now rerandomized.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#        recshares = []
-#        for i in range(self.communicator.world_size):
-#            recshares.append(self._share(src=i, secret=operand.storage, shape=operand.storage.shape))
-#        acc = numpy.zeros(operand.storage.shape, dtype=self._field.dtype)
-#        for s in recshares:
-#            acc += s.storage
-#        acc %= self._field.order
-#        return AdditiveArrayShare(acc)
+
+
+    def reshare(self, *, operand):
+        """Rerandomize an additive secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`
+            The local share of the secret shared array.
+
+        Returns
+        -------
+        share: :class:`AdditiveArrayShare`
+            The local share of the secret shared array, now rerandomized.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        recshares = []
+        for i in range(self.communicator.world_size):
+            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape, encoding=cicada.encoding.Identity()))
+        acc = numpy.zeros(operand.storage.shape, dtype=self._field.dtype)
+        for s in recshares:
+            acc += s.storage
+        acc %= self._field.order
+        return AdditiveArrayShare(acc)
 
 
     def reveal(self, share, dst=None, encoding=None):
