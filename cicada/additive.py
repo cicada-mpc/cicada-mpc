@@ -414,6 +414,76 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
 
 
+    def field_multiply(self, lhs, rhs):
+        """Element-wise multiplication of two shared arrays.
+
+        Note that this operation multiplies field values in the field -
+        when using fixed-point encodings, the result must be shifted-right
+        before it can be revealed.  See :meth:`multiply` instead.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            secret value to be multiplied.
+        rhs: :class:`AdditiveArrayShare`, required
+            secret value to be multiplied.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+
+        # To multiply using additive shares X and Y, we need to compute the
+        # following polynomial:
+        #
+        #    (X0 + X1 + ... Xn-1)(Y0 + Y1 + ... Yn-1)
+        #
+        # To do so, we carefully share the terms of the polynomial with the
+        # other players while ensuring that no one player receives every share
+        # of either secret.  Each player multiplies and sums the terms that
+        # they have on hand, producing an additive share of the result.
+
+        rank = self.communicator.rank
+        world_size = self.communicator.world_size
+        count = math.ceil((world_size - 1) / 2)
+        x = lhs.storage
+        y = rhs.storage
+        X = [] # Storage for shares received from other players.
+        Y = [] # Storage for shares received from other players.
+
+        # Distribute terms to the other players.
+        for src in self.communicator.ranks:
+            # Identify which players will receive terms.
+            if world_size % 2 == 0 and src >= count:
+                dst = numpy.arange(src + 1, src + 1 + count - 1) % world_size
+            else:
+                dst = numpy.arange(src + 1, src + 1 + count) % world_size
+
+            # Send terms to the other players.
+            values = [x] * len(dst) if src == rank else None
+            share = self.communicator.scatterv(src=src, dst=dst, values=values)
+            if rank in dst:
+                X.append(share)
+            values = [y] * len(dst) if src == rank else None
+            share = self.communicator.scatterv(src=src, dst=dst, values=values)
+            if rank in dst:
+                Y.append(share)
+
+        # Multiply the polynomial terms that we have on-hand.
+        result = x * y
+        for other_x, other_y in zip(X, Y):
+            result += x * other_y + other_x * y
+
+        return AdditiveArrayShare(numpy.array(result % self._field.order, dtype=self._field.dtype))
+
+
     def field_subtract(self, lhs, rhs):
         """Subtract a secret shared value from a secret shared value.
 
@@ -436,6 +506,35 @@ class AdditiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs.storage))
+
+
+    def multiply(self, lhs, rhs, encoding=None):
+        """Return the elementwise product of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+        encoding: :class:`object`, optional
+            Encoding originally used to convert the secrets into field values.
+            The protocol's default encoding will be used if `None`.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared elementwise product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        if encoding is None:
+            encoding = self._encoding
+        result = self.field_multiply(lhs, rhs)
+        result = self.right_shift(result, bits=encoding.precision)
+        return result
 
 
 #    def floor(self, operand):
@@ -813,32 +912,8 @@ class AdditiveProtocolSuite(object):
 #        inv = numpy.array(nppowmod(revealed_masked_op, self._field.order-2, self._field.order), dtype=self._field.dtype)
 #        op_inv_share = self._field.untruncated_multiply(inv, mask.storage)
 #        return AdditiveArrayShare(op_inv_share)
-#
-#
-#    def multiply(self, lhs, rhs):
-#        """Return the elementwise product of two secret shared arrays.
-#
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array.
-#
-#        Returns
-#        -------
-#        result: :class:`AdditiveArrayShare`
-#            Secret-shared elementwise product of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        result = self.untruncated_multiply(lhs, rhs)
-#        result = self.truncate(result)
-#        return result
-#
-#
+
+
 #    def private_public_power(self, lhs, rhspub):
 #        """Raise the array contained in lhs to the power rshpub on an elementwise basis
 #
@@ -1264,6 +1339,82 @@ class AdditiveProtocolSuite(object):
         return encoding.decode(secret, self._field)
 
 
+    def right_shift(self, operand, *, bits=None, src=None, generator=None, trunc_mask=None, rem_mask=None):
+        """Remove the `bits` least significant bits from each element in a secret shared array.
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Shared secret to be truncated.
+        bits: :class:`int`, optional
+            Number of bits to truncate - defaults to the precision of the encoder.
+        src: sequence of :class:`int`, optional
+            Players who will participate in generating random bits as part of
+            the truncation process.  More players increases security but
+            decreases performance.  Defaults to all players.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the truncated secret.
+        """
+        if not isinstance(operand, AdditiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+
+        if bits is None:
+            bits = self._encoding.precision
+
+        fieldbits = self._field.fieldbits
+
+        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self._field.dtype)
+        # Multiplicative inverse of shift_left.
+        shift_right = numpy.full(operand.storage.shape, pow(2 ** bits, self._field.order-2, self._field.order), dtype=self._field.dtype)
+
+        if trunc_mask:
+            truncation_mask = trunc_mask
+        else:
+            # Generate random bits that will mask the region to be truncated.
+            _, truncation_mask = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.storage.shape)
+        if rem_mask:
+            remaining_mask = rem_mask
+        else:
+            # Generate random bits that will mask everything outside the region to be truncated.
+            _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
+        remaining_mask.storage = self._field.untruncated_multiply(remaining_mask.storage, shift_left)
+
+        # Combine the two masks.
+        mask = self.add(remaining_mask, truncation_mask)
+
+        # Mask the array element.
+        masked_element = self.add(mask, operand)
+
+        # Reveal the element to all players (because it's masked, no player learns the underlying secret).
+        masked_element = self._reveal(masked_element)
+
+        # Retain just the bits within the region to be truncated, which need to be removed.
+        masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self._field.dtype)
+
+        # Remove the mask, leaving just the bits to be removed from the
+        # truncation region.  Because the result of the subtraction is
+        # secret shared, the secret still isn't revealed.
+        truncation_bits = self.public_private_subtract(masked_truncation_bits, truncation_mask)
+
+        # Remove the bits in the truncation region from the element.  The result can be safely truncated.
+        result = self.subtract(operand, truncation_bits)
+
+        # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
+        result = self._field.untruncated_multiply(result.storage, shift_right)
+
+        return AdditiveArrayShare(result)
+
+
     def share(self, *, src, secret, shape, encoding=None):
         """Convert an array of scalars to an additive secret share.
 
@@ -1339,85 +1490,9 @@ class AdditiveProtocolSuite(object):
 #        """
 #        self._assert_unary_compatible(operand, "operand")
 #        return AdditiveArrayShare(self._field.sum(operand.storage))
-#
-#
-#    def truncate(self, operand, *, bits=None, src=None, generator=None, trunc_mask=None, rem_mask=None):
-#        """Remove the `bits` least significant bits from each element in a secret shared array.
-#
-#        Note
-#        ----
-#        The operand *must* be encoded with FixedFieldEncoder
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`, required
-#            Shared secret to be truncated.
-#        bits: :class:`int`, optional
-#            Number of bits to truncate - defaults to the precision of the encoder.
-#        src: sequence of :class:`int`, optional
-#            Players who will participate in generating random bits as part of
-#            the truncation process.  More players increases security but
-#            decreases performance.  Defaults to all players.
-#        generator: :class:`numpy.random.Generator`, optional
-#            A psuedorandom number generator for sampling.  By default,
-#            `numpy.random.default_rng()` will be used.
-#
-#        Returns
-#        -------
-#        array: :class:`AdditiveArrayShare`
-#            Share of the truncated secret.
-#        """
-#        if not isinstance(operand, AdditiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#
-#        if bits is None:
-#            bits = self._encoding.precision
-#
-#        fieldbits = self._field.fieldbits
-#
-#        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self._field.dtype)
-#        # Multiplicative inverse of shift_left.
-#        shift_right = numpy.full(operand.storage.shape, pow(2 ** bits, self._field.order-2, self._field.order), dtype=self._field.dtype)
-#
-#        if trunc_mask:
-#            truncation_mask = trunc_mask
-#        else:
-#            # Generate random bits that will mask the region to be truncated.
-#            _, truncation_mask = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.storage.shape)
-#        if rem_mask:
-#            remaining_mask = rem_mask
-#        else:
-#            # Generate random bits that will mask everything outside the region to be truncated.
-#            _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
-#        remaining_mask.storage = self._field.untruncated_multiply(remaining_mask.storage, shift_left)
-#
-#        # Combine the two masks.
-#        mask = self.add(remaining_mask, truncation_mask)
-#
-#        # Mask the array element.
-#        masked_element = self.add(mask, operand)
-#
-#        # Reveal the element to all players (because it's masked, no player learns the underlying secret).
-#        masked_element = self._reveal(masked_element)
-#
-#        # Retain just the bits within the region to be truncated, which need to be removed.
-#        masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self._field.dtype)
-#
-#        # Remove the mask, leaving just the bits to be removed from the
-#        # truncation region.  Because the result of the subtraction is
-#        # secret shared, the secret still isn't revealed.
-#        truncation_bits = self.public_private_subtract(masked_truncation_bits, truncation_mask)
-#
-#        # Remove the bits in the truncation region from the element.  The result can be safely truncated.
-#        result = self.subtract(operand, truncation_bits)
-#
-#        # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
-#        result = self._field.untruncated_multiply(result.storage, shift_right)
-#
-#        return AdditiveArrayShare(result)
-#
-#
-#
+
+
+
 #    def uniform(self, *, shape=None, generator=None):
 #        """Return a AdditiveSharedArray with the specified shape and filled with random field elements
 #
@@ -1453,78 +1528,8 @@ class AdditiveProtocolSuite(object):
 #            generator = numpy.random.default_rng()
 #
 #        return AdditiveArrayShare(self._field.uniform(size=shape, generator=generator))
-#
-#
-#    def untruncated_multiply(self, lhs, rhs):
-#        """Element-wise multiplication of two shared arrays.
-#
-#        The operands are assumed to be vectors or matrices and their product is
-#        computed on an elementwise basis. Multiplication with shared secrets and
-#        public scalars is implemented in the encoder.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            secret value to be multiplied.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            secret value to be multiplied.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret elementwise product of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#
-#        # To multiply using additive shares X and Y, we need to compute the
-#        # following polynomial:
-#        #
-#        #    (X0 + X1 + ... Xn-1)(Y0 + Y1 + ... Yn-1)
-#        #
-#        # To do so, we carefully share the terms of the polynomial with the
-#        # other players while ensuring that no one player receives every share
-#        # of either secret.  Each player multiplies and sums the terms that
-#        # they have on hand, producing an additive share of the result.
-#
-#        rank = self.communicator.rank
-#        world_size = self.communicator.world_size
-#        count = math.ceil((world_size - 1) / 2)
-#        x = lhs.storage
-#        y = rhs.storage
-#        X = [] # Storage for shares received from other players.
-#        Y = [] # Storage for shares received from other players.
-#
-#        # Distribute terms to the other players.
-#        for src in self.communicator.ranks:
-#            # Identify which players will receive terms.
-#            if world_size % 2 == 0 and src >= count:
-#                dst = numpy.arange(src + 1, src + 1 + count - 1) % world_size
-#            else:
-#                dst = numpy.arange(src + 1, src + 1 + count) % world_size
-#
-#            # Send terms to the other players.
-#            values = [x] * len(dst) if src == rank else None
-#            share = self.communicator.scatterv(src=src, dst=dst, values=values)
-#            if rank in dst:
-#                X.append(share)
-#            values = [y] * len(dst) if src == rank else None
-#            share = self.communicator.scatterv(src=src, dst=dst, values=values)
-#            if rank in dst:
-#                Y.append(share)
-#
-#        # Multiply the polynomial terms that we have on-hand.
-#        result = x * y
-#        for other_x, other_y in zip(X, Y):
-#            result += x * other_y + other_x * y
-#
-#        return AdditiveArrayShare(numpy.array(result % self._field.order, dtype=self._field.dtype))
-#
-#
+
+
 #    def untruncated_divide(self, lhs, rhs, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
 #        """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
 #        close to or bigger than 2^precision
