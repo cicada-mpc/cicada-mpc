@@ -440,50 +440,60 @@ class AdditiveProtocolSuite(object):
         value: :class:`AdditiveArrayShare`
             The secret elementwise product of `lhs` and `rhs`.
         """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        # Private-private multiplication.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            # To multiply using additive shares X and Y, we need to compute the
+            # following polynomial:
+            #
+            #    (X0 + X1 + ... Xn-1)(Y0 + Y1 + ... Yn-1)
+            #
+            # To do so, we carefully share the terms of the polynomial with the
+            # other players while ensuring that no one player receives every share
+            # of either secret.  Each player multiplies and sums the terms that
+            # they have on hand, producing an additive share of the result.
 
-        # To multiply using additive shares X and Y, we need to compute the
-        # following polynomial:
-        #
-        #    (X0 + X1 + ... Xn-1)(Y0 + Y1 + ... Yn-1)
-        #
-        # To do so, we carefully share the terms of the polynomial with the
-        # other players while ensuring that no one player receives every share
-        # of either secret.  Each player multiplies and sums the terms that
-        # they have on hand, producing an additive share of the result.
+            rank = self.communicator.rank
+            world_size = self.communicator.world_size
+            count = math.ceil((world_size - 1) / 2)
+            x = lhs.storage
+            y = rhs.storage
+            X = [] # Storage for shares received from other players.
+            Y = [] # Storage for shares received from other players.
 
-        rank = self.communicator.rank
-        world_size = self.communicator.world_size
-        count = math.ceil((world_size - 1) / 2)
-        x = lhs.storage
-        y = rhs.storage
-        X = [] # Storage for shares received from other players.
-        Y = [] # Storage for shares received from other players.
+            # Distribute terms to the other players.
+            for src in self.communicator.ranks:
+                # Identify which players will receive terms.
+                if world_size % 2 == 0 and src >= count:
+                    dst = numpy.arange(src + 1, src + 1 + count - 1) % world_size
+                else:
+                    dst = numpy.arange(src + 1, src + 1 + count) % world_size
 
-        # Distribute terms to the other players.
-        for src in self.communicator.ranks:
-            # Identify which players will receive terms.
-            if world_size % 2 == 0 and src >= count:
-                dst = numpy.arange(src + 1, src + 1 + count - 1) % world_size
-            else:
-                dst = numpy.arange(src + 1, src + 1 + count) % world_size
+                # Send terms to the other players.
+                values = [x] * len(dst) if src == rank else None
+                share = self.communicator.scatterv(src=src, dst=dst, values=values)
+                if rank in dst:
+                    X.append(share)
+                values = [y] * len(dst) if src == rank else None
+                share = self.communicator.scatterv(src=src, dst=dst, values=values)
+                if rank in dst:
+                    Y.append(share)
 
-            # Send terms to the other players.
-            values = [x] * len(dst) if src == rank else None
-            share = self.communicator.scatterv(src=src, dst=dst, values=values)
-            if rank in dst:
-                X.append(share)
-            values = [y] * len(dst) if src == rank else None
-            share = self.communicator.scatterv(src=src, dst=dst, values=values)
-            if rank in dst:
-                Y.append(share)
+            # Multiply the polynomial terms that we have on-hand.
+            result = x * y
+            for other_x, other_y in zip(X, Y):
+                result += x * other_y + other_x * y
 
-        # Multiply the polynomial terms that we have on-hand.
-        result = x * y
-        for other_x, other_y in zip(X, Y):
-            result += x * other_y + other_x * y
+            return AdditiveArrayShare(numpy.array(result % self._field.order, dtype=self._field.dtype))
 
-        return AdditiveArrayShare(numpy.array(result % self._field.order, dtype=self._field.dtype))
+        # Public-private multiplication.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            return AdditiveArrayShare(self._field.multiply(lhs, rhs.storage))
+
+        # Private-public multiplication.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            return AdditiveArrayShare(self._field.multiply(lhs.storage, rhs))
+
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def field_subtract(self, lhs, rhs):
@@ -743,10 +753,10 @@ class AdditiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
-        total = self._field.add(lhs.storage, rhs.storage)
+        total = self.field_add(lhs, rhs)
         product = self.field_multiply(lhs, rhs)
-        twice_product = self._field.multiply(self._field(2), product.storage)
-        return AdditiveArrayShare(self._field.subtract(total, twice_product))
+        twice_product = self.field_multiply(self._field(2), product)
+        return self.field_subtract(total, twice_product)
 
 
 #    def _lsb(self, operand):
