@@ -330,7 +330,7 @@ def main(listen_socket, communicator):
                 _send_result(client)
 
             # Binary protocol suite operations.
-            elif command == "protocol" and kwargs["subcommand"] in ["field_add", "divide", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "multiply", "private_public_power", "private_public_power_field", "subtract", "untruncated_divide", "untruncated_multiply"]:
+            elif command == "protocol" and kwargs["subcommand"] in ["field_add", "divide", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "max", "min", "multiply", "private_public_power", "private_public_power_field", "field_subtract", "untruncated_divide", "untruncated_multiply"]:
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()

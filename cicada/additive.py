@@ -203,33 +203,6 @@ class AdditiveProtocolSuite(object):
 #        return self.add(ltz_parts, nltz_parts)
 
 
-    def field_add(self, lhs, rhs):
-        """Return the elementwise sum of two secret shared arrays.
-
-        The result is the secret shared elementwise sum of the operands.  If
-        revealed, the result will need to be decoded to obtain the actual sum.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Secret shared value to be added.
-        rhs: :class:`AdditiveArrayShare`, required
-            Secret shared value to be added.
-
-        Returns
-        -------
-        value: :class:`AdditiveArrayShare`
-            Secret-shared sum of `lhs` and `rhs`.
-        """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
-
-
 #    def additive_inverse(self, operand):
 #        """Return an elementwise additive inverse of a shared array
 #        in the context of the underlying finite field. Explicitly, this
@@ -412,6 +385,57 @@ class AdditiveProtocolSuite(object):
     @property
     def field(self):
         return self._field
+
+
+    def field_add(self, lhs, rhs):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
+
+
+    def field_subtract(self, lhs, rhs):
+        """Subtract a secret shared value from a secret shared value.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Shared value.
+        rhs: :class:`AdditiveArrayShare`, required
+            Shared value to be subtracted.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The difference `lhs` - `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs.storage))
 
 
 #    def floor(self, operand):
@@ -1292,30 +1316,6 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(przs)
 
 
-#    def subtract(self, lhs, rhs):
-#        """Subtract a secret shared value from a secret shared value.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Shared value.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Shared value to be subtracted.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The difference `lhs` - `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs.storage))
-#
-#
 #    def sum(self, operand):
 #        """Return the sum of a secret shared array's elements.
 #
