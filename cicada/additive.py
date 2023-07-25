@@ -234,7 +234,7 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(result)
 
 
-    def bit_decompose(self, operand, bits=None):
+    def bit_decompose(self, operand, *, bits=None):
         """Decompose operand into shares of its bitwise representation.
 
         Note
@@ -276,7 +276,7 @@ class AdditiveProtocolSuite(object):
         return self._communicator
 
 
-    def divide(self, lhs, rhs, encoding=None):
+    def divide(self, lhs, rhs, *, encoding=None):
         """Elementwise division of two secret shared arrays.
 
         This is a collective operation that *must* be called
@@ -301,7 +301,7 @@ class AdditiveProtocolSuite(object):
         return result
 
 
-    def dot(self, lhs, rhs, encoding=None):
+    def dot(self, lhs, rhs, *, encoding=None):
         """Return the dot product of two secret shared vectors.
 
         This is a collective operation that *must* be called
@@ -622,7 +622,7 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(self.field.uniform(size=shape, generator=generator))
 
 
-    def floor(self, operand, encoding=None):
+    def floor(self, operand, *, encoding=None):
         """Remove the `bits` least significant bits from each element in a secret shared array
             then shift back left so that only the original integer part of 'operand' remains.
 
@@ -647,7 +647,7 @@ class AdditiveProtocolSuite(object):
         abs_op = self.absolute(operand)
         frac_bits = encoding.precision
         field_bits = self.field.fieldbits
-        lsbs = self.bit_decompose(abs_op, encoding.precision)
+        lsbs = self.bit_decompose(abs_op, bits=encoding.precision)
         lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.negative(lsbs_composed)
         two_lsbs = AdditiveArrayShare(self.field.multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.field.dtype)))
@@ -959,7 +959,7 @@ class AdditiveProtocolSuite(object):
         return min_share
 
 
-    def multiply(self, lhs, rhs, encoding=None):
+    def multiply(self, lhs, rhs, *, encoding=None):
         """Return the elementwise product of two secret shared arrays.
 
         This is a collective operation that *must* be called
@@ -1052,7 +1052,7 @@ class AdditiveProtocolSuite(object):
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
 
-    def power(self, lhs, rhs, encoding=None):
+    def power(self, lhs, rhs, *, encoding=None):
         """Raise the array contained in lhs to the power rhs on an elementwise basis
 
         Parameters
@@ -1092,7 +1092,7 @@ class AdditiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-    def _public_bitwise_less_than(self,*, lhspub, rhs):
+    def _public_bitwise_less_than(self, *, lhspub, rhs):
         """Comparison Operator
 
         Parameters
@@ -1268,7 +1268,7 @@ class AdditiveProtocolSuite(object):
         return nltz_parts
 
 
-    def reshare(self, *, operand):
+    def reshare(self, operand):
         """Rerandomize an additive secret share.
 
         Note
@@ -1297,7 +1297,7 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(acc)
 
 
-    def reveal(self, share, dst=None, encoding=None):
+    def reveal(self, share, *, dst=None, encoding=None):
         """Reveals a secret shared value to a subset of players.
 
         Note
@@ -1493,7 +1493,7 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(self._field.sum(operand.storage))
 
 
-#    def untruncated_divide(self, lhs, rhs, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
+#    def untruncated_divide(self, lhs, rhs, *, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
 #        """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
 #        close to or bigger than 2^precision
 #
@@ -1557,7 +1557,7 @@ class AdditiveProtocolSuite(object):
 #        return quotient
 
 
-    def zigmoid(self, operand, encoding=None):
+    def zigmoid(self, operand, *, encoding=None):
         r"""Compute the elementwise zigmoid function of a secret value.
 
         Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much
