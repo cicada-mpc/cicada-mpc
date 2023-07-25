@@ -349,9 +349,7 @@ class AdditiveProtocolSuite(object):
             Secret-shared dot product of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-
-        if encoding is None:
-            encoding = self._encoding
+        encoding = self._require_encoding(encoding)
 
         result = self.field_dot(lhs, rhs)
         result = self.right_shift(result, bits=encoding.precision)
@@ -921,8 +919,7 @@ class AdditiveProtocolSuite(object):
             Secret-shared elementwise product of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        if encoding is None:
-            encoding = self._encoding
+        encoding = self._require_encoding(encoding)
         result = self.field_multiply(lhs, rhs)
         result = self.right_shift(result, bits=encoding.precision)
         return result
@@ -1306,8 +1303,7 @@ class AdditiveProtocolSuite(object):
         if dst is None:
             dst = self.communicator.ranks
 
-        if encoding is None:
-            encoding = self._encoding
+        encoding = self._require_encoding(encoding)
 
         # Send data to the other players.
         secret = None
@@ -1435,8 +1431,7 @@ class AdditiveProtocolSuite(object):
             if secret.shape != shape:
                 raise ValueError(f"Expected secret.shape {shape}, got {secret.shape} instead.") # pragma: no cover
 
-        if encoding is None:
-            encoding = self._encoding
+        encoding = self._require_encoding(encoding)
 
         # Generate a pseudo-random sharing of zero ...
         przs = self._field.uniform(size=shape, generator=self._g0)
