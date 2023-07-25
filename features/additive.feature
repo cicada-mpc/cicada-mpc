@@ -77,6 +77,30 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Equal
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players compare the shares for equality
+        And the players reveal the secret bits
+        Then the result should match <result>
+
+        Examples:
+        | players  | a                 | b                | result     |
+        | 3        | 2                 | 2                | 1          |
+        | 3        | 2                 | 3                | 0          |
+        | 3        | 2                 | 2.1              | 0          |
+        | 3        | 2.1               | 2.1              | 1          |
+        | 3        | -2                | -2               | 1          |
+        | 3        | -2                | -3               | 0          |
+        | 3        | -2                | -2.1             | 0          |
+        | 3        | -2.1              | -2.1             | 1          |
+        | 3        | -2                | 2                | 0          |
+        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | [1,0,1,1]  |
+
+
+    @calculator
     Scenario Outline: Field Add
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -550,30 +574,6 @@ Feature: Additive Protocol
 #        | 3       | 2    | -16  | -1/8          |
 #        | 3       | -37  | 1    | -37.0         |
 #        | 3       | 0.5  | 0.3  | 1.6666        |
-
-
-#    @calculator
-#    Scenario Outline: Private Equality
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players compare the shares for equality
-#        And the players reveal the secret bits
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players  | a                 | b                | result     |
-#        | 3        | 2                 | 2                | 1          |
-#        | 3        | 2                 | 3                | 0          |
-#        | 3        | 2                 | 2.1              | 0          |
-#        | 3        | 2.1               | 2.1              | 1          |
-#        | 3        | -2                | -2               | 1          |
-#        | 3        | -2                | -3               | 0          |
-#        | 3        | -2                | -2.1             | 0          |
-#        | 3        | -2.1              | -2.1             | 1          |
-#        | 3        | -2                | 2                | 0          |
-#        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | [1,0,1,1]  |
 
 
 #    @calculator

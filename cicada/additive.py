@@ -331,28 +331,28 @@ class AdditiveProtocolSuite(object):
         return self._encoding
 
 
-#    def equal(self, lhs, rhs):
-#        """Return an elementwise probabilistic equality comparison between secret shared arrays.
-#
-#        The result is the secret shared elementwise comparison `lhs` == `rhs`.
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared value to be compared.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared value to be compared.
-#
-#        Returns
-#        -------
-#        result: :class:`AdditiveArrayShare`
-#            Secret-shared result of computing `lhs` == `rhs` elementwise.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        diff = self.subtract(lhs, rhs)
-#        return self.logical_not(self.private_public_power_field(diff, self._field.order-1))
+    def equal(self, lhs, rhs):
+        """Return an elementwise probabilistic equality comparison between secret shared arrays.
+
+        The result is the secret shared elementwise comparison `lhs` == `rhs`.
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared result of computing `lhs` == `rhs` elementwise.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        diff = self.field_subtract(lhs, rhs)
+        return self.logical_not(self.field_power(diff, self.field.order - 1))
 
 
     @property
