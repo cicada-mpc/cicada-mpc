@@ -405,6 +405,29 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Random Bitwise Secret
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        When the players generate <bits> random bits
+        And the players reveal the field values
+        And the players swap
+        And the players reveal the secret bits
+        And the players swap
+        Then the value of the bits in big-endian order should match the random value.
+
+        Examples:
+        | players | bits  |
+        | 3       | 1     |
+        | 3       | 2     |
+        | 3       | 4     |
+        | 3       | 8     |
+        | 4       | 1     |
+        | 4       | 2     |
+        | 4       | 4     |
+        | 4       | 8     |
+
+
+    @calculator
     Scenario Outline: ReLU
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -619,24 +642,3 @@ Feature: Additive Protocol
 #        | 3       | [-1, 2, 3.75, -2.0625] | 3  | [-1, 8, 52.734375, -8.773681640625]   |
 
 
-#    @calculator
-#    Scenario Outline: Random Bitwise Secret
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        When the players generate <bits> random bits
-#        And the players reveal the field values
-#        And the players swap
-#        And the players reveal the secret bits
-#        And the players swap
-#        Then the value of the bits in big-endian order should match the random value.
-#
-#        Examples:
-#        | players | bits  |
-#        | 3       | 1     |
-#        | 3       | 2     |
-#        | 3       | 4     |
-#        | 3       | 8     |
-#        | 4       | 1     |
-#        | 4       | 2     |
-#        | 4       | 4     |
-#        | 4       | 8     |
