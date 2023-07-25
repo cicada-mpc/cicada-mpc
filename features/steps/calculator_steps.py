@@ -175,7 +175,7 @@ def step_impl(context):
 
 @when(u'the players compare the shares with less than zero')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="less_than_zero"))
+    _require_success(context.calculator.command("protocol", subcommand="less_zero"))
 
 
 @when(u'the players compute the absolute value of the share')

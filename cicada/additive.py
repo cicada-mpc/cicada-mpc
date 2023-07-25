@@ -635,15 +635,15 @@ class AdditiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
-        one = numpy.full(lhs.storage.shape, 1, dtype=self._field.dtype)
-        two = numpy.full(lhs.storage.shape, 2, dtype=self._field.dtype)
-        twolhs = AdditiveArrayShare(self._field.multiply(two, lhs.storage))
-        tworhs = AdditiveArrayShare(self._field.multiply(two, rhs.storage))
+        one = self.field.full_like(lhs.storage, 1)
+        two = self.field.full_like(lhs.storage, 2)
+        twolhs = self.field_multiply(two, lhs)
+        tworhs = self.field_multiply(two, rhs)
         diff = self.field_subtract(lhs, rhs)
-        twodiff = AdditiveArrayShare(self._field.multiply(two, diff.storage))
-        w = self.field_subtract(one, self._lsb(operand=twolhs))
-        x = self.field_subtract(one, self._lsb(operand=tworhs))
-        y = self.field_subtract(one, self._lsb(operand=twodiff))
+        twodiff = self.field_multiply(two, diff)
+        w = self.field_subtract(one, self._lsb(twolhs))
+        x = self.field_subtract(one, self._lsb(tworhs))
+        y = self.field_subtract(one, self._lsb(twodiff))
         wxorx = self.logical_xor(w,x)
         notwxorx = self.field_subtract(one, wxorx)
         xwxorx = self.field_multiply(x, wxorx)
@@ -652,32 +652,31 @@ class AdditiveProtocolSuite(object):
         return self.field_add(xwxorx, notwxorxnoty)
 
 
-#    def less_than_zero(self, operand):
-#        """Return an elementwise less-than comparison between operand elements and zero.
-#
-#        The result is the secret shared elementwise comparison `operand` < `0`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`, required
-#            Secret shared value to be compared.
-#
-#        Returns
-#        -------
-#        result: :class:`AdditiveArrayShare`
-#            Secret-shared result of computing `operand` < `0` elementwise.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#        two = numpy.array(2, dtype=self._field.dtype)
-#        twoop = AdditiveArrayShare(self._field.untruncated_multiply(two, operand.storage))
-#        return self._lsb(operand=twoop)
+    def less_zero(self, operand):
+        """Return an elementwise less-than comparison between operand elements and zero.
+
+        The result is the secret shared elementwise comparison `operand` < `0`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared result of computing `operand` < `0` elementwise.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        result = AdditiveArrayShare(self.field.multiply(self.field(2), operand.storage))
+        return self._lsb(result)
 
 
     def logical_and(self, lhs, rhs):
