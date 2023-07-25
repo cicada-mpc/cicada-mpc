@@ -294,7 +294,7 @@ def step_impl(context):
 
 @when(u'the players raise the share to the public power')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="private_public_power"))
+    _require_success(context.calculator.command("protocol", subcommand="power"))
 
 
 @when(u'the players raise the share to the public power in the field')

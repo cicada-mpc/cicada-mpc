@@ -387,11 +387,13 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
             return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
 
+        # Private-public addition.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             if self.communicator.rank == 0:
                 return AdditiveArrayShare(self._field.add(lhs.storage, rhs))
             return rhs
 
+        # Public-private addition.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             if self.communicator.rank == 0:
                 return AdditiveArrayShare(self._field.add(lhs, rhs.storage))
@@ -1023,41 +1025,6 @@ class AdditiveProtocolSuite(object):
 #        return AdditiveArrayShare(op_inv_share)
 
 
-#    def private_public_power(self, lhs, rhspub):
-#        """Raise the array contained in lhs to the power rshpub on an elementwise basis
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Shared secret to which floor should be applied.
-#        rhspub: :class:`int`, required
-#            a publically known integer and the power to which each element in lhs should be raised
-#
-#        Returns
-#        -------
-#        array: :class:`AdditiveArrayShare`
-#            Share of the array elements from lhs all raised to the power rhspub.
-#        """
-#        if not isinstance(lhs, AdditiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#
-#        ans=[]
-#        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
-#            rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
-#            tmp = AdditiveArrayShare(lhse)
-#            it_ans = self._share(src = 0, secret=numpy.full(tmp.storage.shape, self._encoding.encode(numpy.array(1), self._field), dtype=self._field.dtype),shape=tmp.storage.shape)
-#            limit = len(rhsbits)-1
-#            for i, bit in enumerate(rhsbits):
-#                if bit:
-#                    it_ans = self.untruncated_multiply(it_ans, tmp)
-#                    it_ans = self.truncate(it_ans)
-#                if i < limit:
-#                    tmp = self.untruncated_multiply(tmp,tmp)
-#                    tmp = self.truncate(tmp)
-#            ans.append(it_ans)
-#        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._field.dtype).reshape(lhs.storage.shape))
-
-
     def negative(self, operand):
         """Return an elementwise additive inverse of a shared array
         in the context of the underlying finite field. Explicitly, this
@@ -1083,6 +1050,46 @@ class AdditiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
+
+
+    def power(self, lhs, rhs, encoding=None):
+        """Raise the array contained in lhs to the power rhs on an elementwise basis
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+        rhs: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the array elements from lhs all raised to the power rhs.
+        """
+        encoding = self._require_encoding(encoding)
+
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
+            if isinstance(rhs, int):
+                rhs = self.field.full_like(lhs.storage, rhs)
+
+            ans=[]
+            for lhse, rhse in numpy.nditer([lhs.storage, rhs], flags=(["refs_ok"])):
+                rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
+                tmp = AdditiveArrayShare(lhse)
+                it_ans = self.share(src = 0, secret=numpy.full(tmp.storage.shape, self._encoding.encode(numpy.array(1), self._field), dtype=self._field.dtype),shape=tmp.storage.shape, encoding=Identity())
+                limit = len(rhsbits)-1
+                for i, bit in enumerate(rhsbits):
+                    if bit:
+                        it_ans = self.field_multiply(it_ans, tmp)
+                        it_ans = self.right_shift(it_ans, bits=encoding.precision)
+                    if i < limit:
+                        tmp = self.field_multiply(tmp,tmp)
+                        tmp = self.right_shift(tmp, bits=encoding.precision)
+                ans.append(it_ans)
+            return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._field.dtype).reshape(lhs.storage.shape))
+
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def _public_bitwise_less_than(self,*, lhspub, rhs):
