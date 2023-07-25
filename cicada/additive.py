@@ -205,6 +205,45 @@ class AdditiveProtocolSuite(object):
         return self.field_add(ltz_parts, nltz_parts)
 
 
+    def add(self, lhs, rhs, *, encoding=None):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        encoding = self._require_encoding(encoding)
+
+        # Private-private addition.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            return self.field_add(lhs, rhs)
+
+        # Private-public addition.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            return self.field_add(lhs, encoding.encode(rhs, self.field))
+
+        # Public-private addition.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            return self.field_add(encoding.encode(lhs, self.field), rhs)
+
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
     def bit_compose(self, operand):
         """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
 
@@ -391,7 +430,7 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             if self.communicator.rank == 0:
                 return AdditiveArrayShare(self._field.add(lhs.storage, rhs))
-            return rhs
+            return lhs
 
         # Public-private addition.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
