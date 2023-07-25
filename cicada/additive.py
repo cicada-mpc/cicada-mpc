@@ -1131,7 +1131,7 @@ class AdditiveProtocolSuite(object):
                     xord.append(self.field_subtract(lhs=one, rhs=rhsbit))
                 else:
                     xord.append(rhsbit)
-            preord = [xord[0]] 
+            preord = [xord[0]]
             for i in range(1,bitwidth):
                 preord.append(self.logical_or(lhs=preord[i-1], rhs=xord[i]))
             msbdiff = [preord[0]]
