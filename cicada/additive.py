@@ -1019,11 +1019,27 @@ class AdditiveProtocolSuite(object):
         result: :class:`AdditiveArrayShare`
             Secret-shared elementwise product of `lhs` and `rhs`.
         """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         encoding = self._require_encoding(encoding)
-        result = self.field_multiply(lhs, rhs)
-        result = self.right_shift(result, bits=encoding.precision)
-        return result
+
+        # Private-private multiplication.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            result = self.field_multiply(lhs, rhs)
+            result = self.right_shift(result, bits=encoding.precision)
+            return result
+
+        # Private-public multiplication.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            result = self.field_multiply(lhs, encoding.encode(rhs, self.field))
+            result = self.right_shift(result, bits=encoding.precision)
+            return result
+
+        # Public-private multiplication.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            result = self.field_multiply(encoding.encode(lhs, self.field), rhs)
+            result = self.right_shift(result, bits=encoding.precision)
+            return result
+
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
 #    def multiplicative_inverse(self, operand):
