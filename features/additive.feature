@@ -108,6 +108,30 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Field Power
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        And public value <b>
+        When the players raise the share to the public power in the field
+        And the players reveal the field values
+        Then the result should match <result>
+
+        Examples:
+        | players | a    | b        | result   |
+        | 3       | 0    | 2**64-60 | 0        |
+        | 3       | 1    | 2**64-60 | 1        |
+        | 3       | 2    | 2**64-60 | 1        |
+        | 3       | -1   | 2**64-60 | 1        |
+        | 3       | -2   | 2**64-60 | 1        |
+        | 3       | -1   | 2**64-60 | 1        |
+
+        Examples:
+        | players | a                      | b        | result      |
+        | 3       | [-1, 2, 3.75, -2.0625] | 2**64-60 | [1,1,1,1]   |
+
+
+    @calculator
     Scenario Outline: Field Subtract
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -123,6 +147,24 @@ Feature: Additive Protocol
         | 3       | 5       | 1.1         | 3.9           |
         | 3       | 5       | 1.5         | 3.5           |
         | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
+
+
+    @calculator
+    Scenario Outline: Floor
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        When the players compute the floor of the share
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a            | result       |
+        | 3       | 1            | 1            |
+        | 3       | 1.1          | 1            |
+        | 3       | -2           | -2           |
+        | 3       | -2.1         | -3           |
+        | 3       | [1.2, -3.4]  | [1, -4]      |
 
 
     @calculator
@@ -532,24 +574,6 @@ Feature: Additive Protocol
 #        | 3        | -2.1              | -2.1             | 1          |
 #        | 3        | -2                | 2                | 0          |
 #        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | [1,0,1,1]  |
-#
-#
-#    @calculator
-#    Scenario Outline: Private Floor
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the floor of the share
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a            | result       |
-#        | 3       | 1            | 1            |
-#        | 3       | 1.1          | 1            |
-#        | 3       | -2           | -2           |
-#        | 3       | -2.1         | -3           |
-#        | 3       | [1.2, -3.4]  | [1, -4]      |
 
 
 #    @calculator
@@ -593,30 +617,6 @@ Feature: Additive Protocol
 #        Examples:
 #        | players | a                      | b  | result                                |
 #        | 3       | [-1, 2, 3.75, -2.0625] | 3  | [-1, 8, 52.734375, -8.773681640625]   |
-#
-#
-#    @calculator
-#    Scenario Outline: Private Public Power Field
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        And public value <b>
-#        When the players raise the share to the public power in the field
-#        And the players reveal the field values
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a    | b        | result   |
-#        | 3       | 0    | 2**64-60 | 0        |
-#        | 3       | 1    | 2**64-60 | 1        |
-#        | 3       | 2    | 2**64-60 | 1        |
-#        | 3       | -1   | 2**64-60 | 1        |
-#        | 3       | -2   | 2**64-60 | 1        |
-#        | 3       | -1   | 2**64-60 | 1        |
-#
-#        Examples:
-#        | players | a                      | b        | result      |
-#        | 3       | [-1, 2, 3.75, -2.0625] | 2**64-60 | [1,1,1,1]   |
 
 
 #    @calculator

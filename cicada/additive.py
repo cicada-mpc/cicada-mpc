@@ -23,8 +23,8 @@ import warnings
 import numpy
 
 from cicada.communicator.interface import Communicator, Tag
+from cicada.encoding import FixedPoint, Identity
 import cicada.arithmetic
-import cicada.encoding
 
 
 class AdditiveArrayShare(object):
@@ -134,7 +134,7 @@ class AdditiveProtocolSuite(object):
             seed += seed_offset
 
         if encoding is None:
-            encoding = cicada.encoding.FixedPoint()
+            encoding = FixedPoint()
 
         # Send random seed to next party, receive random seed from prev party
         if communicator.world_size >= 2:  # Otherwise sending seeds will segfault.
@@ -503,6 +503,42 @@ class AdditiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
+    def field_power(self, lhs, rhs):
+        """Raise the private array `lhs` to the public power `rhs` on an elementwise basis
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+        rhs: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the array elements from lhs all raised to the power rhs.
+        """
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
+            if isinstance(rhs, int):
+                rhs = self.field.full_like(lhs.storage, rhs)
+
+            ans = []
+            for lhse, rhse in numpy.nditer([lhs.storage, rhs], flags=(["refs_ok"])):
+                rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
+                tmp = AdditiveArrayShare(lhse)
+                it_ans = self.share(src = 0, secret=self.field.full_like(lhse, 1), shape=lhse.shape, encoding=Identity())
+                limit = len(rhsbits)-1
+                for i, bit in enumerate(rhsbits):
+                    if bit:
+                        it_ans = self.field_multiply(it_ans, tmp)
+                    if i < limit:
+                        tmp = self.field_multiply(tmp,tmp)
+                ans.append(it_ans)
+            return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
     def field_subtract(self, lhs, rhs):
         """Privacy-preserving subtraction of elements in the field.
 
@@ -583,38 +619,40 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(self.field.uniform(size=shape, generator=generator))
 
 
-#    def floor(self, operand):
-#        """Remove the `bits` least significant bits from each element in a secret shared array
-#            then shift back left so that only the original integer part of 'operand' remains.
-#
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`, required
-#            Shared secret to which floor should be applied.
-#
-#        Returns
-#        -------
-#        array: :class:`AdditiveArrayShare`
-#            Share of the shared integer part of operand.
-#        """
-#        if not isinstance(operand, AdditiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        one = self._share(src=0, secret=numpy.full(operand.storage.shape, 2**self._encoding.precision, dtype=self._field.dtype), shape=operand.storage.shape)
-#        shift_op = numpy.full(operand.storage.shape, 2**self._encoding.precision, dtype=self._field.dtype)
-#        pl2 = numpy.full(operand.storage.shape, self._field.order-1, dtype=self._field.dtype)
-#
-#        abs_op = self.absolute(operand)
-#        frac_bits = self._encoding.precision
-#        field_bits = self._field.fieldbits
-#        lsbs = self.bit_decompose(abs_op, self._encoding.precision)
-#        lsbs_composed = self.bit_compose(lsbs)
-#        lsbs_inv = self.additive_inverse(lsbs_composed)
-#        two_lsbs = AdditiveArrayShare(self._field.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self._field.dtype)))
-#        ltz = self.less_than_zero(operand)
-#        ones2sub = AdditiveArrayShare(self._field.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
-#        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz)
-#        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
+    def floor(self, operand, encoding=None):
+        """Remove the `bits` least significant bits from each element in a secret shared array
+            then shift back left so that only the original integer part of 'operand' remains.
+
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the shared integer part of operand.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        encoding = self._require_encoding(encoding)
+
+        one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**encoding.precision, dtype=self.field.dtype), shape=operand.storage.shape, encoding=Identity())
+        shift_op = numpy.full(operand.storage.shape, 2**encoding.precision, dtype=self.field.dtype)
+        pl2 = numpy.full(operand.storage.shape, self.field.order-1, dtype=self.field.dtype)
+
+        abs_op = self.absolute(operand)
+        frac_bits = encoding.precision
+        field_bits = self.field.fieldbits
+        lsbs = self.bit_decompose(abs_op, encoding.precision)
+        lsbs_composed = self.bit_compose(lsbs)
+        lsbs_inv = self.negative(lsbs_composed)
+        two_lsbs = AdditiveArrayShare(self.field.multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.field.dtype)))
+        ltz = self.less_zero(operand)
+        ones2sub = AdditiveArrayShare(self.field.multiply(self.field_power(lsbs_composed, pl2).storage, shift_op))
+        sel_2_lsbs = self.field_multiply(self.field_subtract(two_lsbs, ones2sub), ltz)
+        return self.field_add(self.field_add(sel_2_lsbs, lsbs_inv), operand)
+
 
     def less(self, lhs, rhs):
         """Return an elementwise less-than comparison between secret shared arrays.
@@ -740,7 +778,7 @@ class AdditiveProtocolSuite(object):
             The secret elementwise logical NOT of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
-        return self.field_subtract(lhs=self._field.ones(operand.storage.shape), rhs=operand)
+        return self.field_subtract(lhs=self.field.ones(operand.storage.shape), rhs=operand)
 
 
     def logical_or(self, lhs, rhs):
@@ -802,7 +840,7 @@ class AdditiveProtocolSuite(object):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         total = self.field_add(lhs, rhs)
         product = self.field_multiply(lhs, rhs)
-        twice_product = self.field_multiply(self._field(2), product)
+        twice_product = self.field_multiply(self.field(2), product)
         return self.field_subtract(total, twice_product)
 
 
@@ -828,17 +866,17 @@ class AdditiveProtocolSuite(object):
             Additive shared array containing the elementwise least significant
             bits of `operand`.
         """
-        one = numpy.array(1, dtype=self._field.dtype)
+        one = numpy.array(1, dtype=self.field.dtype)
         lop = AdditiveArrayShare(storage = operand.storage.flatten())
-        tmpBW, tmp = self.random_bitwise_secret(bits=self._field._fieldbits, shape=lop.storage.shape)
+        tmpBW, tmp = self.random_bitwise_secret(bits=self.field._fieldbits, shape=lop.storage.shape)
         maskedlop = self.field_add(lop, tmp)
-        c = self.reveal(maskedlop, encoding=cicada.encoding.Identity())
+        c = self.reveal(maskedlop, encoding=Identity())
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
         c = (c % 2)
-        c0xr0 = numpy.empty(c.shape, dtype = self._field.dtype)
+        c0xr0 = numpy.empty(c.shape, dtype = self.field.dtype)
         for i, lc in enumerate(c):
             if lc:
-                c0xr0[i] = self.field_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self._field.dtype))).storage
+                c0xr0[i] = self.field_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self.field.dtype))).storage
             else:
                 c0xr0[i] = tmpBW.storage[i][-1]
         c0xr0 = AdditiveArrayShare(storage = c0xr0)
@@ -1046,40 +1084,6 @@ class AdditiveProtocolSuite(object):
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
 
-#    def private_public_power_field(self, lhs, rhspub):
-#        """Raise the array contained in lhs to the power rshpub on an elementwise basis
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Shared secret to which floor should be applied.
-#        rhspub: :class:`int`, required
-#            a publically known integer and the power to which each element in lhs should be raised
-#
-#        Returns
-#        -------
-#        array: :class:`AdditiveArrayShare`
-#            Share of the array elements from lhs all raised to the power rhspub.
-#        """
-#        if not isinstance(lhs, AdditiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        if isinstance(rhspub, int):
-#            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self._field.dtype)
-#        ans = []
-#        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):
-#            rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
-#            tmp = AdditiveArrayShare(lhse)
-#            it_ans = self._share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self._field.dtype),shape=lhse.shape)
-#            limit = len(rhsbits)-1
-#            for i, bit in enumerate(rhsbits):
-#                if bit:
-#                    it_ans = self.untruncated_multiply(it_ans, tmp)
-#                if i < limit:
-#                    tmp = self.untruncated_multiply(tmp,tmp)
-#            ans.append(it_ans)
-#        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._field.dtype).reshape(lhs.storage.shape))
-
-
     def _public_bitwise_less_than(self,*, lhspub, rhs):
         """Comparison Operator
 
@@ -1208,7 +1212,7 @@ class AdditiveProtocolSuite(object):
             # Each participating player secret shares their bit vectors.
             player_bit_shares = []
             for rank in src:
-                player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,), encoding=cicada.encoding.Identity()))
+                player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,), encoding=Identity()))
 
             # Generate the final bit vector by xor-ing everything together elementwise.
             bit_share = player_bit_shares[0]
@@ -1277,7 +1281,7 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         recshares = []
         for i in range(self.communicator.world_size):
-            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape, encoding=cicada.encoding.Identity()))
+            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape, encoding=Identity()))
         acc = numpy.zeros(operand.storage.shape, dtype=self._field.dtype)
         for s in recshares:
             acc += s.storage
@@ -1390,7 +1394,7 @@ class AdditiveProtocolSuite(object):
         masked_element = self.field_add(mask, operand)
 
         # Reveal the element to all players (because it's masked, no player learns the underlying secret).
-        masked_element = self.reveal(masked_element, encoding=cicada.encoding.Identity())
+        masked_element = self.reveal(masked_element, encoding=Identity())
 
         # Retain just the bits within the region to be truncated, which need to be removed.
         masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self._field.dtype)
