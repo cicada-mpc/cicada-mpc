@@ -199,39 +199,12 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         ltz = self.less_zero(operand)
         nltz = self.logical_not(ltz)
-        addinvop = AdditiveArrayShare(self.field.negative(operand.storage))
+        addinvop = self.negative(operand)
         ltz_parts = self.field_multiply(ltz, addinvop)
         nltz_parts = self.field_multiply(nltz, operand)
         return self.field_add(ltz_parts, nltz_parts)
 
 
-#    def additive_inverse(self, operand):
-#        """Return an elementwise additive inverse of a shared array
-#        in the context of the underlying finite field. Explicitly, this
-#        function returns a same shape array which, when added
-#        elementwise with operand, will return a same shape array comprised
-#        entirely of zeros (the additive identity).
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#        This function does not take into account any field-external symantics.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`, required
-#            Secret shared array to be additively inverted.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret additive inverse of operand on an elementwise basis.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#
-#        return self.public_private_subtract(numpy.full(operand.storage.shape, self._field.order, dtype=self._field.dtype), operand)
-#
 #    def bit_compose(self, operand):
 #        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
 #
@@ -1047,8 +1020,35 @@ class AdditiveProtocolSuite(object):
 #                    tmp = self.truncate(tmp)
 #            ans.append(it_ans)
 #        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._field.dtype).reshape(lhs.storage.shape))
-#
-#
+
+
+    def negative(self, operand):
+        """Return an elementwise additive inverse of a shared array
+        in the context of the underlying finite field. Explicitly, this
+        function returns a same shape array which, when added
+        elementwise with operand, will return a same shape array comprised
+        entirely of zeros (the additive identity).
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+        This function does not take into account any field-external symantics.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be additively inverted.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret additive inverse of operand on an elementwise basis.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
+
+
 #    def private_public_power_field(self, lhs, rhspub):
 #        """Raise the array contained in lhs to the power rshpub on an elementwise basis
 #

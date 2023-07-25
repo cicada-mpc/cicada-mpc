@@ -283,6 +283,24 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Negative
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player <player> secret shares <value>
+        When the players compute the negative
+        And the players reveal the secret
+        Then the results should match <result> to within 4 digits
+
+        @wip
+        Examples:
+        | players | player | value         | result      |
+        | 3       | 0      | 1             | -1          |
+        | 3       | 1      | 2.56          | -2.56       |
+        | 3       | 2      | -3.5          | 3.5         |
+        | 3       | 2      | [2.3, 7.9]    | [-2.3, -7.9]|
+
+
+    @calculator
     Scenario Outline: ReLU
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -432,24 +450,6 @@ Feature: Additive Protocol
 #        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [3.9, -0.2]   |
 
 
-#    @calculator
-#    Scenario Outline: Private Additive Inverse
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player <player> secret shares <value>
-#        When the players compute the additive inverse
-#        And the players reveal the secret
-#        Then the results should match <result> to within 4 digits
-#
-#        @wip
-#        Examples:
-#        | players | player | value         | result      |
-#        | 3       | 0      | 1             | -1          |
-#        | 3       | 1      | 2.56          | -2.56       |
-#        | 3       | 2      | -3.5          | 3.5         |
-#        | 3       | 2      | [2.3, 7.9]    | [-2.3, -7.9]|
-#
-#
 #    @calculator
 #    Scenario Outline: Private Bit Compose
 #        Given a calculator service with <players> players

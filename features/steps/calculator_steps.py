@@ -183,9 +183,9 @@ def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="absolute"))
 
 
-@when(u'the players compute the additive inverse')
+@when(u'the players compute the negative')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="additive_inverse"))
+    _require_success(context.calculator.command("protocol", subcommand="negative"))
 
 
 @when(u'the players compute the composition of the shared bits')
