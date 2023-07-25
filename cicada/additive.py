@@ -205,38 +205,35 @@ class AdditiveProtocolSuite(object):
         return self.field_add(ltz_parts, nltz_parts)
 
 
-#    def bit_compose(self, operand):
-#        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
-#
-#        Note
-#        ----
-#        The operand *must* be encoded with FixedFieldEncoder.  The result will
-#        have one more dimension than the operand, containing the returned bits
-#        in big-endian order.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`, required
-#            Shared secret to be truncated.
-#
-#        Returns
-#        -------
-#        array: :class:`AdditiveArrayShare`
-#            Share of the bit decomposed secret.
-#        """
-#        if not isinstance(operand, AdditiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        outer_shape = operand.storage.shape[:-1]
-#        last_dimension = operand.storage.shape[-1]
-#        idx = numpy.ndindex(outer_shape)
-#        composed = []
-#        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self._field.dtype)[::-1])
-#        for x in idx:
-#            shifted = self._field.untruncated_multiply(operand.storage[x], shift)
-#            val_share = numpy.sum(shifted) % self._field.order
-#            composed.append(val_share)
-#        return AdditiveArrayShare(numpy.array([x for x in composed], dtype=self._field.dtype).reshape(outer_shape))
-#
+    def bit_compose(self, operand):
+        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in big-endian order.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Shared secret to be truncated.
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the bit decomposed secret.
+        """
+        self._assert_unary_compatible(operand, "operand")
+
+        result = numpy.empty(operand.storage.shape[:-1], dtype=object)
+        shift = numpy.power(2, numpy.arange(operand.storage.shape[-1], dtype=self.field.dtype)[::-1])
+        shifted = self.field.multiply(operand.storage, shift)
+        result = numpy.sum(shifted, axis=-1, out=result)
+        result %= self.field.order
+        return AdditiveArrayShare(result)
+
+
 #    def bit_decompose(self, operand, num_bits=None):
 #        """Decompose operand into shares of its bitwise representation.
 #

@@ -20,6 +20,25 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Bit Compose
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        When the players compute the composition of the shared bits
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a         | result        |
+        | 3       | [0,1,0,1] | 5             |
+        | 3       | [0,0,0,0] | 0             |
+        | 3       | [1,1,1,1] | 15            |
+        | 3       | [1,0,1,0] | 10            |
+        | 3       | [1,1,0,0] | 12            |
+        | 3       | [0,0,1,1] | 3             |
+
+
+    @calculator
     Scenario Outline: Dot Product
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -450,25 +469,6 @@ Feature: Additive Protocol
 #        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [3.9, -0.2]   |
 
 
-#    @calculator
-#    Scenario Outline: Private Bit Compose
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the composition of the shared bits
-#        And the players reveal the secret
-#        Then the result should match <result> to within 4 digits
-#
-#        Examples:
-#        | players | a         | result        |
-#        | 3       | [0,1,0,1] | 5             |
-#        | 3       | [0,0,0,0] | 0             |
-#        | 3       | [1,1,1,1] | 15            |
-#        | 3       | [1,0,1,0] | 10            |
-#        | 3       | [1,1,0,0] | 12            |
-#        | 3       | [0,0,1,1] | 3             |
-#
-#
 #    @calculator
 #    Scenario Outline: Private Bit Decompose
 #        Given a calculator service with <players> players
