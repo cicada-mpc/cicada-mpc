@@ -576,6 +576,43 @@ class AdditiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
+    def field_uniform(self, *, shape=None, generator=None):
+        """Return a AdditiveSharedArray with the specified shape and filled with random field elements
+
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random field elements which are then added together
+        elementwise.  Computation costs increase with the number of elements to
+        generate and the number of players, while security increases with the
+        number of players.
+
+        Parameters
+        ----------
+        shape: :class:`tuple`, optional
+            Shape of the array to populate. By default,
+            a shapeless array of one random element will be generated.
+        src: sequence of :class:`int`, optional
+            Players that will contribute to random array generation.  By default,
+            all players contribute.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        secret: :class:`AdditiveArrayShare`
+            A share of the random generated value.
+        """
+
+        if shape is None:
+            shape=()
+
+        if generator is None:
+            generator = numpy.random.default_rng()
+
+        return AdditiveArrayShare(self.field.uniform(size=shape, generator=generator))
+
+
 #    def floor(self, operand):
 #        """Remove the `bits` least significant bits from each element in a secret shared array
 #            then shift back left so that only the original integer part of 'operand' remains.
@@ -1448,43 +1485,6 @@ class AdditiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return AdditiveArrayShare(self._field.sum(operand.storage))
-
-
-#    def uniform(self, *, shape=None, generator=None):
-#        """Return a AdditiveSharedArray with the specified shape and filled with random field elements
-#
-#        This method is secure against non-colluding semi-honest adversaries.  A
-#        subset of players (by default: all) generate and secret share vectors
-#        of pseudo-random field elements which are then added together
-#        elementwise.  Computation costs increase with the number of elements to
-#        generate and the number of players, while security increases with the
-#        number of players.
-#
-#        Parameters
-#        ----------
-#        shape: :class:`tuple`, optional
-#            Shape of the array to populate. By default,
-#            a shapeless array of one random element will be generated.
-#        src: sequence of :class:`int`, optional
-#            Players that will contribute to random array generation.  By default,
-#            all players contribute.
-#        generator: :class:`numpy.random.Generator`, optional
-#            A psuedorandom number generator for sampling.  By default,
-#            `numpy.random.default_rng()` will be used.
-#
-#        Returns
-#        -------
-#        secret: :class:`AdditiveArrayShare`
-#            A share of the random generated value.
-#        """
-#
-#        if shape==None:
-#            shape=()
-#
-#        if generator is None:
-#            generator = numpy.random.default_rng()
-#
-#        return AdditiveArrayShare(self._field.uniform(size=shape, generator=generator))
 
 
 #    def untruncated_divide(self, lhs, rhs, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):

@@ -324,10 +324,10 @@ def main(listen_socket, communicator):
                 _send_result(client)
 
             # Uniform random secret generation.
-            elif command == "protocol" and kwargs["subcommand"] == "uniform":
+            elif command == "protocol" and kwargs["subcommand"] == "field_uniform":
                 protocol = protocol_stack[-1]
                 shape = kwargs["shape"]
-                secret = protocol.uniform(shape=shape)
+                secret = protocol.field_uniform(shape=shape)
                 operand_stack.append(secret)
                 _send_result(client)
 

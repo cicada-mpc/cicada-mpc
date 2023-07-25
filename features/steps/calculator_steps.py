@@ -279,7 +279,7 @@ def step_impl(context, bits):
 @when(u'the players generate a private uniform array with shape {shape}')
 def step_impl(context, shape):
     shape = eval(shape)
-    _require_success(context.calculator.command("protocol", subcommand="uniform", shape=shape))
+    _require_success(context.calculator.command("protocol", subcommand="field_uniform", shape=shape))
 
 
 @when(u'the players multiply the shares')
