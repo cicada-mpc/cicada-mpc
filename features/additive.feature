@@ -302,6 +302,28 @@ Feature: Additive Protocol
         | 3       | [1, 2, 3, 4]  | 10     |
 
 
+    @calculator
+    Scenario Outline: Zigmoid
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        When the players compute the zigmoid of the share
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a                        | result                  |
+        | 3       | 1                        | 1                       |
+        | 3       | 1.1                      | 1                       |
+        | 3       | -2                       | 0                       |
+        | 3       | -2.1                     | 0                       |
+        | 3       | 0.25                     | .75                     |
+        | 3       | 0.75                     | 1                       |
+        | 3       | -.0625                   | .4375                   |
+        | 3       | -.5                      | 0                       |
+        | 3       | [[0, 3.4],[-1234, 1234]] | [[0.5, 1],[0, 1]]       |
+
+
 #    @calculator
 #    Scenario Outline: Local Add
 #        Given a calculator service with <players> players
@@ -595,30 +617,8 @@ Feature: Additive Protocol
 #        | 3       | ()     |
 #        | 3       | (1,)   |
 #        | 3       | (2, 2) |
-#
-#
-#    @calculator
-#    Scenario Outline: Private Zigmoid
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the zigmoid of the share
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a                        | result                  |
-#        | 3       | 1                        | 1                       |
-#        | 3       | 1.1                      | 1                       |
-#        | 3       | -2                       | 0                       |
-#        | 3       | -2.1                     | 0                       |
-#        | 3       | 0.25                     | .75                     |
-#        | 3       | 0.75                     | 1                       |
-#        | 3       | -.0625                   | .4375                   |
-#        | 3       | -.5                      | 0                       |
-#        | 3       | [[0, 3.4],[-1234, 1234]] | [[0.5, 1],[0, 1]]       |
-#
-#
+
+
 #    @calculator
 #    Scenario Outline: Random Bitwise Secret
 #        Given a calculator service with <players> players

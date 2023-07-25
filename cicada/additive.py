@@ -1549,49 +1549,54 @@ class AdditiveProtocolSuite(object):
 #        divisor = self._encoding.encode(numpy.array(1 / rhs), self._field)
 #        quotient = AdditiveArrayShare(self._field.untruncated_multiply(lhs.storage, divisor))
 #        return quotient
-#
-#    def zigmoid(self, operand):
-#        r"""Compute the elementwise zigmoid function of a secret value.
-#
-#        Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much
-#        more efficient to compute in an MPC context:
-#
-#        .. math::
-#
-#            zigmoid(x) = \left\{
-#            \begin{array}\\
-#                0 & if\ x<-0.5 \\
-#                x+0.5 & if\ -0.5\leq x \leq 0.5 \\
-#                1 & if x>0.5
-#            \end{array}
-#            \right.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`, required
-#            Secret shared value to which the zigmoid function should be applied.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            Secret-shared elementwise zigmoid of `operand`.
-#        """
-#        ones=self._encoding.encode(numpy.full(operand.storage.shape, 1), self._field)
-#        half = self._encoding.encode(numpy.full(operand.storage.shape, .5), self._field)
-#
-#        secret_plushalf = self._public_private_add(half, operand)
-#        secret_minushalf = self._private_public_subtract(operand, half)
-#        ltzsmh = self.less_than_zero(secret_minushalf)
-#        nltzsmh = self.logical_not(ltzsmh)
-#        ltzsph = self.less_than_zero(secret_plushalf)
-#        middlins = self.subtract(ltzsmh, ltzsph)
-#        extracted_middlins = self.untruncated_multiply(middlins, operand)
-#        extracted_halfs = cicada.additive.AdditiveArrayShare(self._field.untruncated_multiply(middlins.storage, half))
-#        extracted_middlins = self.add(extracted_middlins, extracted_halfs)
-#        ones_part = cicada.additive.AdditiveArrayShare(self._field.untruncated_multiply(nltzsmh.storage, ones))
-#        return self.add(ones_part, extracted_middlins)
+
+
+    def zigmoid(self, operand, encoding=None):
+        r"""Compute the elementwise zigmoid function of a secret value.
+
+        Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much
+        more efficient to compute in an MPC context:
+
+        .. math::
+
+            zigmoid(x) = \left\{
+            \begin{array}\\
+                0 & if\ x<-0.5 \\
+                x+0.5 & if\ -0.5\leq x \leq 0.5 \\
+                1 & if x>0.5
+            \end{array}
+            \right.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared value to which the zigmoid function should be applied.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared elementwise zigmoid of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        encoding = self._require_encoding(encoding)
+
+        ones = encoding.encode(numpy.full_like(operand.storage, 1.0), self.field)
+        half = encoding.encode(numpy.full_like(operand.storage, 0.5), self.field)
+
+        secret_plushalf = self.field_add(half, operand)
+        secret_minushalf = self.field_subtract(operand, half)
+        ltzsmh = self.less_zero(secret_minushalf)
+        nltzsmh = self.logical_not(ltzsmh)
+        ltzsph = self.less_zero(secret_plushalf)
+        middlins = self.field_subtract(ltzsmh, ltzsph)
+        extracted_middlins = self.field_multiply(middlins, operand)
+        extracted_halfs = self.field_multiply(middlins, half)
+        extracted_middlins = self.field_add(extracted_middlins, extracted_halfs)
+        ones_part = self.field_multiply(nltzsmh, ones)
+        return self.field_add(ones_part, extracted_middlins)
+
