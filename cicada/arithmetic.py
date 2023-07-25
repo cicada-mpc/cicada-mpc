@@ -169,6 +169,7 @@ class Field(object):
         lhs -= rhs
         lhs %= self._order
 
+
     def _is_prob_prime(self, n):# Rabin-Miller probabalistic primality test
         """
         Miller-Rabin primality test.
@@ -355,39 +356,6 @@ class Field(object):
         result = numpy.array(values, dtype=self.dtype).reshape(size)
         self._assert_unary_compatible(result, "result")
         return result
-
-
-#    def untruncated_matvec(self, A, x):
-#        """Return a matrix-vector product, without truncation.
-#
-#        The results are shifted to the left by :attr:`precision` bits,
-#        which we refer to as `untruncated` values.  To recover the actual
-#        values, the results should be shifted to the right by :attr:`precision`
-#        bits.
-#
-#        Note
-#        ----
-#        Shifting untruncated shares of secret shared values will produce
-#        nonsense results!  See
-#        :meth:`cicada.additive.AdditiveProtocolSuite.truncate` for a way to truncate
-#        untruncated secret shared values.
-#
-#        Parameters
-#        ----------
-#        A: :class:`numpy.ndarray`, required
-#           Encoded :math:`M \\times N` matrix.
-#        x: :class:`numpy.ndarray`, required
-#           Encoded size :math:`N` vector.
-#
-#        Returns
-#        -------
-#        y: :class:`numpy.ndarray`
-#           Encoded, untruncated size :math:`M` vector.
-#        """
-#        self._assert_binary_compatible(A, x, "A", "x")
-#        result = numpy.array(numpy.dot(A, x), dtype=self.dtype)
-#        self._assert_unary_compatible(result, "result")
-#        return result
 
 
     def zeros(self, shape):
