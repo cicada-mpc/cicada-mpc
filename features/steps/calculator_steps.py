@@ -230,7 +230,7 @@ def step_impl(context):
 
 @when(u'the players compute the maximum of the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="max"))
+    _require_success(context.calculator.command("protocol", subcommand="maximum"))
 
 
 @when(u'the players compute the minimum of the shares')
