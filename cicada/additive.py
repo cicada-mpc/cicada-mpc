@@ -675,7 +675,8 @@ class AdditiveProtocolSuite(object):
             Secret-shared result of computing `operand` < `0` elementwise.
         """
         self._assert_unary_compatible(operand, "operand")
-        result = AdditiveArrayShare(self.field.multiply(self.field(2), operand.storage))
+        two = self.field.full_like(operand.storage, 2)
+        result = self.field_multiply(two, operand)
         return self._lsb(result)
 
 
