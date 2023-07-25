@@ -424,18 +424,18 @@ class AdditiveProtocolSuite(object):
         """
         # Private-private addition.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
-            return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
+            return AdditiveArrayShare(self.field.add(lhs.storage, rhs.storage))
 
         # Private-public addition.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             if self.communicator.rank == 0:
-                return AdditiveArrayShare(self._field.add(lhs.storage, rhs))
+                return AdditiveArrayShare(self.field.add(lhs.storage, rhs))
             return lhs
 
         # Public-private addition.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             if self.communicator.rank == 0:
-                return AdditiveArrayShare(self._field.add(lhs, rhs.storage))
+                return AdditiveArrayShare(self.field.add(lhs, rhs.storage))
             return rhs
 
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
@@ -532,15 +532,15 @@ class AdditiveProtocolSuite(object):
             for other_x, other_y in zip(X, Y):
                 result += x * other_y + other_x * y
 
-            return AdditiveArrayShare(numpy.array(result % self._field.order, dtype=self._field.dtype))
+            return AdditiveArrayShare(numpy.array(result % self.field.order, dtype=self.field.dtype))
 
         # Public-private multiplication.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
-            return AdditiveArrayShare(self._field.multiply(lhs, rhs.storage))
+            return AdditiveArrayShare(self.field.multiply(lhs, rhs.storage))
 
         # Private-public multiplication.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
-            return AdditiveArrayShare(self._field.multiply(lhs.storage, rhs))
+            return AdditiveArrayShare(self.field.multiply(lhs.storage, rhs))
 
         raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
@@ -607,18 +607,18 @@ class AdditiveProtocolSuite(object):
         """
         # Private-private subtraction.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
-            return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs.storage))
+            return AdditiveArrayShare(self.field.subtract(lhs.storage, rhs.storage))
 
         # Public-private subtraction.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             if self.communicator.rank == 0:
-                return AdditiveArrayShare(self._field.subtract(lhs, rhs.storage))
-            return AdditiveArrayShare(self._field.negative(rhs.storage))
+                return AdditiveArrayShare(self.field.subtract(lhs, rhs.storage))
+            return AdditiveArrayShare(self.field.negative(rhs.storage))
 
         # Private-public subtraction.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             if self.communicator.rank == 0:
-                return AdditiveArrayShare(self._field.subtract(lhs.storage, rhs))
+                return AdditiveArrayShare(self.field.subtract(lhs.storage, rhs))
             return AdditiveArrayShare(lhs.storage)
 
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
@@ -679,9 +679,9 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         encoding = self._require_encoding(encoding)
 
-        one = self.share(src=0, secret=numpy.full(operand.storage.shape, 2**encoding.precision, dtype=self.field.dtype), shape=operand.storage.shape, encoding=Identity())
-        shift_op = numpy.full(operand.storage.shape, 2**encoding.precision, dtype=self.field.dtype)
-        pl2 = numpy.full(operand.storage.shape, self.field.order-1, dtype=self.field.dtype)
+        one = self.share(src=0, secret=self.field.full_like(operand.storage, 2**encoding.precision), shape=operand.storage.shape, encoding=Identity())
+        shift_op = self.field.full_like(operand.storage, 2**encoding.precision)
+        pl2 = self.field.full_like(operand.storage, self.field.order-1)
 
         abs_op = self.absolute(operand)
         frac_bits = encoding.precision
@@ -689,7 +689,7 @@ class AdditiveProtocolSuite(object):
         lsbs = self.bit_decompose(abs_op, bits=encoding.precision)
         lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.negative(lsbs_composed)
-        two_lsbs = AdditiveArrayShare(self.field.multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.field.dtype)))
+        two_lsbs = AdditiveArrayShare(self.field.multiply(lsbs_composed.storage, self.field.full_like(lsbs_composed.storage, 2)))
         ltz = self.less_zero(operand)
         ones2sub = AdditiveArrayShare(self.field.multiply(self.field_power(lsbs_composed, pl2).storage, shift_op))
         sel_2_lsbs = self.field_multiply(self.field_subtract(two_lsbs, ones2sub), ltz)
@@ -909,7 +909,7 @@ class AdditiveProtocolSuite(object):
             bits of `operand`.
         """
         one = numpy.array(1, dtype=self.field.dtype)
-        lop = AdditiveArrayShare(storage = operand.storage.flatten())
+        lop = AdditiveArrayShare(operand.storage.flatten())
         tmpBW, tmp = self.random_bitwise_secret(bits=self.field._fieldbits, shape=lop.storage.shape)
         maskedlop = self.field_add(lop, tmp)
         c = self.reveal(maskedlop, encoding=Identity())
@@ -918,15 +918,15 @@ class AdditiveProtocolSuite(object):
         c0xr0 = numpy.empty(c.shape, dtype = self.field.dtype)
         for i, lc in enumerate(c):
             if lc:
-                c0xr0[i] = self.field_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self.field.dtype))).storage
+                c0xr0[i] = self.field_subtract(lhs=one, rhs=AdditiveArrayShare(numpy.array(tmpBW.storage[i][-1], dtype=self.field.dtype))).storage
             else:
                 c0xr0[i] = tmpBW.storage[i][-1]
-        c0xr0 = AdditiveArrayShare(storage = c0xr0)
+        c0xr0 = AdditiveArrayShare(c0xr0)
         result = self.field_multiply(lhs=comp_result, rhs=c0xr0)
-        result = AdditiveArrayShare(storage=self._field.multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
+        result = AdditiveArrayShare(self.field.multiply(lhs=self.field.full_like(result.storage, 2), rhs=result.storage))
         result = self.field_subtract(lhs=c0xr0, rhs=result)
         result = self.field_add(lhs=comp_result, rhs=result)
-        return AdditiveArrayShare(storage = result.storage.reshape(operand.storage.shape))
+        return AdditiveArrayShare(result.storage.reshape(operand.storage.shape))
 
 
     def maximum(self, lhs, rhs):
@@ -1074,9 +1074,9 @@ class AdditiveProtocolSuite(object):
 #        mask = self.uniform(shape=operand.storage.shape)
 #        masked_op = self.untruncated_multiply(mask, operand)
 #        revealed_masked_op = self._reveal(masked_op)
-#        nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self._field.dtype])
-#        inv = numpy.array(nppowmod(revealed_masked_op, self._field.order-2, self._field.order), dtype=self._field.dtype)
-#        op_inv_share = self._field.untruncated_multiply(inv, mask.storage)
+#        nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self.field.dtype])
+#        inv = numpy.array(nppowmod(revealed_masked_op, self.field.order-2, self.field.order), dtype=self.field.dtype)
+#        op_inv_share = self.field.untruncated_multiply(inv, mask.storage)
 #        return AdditiveArrayShare(op_inv_share)
 
 
@@ -1132,7 +1132,7 @@ class AdditiveProtocolSuite(object):
             for lhse, rhse in numpy.nditer([lhs.storage, rhs], flags=(["refs_ok"])):
                 rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
                 tmp = AdditiveArrayShare(lhse)
-                it_ans = self.share(src = 0, secret=numpy.full(tmp.storage.shape, self._encoding.encode(numpy.array(1), self._field), dtype=self._field.dtype),shape=tmp.storage.shape, encoding=Identity())
+                it_ans = self.share(src = 0, secret=self.field.full_like(tmp.storage, encoding.encode(numpy.array(1), self.field)),shape=tmp.storage.shape, encoding=Identity())
                 limit = len(rhsbits)-1
                 for i, bit in enumerate(rhsbits):
                     if bit:
@@ -1142,7 +1142,7 @@ class AdditiveProtocolSuite(object):
                         tmp = self.field_multiply(tmp,tmp)
                         tmp = self.right_shift(tmp, bits=encoding.precision)
                 ans.append(it_ans)
-            return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._field.dtype).reshape(lhs.storage.shape))
+            return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
@@ -1178,9 +1178,9 @@ class AdditiveProtocolSuite(object):
             if len(tmplist) < bitwidth:
                 tmplist = [0 for x in range(bitwidth-len(tmplist))] + tmplist
             lhsbits.append(tmplist)
-        lhsbits = numpy.array(lhsbits, dtype=self._field.dtype)
+        lhsbits = numpy.array(lhsbits, dtype=self.field.dtype)
         assert(lhsbits.shape == rhs.storage.shape)
-        one = numpy.array(1, dtype=self._field.dtype)
+        one = numpy.array(1, dtype=self.field.dtype)
         flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
         flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
         results=[]
@@ -1190,7 +1190,7 @@ class AdditiveProtocolSuite(object):
             msbdiff=[]
             rhs_bit_at_msb_diff = []
             for i in range(bitwidth):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._field.dtype))
+                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.field.dtype))
                 if flatlhsbits[j][i] == 1:
                     xord.append(self.field_subtract(lhs=one, rhs=rhsbit))
                 else:
@@ -1202,13 +1202,13 @@ class AdditiveProtocolSuite(object):
             for i in range(1,bitwidth):
                 msbdiff.append(self.field_subtract(lhs=preord[i], rhs=preord[i-1]))
             for i in range(bitwidth):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._field.dtype))
+                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.field.dtype))
                 rhs_bit_at_msb_diff.append(self.field_multiply(rhsbit, msbdiff[i]))
             result = rhs_bit_at_msb_diff[0]
             for i in range(1,bitwidth):
                 result = self.field_add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
-        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self._field.dtype).reshape(rhs.storage.shape[:-1]))
+        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
@@ -1268,7 +1268,7 @@ class AdditiveProtocolSuite(object):
         for loopop in numzeros.flat:
             # Each participating player generates a vector of random bits.
             if self.communicator.rank in src:
-                local_bits = generator.choice(2, size=bits).astype(self._field.dtype)
+                local_bits = generator.choice(2, size=bits).astype(self.field.dtype)
             else:
                 local_bits = None
 
@@ -1283,17 +1283,17 @@ class AdditiveProtocolSuite(object):
                 bit_share = self.logical_xor(bit_share, player_bit_share)
 
             # Shift and combine the resulting bits in big-endian order to produce a random value.
-            shift = numpy.power(2, numpy.arange(bits, dtype=self._field.dtype)[::-1])
-            shifted = self._field.multiply(shift, bit_share.storage)
-            secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self._field.dtype))
+            shift = numpy.power(2, numpy.arange(bits, dtype=self.field.dtype)[::-1])
+            shifted = self.field.multiply(shift, bit_share.storage)
+            secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.field.dtype))
             bit_res.append(bit_share)
             share_res.append(secret_share)
         if shape_was_none:
-            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._field.dtype).reshape(bits))
-            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self._field.dtype).reshape(shape))#, order="C"))
+            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.field.dtype).reshape(bits))
+            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.field.dtype).reshape(shape))#, order="C"))
         else:
-            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self._field.dtype).reshape(shape+(bits,)))#, order="C"))
-            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self._field.dtype).reshape(shape))#, order="C"))
+            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.field.dtype).reshape(shape+(bits,)))#, order="C"))
+            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.field.dtype).reshape(shape))#, order="C"))
 
         return bit_share, secret_share
 
@@ -1345,10 +1345,10 @@ class AdditiveProtocolSuite(object):
         recshares = []
         for i in range(self.communicator.world_size):
             recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape, encoding=Identity()))
-        acc = numpy.zeros(operand.storage.shape, dtype=self._field.dtype)
+        acc = numpy.zeros(operand.storage.shape, dtype=self.field.dtype)
         for s in recshares:
             acc += s.storage
-        acc %= self._field.order
+        acc %= self.field.order
         return AdditiveArrayShare(acc)
 
 
@@ -1395,9 +1395,9 @@ class AdditiveProtocolSuite(object):
             if self.communicator.rank == recipient:
                 secret = received_shares[0].copy()
                 for received_share in received_shares[1:]:
-                    self._field.inplace_add(secret, received_share)
+                    self.field.inplace_add(secret, received_share)
 
-        return encoding.decode(secret, self._field)
+        return encoding.decode(secret, self.field)
 
 
     def right_shift(self, operand, *, bits, src=None, generator=None, trunc_mask=None, rem_mask=None):
@@ -1429,11 +1429,11 @@ class AdditiveProtocolSuite(object):
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
-        fieldbits = self._field.fieldbits
+        fieldbits = self.field.fieldbits
 
-        shift_left = numpy.full(operand.storage.shape, 2 ** bits, dtype=self._field.dtype)
+        shift_left = self.field.full_like(operand.storage, 2**bits)
         # Multiplicative inverse of shift_left.
-        shift_right = numpy.full(operand.storage.shape, pow(2 ** bits, self._field.order-2, self._field.order), dtype=self._field.dtype)
+        shift_right = self.field.full_like(operand.storage, pow(2**bits, self.field.order-2, self.field.order))
 
         if trunc_mask:
             truncation_mask = trunc_mask
@@ -1445,7 +1445,7 @@ class AdditiveProtocolSuite(object):
         else:
             # Generate random bits that will mask everything outside the region to be truncated.
             _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
-        remaining_mask.storage = self._field.multiply(remaining_mask.storage, shift_left)
+        remaining_mask.storage = self.field.multiply(remaining_mask.storage, shift_left)
 
         # Combine the two masks.
         mask = self.field_add(remaining_mask, truncation_mask)
@@ -1457,7 +1457,7 @@ class AdditiveProtocolSuite(object):
         masked_element = self.reveal(masked_element, encoding=Identity())
 
         # Retain just the bits within the region to be truncated, which need to be removed.
-        masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self._field.dtype)
+        masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self.field.dtype)
 
         # Remove the mask, leaving just the bits to be removed from the
         # truncation region.  Because the result of the subtraction is
@@ -1468,7 +1468,7 @@ class AdditiveProtocolSuite(object):
         result = self.field_subtract(operand, truncation_bits)
 
         # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
-        result = self._field.multiply(result.storage, shift_right)
+        result = self.field.multiply(result.storage, shift_right)
 
         return AdditiveArrayShare(result)
 
@@ -1512,13 +1512,13 @@ class AdditiveProtocolSuite(object):
         encoding = self._require_encoding(encoding)
 
         # Generate a pseudo-random sharing of zero ...
-        przs = self._field.uniform(size=shape, generator=self._g0)
-        self._field.inplace_subtract(przs, self._field.uniform(size=shape, generator=self._g1))
+        przs = self.field.uniform(size=shape, generator=self._g0)
+        self.field.inplace_subtract(przs, self.field.uniform(size=shape, generator=self._g1))
 
         # Add the secret to the PRSZ
         if self.communicator.rank == src:
-            secret = encoding.encode(secret, self._field)
-            self._field.inplace_add(przs, secret)
+            secret = encoding.encode(secret, self.field)
+            self.field.inplace_add(przs, secret)
         # Package the result.
         return AdditiveArrayShare(przs)
 
@@ -1584,7 +1584,7 @@ class AdditiveProtocolSuite(object):
             Secret-shared sum of `operand`'s elements.
         """
         self._assert_unary_compatible(operand, "operand")
-        return AdditiveArrayShare(self._field.sum(operand.storage))
+        return AdditiveArrayShare(self.field.sum(operand.storage))
 
 
 #    def untruncated_divide(self, lhs, rhs, *, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
@@ -1616,7 +1616,7 @@ class AdditiveProtocolSuite(object):
 #            rhsmasked = self.truncate(rhsmasked, trunc_mask=mask1, rem_mask=rem1)
 #        else:
 #            rhsmasked = self.truncate(rhsmasked)
-#        revealrhsmasked = self._encoding.decode(self._reveal(rhsmasked), self._field)
+#        revealrhsmasked = self._encoding.decode(self._reveal(rhsmasked), self.field)
 #        if mask2 != None and rem2 != None:
 #            almost_there = self.truncate(self.untruncated_multiply(lhs, rmask), trunc_mask=mask2, rem_mask=rem2)
 #        else:
@@ -1646,8 +1646,8 @@ class AdditiveProtocolSuite(object):
 #            The secret element-wise result of lhs / rhs.
 #        """
 #        self._assert_unary_compatible(lhs, "lhs")
-#        divisor = self._encoding.encode(numpy.array(1 / rhs), self._field)
-#        quotient = AdditiveArrayShare(self._field.untruncated_multiply(lhs.storage, divisor))
+#        divisor = self._encoding.encode(numpy.array(1 / rhs), self.field)
+#        quotient = AdditiveArrayShare(self.field.untruncated_multiply(lhs.storage, divisor))
 #        return quotient
 
 
