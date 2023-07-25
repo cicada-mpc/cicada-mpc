@@ -413,8 +413,20 @@ class AdditiveProtocolSuite(object):
             Secret-shared sum of `lhs` and `rhs`.
         """
         # Private-private addition.
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            return AdditiveArrayShare(self._field.add(lhs.storage, rhs.storage))
+
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            if self.communicator.rank == 0:
+                return AdditiveArrayShare(self._field.add(lhs.storage, rhs))
+            return rhs
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            if self.communicator.rank == 0:
+                return AdditiveArrayShare(self._field.add(lhs, rhs.storage))
+            return rhs
+
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def field_dot(self, lhs, rhs):
@@ -596,49 +608,50 @@ class AdditiveProtocolSuite(object):
 #        ones2sub = AdditiveArrayShare(self._field.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
 #        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz)
 #        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand)
-#
-#    def less(self, lhs, rhs):
-#        """Return an elementwise less-than comparison between secret shared arrays.
-#
-#        The result is the secret shared elementwise comparison `lhs` < `rhs`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared value to be compared.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared value to be compared.
-#
-#        Returns
-#        -------
-#        result: :class:`AdditiveArrayShare`
-#            Secret-shared result of computing `lhs` < `rhs` elementwise.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        one = numpy.full(lhs.storage.shape, 1, dtype=self._field.dtype)
-#        two = numpy.full(lhs.storage.shape, 2, dtype=self._field.dtype)
-#        twolhs = AdditiveArrayShare(self._field.untruncated_multiply(two, lhs.storage))
-#        tworhs = AdditiveArrayShare(self._field.untruncated_multiply(two, rhs.storage))
-#        diff = self.subtract(lhs, rhs)
-#        twodiff = AdditiveArrayShare(self._field.untruncated_multiply(two, diff.storage))
-#        w = self.public_private_subtract(one, self._lsb(operand=twolhs))
-#        x = self.public_private_subtract(one, self._lsb(operand=tworhs))
-#        y = self.public_private_subtract(one, self._lsb(operand=twodiff))
-#        wxorx = self.logical_xor(w,x)
-#        notwxorx = self.public_private_subtract(one, wxorx)
-#        xwxorx = self.untruncated_multiply(x, wxorx)
-#        noty = self.public_private_subtract(one, y)
-#        notwxorxnoty = self.untruncated_multiply(notwxorx, noty)
-#        return self.add(xwxorx, notwxorxnoty)
-#
-#
+
+    def less(self, lhs, rhs):
+        """Return an elementwise less-than comparison between secret shared arrays.
+
+        The result is the secret shared elementwise comparison `lhs` < `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared result of computing `lhs` < `rhs` elementwise.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+
+        one = numpy.full(lhs.storage.shape, 1, dtype=self._field.dtype)
+        two = numpy.full(lhs.storage.shape, 2, dtype=self._field.dtype)
+        twolhs = AdditiveArrayShare(self._field.multiply(two, lhs.storage))
+        tworhs = AdditiveArrayShare(self._field.multiply(two, rhs.storage))
+        diff = self.field_subtract(lhs, rhs)
+        twodiff = AdditiveArrayShare(self._field.multiply(two, diff.storage))
+        w = self.field_subtract(one, self._lsb(operand=twolhs))
+        x = self.field_subtract(one, self._lsb(operand=tworhs))
+        y = self.field_subtract(one, self._lsb(operand=twodiff))
+        wxorx = self.logical_xor(w,x)
+        notwxorx = self.field_subtract(one, wxorx)
+        xwxorx = self.field_multiply(x, wxorx)
+        noty = self.field_subtract(one, y)
+        notwxorxnoty = self.field_multiply(notwxorx, noty)
+        return self.field_add(xwxorx, notwxorxnoty)
+
+
 #    def less_than_zero(self, operand):
 #        """Return an elementwise less-than comparison between operand elements and zero.
 #
@@ -786,48 +799,49 @@ class AdditiveProtocolSuite(object):
         return self.field_subtract(total, twice_product)
 
 
-#    def _lsb(self, operand):
-#        """Return the elementwise least significant bit of a secret shared array.
-#
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`AdditiveArrayShare`, required
-#            Secret shared array from which the least significant bits will be extracted
-#
-#        Returns
-#        -------
-#        lsb: :class:`AdditiveArrayShare`
-#            Additive shared array containing the elementwise least significant
-#            bits of `operand`.
-#        """
-#        one = numpy.array(1, dtype=self._field.dtype)
-#        lop = AdditiveArrayShare(storage = operand.storage.flatten())
-#        tmpBW, tmp = self.random_bitwise_secret(bits=self._field._fieldbits, shape=lop.storage.shape)
-#        maskedlop = self.add(lhs=lop, rhs=tmp)
-#        c = self._reveal(maskedlop)
-#        comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
-#        c = (c % 2)
-#        c0xr0 = numpy.empty(c.shape, dtype = self._field.dtype)
-#        for i, lc in enumerate(c):
-#            if lc:
-#                c0xr0[i] = self.public_private_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self._field.dtype))).storage
-#            else:
-#                c0xr0[i] = tmpBW.storage[i][-1]
-#        c0xr0 = AdditiveArrayShare(storage = c0xr0)
-#        result = self.untruncated_multiply(lhs=comp_result, rhs=c0xr0)
-#        result = AdditiveArrayShare(storage=self._field.untruncated_multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
-#        result = self.subtract(lhs=c0xr0, rhs=result)
-#        result = self.add(lhs=comp_result, rhs=result)
-#        return AdditiveArrayShare(storage = result.storage.reshape(operand.storage.shape))
-#
+    def _lsb(self, operand):
+        """Return the elementwise least significant bit of a secret shared array.
+
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array from which the least significant bits will be extracted
+
+        Returns
+        -------
+        lsb: :class:`AdditiveArrayShare`
+            Additive shared array containing the elementwise least significant
+            bits of `operand`.
+        """
+        one = numpy.array(1, dtype=self._field.dtype)
+        lop = AdditiveArrayShare(storage = operand.storage.flatten())
+        tmpBW, tmp = self.random_bitwise_secret(bits=self._field._fieldbits, shape=lop.storage.shape)
+        maskedlop = self.field_add(lop, tmp)
+        c = self.reveal(maskedlop, encoding=cicada.encoding.Identity())
+        comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
+        c = (c % 2)
+        c0xr0 = numpy.empty(c.shape, dtype = self._field.dtype)
+        for i, lc in enumerate(c):
+            if lc:
+                c0xr0[i] = self.field_subtract(lhs=one, rhs=AdditiveArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self._field.dtype))).storage
+            else:
+                c0xr0[i] = tmpBW.storage[i][-1]
+        c0xr0 = AdditiveArrayShare(storage = c0xr0)
+        result = self.field_multiply(lhs=comp_result, rhs=c0xr0)
+        result = AdditiveArrayShare(storage=self._field.multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
+        result = self.field_subtract(lhs=c0xr0, rhs=result)
+        result = self.field_add(lhs=comp_result, rhs=result)
+        return AdditiveArrayShare(storage = result.storage.reshape(operand.storage.shape))
+
+
 #    def max(self, lhs, rhs):
 #        """Return the elementwise maximum of two secret shared arrays.
 #
@@ -1030,104 +1044,70 @@ class AdditiveProtocolSuite(object):
 #                    tmp = self.untruncated_multiply(tmp,tmp)
 #            ans.append(it_ans)
 #        return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self._field.dtype).reshape(lhs.storage.shape))
-#
-#
-#    def _public_bitwise_less_than(self,*, lhspub, rhs):
-#        """Comparison Operator
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ndarray`, required
-#            a publically known numpy array of integers and one of the two objects to be compared
-#        rhs: :class:`AdditiveArrayShare`, required 
-#            bit decomposed shared secret(s) and the other of the two objects to be compared 
-#            the bitwidth of each value in rhs (deduced from its shape) is taken to be the 
-#            bitwidth of interest for the comparison if the values in lhspub require more bits 
-#            for their representation, the computation will be incorrect
-#
-#        note: this method is private as it does not consider the semantic mapping of meaning 
-#        onto the field. The practical result of this is that every negative value will register as 
-#        greater than every positive value due to the encoding.
-#
-#
-#        Returns
-#        -------
-#        an additive shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
-#        """
-#        if lhspub.shape != rhs.storage.shape[:-1]:
-#            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension') # pragma: no cover
-#        bitwidth = rhs.storage.shape[-1]
-#        lhsbits = []
-#        for val in lhspub:
-#            tmplist = [int(x) for x in bin(val)[2:]]
-#            if len(tmplist) < bitwidth:
-#                tmplist = [0 for x in range(bitwidth-len(tmplist))] + tmplist
-#            lhsbits.append(tmplist)
-#        lhsbits = numpy.array(lhsbits, dtype=self._field.dtype)
-#        assert(lhsbits.shape == rhs.storage.shape)
-#        one = numpy.array(1, dtype=self._field.dtype)
-#        flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
-#        flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
-#        results=[]
-#        for j in range(len(flatlhsbits)):
-#            xord = []
-#            preord = []
-#            msbdiff=[]
-#            rhs_bit_at_msb_diff = []
-#            for i in range(bitwidth):
-#                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._field.dtype))
-#                if flatlhsbits[j][i] == 1:
-#                    xord.append(self.public_private_subtract(lhs=one, rhs=rhsbit))
-#                else:
-#                    xord.append(rhsbit)
-#            preord = [xord[0]] 
-#            for i in range(1,bitwidth):
-#                preord.append(self.logical_or(lhs=preord[i-1], rhs=xord[i]))
-#            msbdiff = [preord[0]]
-#            for i in range(1,bitwidth):
-#                msbdiff.append(self.subtract(lhs=preord[i], rhs=preord[i-1]))
-#            for i in range(bitwidth):
-#                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._field.dtype))
-#                rhs_bit_at_msb_diff.append(self.untruncated_multiply(rhsbit, msbdiff[i]))
-#            result = rhs_bit_at_msb_diff[0]
-#            for i in range(1,bitwidth):
-#                result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
-#            results.append(result)
-#        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self._field.dtype).reshape(rhs.storage.shape[:-1]))
-#
-#
-#    def _public_private_add(self, lhs, rhs):
-#        """Return the elementwise sum of public and secret shared arrays.
-#
-#        All players *must* supply the same value of `lhs` when calling this
-#        method.  The result will be the secret shared elementwise sum of the
-#        public (known to all players) `lhs` array and the private (secret
-#        shared) `rhs` array.  If revealed, the result will need to be decoded
-#        to obtain the actual sum.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`numpy.ndarray`, required
-#            Public value to be added, which must have been encoded
-#            with this protocol's :attr:`encoder`.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared value to be added.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret shared sum of `lhs` and `rhs`.
-#        """
-#        self._assert_unary_compatible(rhs, "rhs")
-#
-#        if self.communicator.rank == 0:
-#            return AdditiveArrayShare(self._field.add(lhs, rhs.storage))
-#        return rhs
+
+
+    def _public_bitwise_less_than(self,*, lhspub, rhs):
+        """Comparison Operator
+
+        Parameters
+        ----------
+        lhs: :class:`ndarray`, required
+            a publically known numpy array of integers and one of the two objects to be compared
+        rhs: :class:`AdditiveArrayShare`, required
+            bit decomposed shared secret(s) and the other of the two objects to be compared
+            the bitwidth of each value in rhs (deduced from its shape) is taken to be the
+            bitwidth of interest for the comparison if the values in lhspub require more bits
+            for their representation, the computation will be incorrect
+
+        note: this method is private as it does not consider the semantic mapping of meaning
+        onto the field. The practical result of this is that every negative value will register as
+        greater than every positive value due to the encoding.
+
+
+        Returns
+        -------
+        an additive shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
+        """
+        if lhspub.shape != rhs.storage.shape[:-1]:
+            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension') # pragma: no cover
+        bitwidth = rhs.storage.shape[-1]
+        lhsbits = []
+        for val in lhspub:
+            tmplist = [int(x) for x in bin(val)[2:]]
+            if len(tmplist) < bitwidth:
+                tmplist = [0 for x in range(bitwidth-len(tmplist))] + tmplist
+            lhsbits.append(tmplist)
+        lhsbits = numpy.array(lhsbits, dtype=self._field.dtype)
+        assert(lhsbits.shape == rhs.storage.shape)
+        one = numpy.array(1, dtype=self._field.dtype)
+        flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
+        flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
+        results=[]
+        for j in range(len(flatlhsbits)):
+            xord = []
+            preord = []
+            msbdiff=[]
+            rhs_bit_at_msb_diff = []
+            for i in range(bitwidth):
+                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._field.dtype))
+                if flatlhsbits[j][i] == 1:
+                    xord.append(self.field_subtract(lhs=one, rhs=rhsbit))
+                else:
+                    xord.append(rhsbit)
+            preord = [xord[0]] 
+            for i in range(1,bitwidth):
+                preord.append(self.logical_or(lhs=preord[i-1], rhs=xord[i]))
+            msbdiff = [preord[0]]
+            for i in range(1,bitwidth):
+                msbdiff.append(self.field_subtract(lhs=preord[i], rhs=preord[i-1]))
+            for i in range(bitwidth):
+                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self._field.dtype))
+                rhs_bit_at_msb_diff.append(self.field_multiply(rhsbit, msbdiff[i]))
+            result = rhs_bit_at_msb_diff[0]
+            for i in range(1,bitwidth):
+                result = self.field_add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
+            results.append(result)
+        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self._field.dtype).reshape(rhs.storage.shape[:-1]))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
