@@ -1,6 +1,25 @@
 Feature: Additive Protocol
 
     @calculator
+    Scenario Outline: Absolute
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        When the players compute the absolute value of the share
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a     | result        |
+        | 3       | 0     | 0             |
+        | 3       | 0.5   | 0.5           |
+        | 3       | 1     | 1             |
+        | 3       | 37.3  | 37.3          |
+        | 3       | -1    | 1             |
+        | 3       | -37.3 | 37.3          |
+
+
+    @calculator
     Scenario Outline: Dot Product
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -356,25 +375,6 @@ Feature: Additive Protocol
 #        | 3       | 5       | 1.1         | 1      | 3.9           |
 #        | 3       | 5       | 1.5         | 1      | 3.5           |
 #        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [3.9, -0.2]   |
-#
-#
-#    @calculator
-#    Scenario Outline: Private Absolute
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the absolute value of the share
-#        And the players reveal the secret
-#        Then the result should match <result> to within 4 digits
-#
-#        Examples:
-#        | players | a     | result        |
-#        | 3       | 0     | 0             |
-#        | 3       | 0.5   | 0.5           |
-#        | 3       | 1     | 1             |
-#        | 3       | 37.3  | 37.3          |
-#        | 3       | -1    | 1             |
-#        | 3       | -37.3 | 37.3          |
 
 
 #    @calculator
