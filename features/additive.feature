@@ -57,6 +57,28 @@ Feature: Additive Protocol
         | 3       |  3        |  [0]*44+[0,0,1,1]+[0]*16 |
 
 
+#    @calculator
+#    Scenario Outline: Divide
+#        Given a calculator service with <players> players
+#        And a new Additive protocol suite
+#        And player 0 secret shares <a>
+#        And player 1 secret shares <b>
+#        When the players divide the shares
+#        And the players reveal the secret
+#        Then the result should match <result> to within 2 digits
+#
+#        Examples:
+#        | players | a    | b    | result        |
+#        | 3       | 0    | 5    | 0             |
+#        | 3       | 1    | 5    | 0.2           |
+#        | 3       | 2    | 16   | 1/8           |
+#        | 3       | 37   | 1    | 37.0          |
+#        | 3       | -1   | 5    | -0.2          |
+#        | 3       | 2    | -16  | -1/8          |
+#        | 3       | -37  | 1    | -37.0         |
+#        | 3       | 0.5  | 0.3  | 1.6666        |
+
+
     @calculator
     Scenario Outline: Dot Product
         Given a calculator service with <players> players
@@ -575,28 +597,6 @@ Feature: Additive Protocol
 #        | 3       | 5       | 1.1         | 1      | 3.9           |
 #        | 3       | 5       | 1.5         | 1      | 3.5           |
 #        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [3.9, -0.2]   |
-
-
-#    @calculator
-#    Scenario Outline: Private Divide
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players divide the shares
-#        And the players reveal the secret
-#        Then the result should match <result> to within 2 digits
-#
-#        Examples:
-#        | players | a    | b    | result        |
-#        | 3       | 0    | 5    | 0             |
-#        | 3       | 1    | 5    | 0.2           |
-#        | 3       | 2    | 16   | 1/8           |
-#        | 3       | 37   | 1    | 37.0          |
-#        | 3       | -1   | 5    | -0.2          |
-#        | 3       | 2    | -16  | -1/8          |
-#        | 3       | -37  | 1    | -37.0         |
-#        | 3       | 0.5  | 0.3  | 1.6666        |
 
 
 #    @calculator

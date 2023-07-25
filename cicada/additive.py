@@ -276,28 +276,29 @@ class AdditiveProtocolSuite(object):
         return self._communicator
 
 
-#    def divide(self, lhs, rhs):
-#        """Elementwise division of two secret shared arrays.
-#
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array.
-#
-#        Returns
-#        -------
-#        result: :class:`AdditiveArrayShare`
-#            Secret-shared elementwise division of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        result = self.untruncated_divide(lhs, rhs)
-#        result = self.truncate(result)
-#        return result
+    def divide(self, lhs, rhs, encoding=None):
+        """Elementwise division of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared elementwise division of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        encoding = self._require_encoding(encoding)
+        result = self.field_divide(lhs, rhs)
+        result = self.right_shift(result, bits=encoding.precision)
+        return result
 
 
     def dot(self, lhs, rhs, encoding=None):
