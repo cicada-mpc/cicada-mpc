@@ -235,7 +235,7 @@ def step_impl(context):
 
 @when(u'the players compute the minimum of the shares')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="min"))
+    _require_success(context.calculator.command("protocol", subcommand="minimum"))
 
 
 @when(u'the players compute the multiplicative inverse')

@@ -873,42 +873,42 @@ class AdditiveProtocolSuite(object):
 #        shift_right = numpy.full(lhs.storage.shape, pow(2, self._field.order-2, self._field.order), dtype=self._field.dtype)
 #        max_share.storage = self._field.untruncated_multiply(max_share.storage, shift_right)
 #        return max_share
-#
-#
-#    def min(self, lhs, rhs):
-#        """Return the elementwise minimum of two secret shared arrays.
-#
-#        The result is the secret shared elementwise minimum of the operands.
-#        If revealed, the result will need to be decoded to obtain the actual
-#        minimum values. Note: the field element ( if in the 'negative' range
-#        of the field consider only its magnitude ) should be less than
-#        a quarter of the modulus for this method to be accurate in general.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared operand.
-#        rhs: :class:`AdditiveArrayShare`, required
-#            Secret shared operand.
-#
-#        Returns
-#        -------
-#        min: :class:`AdditiveArrayShare`
-#            Secret-shared elementwise minimum of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        diff = self.subtract(lhs, rhs)
-#        abs_diff = self.absolute(diff)
-#        min_share = self.subtract(self.add(lhs, rhs), abs_diff)
-#        shift_right = numpy.full(lhs.storage.shape, pow(2, self._field.order-2, self._field.order), dtype=self._field.dtype)
-#        min_share.storage = self._field.untruncated_multiply(min_share.storage, shift_right)
-#
-#        return min_share
+
+
+    def minimum(self, lhs, rhs):
+        """Return the elementwise minimum of two secret shared arrays.
+
+        The result is the secret shared elementwise minimum of the operands.
+        If revealed, the result will need to be decoded to obtain the actual
+        minimum values. Note: the field element ( if in the 'negative' range
+        of the field consider only its magnitude ) should be less than
+        a quarter of the modulus for this method to be accurate in general.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared operand.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared operand.
+
+        Returns
+        -------
+        min: :class:`AdditiveArrayShare`
+            Secret-shared elementwise minimum of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        diff = self.field_subtract(lhs, rhs)
+        abs_diff = self.absolute(diff)
+        min_share = self.field_subtract(self.field_add(lhs, rhs), abs_diff)
+        shift_right = self.field.full_like(lhs.storage, pow(2, self.field.order-2, self.field.order))
+        min_share = self.field_multiply(min_share, shift_right)
+
+        return min_share
 
 
     def multiply(self, lhs, rhs, encoding=None):
