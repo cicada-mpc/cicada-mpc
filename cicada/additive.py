@@ -1345,7 +1345,7 @@ class AdditiveProtocolSuite(object):
         return encoding.decode(secret, self._field)
 
 
-    def right_shift(self, operand, *, bits=None, src=None, generator=None, trunc_mask=None, rem_mask=None):
+    def right_shift(self, operand, *, bits, src=None, generator=None, trunc_mask=None, rem_mask=None):
         """Remove the `bits` least significant bits from each element in a secret shared array.
 
         Note
@@ -1373,9 +1373,6 @@ class AdditiveProtocolSuite(object):
         """
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-
-        if bits is None:
-            bits = self._encoding.precision
 
         fieldbits = self._field.fieldbits
 
