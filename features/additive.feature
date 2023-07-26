@@ -390,6 +390,25 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Multiplicative Inverse
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        When the players compute the multiplicative inverse
+        And the players multiply the shares without truncation
+        And the players reveal the field values
+        Then the result should match <result>
+
+        Examples:
+        | players | a                                | result        |
+        | 3       | 2                                | 1             |
+        | 3       | 100                              | 1             |
+        | 3       | -75                              | 1             |
+        | 3       | -1000                            | 1             |
+        | 3       | [[35.125,65.25],[73.5, -3.0625]] | [[1,1],[1,1]] |
+
+
+    @calculator
     Scenario Outline: Multiply
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -621,24 +640,5 @@ Feature: Additive Protocol
 #        | 3       | 5       | 1.1         | 1      | 3.9           |
 #        | 3       | 5       | 1.5         | 1      | 3.5           |
 #        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [3.9, -0.2]   |
-
-
-#    @calculator
-#    Scenario Outline: Private Multiplicative Inverse
-#        Given a calculator service with <players> players
-#        And a new Additive protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the multiplicative inverse
-#        And the players multiply the shares without truncation
-#        And the players reveal the field values
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a                                | result        |
-#        | 3       | 2                                | 1             |
-#        | 3       | 100                              | 1             |
-#        | 3       | -75                              | 1             |
-#        | 3       | -1000                            | 1             |
-#        | 3       | [[35.125,65.25],[73.5, -3.0625]] | [[1,1],[1,1]] |
 
 

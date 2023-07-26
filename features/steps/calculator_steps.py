@@ -289,7 +289,7 @@ def step_impl(context):
 
 @when(u'the players multiply the shares without truncation')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="untruncated_multiply"))
+    _require_success(context.calculator.command("protocol", subcommand="field_multiply"))
 
 
 @when(u'the players raise the share to the public power')
