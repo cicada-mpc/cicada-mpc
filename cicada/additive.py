@@ -441,6 +441,43 @@ class AdditiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
+    def field_divide(self, lhs, rhs):
+        """Return the elementwise quotient of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        # Private-private division.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            pass
+
+        # Private-public division.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            pass
+
+        # Public-private division.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
     def field_dot(self, lhs, rhs):
         """Return the dot product of two secret shared vectors.
 
