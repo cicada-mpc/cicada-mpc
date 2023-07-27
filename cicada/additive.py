@@ -333,11 +333,24 @@ class AdditiveProtocolSuite(object):
         result: :class:`AdditiveArrayShare`
             Secret-shared elementwise division of `lhs` and `rhs`.
         """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         encoding = self._require_encoding(encoding)
-        result = self.field_divide(lhs, rhs)
-        result = self.right_shift(result, bits=encoding.precision)
-        return result
+
+        # Private-private division.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            pass
+
+        # Private-public division.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            divisor = encoding.encode(numpy.array(1 / rhs), self.field)
+            result = self.field_multiply(lhs, divisor)
+            result = self.right_shift(result, bits=encoding.precision)
+            return result
+
+        # Public-private division.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def dot(self, lhs, rhs, *, encoding=None):
