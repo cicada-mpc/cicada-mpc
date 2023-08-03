@@ -278,24 +278,24 @@ Feature: Shamir Protocol
 #        | 3        | 2**-16            | 0               |
 #        | 3        | -2**-16           | 1               |
 #        | 3        | [[0,100],[-3,4]]  | [[0,0],[1,0]]   |
-#
-#
-#    @calculator
-#    Scenario Outline: Logical And
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares the bits <a>
-#        And player 1 secret shares the bits <b>
-#        When the players compute the logical and of the shares
-#        And the players reveal the secret bits
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players  | a | b | result |
-#        | 3        | 0 | 0 | 0      |
-#        | 3        | 0 | 1 | 0      |
-#        | 3        | 1 | 0 | 0      |
-#        | 3        | 1 | 1 | 1      |
+
+
+    @calculator
+    Scenario Outline: Logical And
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares the bits <a>
+        And player 1 secret shares the bits <b>
+        When the players compute the logical and of the shares
+        And the players reveal the secret bits
+        Then the result should match <result>
+
+        Examples:
+        | players  | a | b | result |
+        | 3        | 0 | 0 | 0      |
+        | 3        | 0 | 1 | 0      |
+        | 3        | 1 | 0 | 0      |
+        | 3        | 1 | 1 | 1      |
 
 
     @calculator

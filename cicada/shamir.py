@@ -1000,39 +1000,37 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #        two = numpy.array(2, dtype=self.field.dtype)
 #        twoop = ShamirArrayShare(self._encoder.untruncated_multiply(two, operand.storage))
 #        return self._lsb(operand=twoop)
-#
-#
-#    def logical_and(self, lhs, rhs):
-#        """Return an elementwise logical AND of two secret shared arrays.
-#
-#        The operands *must* contain the *field* values `0` or `1`.  The result
-#        will be the secret shared elementwise logical AND of `lhs` and `rhs`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared array to be AND'ed.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Secret shared array to be AND'ed.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The secret elementwise logical AND of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#
-#        product = self.untruncated_multiply(lhs, rhs)
-#        return product
-#
-#
+
+
+    def logical_and(self, lhs, rhs):
+        """Return an elementwise logical AND of two secret shared arrays.
+
+        The operands *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical AND of `lhs` and `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared array to be AND'ed.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared array to be AND'ed.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret elementwise logical AND of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return self.field_multiply(lhs, rhs)
+
+
     def logical_not(self, operand):
         """Return an elementwise logical NOT of two secret shared array.
 
