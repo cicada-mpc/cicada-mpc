@@ -492,22 +492,22 @@ Feature: Shamir Protocol
         | 4       | 8     |
 
 
-#    @calculator
-#    Scenario Outline: ReLU
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the relu of the share
-#        And the players reveal the secret
-#        Then the result should match <result> to within 4 digits
-#
-#        Examples:
-#        | players | a                       | result                  |
-#        | 3       | 1                       | 1                       |
-#        | 3       | 1.1                     | 1.1                     |
-#        | 3       | -2                      | 0                       |
-#        | 3       | -2.1                    | 0                       |
-#        | 3       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
+    @calculator
+    Scenario Outline: ReLU
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        When the players compute the relu of the share
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a                       | result                  |
+        | 3       | 1                       | 1                       |
+        | 3       | 1.1                     | 1.1                     |
+        | 3       | -2                      | 0                       |
+        | 3       | -2.1                    | 0                       |
+        | 3       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
 
 
     @calculator

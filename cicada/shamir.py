@@ -1560,29 +1560,29 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         return bit_share, secret_share
 
 
-#    def relu(self, operand):
-#        """Return the elementwise ReLU of a secret shared array.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ShamirArrayShare`, required
-#            Secret shared value to which the ReLU function should be applied.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            Secret-shared elementwise ReLU of `operand`.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#        ltz = self.less_than_zero(operand)
-#        nltz = self.logical_not(ltz)
-#        nltz_parts = self.untruncated_multiply(nltz, operand)
-#        return nltz_parts
+    def relu(self, operand):
+        """Return the elementwise ReLU of a secret shared array.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared value to which the ReLU function should be applied.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            Secret-shared elementwise ReLU of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        ltz = self.less_zero(operand)
+        nltz = self.logical_not(ltz)
+        nltz_parts = self.field_multiply(nltz, operand)
+        return nltz_parts
 
 
     def right_shift(self, operand, *, bits, src=None, generator=None, trunc_mask=None, rem_mask=None):
