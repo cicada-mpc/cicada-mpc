@@ -328,17 +328,53 @@ class ShamirBasicProtocolSuite(object):
 
         # Public-private subtraction.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
-            if self.communicator.rank == 0:
-                return ShamirArrayShare(self.field.subtract(lhs, rhs.storage))
-            return ShamirArrayShare(self.field.negative(rhs.storage))
+            return ShamirArrayShare(self.field.subtract(lhs, rhs.storage))
 
         # Private-public subtraction.
         if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
-            if self.communicator.rank == 0:
-                return ShamirArrayShare(self.field.subtract(lhs.storage, rhs))
-            return ShamirArrayShare(lhs.storage)
+            return ShamirArrayShare(self.field.subtract(lhs.storage, rhs))
 
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
+#    def field_uniform(self, *, shape=None, generator=None):
+#        """Return a ShamirSharedArray with the specified shape and filled with random field elements
+#
+#        This method is secure against non-colluding semi-honest adversaries.  A
+#        subset of players (by default: all) generate and secret share vectors
+#        of pseudo-random field elements which are then added together
+#        elementwise.  Computation costs increase with the number of elements to
+#        generate and the number of players, while security increases with the
+#        number of players.
+#
+#        Parameters
+#        ----------
+#        shape: :class:`tuple`, optional
+#            Shape of the array to populate. By default, 
+#            a shapeless array of one random element will be generated.
+#        src: sequence of :class:`int`, optional
+#            Players that will contribute to random array generation.  By default,
+#            all players contribute.
+#        generator: :class:`numpy.random.Generator`, optional
+#            A psuedorandom number generator for sampling.  By default,
+#            `numpy.random.default_rng()` will be used.
+#
+#        Returns
+#        -------
+#        secret: :class:`ShamirArrayShare`
+#            A share of the random generated value.
+#        """
+#
+#        if shape==None:
+#            shape=()
+#        if generator is None:
+#            generator = self._generator
+#
+#        rand_ints = self._encoder.uniform(size=shape, generator=generator)
+#        share = ShamirArrayShare(numpy.zeros(shape, dtype=self._encoder.dtype))
+#        for i in self.communicator.ranks:
+#            share = self.add(self._share(src=i, secret=rand_ints, shape=rand_ints.shape), share)
+#        return share
 
 
     @property
@@ -603,46 +639,6 @@ class ShamirBasicProtocolSuite(object):
     def threshold(self):
         """Return the threshold (minimum number of players required to reveal a secret)."""
         return self._d + 1
-
-
-#    def uniform(self, *, shape=None, generator=None):
-#        """Return a ShamirSharedArray with the specified shape and filled with random field elements
-#
-#        This method is secure against non-colluding semi-honest adversaries.  A
-#        subset of players (by default: all) generate and secret share vectors
-#        of pseudo-random field elements which are then added together
-#        elementwise.  Computation costs increase with the number of elements to
-#        generate and the number of players, while security increases with the
-#        number of players.
-#
-#        Parameters
-#        ----------
-#        shape: :class:`tuple`, optional
-#            Shape of the array to populate. By default, 
-#            a shapeless array of one random element will be generated.
-#        src: sequence of :class:`int`, optional
-#            Players that will contribute to random array generation.  By default,
-#            all players contribute.
-#        generator: :class:`numpy.random.Generator`, optional
-#            A psuedorandom number generator for sampling.  By default,
-#            `numpy.random.default_rng()` will be used.
-#
-#        Returns
-#        -------
-#        secret: :class:`ShamirArrayShare`
-#            A share of the random generated value.
-#        """
-#
-#        if shape==None:
-#            shape=()
-#        if generator is None:
-#            generator = self._generator
-#
-#        rand_ints = self._encoder.uniform(size=shape, generator=generator)
-#        share = ShamirArrayShare(numpy.zeros(shape, dtype=self._encoder.dtype))
-#        for i in self.communicator.ranks:
-#            share = self.add(self._share(src=i, secret=rand_ints, shape=rand_ints.shape), share)
-#        return share
 
 
 class ShamirProtocolSuite(ShamirBasicProtocolSuite):
@@ -983,35 +979,33 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #        return product
 #
 #
-#    def logical_not(self, operand):
-#        """Return an elementwise logical NOT of two secret shared array.
-#
-#        The operand *must* contain the *field* values `0` or `1`.  The result
-#        will be the secret shared elementwise logical negation of `operand`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ShamirArrayShare`, required
-#            Secret shared array to be negated.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The secret elementwise logical NOT of `operand`.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#
-#        ones = numpy.full(operand.storage.shape, 1, dtype=self._encoder.dtype)
-#        return self.public_private_subtract(lhs=ones, rhs=operand)
-#
-#
+    def logical_not(self, operand):
+        """Return an elementwise logical NOT of two secret shared array.
+
+        The operand *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical negation of `operand`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared array to be negated.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret elementwise logical NOT of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return self.field_subtract(self.field.ones_like(operand.storage), operand)
+
+
 #    def logical_or(self, lhs, rhs):
 #        """Return an elementwise logical OR of two secret shared arrays.
 #
