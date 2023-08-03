@@ -574,29 +574,29 @@ class ShamirBasicProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def sum(self, operand):
-#        """Return the sum of a secret shared array's elements.
-#
-#        The result is the secret shared sum of the array elements.  If
-#        revealed, the result will need to be decoded to obtain the actual sum.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ShamirArrayShare`, required
-#            Secret shared array to be summed.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            Secret-shared sum of `operand`'s elements.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#        return ShamirArrayShare(self._encoder.sum(operand.storage))
+    def sum(self, operand):
+        """Return the sum of a secret shared array's elements.
+
+        The result is the secret shared sum of the array elements.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared array to be summed.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            Secret-shared sum of `operand`'s elements.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ShamirArrayShare(self.field.sum(operand.storage))
 
 
     @property
