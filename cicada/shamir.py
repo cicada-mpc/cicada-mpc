@@ -1058,36 +1058,35 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         return self.field_subtract(self.field.ones_like(operand.storage), operand)
 
 
-#    def logical_or(self, lhs, rhs):
-#        """Return an elementwise logical OR of two secret shared arrays.
-#
-#        The operands *must* contain the *field* values `0` or `1`.  The result
-#        will be the secret shared elementwise logical OR of `lhs` and `rhs`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared array to be OR'd.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Secret shared array to be OR'd.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The secret elementwise logical OR of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#
-#        total = self._encoder.add(lhs.storage, rhs.storage)
-#        product = self.untruncated_multiply(lhs, rhs)
-#        return ShamirArrayShare(self._encoder.subtract(total, product.storage))
+    def logical_or(self, lhs, rhs):
+        """Return an elementwise logical OR of two secret shared arrays.
+
+        The operands *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical OR of `lhs` and `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared array to be OR'd.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared array to be OR'd.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret elementwise logical OR of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        total = self.field_add(lhs, rhs)
+        product = self.field_multiply(lhs, rhs)
+        return self.field_subtract(total, product)
 
 
     def logical_xor(self, lhs, rhs):
