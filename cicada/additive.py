@@ -1156,7 +1156,7 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
-    def pade_approx(self, func, operand,*, center=0, encoding=None, degree=9):
+    def _pade_approx(self, func, operand,*, center=0, encoding=None, degree=9):
         """Return the pade approximation of func evaluated at operand.
 
         This is a collective operation that *must* be called
@@ -1185,7 +1185,7 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         encoding = self._require_encoding(encoding)
 
-        func_taylor = approximate_taylor_polynomial(func, center, degree, degree+1)
+        func_taylor = approximate_taylor_polynomial(func, center, degree, 1)
         func_pade_num, func_pade_den = pade(func_taylor, den_deg, n=num_deg)
         enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
         enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
@@ -1198,15 +1198,17 @@ class AdditiveProtocolSuite(object):
             op_pows_den=[thing for thing in op_pows_num]
         op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num]))
         op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den]))
+
         result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
-        result_num = self.sum(result_num_prod)
+        result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
 
         result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
-        result_den = self.sum(result_den_prod)
+        result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
         # the legit thing to do
         #result = self.divide(result_num, result_den)
         # the thing I have to do right now for a bit till division is sorted
-        result = self.reveal(result_num)/self.reveal(result_den)
+        _, mask = self.random_bitwise_secret(bits=16)
+        result = self.reveal(self.multiply(mask, result_num))/self.reveal(self.multiply(mask,result_den))
         return result
 
     def power(self, lhs, rhs, *, encoding=None):
