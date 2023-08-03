@@ -1156,6 +1156,56 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
+    def pade_approx(self, func, endpoints, resolution, operand,*, encoding=None, degree=9):
+        """Return the pade approximation of func evaluated at operand.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        func: :class:`callable object`, required
+            The function to be approximated via the pade method
+        endpoints: :class:`tuple`, required
+            The start and end of the range of interest for approximation/interpolation
+        resolution: :class:`float`, required
+            The resolution of the approximation to be done between the endpoints
+        operand: :class:`AdditiveArrayShare`, required
+            The secret share which represents the point at which the function func should be evaluated in a privacy preserving manner
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret shared result of evaluating the pade approximant of func(operand) with the given parameters
+        """
+        from scipy.interpolate import approximate_taylor_polynomial, pade
+        axis = numy.linspace(endpoints[0], endpoints[1], resolution)
+        num_deg = degree%2+degree//2
+        den_deg = degree//2
+
+        self._assert_unary_compatible(operand, "operand")
+        encoding = self._require_encoding(encoding)
+
+        func_taylor = approximate_taylor_polynomial(func, (endpoints[0]+endpoints[1])/2, degree, degree+1)
+        func_pade_num, func_pade_den = pade(func_taylor, den_deg, n=num_deg)
+        enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num], self.field)
+        enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den], self.field)
+        op_pows_num = [operand]
+        for i in range(num_deg):
+            op_pows_num.append(self.multiply(operand, op_pows_num[-1]))
+        if degree%2:
+            op_pows_den=[thing for thing in op_pows_num[:-1]]
+        else:
+            op_pows_den=[thing for thing in op_pows_num]
+        
+        result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
+        result_num = self.sum(result_num_prod)
+
+        result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
+        result_den = self.sum(result_den_prod)
+        
+        result = self.divide(result_num, result_den)
+        return result
 
     def power(self, lhs, rhs, *, encoding=None):
         """Raise the array contained in lhs to the power rhs on an elementwise basis
