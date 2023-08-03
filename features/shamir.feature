@@ -408,23 +408,23 @@ Feature: Shamir Protocol
 #        | 3       | [[35.125,65.25],[73.5, -3.0625]] | [[1,1],[1,1]] |
 
 
-#    @calculator
-#    Scenario Outline: Multiply
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players multiply the shares
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a          | b       | result        |
-#        | 3       | 5          | 2       | 10            |
-#        | 3       | 5          | 2.5     | 12.5          |
-#        | 3       | 5          | -2.5    | -12.5         |
-#        | 3       | -5         | -2.5    | 12.5          |
-#        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+    @calculator
+    Scenario Outline: Multiply
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players multiply the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b       | result        |
+        | 3       | 5          | 2       | 10            |
+        | 3       | 5          | 2.5     | 12.5          |
+        | 3       | 5          | -2.5    | -12.5         |
+        | 3       | -5         | -2.5    | 12.5          |
+        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
 
 
     @calculator
