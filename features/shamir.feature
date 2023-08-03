@@ -259,25 +259,25 @@ Feature: Shamir Protocol
 #        | 3        | 2**16         | 2**16-1        | 0               |
 #        | 3        | 2**16-2       | 2**16-1        | 1               |
 #        | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | [[1,0],[1,0]]   |
-#
-#
-#    @calculator
-#    Scenario Outline: Less Than Zero
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        When the players compare the shares with less than zero
-#        And the players reveal the secret bits
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players  | a                 | result          |
-#        | 3        | 0                 | 0               |
-#        | 3        | 100               | 0               |
-#        | 3        | -100              | 1               |
-#        | 3        | 2**-16            | 0               |
-#        | 3        | -2**-16           | 1               |
-#        | 3        | [[0,100],[-3,4]]  | [[0,0],[1,0]]   |
+
+
+    @calculator
+    Scenario Outline: Less Than Zero
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        When the players compare the shares with less than zero
+        And the players reveal the secret bits
+        Then the result should match <result>
+
+        Examples:
+        | players  | a                 | result          |
+        | 3        | 0                 | 0               |
+        | 3        | 100               | 0               |
+        | 3        | -100              | 1               |
+        | 3        | 2**-16            | 0               |
+        | 3        | -2**-16           | 1               |
+        | 3        | [[0,100],[-3,4]]  | [[0,0],[1,0]]   |
 
 
     @calculator

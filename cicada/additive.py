@@ -960,7 +960,7 @@ class AdditiveProtocolSuite(object):
         """
         one = numpy.array(1, dtype=self.field.dtype)
         lop = AdditiveArrayShare(operand.storage.flatten())
-        tmpBW, tmp = self.random_bitwise_secret(bits=self.field._fieldbits, shape=lop.storage.shape)
+        tmpBW, tmp = self.random_bitwise_secret(bits=self.field.fieldbits, shape=lop.storage.shape)
         maskedlop = self.field_add(lop, tmp)
         c = self.reveal(maskedlop, encoding=Identity())
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
@@ -1312,7 +1312,7 @@ class AdditiveProtocolSuite(object):
             for i in range(1,bitwidth):
                 result = self.field_add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
-        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
+        return AdditiveArrayShare(numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):

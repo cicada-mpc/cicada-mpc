@@ -972,34 +972,34 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #        noty = self.public_private_subtract(one, y)
 #        notwxorxnoty = self.untruncated_multiply(notwxorx, noty)
 #        return self.add(xwxorx, notwxorxnoty)
-#
-#
-#    def less_than_zero(self, operand):
-#        """Return an elementwise less-than comparison between operand elements and zero.
-#
-#        The result is the secret shared elementwise comparison `operand` < `0`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ShamirArrayShare`, required
-#            Secret shared value to be compared.
-#
-#        Returns
-#        -------
-#        result: :class:`ShamirArrayShare`
-#            Secret-shared result of computing `operand` < `0` elementwise.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#        two = numpy.array(2, dtype=self.field.dtype)
-#        twoop = ShamirArrayShare(self._encoder.untruncated_multiply(two, operand.storage))
-#        return self._lsb(operand=twoop)
+
+
+    def less_zero(self, operand):
+        """Return an elementwise less-than comparison between operand elements and zero.
+
+        The result is the secret shared elementwise comparison `operand` < `0`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret-shared result of computing `operand` < `0` elementwise.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        two = self.field.full_like(operand.storage, 2)
+        result = self.field_multiply(two, operand)
+        return self._lsb(result)
 
 
     def logical_and(self, lhs, rhs):
@@ -1121,48 +1121,49 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         return self.field_subtract(total, twice_product)
 
 
-#    def _lsb(self, operand):
-#        """Return the elementwise least significant bit of a secret shared array.
-#
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ShamirArrayShare`, required
-#            Secret shared array from which the least significant bits will be extracted
-#
-#        Returns
-#        -------
-#        lsb: :class:`ShamirArrayShare`
-#            Additive shared array containing the elementwise least significant
-#            bits of `operand`.
-#        """
-#        one = numpy.array(1, dtype=self.field.dtype)
-#        lop = ShamirArrayShare(storage = operand.storage.flatten())
-#        tmpBW, tmp = self.random_bitwise_secret(bits=self._encoder._fieldbits, shape=lop.storage.shape)
-#        maskedlop = self.add(lhs=lop, rhs=tmp)
-#        c = self._reveal(maskedlop)
-#        comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
-#        c = (c % 2)
-#        c0xr0 = numpy.empty(c.shape, dtype = self.field.dtype) 
-#        for i, lc in enumerate(c):
-#            if lc:
-#                c0xr0[i] = self.public_private_subtract(lhs=one, rhs=ShamirArrayShare(storage=numpy.array(tmpBW.storage[i][-1], dtype=self.field.dtype))).storage
-#            else:
-#                c0xr0[i] = tmpBW.storage[i][-1]
-#        c0xr0 = ShamirArrayShare(storage = c0xr0)
-#        result = self.untruncated_multiply(lhs=comp_result, rhs=c0xr0)
-#        result = ShamirArrayShare(storage=self._encoder.untruncated_multiply(lhs=numpy.full(result.storage.shape, 2, dtype=object), rhs=result.storage))
-#        result = self.subtract(lhs=c0xr0, rhs=result)
-#        result = self.add(lhs=comp_result, rhs=result)
-#        return ShamirArrayShare(storage = result.storage.reshape(operand.storage.shape))
-#
+    def _lsb(self, operand):
+        """Return the elementwise least significant bit of a secret shared array.
+
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared array from which the least significant bits will be extracted
+
+        Returns
+        -------
+        lsb: :class:`ShamirArrayShare`
+            Additive shared array containing the elementwise least significant
+            bits of `operand`.
+        """
+        one = numpy.array(1, dtype=self.field.dtype)
+        lop = ShamirArrayShare(storage = operand.storage.flatten())
+        tmpBW, tmp = self.random_bitwise_secret(bits=self.field.fieldbits, shape=lop.storage.shape)
+        maskedlop = self.field_add(lop, tmp)
+        c = self.reveal(maskedlop, encoding=Identity())
+        comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
+        c = (c % 2)
+        c0xr0 = numpy.empty(c.shape, dtype = self.field.dtype)
+        for i, lc in enumerate(c):
+            if lc:
+                c0xr0[i] = self.field_subtract(lhs=one, rhs=ShamirArrayShare(numpy.array(tmpBW.storage[i][-1], dtype=self.field.dtype))).storage
+            else:
+                c0xr0[i] = tmpBW.storage[i][-1]
+        c0xr0 = ShamirArrayShare(c0xr0)
+        result = self.field_multiply(lhs=comp_result, rhs=c0xr0)
+        result = ShamirArrayShare(storage=self.field.multiply(lhs=self.field.full_like(result.storage, 2), rhs=result.storage))
+        result = self.field_subtract(lhs=c0xr0, rhs=result)
+        result = self.field_add(lhs=comp_result, rhs=result)
+        return ShamirArrayShare(result.storage.reshape(operand.storage.shape))
+
+
 #    def max(self, lhs, rhs):
 #        """Return the elementwise maximum of two secret shared arrays.
 #
@@ -1404,70 +1405,71 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #                if i < limit:
 #                    tmp = self.untruncated_multiply(tmp,tmp)
 #            ans.append(it_ans)
-#        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape)) 
-#
-#    def _public_bitwise_less_than(self,*, lhspub, rhs):
-#        """Comparison Operator
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ndarray`, required 
-#            a publically known numpy array of integers and one of the two objects to be compared 
-#        rhs: :class:`ShamirArrayShare`, required 
-#            bit decomposed shared secret(s) and the other of the two objects to be compared 
-#            the bitwidth of each value in rhs (deduced from its shape) is taken to be the 
-#            bitwidth of interest for the comparison if the values in lhspub require more bits 
-#            for their representation, the computation will be incorrect
-#
-#        note: this method is private as it does not consider the semantic mapping of meaning 
-#        onto the field. The practical result of this is that every negative value will register as 
-#        greater than every positive value due to the encoding.
-#
-#
-#        Returns
-#        -------
-#        a shamir shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
-#        """
-#        if lhspub.shape != rhs.storage.shape[:-1]:
-#            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension') # pragma: no cover
-#        bitwidth = rhs.storage.shape[-1]
-#        lhsbits = []
-#        for val in lhspub:
-#            tmplist = [int(x) for x in bin(val)[2:]]
-#            if len(tmplist) < bitwidth:
-#                tmplist = [0 for x in range(bitwidth-len(tmplist))] + tmplist
-#            lhsbits.append(tmplist)
-#        lhsbits = numpy.array(lhsbits, dtype=self.field.dtype)
-#        assert(lhsbits.shape == rhs.storage.shape)
-#        one = numpy.array(1, dtype=self.field.dtype)
-#        flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
-#        flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
-#        results=[]
-#        for j in range(len(flatlhsbits)):
-#            xord = []
-#            preord = []
-#            msbdiff=[]
-#            rhs_bit_at_msb_diff = []
-#            for i in range(bitwidth):
-#                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.field.dtype))
-#                if flatlhsbits[j][i] == 1:
-#                    xord.append(self.public_private_subtract(lhs=one, rhs=rhsbit))
-#                else:
-#                    xord.append(rhsbit)
-#            preord = [xord[0]] 
-#            for i in range(1,bitwidth):
-#                preord.append(self.logical_or(lhs=preord[i-1], rhs=xord[i]))
-#            msbdiff = [preord[0]]
-#            for i in range(1,bitwidth):
-#                msbdiff.append(self.subtract(lhs=preord[i], rhs=preord[i-1]))
-#            for i in range(bitwidth):
-#                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.field.dtype))
-#                rhs_bit_at_msb_diff.append(self.untruncated_multiply(rhsbit, msbdiff[i]))
-#            result = rhs_bit_at_msb_diff[0]
-#            for i in range(1,bitwidth):
-#                result = self.add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
-#            results.append(result)
-#        return ShamirArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
+#        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+
+
+    def _public_bitwise_less_than(self, *, lhspub, rhs):
+        """Comparison Operator
+
+        Parameters
+        ----------
+        lhs: :class:`ndarray`, required 
+            a publically known numpy array of integers and one of the two objects to be compared 
+        rhs: :class:`ShamirArrayShare`, required 
+            bit decomposed shared secret(s) and the other of the two objects to be compared 
+            the bitwidth of each value in rhs (deduced from its shape) is taken to be the 
+            bitwidth of interest for the comparison if the values in lhspub require more bits 
+            for their representation, the computation will be incorrect
+
+        note: this method is private as it does not consider the semantic mapping of meaning 
+        onto the field. The practical result of this is that every negative value will register as 
+        greater than every positive value due to the encoding.
+
+
+        Returns
+        -------
+        a shamir shared array containing the element wise result of the comparison: result[i] = 1 if lhspub[i] < rhs[i] and 0 otherwise
+        """
+        if lhspub.shape != rhs.storage.shape[:-1]:
+            raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension') # pragma: no cover
+        bitwidth = rhs.storage.shape[-1]
+        lhsbits = []
+        for val in lhspub:
+            tmplist = [int(x) for x in bin(val)[2:]]
+            if len(tmplist) < bitwidth:
+                tmplist = [0 for x in range(bitwidth-len(tmplist))] + tmplist
+            lhsbits.append(tmplist)
+        lhsbits = numpy.array(lhsbits, dtype=self.field.dtype)
+        assert(lhsbits.shape == rhs.storage.shape)
+        one = numpy.array(1, dtype=self.field.dtype)
+        flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
+        flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
+        results=[]
+        for j in range(len(flatlhsbits)):
+            xord = []
+            preord = []
+            msbdiff=[]
+            rhs_bit_at_msb_diff = []
+            for i in range(bitwidth):
+                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.field.dtype))
+                if flatlhsbits[j][i] == 1:
+                    xord.append(self.field_subtract(lhs=one, rhs=rhsbit))
+                else:
+                    xord.append(rhsbit)
+            preord = [xord[0]]
+            for i in range(1,bitwidth):
+                preord.append(self.logical_or(lhs=preord[i-1], rhs=xord[i]))
+            msbdiff = [preord[0]]
+            for i in range(1,bitwidth):
+                msbdiff.append(self.field_subtract(lhs=preord[i], rhs=preord[i-1]))
+            for i in range(bitwidth):
+                rhsbit=ShamirArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.field.dtype))
+                rhs_bit_at_msb_diff.append(self.field_multiply(rhsbit, msbdiff[i]))
+            result = rhs_bit_at_msb_diff[0]
+            for i in range(1,bitwidth):
+                result = self.field_add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
+            results.append(result)
+        return ShamirArrayShare(numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
