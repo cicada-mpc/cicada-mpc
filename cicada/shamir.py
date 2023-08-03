@@ -417,140 +417,68 @@ class ShamirBasicProtocolSuite(object):
 #        acc %= self._encoder.modulus
 #
 #        return ShamirArrayShare(acc)
-#
-#
-#    def _reveal(self, share,*, dst=None):
-#        """Reveals a secret shared value to a subset of players.
-#
-#        Note
-#        ----
-#        In most cases the revealed secret needs to be decoded with this
-#        protocol's :attr:`encoder` to reveal the actual value.
-#
-#        This is a collective operation that *must* be called by all players
-#        that are members of :attr:`communicator`, whether they are receiving
-#        the revealed secret or not.
-#
-#        Parameters
-#        ----------
-#        share: :class:`ShamirArrayShare`, required
-#            The local share of the secret to be revealed.
-#        dst: sequence of :class:`int`, optional
-#            List of players who will receive the revealed secret.  If :any:`None`
-#            (the default), the secret will be revealed to all players.
-#
-#        Returns
-#        -------
-#        value: :class:`numpy.ndarray` or :any:`None`
-#            Encoded representation of the revealed secret, if this player is a
-#            member of `dst`, or :any:`None`.
-#        """
-#
-#        if not isinstance(share, ShamirArrayShare):
-#            raise ValueError("share must be an instance of ShamirArrayShare.") # pragma: no cover
-#
-#        # Identify who will be receiving shares.
-#        if dst is None:
-#            dst = self.communicator.ranks
-#
-#        src = self.communicator.ranks
-#        n=len(src)
-#        if n == len(self._indices):
-#            revealing_coef = self._revealing_coef
-#        else:
-#            revealing_coef = None
-#        # Send data to the other players.
-#        secret = None
-#        for recipient in dst:
-#            received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
-#            if received_shares:
-#                received_storage = numpy.array([x.storage for x in received_shares], dtype=self._encoder.dtype)
-#                if self.communicator.rank == recipient:
-#                    if revealing_coef is None:
-#                        revealing_coef = self._lagrange_coef([self._indices[x] for x in src])
-#                    secret = []
-#                    for index in numpy.ndindex(received_storage[0].shape):
-#                        secret.append(sum([revealing_coef[i]*received_storage[i][index] for i in range(len(revealing_coef))]))
-#        if secret is None:
-#            return secret
-#        else:
-#            ret = numpy.array([x%self._encoder.modulus for x in secret], dtype=self._encoder.dtype).reshape(share.storage.shape)
-#            return ret
-#
-#
-#    def reveal(self, share, dst=None):
-#        """Reveals a secret shared value to a subset of players.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called by all players
-#        that are members of :attr:`communicator`, whether they are receiving
-#        the revealed secret or not.
-#
-#        Parameters
-#        ----------
-#        share: :class:`ShamirArrayShare`, required
-#            The local share of the secret to be revealed.
-#        dst: sequence of :class:`int`, optional
-#            List of players who will receive the revealed secret.  If :any:`None`
-#            (the default), the secret will be revealed to all players.
-#
-#        Returns
-#        -------
-#        value: :class:`numpy.ndarray` or :any:`None`
-#            The revealed secret, if this player is a member of `dst`, or :any:`None`.
-#        """
-#        return self._encoder.decode(self._reveal(share, dst=dst))
-#
-#
-#    def reveal_bits(self, share, dst=None):
-#        """Reveals secret shared bits to a subset of players.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called by all players
-#        that are members of :attr:`communicator`, whether they are receiving
-#        the revealed secret or not.
-#
-#        Parameters
-#        ----------
-#        share: :class:`ShamirArrayShare`, required
-#            The local share of the secret to be revealed.
-#        dst: sequence of :class:`int`, optional
-#            List of players who will receive the revealed secret.  If :any:`None`
-#            (the default), the secret will be revealed to all players.
-#
-#        Returns
-#        -------
-#        value: :class:`numpy.ndarray` or :any:`None`
-#            The revealed secret, if this player is a member of `dst`, or :any:`None`.
-#        """
-#        return self._reveal(share, dst=dst).astype(bool).astype(numpy.uint8)
-#
-#
-#    def reveal_field(self, share, dst=None):
-#        """Reveals secret shared field values to a subset of players.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called by all players
-#        that are members of :attr:`communicator`, whether they are receiving
-#        the revealed secret or not.
-#
-#        Parameters
-#        ----------
-#        share: :class:`ShamirArrayShare`, required
-#            The local share of the secret to be revealed.
-#        dst: sequence of :class:`int`, optional
-#            List of players who will receive the revealed secret.  If :any:`None`
-#            (the default), the secret will be revealed to all players.
-#
-#        Returns
-#        -------
-#        value: :class:`numpy.ndarray` or :any:`None`
-#            The revealed secret, if this player is a member of `dst`, or :any:`None`.
-#        """
-#        return self._reveal(share, dst=dst)
+
+
+    def reveal(self, share, *, dst=None, encoding=None):
+        """Reveals a secret shared value to a subset of players.
+
+        Note
+        ----
+        In most cases the revealed secret needs to be decoded with this
+        protocol's :attr:`encoder` to reveal the actual value.
+
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`, whether they are receiving
+        the revealed secret or not.
+
+        Parameters
+        ----------
+        share: :class:`ShamirArrayShare`, required
+            The local share of the secret to be revealed.
+        dst: sequence of :class:`int`, optional
+            List of players who will receive the revealed secret.  If :any:`None`
+            (the default), the secret will be revealed to all players.
+
+        Returns
+        -------
+        value: :class:`numpy.ndarray` or :any:`None`
+            Encoded representation of the revealed secret, if this player is a
+            member of `dst`, or :any:`None`.
+        """
+
+        if not isinstance(share, ShamirArrayShare):
+            raise ValueError("share must be an instance of ShamirArrayShare.") # pragma: no cover
+
+        # Identify who will be receiving shares.
+        if dst is None:
+            dst = self.communicator.ranks
+
+        encoding = self._require_encoding(encoding)
+
+        src = self.communicator.ranks
+        n=len(src)
+        if n == len(self._indices):
+            revealing_coef = self._revealing_coef
+        else:
+            revealing_coef = None
+
+        # Send data to the other players.
+        secret = None
+        for recipient in dst:
+            received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
+            if received_shares:
+                received_storage = numpy.array([x.storage for x in received_shares], dtype=self.field.dtype)
+                if self.communicator.rank == recipient:
+                    if revealing_coef is None:
+                        revealing_coef = self._lagrange_coef([self._indices[x] for x in src])
+                    secret = []
+                    for index in numpy.ndindex(received_storage[0].shape):
+                        secret.append(sum([revealing_coef[i]*received_storage[i][index] for i in range(len(revealing_coef))]))
+        if secret is None:
+            return secret
+        else:
+            ret = numpy.array([x%self.field.order for x in secret], dtype=self.field.dtype).reshape(share.storage.shape)
+            return encoding.decode(ret, self.field)
 
 
     def share(self, *, src, secret, shape, encoding=None):
@@ -605,60 +533,6 @@ class ShamirBasicProtocolSuite(object):
         return ShamirArrayShare(share)
 
 
-#    def share(self, *, src, secret, shape):
-#        """Convert an array of scalars to a shamir secret share.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        src: :class:`int`, required
-#            The player providing the private array to be secret shared.
-#        secret: :class:`numpy.ndarray` or :any:`None`, required
-#            The secret array to be shared.  This value is ignored for all
-#            players except `src`.
-#        shape: :class:`tuple`, required
-#            The shape of the secret.  Note that the shape must be consistently
-#            specified by all players.
-#
-#        Returns
-#        -------
-#        share: :class:`ShamirArrayShare`
-#            The local share of the secret shared array.
-#        """
-#        return self._share(src=src, secret=self._encoder.encode(secret), shape=shape)
-#
-#
-#    def share_bits(self, *, src, secret, shape):
-#        """Convert an array of bits to a shamir secret share.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        src: :class:`int`, required
-#            The player providing the private array to be secret shared.
-#        secret: :class:`numpy.ndarray` or :any:`None`, required
-#            The secret array to be shared.  This value is ignored for all
-#            players except `src`.
-#        shape: :class:`tuple`, required
-#            The shape of the secret.  Note that the shape must be consistently
-#            specified by all players.
-#
-#        Returns
-#        -------
-#        share: :class:`ShamirArrayShare`
-#            The local share of the secret shared array.
-#        """
-#        return self._share(src=src, secret=numpy.array(secret, dtype=bool).astype(int).astype(object), shape=shape)
-#
-#
 #    def subtract(self, lhs, rhs):
 #        """Subtract a secret shared value from a secret shared value.
 #
