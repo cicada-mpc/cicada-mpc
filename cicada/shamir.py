@@ -355,9 +355,9 @@ class ShamirBasicProtocolSuite(object):
 
 
     def negative(self, operand):
-        """Return an elementwise additive inverse of a shared array 
-        in the context of the underlying finite field. Explicitly, this 
-        function returns a same shape array which, when added 
+        """Return an elementwise additive inverse of a shared array
+        in the context of the underlying finite field. Explicitly, this
+        function returns a same shape array which, when added
         elementwise with operand, will return a same shape array comprised
         entirely of zeros (the additive identity).
 
@@ -381,101 +381,6 @@ class ShamirBasicProtocolSuite(object):
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
 
-#    def _private_public_subtract(self, lhs, rhs):
-#        """Return the elementwise difference between public and secret shared arrays.
-#
-#        All players *must* supply the same value of `lhs` when calling this
-#        method.  The result will be the secret shared elementwise difference
-#        between the public (known to all players) `lhs` array and the private
-#        (secret shared) `rhs` array.  If revealed, the result will need to be
-#        decoded to obtain the actual difference.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared value from which rhs should be subtracted.
-#        rhs: :class:`numpy.ndarray`, required
-#            Public value, which must have been encoded with this protocol's
-#            :attr:`encoder`.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The secret shared difference `lhs` - `rhs`.
-#        """
-#        self._assert_unary_compatible(lhs, "lhs")
-#
-#        return ShamirArrayShare(self._encoder.subtract(lhs.storage, rhs))
-#
-#
-#    def _public_private_add(self, lhs, rhs):
-#        """Return the elementwise sum of public and secret shared arrays.
-#
-#        All players *must* supply the same value of `lhs` when calling this
-#        method.  The result will be the secret shared elementwise sum of the
-#        public (known to all players) `lhs` array and the private (secret
-#        shared) `rhs` array.  If revealed, the result will need to be decoded
-#        to obtain the actual sum.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`numpy.ndarray`, required
-#            Public value to be added, which must have been encoded
-#            with this protocol's :attr:`encoder`.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Secret shared value to be added.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The secret shared sum of `lhs` and `rhs`.
-#        """
-#        self._assert_unary_compatible(rhs, "rhs")
-#
-#        return ShamirArrayShare(self._encoder.add(lhs, rhs.storage))
-#
-#
-#    def public_private_subtract(self, lhs, rhs):
-#        """Return the elementwise difference between public and secret shared arrays.
-#
-#        All players *must* supply the same value of `lhs` when calling this
-#        method.  The result will be the secret shared elementwise difference
-#        between the public (known to all players) `lhs` array and the private
-#        (secret shared) `rhs` array.  If revealed, the result will need to be
-#        decoded to obtain the actual difference.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`numpy.ndarray`, required
-#            Public value, which must have been encoded with this protocol's
-#            :attr:`encoder`.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Secret shared value to be subtracted.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The secret shared difference `lhs` - `rhs`.
-#        """
-#        self._assert_unary_compatible(rhs, "rhs")
-#
-#        return ShamirArrayShare(self._encoder.subtract(lhs, rhs.storage))
-#
 #    def reshare(self, *, operand):
 #        """Convert a private array to an shamir secret share.
 #
@@ -692,13 +597,14 @@ class ShamirBasicProtocolSuite(object):
 #        """
 #        self._assert_unary_compatible(operand, "operand")
 #        return ShamirArrayShare(self._encoder.sum(operand.storage))
-#
-#    @property
-#    def threshold(self):
-#        """Return the threshold (minimum number of players required to reveal a secret)."""
-#        return self._d + 1
-#
-#
+
+
+    @property
+    def threshold(self):
+        """Return the threshold (minimum number of players required to reveal a secret)."""
+        return self._d + 1
+
+
 #    def uniform(self, *, shape=None, generator=None):
 #        """Return a ShamirSharedArray with the specified shape and filled with random field elements
 #
