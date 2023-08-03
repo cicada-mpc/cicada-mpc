@@ -1188,8 +1188,8 @@ class AdditiveProtocolSuite(object):
 
         func_taylor = approximate_taylor_polynomial(func, (endpoints[0]+endpoints[1])/2, degree, degree+1)
         func_pade_num, func_pade_den = pade(func_taylor, den_deg, n=num_deg)
-        enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num], self.field)
-        enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den], self.field)
+        enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
+        enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
         op_pows_num = [operand]
         for i in range(num_deg):
             op_pows_num.append(self.multiply(operand, op_pows_num[-1]))
