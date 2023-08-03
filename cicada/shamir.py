@@ -930,48 +930,47 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #        ones2sub = ShamirArrayShare(self._encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
 #        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
 #        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
-#
-#
-#    def less(self, lhs, rhs):
-#        """Return an elementwise less-than comparison between secret shared arrays.
-#
-#        The result is the secret shared elementwise comparison `lhs` < `rhs`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared value to be compared.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Secret shared value to be compared.
-#
-#        Returns
-#        -------
-#        result: :class:`ShamirArrayShare`
-#            Secret-shared result of computing `lhs` < `rhs` elementwise.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        one = numpy.full(lhs.storage.shape, 1, dtype=self.field.dtype)
-#        two = numpy.full(lhs.storage.shape, 2, dtype=self.field.dtype)
-#        twolhs = ShamirArrayShare(self._encoder.untruncated_multiply(two, lhs.storage))
-#        tworhs = ShamirArrayShare(self._encoder.untruncated_multiply(two, rhs.storage))
-#        diff = self.subtract(lhs, rhs)
-#        twodiff = ShamirArrayShare(self._encoder.untruncated_multiply(two, diff.storage))
-#        w = self.public_private_subtract(one, self._lsb(operand=twolhs))
-#        x = self.public_private_subtract(one, self._lsb(operand=tworhs))
-#        y = self.public_private_subtract(one, self._lsb(operand=twodiff))
-#        wxorx = self.logical_xor(w,x)
-#        notwxorx = self.public_private_subtract(one, wxorx)
-#        xwxorx = self.untruncated_multiply(x, wxorx)
-#        noty = self.public_private_subtract(one, y)
-#        notwxorxnoty = self.untruncated_multiply(notwxorx, noty)
-#        return self.add(xwxorx, notwxorxnoty)
+
+
+    def less(self, lhs, rhs):
+        """Return an elementwise less-than comparison between secret shared arrays.
+
+        The result is the secret shared elementwise comparison `lhs` < `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be compared.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret-shared result of computing `lhs` < `rhs` elementwise.
+        """
+        one = self.field.full_like(lhs.storage, 1)
+        two = self.field.full_like(lhs.storage, 2)
+        twolhs = self.field_multiply(two, lhs)
+        tworhs = self.field_multiply(two, rhs)
+        diff = self.field_subtract(lhs, rhs)
+        twodiff = self.field_multiply(two, diff)
+        w = self.field_subtract(one, self._lsb(twolhs))
+        x = self.field_subtract(one, self._lsb(tworhs))
+        y = self.field_subtract(one, self._lsb(twodiff))
+        wxorx = self.logical_xor(w,x)
+        notwxorx = self.field_subtract(one, wxorx)
+        xwxorx = self.field_multiply(x, wxorx)
+        noty = self.field_subtract(one, y)
+        notwxorxnoty = self.field_multiply(notwxorx, noty)
+        return self.field_add(xwxorx, notwxorxnoty)
 
 
     def less_zero(self, operand):

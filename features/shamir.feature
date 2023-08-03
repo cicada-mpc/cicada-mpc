@@ -236,29 +236,29 @@ Feature: Shamir Protocol
         Then the two values should not be equal
 
 
-#    @calculator
-#    Scenario Outline: Less
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players compare the shares with less than
-#        And the players reveal the secret bits
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players  | a             | b              | result          |
-#        | 3        | 0             | 0              | 0               |
-#        | 3        | 0             | 100            | 1               |
-#        | 3        | 0             | -100           | 0               |
-#        | 3        | 0             | 2**-16         | 1               |
-#        | 3        | 0             | -2**-16        | 0               |
-#        | 3        | -100          | 100            | 1               |
-#        | 3        | 100           | 100            | 0               |
-#        | 3        | -100          | -100           | 0               |
-#        | 3        | 2**16         | 2**16-1        | 0               |
-#        | 3        | 2**16-2       | 2**16-1        | 1               |
-#        | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | [[1,0],[1,0]]   |
+    @calculator
+    Scenario Outline: Less
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players compare the shares with less than
+        And the players reveal the secret bits
+        Then the result should match <result>
+
+        Examples:
+        | players  | a             | b              | result          |
+        | 3        | 0             | 0              | 0               |
+        | 3        | 0             | 100            | 1               |
+        | 3        | 0             | -100           | 0               |
+        | 3        | 0             | 2**-16         | 1               |
+        | 3        | 0             | -2**-16        | 0               |
+        | 3        | -100          | 100            | 1               |
+        | 3        | 100           | 100            | 0               |
+        | 3        | -100          | -100           | 0               |
+        | 3        | 2**16         | 2**16-1        | 0               |
+        | 3        | 2**16-2       | 2**16-1        | 1               |
+        | 3        | [[1,2],[3,4]] | [[2,2],[4,4]]  | [[1,0],[1,0]]   |
 
 
     @calculator
