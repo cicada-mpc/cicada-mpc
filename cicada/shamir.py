@@ -689,32 +689,33 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
             raise ValueError(f"threshold must be <= {max_threshold}, or world_size must be >= {min_world_size}")
 
 
-#    def absolute(self, operand):
-#        """Return the elementwise absolute value of a secret shared array.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ShamirArrayShare`, required
-#            Secret shared value to which the absolute value function should be applied.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            Secret-shared elementwise absolute value of `operand`.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#        ltz = self.less_than_zero(operand)
-#        nltz = self.logical_not(ltz)
-#        addinvop = ShamirArrayShare(self._encoder.negative(operand.storage))
-#        ltz_parts = self.untruncated_multiply(ltz, addinvop)
-#        nltz_parts = self.untruncated_multiply(nltz, operand)
-#        return self.add(ltz_parts, nltz_parts)
-#
+    def absolute(self, operand):
+        """Return the elementwise absolute value of a secret shared array.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared value to which the absolute value function should be applied.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            Secret-shared elementwise absolute value of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        ltz = self.less_zero(operand)
+        nltz = self.logical_not(ltz)
+        addinvop = self.negative(operand)
+        ltz_parts = self.field_multiply(ltz, addinvop)
+        nltz_parts = self.field_multiply(nltz, operand)
+        return self.field_add(ltz_parts, nltz_parts)
+
+
 #    def bit_decompose(self, operand, num_bits=None):
 #        """Decompose operand into shares of its bitwise representation.
 #
