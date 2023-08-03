@@ -39,8 +39,6 @@ class AdditiveArrayShare(object):
         Local additive share of a secret array.
     """
     def __init__(self, storage):
-        if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.")
         self.storage = storage
 
 
@@ -69,6 +67,8 @@ class AdditiveArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
+        if not isinstance(storage, numpy.ndarray):
+            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.")
         self._storage = numpy.array(storage, dtype=object)
 
 

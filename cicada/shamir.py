@@ -44,6 +44,7 @@ class ShamirArrayShare(object):
     def __repr__(self):
         return f"cicada.shamir.ShamirArrayShare(storage={self._storage})" # pragma: no cover
 
+
     @property
     def storage(self):
         """Local share of a Shamir-shared secret array.
@@ -61,7 +62,10 @@ class ShamirArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
+        if not isinstance(storage, numpy.ndarray):
+            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.")
         self._storage = numpy.array(storage, dtype=object)
+
 
 class ShamirBasicProtocolSuite(object):
     """Protocol suite implementing computation with Shamir-shared secrets.
@@ -1542,10 +1546,11 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 
             # Shift and combine the resulting bits in big-endian order to produce a random value.
             shift = numpy.power(2, numpy.arange(bits, dtype=self.field.dtype)[::-1])
-            shifted = self.field_multiply(shift, bit_share.storage)
+            shifted = self.field.multiply(shift, bit_share.storage)
             secret_share = ShamirArrayShare(numpy.array(numpy.sum(shifted), dtype=self.field.dtype))
             bit_res.append(bit_share)
             share_res.append(secret_share)
+
         if shape_was_none:
             bit_share = ShamirArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.field.dtype).reshape(bits))
             secret_share = ShamirArrayShare(numpy.array([x.storage for x in share_res], dtype=self.field.dtype).reshape(shape))
