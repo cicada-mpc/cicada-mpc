@@ -175,26 +175,26 @@ Feature: Shamir Protocol
 #        Examples:
 #        | players | a                      | b        | result      |
 #        | 3       | [-1, 2, 3.75, -2.0625] | 2**64-60 | [1,1,1,1]   |
-#
-#
-#    @calculator
-#    Scenario Outline: Field Subtract
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players subtract the shares in the field
-#        And the players reveal the secret
-#        Then the result should match <result> to within 4 digits
-#
-#        Examples:
-#        | players | a       | b           | result        |
-#        | 3       | 5       | 1           | 4             |
-#        | 3       | 5       | 1.1         | 3.9           |
-#        | 3       | 5       | 1.5         | 3.5           |
-#        | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
-#
-#
+
+
+    @calculator
+    Scenario Outline: Field Subtract
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players subtract the shares in the field
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a       | b           | result        |
+        | 3       | 5       | 1           | 4             |
+        | 3       | 5       | 1.1         | 3.9           |
+        | 3       | 5       | 1.5         | 3.5           |
+        | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
+
+
 #    @calculator
 #    Scenario Outline: Floor
 #        Given a calculator service with <players> players
@@ -606,43 +606,6 @@ Feature: Shamir Protocol
 #        | 3       | -.0625                   | .4375                   |
 #        | 3       | -.5                      | 0                       |
 #        | 3       | [[0, 3.4],[-1234, 1234]] | [[0.5, 1],[0, 1]]       |
-#
-#
-##    @calculator
-##    Scenario Outline: Local Add
-##        Given a calculator service with <players> players
-##        And a new Shamir protocol suite
-##        And player 0 secret shares <a>
-##        When player <player> adds <b> to the share in-place
-##        And the players reveal the secret
-##        Then the result should match <result> to within 4 digits
-##
-##        Examples:
-##        | players | a       | b           | player | result      |
-##        | 3       | 5       | 1           | 1      | 6           |
-##        | 3       | 5       | 1.1         | 1      | 6.1         |
-##        | 3       | 5       | 1.5         | 2      | 6.5         |
-##        | 3       | [5, 3]  | [1.1, 2.2]  | 1      | [6.1, 5.2]  |
-##
-##
-##    @calculator
-##    Scenario Outline: Local Subtract
-##        Given a calculator service with <players> players
-##        And a new Shamir protocol suite
-##        And player 0 secret shares <a>
-##        When player <player> subtracts <b> from the share in-place
-##        And the players reveal the secret
-##        Then the result should match <result> to within 4 digits
-##
-##        Examples:
-##        | players | a       | b           | player | result        |
-##        | 3       | 5       | 1           | 1      | 4             |
-##        | 3       | 5       | 1.1         | 1      | 3.9           |
-##        | 3       | 5       | 1.5         | 1      | 3.5           |
-##        | 3       | [5, 3]  | [1.1, 3.2]  | 1      | [3.9, -0.2]   |
-#
-#
-#
 
 
 
@@ -1142,24 +1105,6 @@ Feature: Shamir Protocol
 #        | 3       | -2                      | 0                       |
 #        | 3       | -2.1                    | 0                       |
 #        | 3       | [[0, 3.4],[-1234,1234]] | [[0,3.4],[0,1234]]      |
-#
-#
-#    @calculator
-#    Scenario Outline: Private Subtract
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players subtract the shares
-#        And the players reveal the secret
-#        Then the result should match <result> to within 4 digits
-#
-#        Examples:
-#        | players | a       | b           | result        |
-#        | 3       | 5       | 1           | 4             |
-#        | 3       | 5       | 1.1         | 3.9           |
-#        | 3       | 5       | 1.5         | 3.5           |
-#        | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
 #
 #
 #    @calculator

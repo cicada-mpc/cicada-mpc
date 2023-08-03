@@ -1659,7 +1659,7 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             return self.field_subtract(encoding.encode(lhs, self.field), rhs)
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def sum(self, operand):

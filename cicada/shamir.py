@@ -271,6 +271,49 @@ class ShamirBasicProtocolSuite(object):
         return self._field
 
 
+    def field_subtract(self, lhs, rhs):
+        """Privacy-preserving subtraction of elements in the field.
+
+        Two cases are currently supported - either `lhs` and `rhs` are secret shares,
+        or `lhs` is a public value and `rhs` is a secret share.  In the latter case, *all*
+        players *must* supply the same value for `lhs`.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`or :class:`numpy.ndarray`, required
+            Shared value.
+        rhs: :class:`ShamirArrayShare`, required
+            Shared value to be subtracted.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The difference `lhs` - `rhs`.
+        """
+        # Private-private subtraction.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
+            return ShamirArrayShare(self.field.subtract(lhs.storage, rhs.storage))
+
+        # Public-private subtraction.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
+            if self.communicator.rank == 0:
+                return ShamirArrayShare(self.field.subtract(lhs, rhs.storage))
+            return ShamirArrayShare(self.field.negative(rhs.storage))
+
+        # Private-public subtraction.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
+            if self.communicator.rank == 0:
+                return ShamirArrayShare(self.field.subtract(lhs.storage, rhs))
+            return ShamirArrayShare(lhs.storage)
+
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
     @property
     def indices(self):
         """Return the :math:`x`-values used by this protocol to reveal secrets.
@@ -533,29 +576,45 @@ class ShamirBasicProtocolSuite(object):
         return ShamirArrayShare(share)
 
 
-#    def subtract(self, lhs, rhs):
-#        """Subtract a secret shared value from a secret shared value.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Shared value.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Shared value to be subtracted.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The difference `lhs` - `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return ShamirArrayShare(self._encoder.subtract(lhs.storage, rhs.storage))
-#
+    def subtract(self, lhs, rhs, *, encoding=None):
+        """Return the elementwise difference of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        encoding = self._require_encoding(encoding)
+
+        # Private-private subtraction.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
+            return self.field_subtract(lhs, rhs)
+
+        # Private-public subtraction.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
+            return self.field_subtract(lhs, encoding.encode(rhs, self.field))
+
+        # Public-private subtraction.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
+            return self.field_subtract(encoding.encode(lhs, self.field), rhs)
+
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
 #    def sum(self, operand):
 #        """Return the sum of a secret shared array's elements.
 #
