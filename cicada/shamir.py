@@ -168,33 +168,45 @@ class ShamirBasicProtocolSuite(object):
         return encoding
 
 
-#    def add(self, lhs, rhs):
-#        """Return the elementwise sum of two secret shared arrays.
-#
-#        The result is the secret shared elementwise sum of the operands.  If
-#        revealed, the result will need to be decoded to obtain the actual sum.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared value to be added.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Secret shared value to be added.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            Secret-shared sum of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return ShamirArrayShare(self._encoder.add(lhs.storage, rhs.storage))
-#
-#
+    def add(self, lhs, rhs, *, encoding=None):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        encoding = self._require_encoding(encoding)
+
+        # Private-private addition.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
+            return self.field_add(lhs, rhs)
+
+        # Private-public addition.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
+            return self.field_add(lhs, encoding.encode(rhs, self.field))
+
+        # Public-private addition.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
+            return self.field_add(encoding.encode(lhs, self.field), rhs)
+
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
 #    def bit_compose(self, operand):
 #        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
 #
@@ -241,6 +253,49 @@ class ShamirBasicProtocolSuite(object):
     @property
     def field(self):
         return self._field
+
+
+    def field_add(self, lhs, rhs):
+        """Privacy-preserving addition of elements in the field.
+
+        Two cases are currently supported - either `lhs` and `rhs` are secret shares,
+        or `lhs` is a public value and `rhs` is a secret share.  In the latter case, *all*
+        players *must* supply the same value for `lhs`.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`or :class:`numpy.ndarray`, required
+            Shared value.
+        rhs: :class:`ShamirArrayShare`, required
+            Shared value to be subtracted.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The difference `lhs` - `rhs`.
+        """
+        # Private-private addition.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
+            return ShamirArrayShare(self.field.add(lhs.storage, rhs.storage))
+
+        # Public-private addition.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
+            if self.communicator.rank == 0:
+                return ShamirArrayShare(self.field.add(lhs, rhs.storage))
+            return ShamirArrayShare(rhs.storage)
+
+        # Private-public addition.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
+            if self.communicator.rank == 0:
+                return ShamirArrayShare(self.field.add(lhs.storage, rhs))
+            return ShamirArrayShare(lhs.storage)
+
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def field_subtract(self, lhs, rhs):
