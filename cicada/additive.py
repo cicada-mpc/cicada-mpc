@@ -870,7 +870,7 @@ class AdditiveProtocolSuite(object):
             The secret elementwise logical NOT of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
-        return self.field_subtract(lhs=self.field.ones(operand.storage.shape), rhs=operand)
+        return self.field_subtract(self.field.ones_like(operand.storage), operand)
 
 
     def logical_or(self, lhs, rhs):
@@ -1661,7 +1661,7 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             return self.field_subtract(encoding.encode(lhs, self.field), rhs)
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def sum(self, operand):
