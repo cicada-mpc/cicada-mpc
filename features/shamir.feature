@@ -425,26 +425,26 @@ Feature: Shamir Protocol
 #        | 3       | 5          | -2.5    | -12.5         |
 #        | 3       | -5         | -2.5    | 12.5          |
 #        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
-#
-#
-#    @calculator
-#    Scenario Outline: Negative
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player <player> secret shares <value>
-#        When the players compute the negative
-#        And the players reveal the secret
-#        Then the results should match <result> to within 4 digits
-#
-#        @wip
-#        Examples:
-#        | players | player | value         | result      |
-#        | 3       | 0      | 1             | -1          |
-#        | 3       | 1      | 2.56          | -2.56       |
-#        | 3       | 2      | -3.5          | 3.5         |
-#        | 3       | 2      | [2.3, 7.9]    | [-2.3, -7.9]|
-#
-#
+
+
+    @calculator
+    Scenario Outline: Negative
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player <player> secret shares <value>
+        When the players compute the negative
+        And the players reveal the secret
+        Then the results should match <result> to within 4 digits
+
+        @wip
+        Examples:
+        | players | player | value         | result      |
+        | 3       | 0      | 1             | -1          |
+        | 3       | 1      | 2.56          | -2.56       |
+        | 3       | 2      | -3.5          | 3.5         |
+        | 3       | 2      | [2.3, 7.9]    | [-2.3, -7.9]|
+
+
 #    @calculator
 #    Scenario Outline: Power
 #        Given a calculator service with <players> players
