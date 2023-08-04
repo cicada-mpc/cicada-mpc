@@ -1314,30 +1314,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def multiply(self, lhs, rhs):
-#        """Return the elementwise product of two secret shared arrays.
-#
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared array.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Secret shared array.
-#
-#        Returns
-#        -------
-#        result: :class:`ShamirArrayShare`
-#            Secret-shared elementwise product of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        result = self.untruncated_multiply(lhs, rhs)
-#        result = self.truncate(result)
-#        return result
-#
-#
 #    def private_public_power(self, lhs, rhspub):
 #        """Raise the array contained in lhs to the power rshpub on an elementwise basis
 #
@@ -1658,47 +1634,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 
 
 
-#    def untruncated_multiply(self, lhs, rhs):
-#        """Element-wise multiplication of two shared arrays.
-#
-#        The operands are assumed to be vectors or matrices and their product is
-#        computed on an elementwise basis. Multiplication with shared secrets and
-#        public scalars is implemented in the encoder.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            secret value to be multiplied.
-#        rhs: :class:`ShamirArrayShare`, required
-#            secret value to be multiplied.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The secret elementwise product of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#
-#        world_size = self.communicator.world_size
-#        count = ceil((world_size - 1) / 2)
-#        x = lhs.storage
-#        y = rhs.storage
-#        xy=numpy.array((x*y)%self.field.order, dtype=self.field.dtype)
-#        lc = self._lagrange_coef()
-#        dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.field.dtype) 
-#        for i, src in enumerate(self.communicator.ranks):
-#            dubdeg[i]=self._share(src=src, secret=xy, shape=xy.shape).storage #transpose
-#        sharray = numpy.zeros(lhs.storage.shape, dtype=self.field.dtype)
-#        for i in range(len(self.communicator.ranks)):
-#            sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self.field.order, dtype=self.field.dtype)
-#        return ShamirArrayShare(sharray)
-#
-#
 #    def untruncated_divide(self, lhs, rhs, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
 #        """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
 #        close to or bigger than 2^precision
