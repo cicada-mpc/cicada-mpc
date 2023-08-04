@@ -657,37 +657,39 @@ class ActiveProtocolSuite(object):
 #        """
 #        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 #        return ActiveArrayShare((self.aprotocol.logical_or(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.logical_or(lhs.shamir_subshare, rhs.shamir_subshare)))
-#
-#
-#    def logical_xor(self, lhs, rhs):
-#        """Return an elementwise logical exclusive OR of two secret shared arrays.
-#
-#        The operands *must* contain the *field* values `0` or `1`.  The result
-#        will be the secret shared elementwise logical XOR of `lhs` and `rhs`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared array to be exclusive OR'd.
-#        rhs: :class:`ActiveArrayShare`, required
-#            Secret shared array to be exclusive OR'd.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            The secret elementwise logical exclusive OR of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return ActiveArrayShare((self.aprotocol.logical_xor(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.logical_xor(lhs.shamir_subshare, rhs.shamir_subshare)))
-#
-#
+
+
+    def logical_xor(self, lhs, rhs):
+        """Return an elementwise logical exclusive OR of two secret shared arrays.
+
+        The operands *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical XOR of `lhs` and `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared array to be exclusive OR'd.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared array to be exclusive OR'd.
+
+        Returns
+        -------
+        value: :class:`ActiveArrayShare`
+            The secret elementwise logical exclusive OR of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ActiveArrayShare((
+            self.aprotocol.logical_xor(lhs.additive_subshare, rhs.additive_subshare),
+            self.sprotocol.logical_xor(lhs.shamir_subshare, rhs.shamir_subshare)))
+
+
 #    def max(self, lhs, rhs):
 #        """Return the elementwise maximum of two secret shared arrays.
 #
