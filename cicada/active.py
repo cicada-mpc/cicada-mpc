@@ -602,34 +602,35 @@ class ActiveProtocolSuite(object):
             self.sprotocol.logical_and(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
-#    def logical_not(self, operand):
-#        """Return an elementwise logical NOT of two secret shared array.
-#
-#        The operand *must* contain the *field* values `0` or `1`.  The result
-#        will be the secret shared elementwise logical negation of `operand`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Secret shared array to be negated.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            The secret elementwise logical NOT of `operand`.
-#        """
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        return ActiveArrayShare((self.aprotocol.logical_not(operand.additive_subshare), self.sprotocol.logical_not(operand.shamir_subshare)))
-#
-#
+    def logical_not(self, operand):
+        """Return an elementwise logical NOT of two secret shared array.
+
+        The operand *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical negation of `operand`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Secret shared array to be negated.
+
+        Returns
+        -------
+        value: :class:`ActiveArrayShare`
+            The secret elementwise logical NOT of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((
+            self.aprotocol.logical_not(operand.additive_subshare),
+            self.sprotocol.logical_not(operand.shamir_subshare)))
+
+
 #    def logical_or(self, lhs, rhs):
 #        """Return an elementwise logical OR of two secret shared arrays.
 #
