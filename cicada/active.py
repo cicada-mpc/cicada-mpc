@@ -1332,37 +1332,39 @@ class ActiveProtocolSuite(object):
         return consistency
 
 
-#    def zigmoid(self, operand):
-#        r"""Compute the elementwise zigmoid function of a secret value.
-#
-#        Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much
-#        more efficient to compute in an MPC context:
-#
-#        .. math::
-#
-#            zigmoid(x) = \left\{
-#            \begin{array}\\
-#                0 & if\ x<-0.5 \\
-#                x+0.5 & if\ -0.5\leq x \leq 0.5 \\
-#                1 & if x>0.5
-#            \end{array}
-#            \right.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Secret shared value to which the zigmoid function should be applied.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            Secret-shared elementwise zigmoid of `operand`.
-#        """
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        return ActiveArrayShare((self.aprotocol.zigmoid(operand.additive_subshare), self.sprotocol.zigmoid(operand.shamir_subshare)))
+    def zigmoid(self, operand, *, encoding=None):
+        r"""Compute the elementwise zigmoid function of a secret value.
+
+        Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much
+        more efficient to compute in an MPC context:
+
+        .. math::
+
+            zigmoid(x) = \left\{
+            \begin{array}\\
+                0 & if\ x<-0.5 \\
+                x+0.5 & if\ -0.5\leq x \leq 0.5 \\
+                1 & if x>0.5
+            \end{array}
+            \right.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Secret shared value to which the zigmoid function should be applied.
+
+        Returns
+        -------
+        value: :class:`ActiveArrayShare`
+            Secret-shared elementwise zigmoid of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((
+            self.aprotocol.zigmoid(operand.additive_subshare, encoding=encoding),
+            self.sprotocol.zigmoid(operand.shamir_subshare, encoding=encoding)))
+
