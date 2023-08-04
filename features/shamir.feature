@@ -153,28 +153,28 @@ Feature: Shamir Protocol
         | 3       | -212345678 | -351234589 | -563580267   |
 
 
-#    @calculator
-#    Scenario Outline: Field Power
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        And public value <b>
-#        When the players raise the share to the public power in the field
-#        And the players reveal the field values
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a    | b        | result   |
-#        | 3       | 0    | 2**64-60 | 0        |
-#        | 3       | 1    | 2**64-60 | 1        |
-#        | 3       | 2    | 2**64-60 | 1        |
-#        | 3       | -1   | 2**64-60 | 1        |
-#        | 3       | -2   | 2**64-60 | 1        |
-#        | 3       | -1   | 2**64-60 | 1        |
-#
-#        Examples:
-#        | players | a                      | b        | result      |
-#        | 3       | [-1, 2, 3.75, -2.0625] | 2**64-60 | [1,1,1,1]   |
+    @calculator
+    Scenario Outline: Field Power
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        And public value <b>
+        When the players raise the share to the public power in the field
+        And the players reveal the field values
+        Then the result should match <result>
+
+        Examples:
+        | players | a    | b        | result   |
+        | 3       | 0    | 2**64-60 | 0        |
+        | 3       | 1    | 2**64-60 | 1        |
+        | 3       | 2    | 2**64-60 | 1        |
+        | 3       | -1   | 2**64-60 | 1        |
+        | 3       | -2   | 2**64-60 | 1        |
+        | 3       | -1   | 2**64-60 | 1        |
+
+        Examples:
+        | players | a                      | b        | result      |
+        | 3       | [-1, 2, 3.75, -2.0625] | 2**64-60 | [1,1,1,1]   |
 
 
     @calculator

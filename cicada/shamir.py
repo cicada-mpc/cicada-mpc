@@ -850,14 +850,14 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared vector.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared vector.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        result: :class:`ShamirArrayShare`
             Secret-shared dot product of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -916,7 +916,49 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def floor(self, operand):
+    def field_power(self, lhs, rhs):
+        """Raise the private array `lhs` to the public power `rhs` on an elementwise basis
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Shared secret to which floor should be applied.
+        rhs: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
+
+        Returns
+        -------
+        array: :class:`ShamirArrayShare`
+            Share of the array elements from lhs all raised to the power rhs.
+        """
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
+            pass
+
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
+            if isinstance(rhs, int):
+                rhs = self.field.full_like(lhs.storage, rhs)
+
+            ans = []
+            for lhse, rhse in numpy.nditer([lhs.storage, rhs], flags=(["refs_ok"])):
+                rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
+                tmp = ShamirArrayShare(lhse)
+                it_ans = self.share(src = 0, secret=self.field.full_like(lhse, 1), shape=lhse.shape, encoding=Identity())
+                limit = len(rhsbits)-1
+                for i, bit in enumerate(rhsbits):
+                    if bit:
+                        it_ans = self.field_multiply(it_ans, tmp)
+                    if i < limit:
+                        tmp = self.field_multiply(tmp,tmp)
+                ans.append(it_ans)
+            return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
+#    def floor(self, operand, *, encoding=None):
 #        """Remove the `bits` least significant bits from each element in a secret shared array 
 #            then shift back left so that only the original integer part of 'operand' remains.
 #
@@ -931,23 +973,24 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #        array: :class:`ShamirArrayShare`
 #            Share of the shared integer part of operand.
 #        """
-#        if not isinstance(operand, ShamirArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        one = self._share(src=0, secret=numpy.full(operand.storage.shape, 2**self._encoder.precision, dtype=self.field.dtype), shape=operand.storage.shape)
-#        shift_op = numpy.full(operand.storage.shape, 2**self._encoder.precision, dtype=self.field.dtype)
-#        pl2 = numpy.full(operand.storage.shape, self.field.order-1, dtype=self.field.dtype)
+#        self._assert_unary_compatible(operand, "operand")
+#        encoding = self._require_encoding(encoding)
+#
+#        one = self.share(src=0, secret=self.field.full_like(operand.storage, 2**encoding.precision), shape=operand.storage.shape, encoding=Identity())
+#        shift_op = self.field.full_like(operand.storage, 2**encoding.precision)
+#        pl2 = self.field.full_like(operand.storage, self.field.order-1)
 #
 #        abs_op = self.absolute(operand)
-#        frac_bits = self._encoder.precision
+#        frac_bits = encoding.precision
 #        field_bits = self.field.fieldbits
-#        lsbs = self.bit_decompose(abs_op, self._encoder.precision)
+#        lsbs = self.bit_decompose(abs_op, bits=encoding.precision)
 #        lsbs_composed = self.bit_compose(lsbs)
-#        lsbs_inv = self.additive_inverse(lsbs_composed)
-#        two_lsbs = ShamirArrayShare(self._encoder.untruncated_multiply(lsbs_composed.storage, numpy.full(lsbs_composed.storage.shape, 2, dtype=self.field.dtype)))
-#        ltz = self.less_than_zero(operand)  
-#        ones2sub = ShamirArrayShare(self._encoder.untruncated_multiply(self.private_public_power_field(lsbs_composed, pl2).storage, shift_op))
-#        sel_2_lsbs = self.untruncated_multiply(self.subtract(two_lsbs, ones2sub), ltz) 
-#        return self.add(self.add(sel_2_lsbs, lsbs_inv), operand) 
+#        lsbs_inv = self.negative(lsbs_composed)
+#        two_lsbs = ShamirArrayShare(self.field.multiply(lsbs_composed.storage, self.field.full_like(lsbs_composed.storage, 2)))
+#        ltz = self.less_zero(operand)
+#        ones2sub = ShamirArrayShare(self.field.multiply(self.field_power(lsbs_composed, pl2).storage, shift_op))
+#        sel_2_lsbs = self.field_multiply(self.field_subtract(two_lsbs, ones2sub), ltz)
+#        return self.field_add(self.field_add(sel_2_lsbs, lsbs_inv), operand)
 
 
     def less(self, lhs, rhs):

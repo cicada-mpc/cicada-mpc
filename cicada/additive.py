@@ -610,6 +610,9 @@ class AdditiveProtocolSuite(object):
         array: :class:`AdditiveArrayShare`
             Share of the array elements from lhs all raised to the power rhs.
         """
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            pass
+
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
                 rhs = self.field.full_like(lhs.storage, rhs)
@@ -627,6 +630,9 @@ class AdditiveProtocolSuite(object):
                         tmp = self.field_multiply(tmp,tmp)
                 ans.append(it_ans)
             return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            pass
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
