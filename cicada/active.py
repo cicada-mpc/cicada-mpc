@@ -575,22 +575,23 @@ class ActiveProtocolSuite(object):
         return ActiveArrayShare((uniadd, unisham))
 
 
-#    def floor(self, operand):
-#        """Return the largest integer less-than-or-equal-to `operand`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Shared secret to which floor should be applied.
-#
-#        Returns
-#        -------
-#        array: :class:`ActiveArrayShare`
-#            Share of the floor value.
-#        """
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        return ActiveArrayShare((self.aprotocol.floor(operand.additive_subshare), self.sprotocol.floor(operand.shamir_subshare)))
+    def floor(self, operand, *, encoding=None):
+        """Return the largest integer less-than-or-equal-to `operand`.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Shared secret to which floor should be applied.
+
+        Returns
+        -------
+        array: :class:`ActiveArrayShare`
+            Share of the floor value.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((
+            self.aprotocol.floor(operand.additive_subshare, encoding=encoding),
+            self.sprotocol.floor(operand.shamir_subshare, encoding=encoding)))
 
 
     def less(self, lhs, rhs):
@@ -972,44 +973,44 @@ class ActiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
-#        """Return a vector of randomly generated bits.
-#
-#        This method is secure against non-colluding semi-honest adversaries.  A
-#        subset of players (by default: all) generate and secret share vectors
-#        of pseudo-random bits which are then xored together elementwise.
-#        Communication and computation costs increase with the number of bits
-#        and the number of players, while security increases with the number of
-#        players.
-#
-#        Parameters
-#        ----------
-#        bits: :class:`int`, required
-#            Number of bits to generate.
-#        src: sequence of :class:`int`, optional
-#            Players that will contribute to random bit generation.  By default,
-#            all players contribute.
-#        generator: :class:`numpy.random.Generator`, optional
-#            A psuedorandom number generator for sampling.  By default,
-#            `numpy.random.default_rng()` will be used.
-#
-#        Returns
-#        -------
-#        bits: :class:`ActiveArrayShare`
-#            A share of the randomly-generated bits that make-up the secret.
-#        secret: :class:`ActiveArrayShare`
-#            A share of the value defined by `bits` (in big-endian order).
-#        """
-#        bs_add, ss_add = self.aprotocol.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=shape)
-#        shamadd = []
-#        for i in self.communicator.ranks:
-#            shamadd.append(self.sprotocol._share(src=i, secret=ss_add.storage, shape=ss_add.storage.shape))
-#        ss_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
-#        shamadd = []
-#        for i in self.communicator.ranks:
-#            shamadd.append(self.sprotocol._share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape))
-#        bs_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
-#        return (ActiveArrayShare((bs_add, bs_sham)), ActiveArrayShare((ss_add, ss_sham)))
+    def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
+        """Return a vector of randomly generated bits.
+
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random bits which are then xored together elementwise.
+        Communication and computation costs increase with the number of bits
+        and the number of players, while security increases with the number of
+        players.
+
+        Parameters
+        ----------
+        bits: :class:`int`, required
+            Number of bits to generate.
+        src: sequence of :class:`int`, optional
+            Players that will contribute to random bit generation.  By default,
+            all players contribute.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        bits: :class:`ActiveArrayShare`
+            A share of the randomly-generated bits that make-up the secret.
+        secret: :class:`ActiveArrayShare`
+            A share of the value defined by `bits` (in big-endian order).
+        """
+        bs_add, ss_add = self.aprotocol.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=shape)
+        shamadd = []
+        for i in self.communicator.ranks:
+            shamadd.append(self.sprotocol.share(src=i, secret=ss_add.storage, shape=ss_add.storage.shape, encoding=Identity()))
+        ss_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
+        shamadd = []
+        for i in self.communicator.ranks:
+            shamadd.append(self.sprotocol.share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape, encoding=Identity()))
+        bs_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
+        return (ActiveArrayShare((bs_add, bs_sham)), ActiveArrayShare((ss_add, ss_sham)))
 
 
     def relu(self, operand):

@@ -226,22 +226,22 @@ Feature: Active Protocol
         | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
 
 
-#    @calculator
-#    Scenario Outline: Floor
-#        Given a calculator service with <players> players
-#        And a new Active protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the floor of the share
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a            | result       |
-#        | 3       | 1            | 1            |
-#        | 3       | 1.1          | 1            |
-#        | 3       | -2           | -2           |
-#        | 3       | -2.1         | -3           |
-#        | 3       | [1.2, -3.4]  | [1, -4]      |
+    @calculator
+    Scenario Outline: Floor
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        When the players compute the floor of the share
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a            | result       |
+        | 3       | 1            | 1            |
+        | 3       | 1.1          | 1            |
+        | 3       | -2           | -2           |
+        | 3       | -2.1         | -3           |
+        | 3       | [1.2, -3.4]  | [1, -4]      |
 
 
     @calculator
@@ -500,27 +500,27 @@ Feature: Active Protocol
         | 3       | [-1, 2, 3.75, -2.0625] | 3  | [-1, 8, 52.734375, -8.773681640625]   |
 
 
-#    @calculator
-#    Scenario Outline: Random Bitwise Secret
-#        Given a calculator service with <players> players
-#        And a new Active protocol suite
-#        When the players generate <bits> random bits
-#        And the players reveal the field values
-#        And the players swap
-#        And the players reveal the secret bits
-#        And the players swap
-#        Then the value of the bits in big-endian order should match the random value.
-#
-#        Examples:
-#        | players | bits  |
-#        | 3       | 1     |
-#        | 3       | 2     |
-#        | 3       | 4     |
-#        | 3       | 8     |
-#        | 4       | 1     |
-#        | 4       | 2     |
-#        | 4       | 4     |
-#        | 4       | 8     |
+    @calculator
+    Scenario Outline: Random Bitwise Secret
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        When the players generate <bits> random bits
+        And the players reveal the field values
+        And the players swap
+        And the players reveal the secret bits
+        And the players swap
+        Then the value of the bits in big-endian order should match the random value.
+
+        Examples:
+        | players | bits  |
+        | 3       | 1     |
+        | 3       | 2     |
+        | 3       | 4     |
+        | 3       | 8     |
+        | 4       | 1     |
+        | 4       | 2     |
+        | 4       | 4     |
+        | 4       | 8     |
 
 
     @calculator
