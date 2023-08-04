@@ -349,46 +349,46 @@ Feature: Shamir Protocol
         | 3       | 1 | 1 | 1      |
 
 
-#    @calculator
-#    Scenario Outline: Maximum
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players compute the maximum of the shares
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a              | b                | result           |
-#        | 3       | 2              | 3.5              | 3.5              |
-#        | 3       | 3.5            | 2                | 3.5              |
-#        | 3       | -3             | 2                | 2                |
-#        | 3       | 2              | -3               | 2                |
-#        | 3       | -4             | -3               | -3               |
-#        | 3       | [2, 3, -2, -1] | [3.5, 1, 1, -4]  | [3.5, 3, 1, -1]  |
-#
-#
-#    @calculator
-#    Scenario Outline: Minimum
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players compute the minimum of the shares
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a              | b                  | result           |
-#        | 3       | 2              | 3.5                | 2                |
-#        | 3       | 3.5            | 2                  | 2                |
-#        | 3       | -3             | 2                  | -3               |
-#        | 3       | 2              | -3                 | -3               |
-#        | 3       | -4             | -3                 | -4               |
-#        | 3       | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | [2, 1, -2, -4]   |
-#
-#
+    @calculator
+    Scenario Outline: Maximum
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players compute the maximum of the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a              | b                | result           |
+        | 3       | 2              | 3.5              | 3.5              |
+        | 3       | 3.5            | 2                | 3.5              |
+        | 3       | -3             | 2                | 2                |
+        | 3       | 2              | -3               | 2                |
+        | 3       | -4             | -3               | -3               |
+        | 3       | [2, 3, -2, -1] | [3.5, 1, 1, -4]  | [3.5, 3, 1, -1]  |
+
+
+    @calculator
+    Scenario Outline: Minimum
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players compute the minimum of the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a              | b                  | result           |
+        | 3       | 2              | 3.5                | 2                |
+        | 3       | 3.5            | 2                  | 2                |
+        | 3       | -3             | 2                  | -3               |
+        | 3       | 2              | -3                 | -3               |
+        | 3       | -4             | -3                 | -4               |
+        | 3       | [2, 3, -2, -1] | [3.5, 1, -2, -4]   | [2, 1, -2, -4]   |
+
+
 #    @calculator
 #    Scenario Outline: Multiplicative Inverse
 #        Given a calculator service with <players> players

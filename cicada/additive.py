@@ -1044,7 +1044,6 @@ class AdditiveProtocolSuite(object):
         min_share = self.field_subtract(self.field_add(lhs, rhs), abs_diff)
         shift_right = self.field.full_like(lhs.storage, pow(2, self.field.order-2, self.field.order))
         min_share = self.field_multiply(min_share, shift_right)
-
         return min_share
 
 
