@@ -513,34 +513,36 @@ class ActiveProtocolSuite(object):
 #        return ActiveArrayShare((self.aprotocol.floor(operand.additive_subshare), self.sprotocol.floor(operand.shamir_subshare)))
 
 
-#    def less(self, lhs, rhs):
-#        """Return an elementwise less-than comparison between secret shared arrays.
-#
-#        The result is the secret shared elementwise comparison `lhs` < `rhs`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared value to be compared.
-#        rhs: :class:`ActiveArrayShare`, required
-#            Secret shared value to be compared.
-#
-#        Returns
-#        -------
-#        result: :class:`ActiveArrayShare`
-#            Secret-shared result of computing `lhs` < `rhs` elementwise.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return ActiveArrayShare((self.aprotocol.less(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.less(lhs.shamir_subshare, rhs.shamir_subshare)))
-#
-#
+    def less(self, lhs, rhs):
+        """Return an elementwise less-than comparison between secret shared arrays.
+
+        The result is the secret shared elementwise comparison `lhs` < `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared value to be compared.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`ActiveArrayShare`
+            Secret-shared result of computing `lhs` < `rhs` elementwise.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ActiveArrayShare((
+            self.aprotocol.less(lhs.additive_subshare, rhs.additive_subshare),
+            self.sprotocol.less(lhs.shamir_subshare, rhs.shamir_subshare)))
+
+
 #    def less_than_zero(self, operand):
 #        """Return an elementwise less-than comparison between operand elements and zero.
 #
