@@ -540,6 +540,41 @@ class ActiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
+    def field_uniform(self, *, shape=None, generator=None):
+        """Return a ActiveSharedArray with the specified shape and filled with random field elements
+
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random field elements which are then added together
+        elementwise.  Computation costs increase with the number of elements to
+        generate and the number of players, while security increases with the
+        number of players.
+
+        Parameters
+        ----------
+        shape: :class:`tuple`, optional
+            Shape of the array to populate. By default, 
+            a shapeless array of one random element will be generated.
+        src: sequence of :class:`int`, optional
+            Players that will contribute to random array generation.  By default,
+            all players contribute.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        secret: :class:`ActiveArrayShare`
+            A share of the random generated value.
+        """
+        uniadd = self.aprotocol.field_uniform(shape=shape, generator=generator)
+        shamadd = []
+        for i in self.communicator.ranks:
+            shamadd.append(self.sprotocol.share(src=i, secret=uniadd.storage, shape=uniadd.storage.shape, encoding=Identity()))
+        unisham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
+        return ActiveArrayShare((uniadd, unisham))
+
+
 #    def floor(self, operand):
 #        """Return the largest integer less-than-or-equal-to `operand`.
 #
@@ -1263,40 +1298,6 @@ class ActiveProtocolSuite(object):
 #        return ActiveArrayShare((self.aprotocol.truncate(operand.additive_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.additive_subshare, rem_mask=rshare.additive_subshare), self.sprotocol.truncate(operand.shamir_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.shamir_subshare, rem_mask=rshare.shamir_subshare)))
 #
 #
-#
-#    def uniform(self, *, shape=None, generator=None):
-#        """Return a ActiveSharedArray with the specified shape and filled with random field elements
-#
-#        This method is secure against non-colluding semi-honest adversaries.  A
-#        subset of players (by default: all) generate and secret share vectors
-#        of pseudo-random field elements which are then added together
-#        elementwise.  Computation costs increase with the number of elements to
-#        generate and the number of players, while security increases with the
-#        number of players.
-#
-#        Parameters
-#        ----------
-#        shape: :class:`tuple`, optional
-#            Shape of the array to populate. By default, 
-#            a shapeless array of one random element will be generated.
-#        src: sequence of :class:`int`, optional
-#            Players that will contribute to random array generation.  By default,
-#            all players contribute.
-#        generator: :class:`numpy.random.Generator`, optional
-#            A psuedorandom number generator for sampling.  By default,
-#            `numpy.random.default_rng()` will be used.
-#
-#        Returns
-#        -------
-#        secret: :class:`ActiveArrayShare`
-#            A share of the random generated value.
-#        """
-#        uniadd = self.aprotocol.uniform(shape=shape, generator=generator)
-#        shamadd = []
-#        for i in self.communicator.ranks:
-#            shamadd.append(self.sprotocol._share(src=i, secret=uniadd.storage, shape=uniadd.storage.shape))
-#        unisham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
-#        return ActiveArrayShare((uniadd, unisham))
 #
 #    def untruncated_divide(self, lhs, rhs):
 #        """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
