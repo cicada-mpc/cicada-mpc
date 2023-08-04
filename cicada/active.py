@@ -899,29 +899,30 @@ class ActiveProtocolSuite(object):
 #            shamadd.append(self.sprotocol._share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape))
 #        bs_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
 #        return (ActiveArrayShare((bs_add, bs_sham)), ActiveArrayShare((ss_add, ss_sham)))
-#
-#
-#    def relu(self, operand):
-#        """Return the elementwise ReLU of a secret shared array.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Secret shared value to which the ReLU function should be applied.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            Secret-shared elementwise ReLU of `operand`.
-#        """
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        return ActiveArrayShare((self.aprotocol.relu(operand.additive_subshare), self.sprotocol.relu(operand.shamir_subshare)))
+
+
+    def relu(self, operand):
+        """Return the elementwise ReLU of a secret shared array.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Secret shared value to which the ReLU function should be applied.
+
+        Returns
+        -------
+        value: :class:`ActiveArrayShare`
+            Secret-shared elementwise ReLU of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((
+            self.aprotocol.relu(operand.additive_subshare),
+            self.sprotocol.relu(operand.shamir_subshare)))
 
 
     def reshare(self, operand):
