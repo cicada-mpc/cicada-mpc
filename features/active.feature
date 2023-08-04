@@ -603,23 +603,23 @@ Feature: Active Protocol
         | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
 
 
-#    @calculator
-#    Scenario Outline: Sum
-#        Given a calculator service with <players> players
-#        And a new Active protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the sum of the share
-#        And the players reveal the secret
-#        Then the result should match <result> to within 4 digits
-#
-#        Examples:
-#        | players | a             | result |
-#        | 3       | 1             | 1      |
-#        | 3       | 1.1           | 1.1    |
-#        | 3       | [1.2, -3.4]   | -2.2   |
-#        | 3       | [1, 2, 3, 4]  | 10     |
-#
-#
+    @calculator
+    Scenario Outline: Sum
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        When the players compute the sum of the share
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a             | result |
+        | 3       | 1             | 1      |
+        | 3       | 1.1           | 1.1    |
+        | 3       | [1.2, -3.4]   | -2.2   |
+        | 3       | [1, 2, 3, 4]  | 10     |
+
+
 #    @calculator
 #    Scenario Outline: Uniform
 #        Given a calculator service with <players> players
