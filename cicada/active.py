@@ -393,6 +393,11 @@ class ActiveProtocolSuite(object):
 #        return ActiveArrayShare((self.aprotocol.equal(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.equal(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
+    @property
+    def field(self):
+        return self._field
+
+
     def field_add(self, lhs, rhs):
         """Return the elementwise sum of two secret shared arrays.
 
@@ -418,22 +423,65 @@ class ActiveProtocolSuite(object):
         # Private-private addition.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.add(lhs.additive_subshare, rhs.additive_subshare),
-                self.sprotocol.add(lhs.shamir_subshare, rhs.shamir_subshare)))
+                self.aprotocol.field_add(lhs.additive_subshare, rhs.additive_subshare),
+                self.sprotocol.field_add(lhs.shamir_subshare, rhs.shamir_subshare)))
 
         # Private-public addition.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
             return ActiveArrayShare((
-                self.aprotocol.add(lhs.additive_subshare, rhs),
-                self.sprotocol.add(lhs.shamir_subshare, rhs)))
+                self.aprotocol.field_add(lhs.additive_subshare, rhs),
+                self.sprotocol.field_add(lhs.shamir_subshare, rhs)))
 
         # Public-private addition.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.add(lhs, rhs.additive_subshare),
-                self.sprotocol.add(lhs, rhs.shamir_subshare)))
+                self.aprotocol.field_add(lhs, rhs.additive_subshare),
+                self.sprotocol.field_add(lhs, rhs.shamir_subshare)))
 
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
+    def field_subtract(self, lhs, rhs):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`ActiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        # Private-private subtraction.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
+            return ActiveArrayShare((
+                self.aprotocol.field_subtract(lhs.additive_subshare, rhs.additive_subshare),
+                self.sprotocol.field_subtract(lhs.shamir_subshare, rhs.shamir_subshare)))
+
+        # Private-public subtraction.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            return ActiveArrayShare((
+                self.aprotocol.field_subtract(lhs.additive_subshare, rhs),
+                self.sprotocol.field_subtract(lhs.shamir_subshare, rhs)))
+
+        # Public-private subtraction.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
+            return ActiveArrayShare((
+                self.aprotocol.field_subtract(lhs, rhs.additive_subshare),
+                self.sprotocol.field_subtract(lhs, rhs.shamir_subshare)))
+
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
 #    def floor(self, operand):
@@ -452,11 +500,6 @@ class ActiveProtocolSuite(object):
 #        if not isinstance(operand, ActiveArrayShare):
 #            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 #        return ActiveArrayShare((self.aprotocol.floor(operand.additive_subshare), self.sprotocol.floor(operand.shamir_subshare)))
-
-
-    @property
-    def field(self):
-        return self._field
 
 
 #    def less(self, lhs, rhs):
@@ -1040,30 +1083,45 @@ class ActiveProtocolSuite(object):
             self.sprotocol.share(src=src, secret=secret, shape=shape, encoding=encoding)))
 
 
-#    def subtract(self, lhs, rhs):
-#        """Subtract a secret shared value from a secret shared value.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Shared value.
-#        rhs: :class:`ActiveArrayShare`, required
-#            Shared value to be subtracted.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            The difference `lhs` - `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return ActiveArrayShare((self.aprotocol.subtract(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.subtract(lhs.shamir_subshare, rhs.shamir_subshare)))
-#
-#
+    def subtract(self, lhs, rhs, *, encoding=None):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        encoding = self._require_encoding(encoding)
+
+        # Private-private subtraction.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
+            return self.field_subtract(lhs, rhs)
+
+        # Private-public subtraction.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            return self.field_subtract(lhs, encoding.encode(rhs, self.field))
+
+        # Public-private subtraction.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
+            return self.field_subtract(encoding.encode(lhs, self.field), rhs)
+
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
 #    def sum(self, operand):
 #        """Return the sum of a secret shared array's elements.
 #
