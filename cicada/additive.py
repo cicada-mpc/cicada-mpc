@@ -1139,7 +1139,7 @@ class AdditiveProtocolSuite(object):
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
 
-    def _pade_approx(self, func, operand,*, encoding=None, center=0, degree=12, scale=3):
+    def pade_approx(self, func, operand,*, encoding=None, center=0, degree=12, scale=3):
         """Return the pade approximation of func evaluated at operand.
 
         This is a collective operation that *must* be called
@@ -1677,23 +1677,24 @@ class AdditiveProtocolSuite(object):
 
     def taylor_approx(self, func, operand,*, encoding=None, center=0, degree=7, scale=3):
 
-        """Return the evaluation of a public function evaluated at a shared secret, by taylor approximation
+        """Return the taylor approximation of func evaluated at operand.
 
-
-        Note
-        ----
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
 
         Parameters
         ----------
+        func: :class:`callable object`, required
+            The function to be approximated via the taylor method
+        center: :class:`float`, required
+            The value at which the approximation should be centered. The approximation gets worse the further from this point that the evaulation of the approximation actually occurs
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared array to be summed.
+            The secret share which represents the point at which the function func should be evaluated in a privacy preserving manner
 
         Returns
         -------
-        value: :class:`AdditiveArrayShare`
-            Secret-shared sum of `operand`'s elements.
+        result: :class:`AdditiveArrayShare`
+            Secret shared result of evaluating the taylor approximant of func(operand) with the given parameters
         """
         from scipy.interpolate import approximate_taylor_polynomial
 
