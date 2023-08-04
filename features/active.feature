@@ -1,22 +1,22 @@
 Feature: Active Protocol
 
-#    @calculator
-#    Scenario Outline: Absolute
-#        Given a calculator service with <players> players
-#        And a new Active protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the absolute value of the share
-#        And the players reveal the secret
-#        Then the result should match <result> to within 4 digits
-#
-#        Examples:
-#        | players | a     | result        |
-#        | 3       | 0     | 0             |
-#        | 3       | 0.5   | 0.5           |
-#        | 3       | 1     | 1             |
-#        | 3       | 37.3  | 37.3          |
-#        | 3       | -1    | 1             |
-#        | 3       | -37.3 | 37.3          |
+    @calculator
+    Scenario Outline: Absolute
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        When the players compute the absolute value of the share
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a     | result        |
+        | 3       | 0     | 0             |
+        | 3       | 0.5   | 0.5           |
+        | 3       | 1     | 1             |
+        | 3       | 37.3  | 37.3          |
+        | 3       | -1    | 1             |
+        | 3       | -37.3 | 37.3          |
 
 
     @calculator

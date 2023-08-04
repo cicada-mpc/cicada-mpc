@@ -180,26 +180,28 @@ class ActiveProtocolSuite(object):
         return encoding
 
 
-#    def absolute(self, operand):
-#        """Return the elementwise absolute value of a secret shared array.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Secret shared value to which the absolute value function should be applied.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            Secret-shared elementwise absolute value of `operand`.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#        return ActiveArrayShare((self.aprotocol.absolute(operand.additive_subshare), self.sprotocol.absolute(operand.shamir_subshare)))
+    def absolute(self, operand):
+        """Return the elementwise absolute value of a secret shared array.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Secret shared value to which the absolute value function should be applied.
+
+        Returns
+        -------
+        value: :class:`ActiveArrayShare`
+            Secret-shared elementwise absolute value of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((
+            self.aprotocol.absolute(operand.additive_subshare),
+            self.sprotocol.absolute(operand.shamir_subshare)))
 
 
     def add(self, lhs, rhs, *, encoding=None):
