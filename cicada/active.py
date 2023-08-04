@@ -268,28 +268,29 @@ class ActiveProtocolSuite(object):
             self.sprotocol.bit_compose(operand.shamir_subshare)))
 
 
-#    def bit_decompose(self, operand, num_bits=None):
-#        """Decompose operand into shares of its bitwise representation.
-#
-#        Note
-#        ----
-#        The operand *must* be encoded with FixedFieldEncoder.  The result will
-#        have one more dimension than the operand, containing the returned bits
-#        in big-endian order.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Shared secret to be truncated.
-#
-#        Returns
-#        -------
-#        array: :class:`ActiveArrayShare`
-#            Share of the bit decomposed secret.
-#        """
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        return ActiveArrayShare((self.aprotocol.bit_decompose(operand.additive_subshare, num_bits), self.sprotocol.bit_decompose(operand.shamir_subshare, num_bits)))
+    def bit_decompose(self, operand, *, bits=None):
+        """Decompose operand into shares of its bitwise representation.
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in big-endian order.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Shared secret to be truncated.
+
+        Returns
+        -------
+        array: :class:`ActiveArrayShare`
+            Share of the bit decomposed secret.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((
+            self.aprotocol.bit_decompose(operand.additive_subshare, bits=bits),
+            self.sprotocol.bit_decompose(operand.shamir_subshare, bits=bits)))
 
 
     @property
