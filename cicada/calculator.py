@@ -273,7 +273,7 @@ def main(listen_socket, communicator):
             elif command == "protocol" and kwargs["subcommand"] == "reshare":
                 protocol = protocol_stack[-1]
                 secret = operand_stack.pop()
-                share = protocol.reshare(operand = secret)
+                share = protocol.reshare(secret)
                 operand_stack.append(share)
                 _send_result(client)
 
