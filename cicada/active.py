@@ -243,29 +243,31 @@ class ActiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def bit_compose(self, operand):
-#        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
-#
-#        Note
-#        ----
-#        The operand *must* be encoded with FixedFieldEncoder.  The result will
-#        have one more dimension than the operand, containing the returned bits
-#        in big-endian order.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Shared secret to be truncated.
-#
-#        Returns
-#        -------
-#        array: :class:`ActiveArrayShare`
-#            Share of the bit decomposed secret.
-#        """
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        return ActiveArrayShare((self.aprotocol.bit_compose(operand.additive_subshare), self.sprotocol.bit_compose(operand.shamir_subshare)))
-#
+    def bit_compose(self, operand):
+        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in big-endian order.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Shared secret to be truncated.
+
+        Returns
+        -------
+        array: :class:`ActiveArrayShare`
+            Share of the bit decomposed secret.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((
+            self.aprotocol.bit_compose(operand.additive_subshare),
+            self.sprotocol.bit_compose(operand.shamir_subshare)))
+
+
 #    def bit_decompose(self, operand, num_bits=None):
 #        """Decompose operand into shares of its bitwise representation.
 #
