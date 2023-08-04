@@ -19,25 +19,25 @@ Feature: Shamir Protocol
         | 3       | -37.3 | 37.3          |
 
 
-#    @calculator
-#    Scenario Outline: Bit Compose
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        When the players compute the composition of the shared bits
-#        And the players reveal the secret
-#        Then the result should match <result> to within 4 digits
-#
-#        Examples:
-#        | players | a         | result        |
-#        | 3       | [0,1,0,1] | 5             |
-#        | 3       | [0,0,0,0] | 0             |
-#        | 3       | [1,1,1,1] | 15            |
-#        | 3       | [1,0,1,0] | 10            |
-#        | 3       | [1,1,0,0] | 12            |
-#        | 3       | [0,0,1,1] | 3             |
-#
-#
+    @calculator
+    Scenario Outline: Bit Compose
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        When the players compute the composition of the shared bits
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a         | result        |
+        | 3       | [0,1,0,1] | 5             |
+        | 3       | [0,0,0,0] | 0             |
+        | 3       | [1,1,1,1] | 15            |
+        | 3       | [1,0,1,0] | 10            |
+        | 3       | [1,1,0,0] | 12            |
+        | 3       | [0,0,1,1] | 3             |
+
+
 #    @calculator
 #    Scenario Outline: Bit Decompose
 #        Given a calculator service with <players> players

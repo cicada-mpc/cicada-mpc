@@ -211,37 +211,33 @@ class ShamirBasicProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def bit_compose(self, operand):
-#        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
-#
-#        Note
-#        ----
-#        The operand *must* be encoded with FixedFieldEncoder.  The result will
-#        have one more dimension than the operand, containing the returned bits
-#        in big-endian order.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ShamirArrayShare`, required
-#            Shared secret to be truncated.
-#
-#        Returns
-#        -------
-#        array: :class:`ShamirArrayShare`
-#            Share of the bit decomposed secret.
-#        """
-#        if not isinstance(operand, ShamirArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        outer_shape = operand.storage.shape[:-1]
-#        last_dimension = operand.storage.shape[-1]
-#        idx = numpy.ndindex(outer_shape)
-#        composed = []
-#        shift = numpy.power(2, numpy.arange(last_dimension, dtype=self.field.dtype)[::-1])
-#        for x in idx:
-#            shifted = self._encoder.untruncated_multiply(operand.storage[x], shift)
-#            val_share = numpy.sum(shifted) % self.field.order
-#            composed.append(val_share)
-#        return ShamirArrayShare(numpy.array([x for x in composed], dtype=self.field.dtype).reshape(outer_shape))
+    def bit_compose(self, operand):
+        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in big-endian order.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Shared secret to be truncated.
+
+        Returns
+        -------
+        array: :class:`ShamirArrayShare`
+            Share of the bit decomposed secret.
+        """
+        self._assert_unary_compatible(operand, "operand")
+
+        result = numpy.empty(operand.storage.shape[:-1], dtype=object)
+        shift = numpy.power(2, numpy.arange(operand.storage.shape[-1], dtype=self.field.dtype)[::-1])
+        shifted = self.field.multiply(operand.storage, shift)
+        result = numpy.sum(shifted, axis=-1, out=result)
+        result %= self.field.order
+        return ShamirArrayShare(result)
 
     @property
     def communicator(self):
