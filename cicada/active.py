@@ -366,29 +366,28 @@ class ActiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def dot(self, lhs, rhs):
-#        """Return the dot product of two secret shared vectors.
-#
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared vector.
-#        rhs: :class:`ActiveArrayShare`, required
-#            Secret shared vector.
-#
-#        Returns
-#        -------
-#        result: :class:`ActiveArrayShare`
-#            Secret-shared dot product of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        result = self.untruncated_multiply(lhs, rhs)
-#        result = self.sum(result)
-#        result = self.truncate(result)
-#        return result
+    def dot(self, lhs, rhs, *, encoding=None):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`ActiveArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ActiveArrayShare((
+            self.aprotocol.dot(lhs.additive_subshare, rhs.additive_subshare, encoding=encoding),
+            self.sprotocol.dot(lhs.shamir_subshare, rhs.shamir_subshare, encoding=encoding)))
 
 
     def equal(self, lhs, rhs):
