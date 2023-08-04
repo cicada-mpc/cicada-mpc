@@ -1222,11 +1222,7 @@ class AdditiveProtocolSuite(object):
 
         result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
         result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
-        # the legit thing to do
-        #result = self.divide(result_num, result_den)
-        # the thing I have to do for now
-        _, mask = self.random_bitwise_secret(bits=encoding.precision)
-        result = self.reveal(self.field_multiply(mask, result_num))/self.reveal(self.field_multiply(mask,result_den))
+        result = self.divide(result_num, result_den)
         return result
 
 
