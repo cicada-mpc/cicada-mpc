@@ -1212,6 +1212,42 @@ class ActiveProtocolSuite(object):
         return encoding.decode(revs, self.field)
 
 
+    def right_shift(self, operand, *, bits, src=None, generator=None):
+        """Remove the `bits` least significant bits from each element in a secret shared array.
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Shared secret to be truncated.
+        bits: :class:`int`, optional
+            Number of bits to truncate - defaults to the precision of the encoder.
+        src: sequence of :class:`int`, optional
+            Players who will participate in generating random bits as part of
+            the truncation process.  More players increases security but
+            decreases performance.  Defaults to all players.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        array: :class:`ActiveArrayShare`
+            Share of the truncated secret.
+        """
+        if not isinstance(operand, ActiveArrayShare):
+            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+
+        tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
+        rbm, rshare = self.random_bitwise_secret(bits=self.field.fieldbits-bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
+        return ActiveArrayShare((
+            self.aprotocol.right_shift(operand.additive_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.additive_subshare, rem_mask=rshare.additive_subshare),
+            self.sprotocol.right_shift(operand.shamir_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.shamir_subshare, rem_mask=rshare.shamir_subshare)))
+
+
     def share(self, *, src, secret, shape, encoding=None):
         """Convert a private array to an additive secret share.
 
@@ -1305,41 +1341,6 @@ class ActiveProtocolSuite(object):
         return ActiveArrayShare((
             self.aprotocol.sum(operand.additive_subshare),
             self.sprotocol.sum(operand.shamir_subshare)))
-
-
-#    def truncate(self, operand, *, bits=None, src=None, generator=None):
-#        """Remove the `bits` least significant bits from each element in a secret shared array.
-#
-#        Note
-#        ----
-#        The operand *must* be encoded with FixedFieldEncoder
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Shared secret to be truncated.
-#        bits: :class:`int`, optional
-#            Number of bits to truncate - defaults to the precision of the encoder.
-#        src: sequence of :class:`int`, optional
-#            Players who will participate in generating random bits as part of
-#            the truncation process.  More players increases security but
-#            decreases performance.  Defaults to all players.
-#        generator: :class:`numpy.random.Generator`, optional
-#            A psuedorandom number generator for sampling.  By default,
-#            `numpy.random.default_rng()` will be used.
-#
-#        Returns
-#        -------
-#        array: :class:`ActiveArrayShare`
-#            Share of the truncated secret.
-#        """
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        if bits is None:
-#            bits = self._encoder.precision
-#        tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
-#        rbm, rshare = self.random_bitwise_secret(bits=self._encoder.fieldbits-bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
-#        return ActiveArrayShare((self.aprotocol.truncate(operand.additive_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.additive_subshare, rem_mask=rshare.additive_subshare), self.sprotocol.truncate(operand.shamir_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.shamir_subshare, rem_mask=rshare.shamir_subshare)))
 
 
     def verify(self, operand):
