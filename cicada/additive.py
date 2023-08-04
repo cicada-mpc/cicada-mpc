@@ -1176,7 +1176,7 @@ class AdditiveProtocolSuite(object):
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
 
-    def _pade_approx(self, func, operand,*, center=0, encoding=None, degree=12):
+    def _pade_approx(self, func, operand,*, encoding=None, center=0, degree=12, scale=3):
         """Return the pade approximation of func evaluated at operand.
 
         This is a collective operation that *must* be called
@@ -1203,7 +1203,7 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         encoding = self._require_encoding(encoding)
 
-        func_taylor = approximate_taylor_polynomial(func, center, degree, 3)
+        func_taylor = approximate_taylor_polynomial(func, center, degree, scale)
         func_pade_num, func_pade_den = pade([x for x in func_taylor][::-1], den_deg, n=num_deg)
         enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
         enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
@@ -1224,8 +1224,8 @@ class AdditiveProtocolSuite(object):
         result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
         # the legit thing to do
         #result = self.divide(result_num, result_den)
-        # the thing I have to do right now for a bit till division is sorted
-        _, mask = self.random_bitwise_secret(bits=16)
+        # the thing I have to do for now
+        _, mask = self.random_bitwise_secret(bits=encoding.precision)
         result = self.reveal(self.field_multiply(mask, result_num))/self.reveal(self.field_multiply(mask,result_den))
         return result
 
@@ -1716,7 +1716,7 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(self.field.sum(operand.storage))
 
 
-    def taylor_approx(self, func, operand,*, center=0, degree=7, encoding=None):
+    def taylor_approx(self, func, operand,*, encoding=None, center=0, degree=7, scale=3):
 
         """Return the evaluation of a public function evaluated at a shared secret, by taylor approximation
 
@@ -1741,7 +1741,7 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         encoding = self._require_encoding(encoding)
 
-        taylor_poly = approximate_taylor_polynomial(func, center, degree, 1)
+        taylor_poly = approximate_taylor_polynomial(func, center, degree, scale)
 
         enc_taylor_coef = encoding.encode(numpy.array([x for x in taylor_poly]), self.field)
         op_pow_list = [self.share(src=1, secret=numpy.array(1), shape=())]
