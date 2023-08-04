@@ -350,7 +350,7 @@ class ShamirBasicProtocolSuite(object):
         Parameters
         ----------
         shape: :class:`tuple`, optional
-            Shape of the array to populate. By default, 
+            Shape of the array to populate. By default,
             a shapeless array of one random element will be generated.
         src: sequence of :class:`int`, optional
             Players that will contribute to random array generation.  By default,
@@ -749,28 +749,56 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         return ShamirArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(bits,)))
 
 
-#    def divide(self, lhs, rhs):
-#        """Elementwise division of two secret shared arrays.
-#
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared array.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Secret shared array.
-#
-#        Returns
-#        -------
-#        result: :class:`ShamirArrayShare`
-#            Secret-shared elementwise division of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        result = self.untruncated_divide(lhs, rhs)
-#        result = self.truncate(result)
-#        return result
+    def divide(self, lhs, rhs, *, encoding=None, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
+        """Elementwise division of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared array.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared array.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret-shared elementwise division of `lhs` and `rhs`.
+        """
+        encoding = self._require_encoding(encoding)
+
+        # Private-private division.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
+            if rmask is None:
+                _, rmask = self.random_bitwise_secret(bits=encoding.precision, shape=rhs.storage.shape)
+            rhsmasked = self.field_multiply(rmask, rhs)
+            if mask1 != None and rem1 != None:
+                rhsmasked = self.right_shift(rhsmasked, bits=encoding.precision, trunc_mask=mask1, rem_mask=rem1)
+            else:
+                rhsmasked = self.right_shift(rhsmasked, bits=encoding.precision)
+            revealrhsmasked = self.reveal(rhsmasked, encoding=encoding)
+            if mask2 != None and rem2 != None:
+                almost_there = self.right_shift(self.field_multiply(lhs, rmask), bits=encoding.precision, trunc_mask=mask2, rem_mask=rem2)
+            else:
+                almost_there = self.right_shift(self.field_multiply(lhs, rmask), bits=encoding.precision)
+            divisor = encoding.encode(numpy.array(1 / revealrhsmasked), self.field)
+            quotient = ShamirArrayShare(self.field.multiply(almost_there.storage, divisor))
+            return self.right_shift(quotient, bits=encoding.precision)
+
+        # Private-public division.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
+            divisor = encoding.encode(numpy.array(1 / rhs), self.field)
+            result = self.field_multiply(lhs, divisor)
+            result = self.right_shift(result, bits=encoding.precision)
+            return result
+
+        # Public-private division.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def dot(self, lhs, rhs, *, encoding=None):
@@ -828,14 +856,14 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
+        lhs: :class:`ShamirArrayShare`, required
             Secret shared value to be compared.
-        rhs: :class:`AdditiveArrayShare`, required
+        rhs: :class:`ShamirArrayShare`, required
             Secret shared value to be compared.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        result: :class:`ShamirArrayShare`
             Secret-shared result of computing `lhs` == `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -1669,71 +1697,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         result = self.field.multiply(result.storage, shift_right)
 
         return ShamirArrayShare(result)
-
-
-
-#    def untruncated_divide(self, lhs, rhs, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
-#        """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
-#        close to or bigger than 2^precision
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared array dividend.
-#        rhs: :class:`numpy.ndarray`, required
-#            Public array divisor, which must *not* be encoded.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The secret element-wise result of lhs / rhs.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        if rmask is None:
-#            _, rmask = self.random_bitwise_secret(bits=self._encoder.precision, shape=rhs.storage.shape)
-#        rhsmasked = self.untruncated_multiply(rmask, rhs)
-#        if mask1 != None and rem1 != None:
-#            rhsmasked = self.truncate(rhsmasked, trunc_mask=mask1, rem_mask=rem1)
-#        else:
-#            rhsmasked = self.truncate(rhsmasked)
-#        revealrhsmasked = self._encoder.decode(self._reveal(rhsmasked))
-#        if mask2 != None and rem2 != None:
-#            almost_there = self.truncate(self.untruncated_multiply(lhs, rmask), trunc_mask=mask2, rem_mask=rem2)
-#        else:
-#            almost_there = self.truncate(self.untruncated_multiply(lhs, rmask))
-#        maskquotient = self.untruncated_private_public_divide(almost_there, revealrhsmasked)
-#        return maskquotient
-#
-#
-#    def untruncated_private_public_divide(self, lhs, rhs):
-#        """Element-wise division of private and public values.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared array dividend.
-#        rhs: :class:`numpy.ndarray`, required
-#            Public array divisor, which must *not* be encoded.
-#
-#        Returns
-#        -------
-#        value: :class:`ShamirArrayShare`
-#            The secret element-wise result of lhs / rhs.
-#        """
-#        self._assert_unary_compatible(lhs, "lhs")
-#        divisor = self._encoder.encode(numpy.array(1 / rhs))
-#        quotient = ShamirArrayShare(self._encoder.untruncated_multiply(lhs.storage, divisor))
-#        return quotient
 
 
     def zigmoid(self, operand, *, encoding=None):
