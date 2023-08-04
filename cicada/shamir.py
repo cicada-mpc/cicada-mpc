@@ -712,42 +712,42 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         return self.field_add(ltz_parts, nltz_parts)
 
 
-#    def bit_decompose(self, operand, num_bits=None):
-#        """Decompose operand into shares of its bitwise representation.
-#
-#        Note
-#        ----
-#        The operand *must* be encoded with FixedFieldEncoder.  The result will
-#        have one more dimension than the operand, containing the returned bits
-#        in big-endian order.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ShamirArrayShare`, required
-#            Shared secret to be truncated.
-#
-#        Returns
-#        -------
-#        array: :class:`ShamirArrayShare`
-#            Share of the bit decomposed secret.
-#        """
-#        if not isinstance(operand, ShamirArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        if num_bits is None:
-#            num_bits = self._encoder.fieldbits
-#        list_o_bits = []
-#        two_inv = numpy.array(pow(2, self.field.order-2, self.field.order), dtype=self.field.dtype)
-#        for element in operand.storage.flat: # Iterates in "C" order.
-#            loopop = ShamirArrayShare(numpy.array(element, dtype=self.field.dtype))
-#            elebits = []
-#            for i in range(num_bits):
-#                elebits.append(self._lsb(loopop))
-#                loopop = self.subtract(loopop, elebits[-1])
-#                loopop = ShamirArrayShare(self._encoder.untruncated_multiply(loopop.storage, two_inv))
-#            list_o_bits.append(elebits[::-1])
-#        return ShamirArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(num_bits,)))
-#
-#
+    def bit_decompose(self, operand, bits=None):
+        """Decompose operand into shares of its bitwise representation.
+
+        Note
+        ----
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in big-endian order.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Shared secret to be truncated.
+
+        Returns
+        -------
+        array: :class:`ShamirArrayShare`
+            Share of the bit decomposed secret.
+        """
+        self._assert_unary_compatible(operand, "operand")
+
+        if bits is None:
+            bits = self.field.fieldbits
+        list_o_bits = []
+        two_inv = numpy.array(pow(2, self.field.order-2, self.field.order), dtype=self.field.dtype)
+        for element in operand.storage.flat: # Iterates in "C" order.
+            loopop = ShamirArrayShare(numpy.array(element, dtype=self.field.dtype))
+            elebits = []
+            for i in range(bits):
+                elebits.append(self._lsb(loopop))
+                loopop = self.field_subtract(loopop, elebits[-1])
+                loopop = ShamirArrayShare(self.field.multiply(loopop.storage, two_inv))
+            list_o_bits.append(elebits[::-1])
+        return ShamirArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(bits,)))
+
+
 #    def divide(self, lhs, rhs):
 #        """Elementwise division of two secret shared arrays.
 #
@@ -939,7 +939,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #
 #        abs_op = self.absolute(operand)
 #        frac_bits = self._encoder.precision
-#        field_bits = self._encoder.fieldbits
+#        field_bits = self.field.fieldbits
 #        lsbs = self.bit_decompose(abs_op, self._encoder.precision)
 #        lsbs_composed = self.bit_compose(lsbs)
 #        lsbs_inv = self.additive_inverse(lsbs_composed)
