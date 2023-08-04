@@ -315,7 +315,7 @@ class AdditiveProtocolSuite(object):
         return self._communicator
 
 
-    def divide(self, lhs, rhs, *, encoding=None):
+    def divide(self, lhs, rhs, *, encoding=None, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
         """Elementwise division of two secret shared arrays.
 
         This is a collective operation that *must* be called
@@ -337,7 +337,21 @@ class AdditiveProtocolSuite(object):
 
         # Private-private division.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
-            pass
+            if rmask is None:
+                _, rmask = self.random_bitwise_secret(bits=encoding.precision, shape=rhs.storage.shape)
+            rhsmasked = self.field_multiply(rmask, rhs)
+            if mask1 != None and rem1 != None:
+                rhsmasked = self.right_shift(rhsmasked, bits=encoding.precision, trunc_mask=mask1, rem_mask=rem1)
+            else:
+                rhsmasked = self.right_shift(rhsmasked, bits=encoding.precision)
+            revealrhsmasked = self.reveal(rhsmasked, encoding=encoding)
+            if mask2 != None and rem2 != None:
+                almost_there = self.right_shift(self.field_multiply(lhs, rmask), bits=encoding.precision, trunc_mask=mask2, rem_mask=rem2)
+            else:
+                almost_there = self.right_shift(self.field_multiply(lhs, rmask), bits=encoding.precision)
+            divisor = encoding.encode(numpy.array(1 / revealrhsmasked), self.field)
+            quotient = AdditiveArrayShare(self.field.multiply(almost_there.storage, divisor))
+            return self.right_shift(quotient, bits=encoding.precision)
 
         # Private-public division.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
@@ -1735,75 +1749,11 @@ class AdditiveProtocolSuite(object):
             op_pow_list.append(self.multiply(operand, op_pow_list[-1]))
 
         op_pow_shares = AdditiveArrayShare(numpy.array([x.storage for x in op_pow_list]))
-            
+
         result = self.field_multiply(op_pow_shares, enc_taylor_coef)
         result = self.sum(result)
         result = self.right_shift(result, bits=encoding.precision)
         return result
-
-
-#    def untruncated_divide(self, lhs, rhs, *, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
-#        """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
-#        close to or bigger than 2^precision
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array dividend.
-#        rhs: :class:`numpy.ndarray`, required
-#            Public array divisor, which must *not* be encoded.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret element-wise result of lhs / rhs.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        if rmask is None:
-#            _, rmask = self.random_bitwise_secret(bits=self._encoding.precision, shape=rhs.storage.shape)
-#        rhsmasked = self.untruncated_multiply(rmask, rhs)
-#        if mask1 != None and rem1 != None:
-#            rhsmasked = self.truncate(rhsmasked, trunc_mask=mask1, rem_mask=rem1)
-#        else:
-#            rhsmasked = self.truncate(rhsmasked)
-#        revealrhsmasked = self._encoding.decode(self._reveal(rhsmasked), self.field)
-#        if mask2 != None and rem2 != None:
-#            almost_there = self.truncate(self.untruncated_multiply(lhs, rmask), trunc_mask=mask2, rem_mask=rem2)
-#        else:
-#            almost_there = self.truncate(self.untruncated_multiply(lhs, rmask))
-#        maskquotient = self.untruncated_private_public_divide(almost_there, revealrhsmasked)
-#        return maskquotient 
-#
-#
-#    def untruncated_private_public_divide(self, lhs, rhs):
-#        """Element-wise division of private and public values.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`AdditiveArrayShare`, required
-#            Secret shared array dividend.
-#        rhs: :class:`numpy.ndarray`, required
-#            Public array divisor, which must *not* be encoded.
-#
-#        Returns
-#        -------
-#        value: :class:`AdditiveArrayShare`
-#            The secret element-wise result of lhs / rhs.
-#        """
-#        self._assert_unary_compatible(lhs, "lhs")
-#        divisor = self._encoding.encode(numpy.array(1 / rhs), self.field)
-#        quotient = AdditiveArrayShare(self.field.untruncated_multiply(lhs.storage, divisor))
-#        return quotient
 
 
     def zigmoid(self, operand, *, encoding=None):
