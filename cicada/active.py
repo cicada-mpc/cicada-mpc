@@ -909,8 +909,6 @@ class ActiveProtocolSuite(object):
         for i, c in enumerate(revealing_coef):
             bs_storage[i] =  self.sprotocol.field.add(z_storage[i], numpy.array((pow(self.sprotocol._revealing_coef[i], self.field.order-2, self.field.order) * a_storage[i]) % self.field.order, dtype=self.field.dtype))
         bs_storage %= self.field.order
-        #s1 = random.sample(list(self.sprotocol.indices), self.sprotocol._d+1)
-        #s1.sort()
         s1 = numpy.sort(numpy.random.choice(self.sprotocol.indices, self.sprotocol._d+1, replace=False))
         revealing_coef = self.sprotocol._lagrange_coef(s1)
         sub_secret = []
@@ -927,15 +925,10 @@ class ActiveProtocolSuite(object):
             sub_secret.append(loop_acc % self.field.order)
 
         revs = numpy.array(sub_secret, dtype=self.field.dtype).reshape(share.additive_subshare.storage.shape)
-        #s2 = random.sample(list(self.sprotocol.indices), self.sprotocol._d+1)
-        #s2.sort()
         while True:
             s2 = numpy.sort(numpy.random.choice(self.sprotocol.indices, self.sprotocol._d+1, replace=False))
             if not numpy.array_equal(s1, s2):
                 break
-#        while s2 == s1:
-#            s2 = random.sample(list(self.sprotocol.indices), self.sprotocol._d+1)
-#            s2.sort()
         revealing_coef = self.sprotocol._lagrange_coef(s2)
         sub_secret2 = []
         if len(z_storage[0].shape) > 0:
@@ -958,7 +951,6 @@ class ActiveProtocolSuite(object):
             if revs != reva or revs2 != reva:
                 raise ConsistencyError("Secret Shares are inconsistent in the second stage")
 
-        print(type(revs), revs, type(revs2), revs2)
         return encoding.decode(revs, self.field)
 
 
