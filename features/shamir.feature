@@ -77,27 +77,27 @@ Feature: Shamir Protocol
 ##        | 3       | 2    | -16  | -1/8          |
 ##        | 3       | -37  | 1    | -37.0         |
 ##        | 3       | 0.5  | 0.3  | 1.6666        |
-#
-#
-#    @calculator
-#    Scenario Outline: Dot Product
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players compute the dot product of the shares
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a          | b       | result |
-#        | 3       | 5          | 2       | 10     |
-#        | 3       | [5, 3.5]   | [2, 4]  | 24     |
-#        | 3       | 5          | -2.5    | -12.5  |
-#        | 3       | -5         | -2.5    | 12.5   |
-#        | 3       | [5, 3.5]   | [2, 4]  | 24     |
-#
-#
+
+
+    @calculator
+    Scenario Outline: Dot Product
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players compute the dot product of the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b       | result |
+        | 3       | 5          | 2       | 10     |
+        | 3       | [5, 3.5]   | [2, 4]  | 24     |
+        | 3       | 5          | -2.5    | -12.5  |
+        | 3       | -5         | -2.5    | 12.5   |
+        | 3       | [5, 3.5]   | [2, 4]  | 24     |
+
+
 #    @calculator
 #    Scenario Outline: Equal
 #        Given a calculator service with <players> players

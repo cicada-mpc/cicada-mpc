@@ -774,57 +774,54 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #        result = self.untruncated_divide(lhs, rhs)
 #        result = self.truncate(result)
 #        return result
-#
-#
-#    def dot(self, lhs, rhs):
-#        """Return the dot product of two secret shared vectors.
-#
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Secret shared vector.
-#        rhs: :class:`ShamirArrayShare`, required
-#            Secret shared vector.
-#
-#        Returns
-#        -------
-#        result: :class:`ShamirArrayShare`
-#            Secret-shared dot product of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#
-#        # The following implementation is efficient because
-#        # it uses the distributive property so that only a
-#        # single truncation is performed, regardless of
-#        # input shape.
-##        result = self.untruncated_multiply(lhs, rhs)
-##        result = self.sum(result)
-##        result = self.truncate(result)
-##        return result
-#
-#        # The following folklore implementation is even better because
-#        # reasons.
-#        world_size = self.communicator.world_size
-#        count = ceil((world_size - 1) / 2)
-#        x = lhs.storage
-#        y = rhs.storage
-#        z = numpy.dot(x,y)
-#        xy=numpy.array((z)%self.field.order, dtype=self.field.dtype)
-#        lc = self._lagrange_coef()
-#        dubdeg = numpy.zeros((len(lc),)+xy.shape, dtype=self.field.dtype)
-#        for i, src in enumerate(self.communicator.ranks):
-#            dubdeg[i]=self._share(src=src, secret=xy, shape=xy.shape).storage #transpose
-#        sharray = numpy.zeros(xy.shape, dtype=self.field.dtype)
-#        for i in range(len(self.communicator.ranks)):
-#            sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self.field.order, dtype=self.field.dtype)
-#        trunc_sharray = self.truncate(ShamirArrayShare(sharray))
-#
-#        return trunc_sharray
-#
-#
+
+
+    def dot(self, lhs, rhs, *, encoding=None):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`ShamirArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        encoding = self._require_encoding(encoding)
+
+        # The following implementation is efficient because
+        # it uses the distributive property so that only a
+        # single right shift is performed, regardless of
+        # input shape.
+#        result = self.field_dot(lhs, rhs)
+#        result = self.right_shift(result, bits=encoding.precision)
+#        return result
+
+        # The following folklore implementation is even better because
+        # reasons.
+        count = ceil((self.communicator.world_size - 1) / 2)
+        x = lhs.storage
+        y = rhs.storage
+        z = numpy.dot(x, y)
+        xy = numpy.array((z) % self.field.order, dtype=self.field.dtype)
+        lc = self._lagrange_coef()
+        dubdeg = numpy.zeros((len(lc),)+xy.shape, dtype=self.field.dtype)
+        for i, src in enumerate(self.communicator.ranks):
+            dubdeg[i]=self.share(src=src, secret=xy, shape=xy.shape, encoding=Identity()).storage #transpose
+        sharray = numpy.zeros(xy.shape, dtype=self.field.dtype)
+        for i in range(len(self.communicator.ranks)):
+            sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self.field.order, dtype=self.field.dtype)
+        return self.right_shift(ShamirArrayShare(sharray), bits=encoding.precision)
+
+
 #    def equal(self, lhs, rhs):
 #        """Return an elementwise probabilistic equality comparison between secret shared arrays.
 #
@@ -847,6 +844,30 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 #        diff = self.subtract(lhs, rhs)
 #        return self.logical_not(self.private_public_power_field(diff, self.field.order-1))
+
+
+    def field_dot(self, lhs, rhs):
+        """Return the dot product of two secret shared vectors.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        result = self.field_multiply(lhs, rhs)
+        result = self.sum(result)
+        return result
 
 
     def field_multiply(self, lhs, rhs):
