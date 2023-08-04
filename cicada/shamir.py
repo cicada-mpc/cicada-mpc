@@ -337,44 +337,45 @@ class ShamirBasicProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def field_uniform(self, *, shape=None, generator=None):
-#        """Return a ShamirSharedArray with the specified shape and filled with random field elements
-#
-#        This method is secure against non-colluding semi-honest adversaries.  A
-#        subset of players (by default: all) generate and secret share vectors
-#        of pseudo-random field elements which are then added together
-#        elementwise.  Computation costs increase with the number of elements to
-#        generate and the number of players, while security increases with the
-#        number of players.
-#
-#        Parameters
-#        ----------
-#        shape: :class:`tuple`, optional
-#            Shape of the array to populate. By default, 
-#            a shapeless array of one random element will be generated.
-#        src: sequence of :class:`int`, optional
-#            Players that will contribute to random array generation.  By default,
-#            all players contribute.
-#        generator: :class:`numpy.random.Generator`, optional
-#            A psuedorandom number generator for sampling.  By default,
-#            `numpy.random.default_rng()` will be used.
-#
-#        Returns
-#        -------
-#        secret: :class:`ShamirArrayShare`
-#            A share of the random generated value.
-#        """
-#
-#        if shape==None:
-#            shape=()
-#        if generator is None:
-#            generator = self._generator
-#
-#        rand_ints = self._encoder.uniform(size=shape, generator=generator)
-#        share = ShamirArrayShare(numpy.zeros(shape, dtype=self.field.dtype))
-#        for i in self.communicator.ranks:
-#            share = self.add(self._share(src=i, secret=rand_ints, shape=rand_ints.shape), share)
-#        return share
+    def field_uniform(self, *, shape=None, generator=None):
+        """Return a ShamirSharedArray with the specified shape and filled with random field elements
+
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random field elements which are then added together
+        elementwise.  Computation costs increase with the number of elements to
+        generate and the number of players, while security increases with the
+        number of players.
+
+        Parameters
+        ----------
+        shape: :class:`tuple`, optional
+            Shape of the array to populate. By default, 
+            a shapeless array of one random element will be generated.
+        src: sequence of :class:`int`, optional
+            Players that will contribute to random array generation.  By default,
+            all players contribute.
+        generator: :class:`numpy.random.Generator`, optional
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
+
+        Returns
+        -------
+        secret: :class:`ShamirArrayShare`
+            A share of the random generated value.
+        """
+
+        if shape==None:
+            shape=()
+
+        if generator is None:
+            generator = self._generator
+
+        rand_ints = self.field.uniform(size=shape, generator=generator)
+        share = ShamirArrayShare(self.field.zeros(shape))
+        for i in self.communicator.ranks:
+            share = self.add(self.share(src=i, secret=rand_ints, shape=rand_ints.shape, encoding=Identity()), share)
+        return share
 
 
     @property
