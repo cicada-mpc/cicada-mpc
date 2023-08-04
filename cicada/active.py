@@ -693,36 +693,38 @@ class ActiveProtocolSuite(object):
             self.sprotocol.logical_xor(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
-#    def max(self, lhs, rhs):
-#        """Return the elementwise maximum of two secret shared arrays.
-#
-#        The result is the secret shared elementwise maximum of the operands.
-#        If revealed, the result will need to be decoded to obtain the actual
-#        maximum values. Note: the field element ( if in the 'negative' range
-#        of the field consider only its magnitude ) should be less than
-#        a quarter of the modulus for this method to be accurate in general.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared operand.
-#        rhs: :class:`ActiveArrayShare`, required
-#            Secret shared operand.
-#
-#        Returns
-#        -------
-#        max: :class:`ActiveArrayShare`
-#            Secret-shared elementwise maximum of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return ActiveArrayShare((self.aprotocol.max(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.max(lhs.shamir_subshare, rhs.shamir_subshare)))
-#
-#
+    def maximum(self, lhs, rhs):
+        """Return the elementwise maximum of two secret shared arrays.
+
+        The result is the secret shared elementwise maximum of the operands.
+        If revealed, the result will need to be decoded to obtain the actual
+        maximum values. Note: the field element ( if in the 'negative' range
+        of the field consider only its magnitude ) should be less than
+        a quarter of the modulus for this method to be accurate in general.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared operand.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared operand.
+
+        Returns
+        -------
+        max: :class:`ActiveArrayShare`
+            Secret-shared elementwise maximum of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ActiveArrayShare((
+            self.aprotocol.maximum(lhs.additive_subshare, rhs.additive_subshare),
+            self.sprotocol.maximum(lhs.shamir_subshare, rhs.shamir_subshare)))
+
+
 #    def min(self, lhs, rhs):
 #        """Return the elementwise minimum of two secret shared arrays.
 #
