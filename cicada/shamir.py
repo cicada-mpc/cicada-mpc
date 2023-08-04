@@ -418,7 +418,7 @@ class ShamirBasicProtocolSuite(object):
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
 
-    def reshare(self, *, operand):
+    def reshare(self, operand):
         """Convert a private array to an shamir secret share.
 
         Note

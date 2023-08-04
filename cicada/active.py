@@ -299,30 +299,6 @@ class ActiveProtocolSuite(object):
 #        if not isinstance(operand, ActiveArrayShare):
 #            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 #        return ActiveArrayShare((self.aprotocol.bit_decompose(operand.additive_subshare, num_bits), self.sprotocol.bit_decompose(operand.shamir_subshare, num_bits)))
-#
-#    def verify(self, operand):
-#        """Provides a means by which consistency of shares can be checked among all the parties by the use of a ZKP
-#        This method allows the parties to prove to one another (in zero knowledge) that a consistent set of shares is known by all parties.
-#        It can provide a 'safe' point at which calculations were known to be good that parties can 'rewind' to if consistency problems are 
-#        later discovered in the protocol.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Shared secret to have its consistency verified.
-#
-#        Returns
-#        -------
-#        consistency: :class:`bool`
-#            True if ZKP is successful i.e., everyone has demonstrated that they know consistent shares, and False otherwise.
-#        """
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        a_share = operand.additive_subshare
-#        s_share = operand.shamir_subshare
-#        zero = cicada.shamir.ShamirArrayShare(self.sprotocol._encoder.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.field.order-2, self.field.order) * a_share.storage) % self.field.order, dtype=object)))
-#        consistency = numpy.all(self.sprotocol._reveal(zero) == numpy.zeros(zero.storage.shape))
-#        return consistency
 
 
     @property
@@ -844,33 +820,36 @@ class ActiveProtocolSuite(object):
 #        if not isinstance(operand, ActiveArrayShare):
 #            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 #        return ActiveArrayShare((self.aprotocol.relu(operand.additive_subshare), self.sprotocol.relu(operand.shamir_subshare)))
-#
-#    def reshare(self, *, operand):
-#        """Convert a private array to an additive secret share.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`
-#            The local share of the secret shared array.
-#
-#        Returns
-#        -------
-#        share: :class:`ActiveArrayShare`
-#            The local share of the secret shared array, now rerandomized.
-#        """
-#
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        reshared = ActiveArrayShare((self.aprotocol.reshare(operand=operand.additive_subshare), self.sprotocol.reshare(operand=operand.shamir_subshare)))
-#        if self.verify(reshared):
-#            return reshared
-#        else:
-#            raise ConsistencyError("Secret Shares being reshared are inconsistent")
+
+
+    def reshare(self, operand):
+        """Convert a private array to an additive secret share.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`
+            The local share of the secret shared array.
+
+        Returns
+        -------
+        share: :class:`ActiveArrayShare`
+            The local share of the secret shared array, now rerandomized.
+        """
+        self._assert_unary_compatible(operand, "operand")
+
+        reshared = ActiveArrayShare((
+            self.aprotocol.reshare(operand.additive_subshare),
+            self.sprotocol.reshare(operand.shamir_subshare)))
+
+        if not self.verify(reshared):
+            raise ConsistencyError("Secret Shares being reshared are inconsistent")
+
+        return reshared
 
 
     def reveal(self, share, *, dst=None, encoding=None):
@@ -1217,7 +1196,33 @@ class ActiveProtocolSuite(object):
 #        """
 #        self._assert_unary_compatible(lhs, "lhs")
 #        return ActiveArrayShare((self.aprotocol.untruncated_private_public_divide(lhs.additive_subshare, rhs), self.sprotocol.untruncated_private_public_divide(lhs.shamir_subshare, rhs)))
-#
+
+
+    def verify(self, operand):
+        """Provides a means by which consistency of shares can be checked among all the parties by the use of a ZKP
+        This method allows the parties to prove to one another (in zero knowledge) that a consistent set of shares is known by all parties.
+        It can provide a 'safe' point at which calculations were known to be good that parties can 'rewind' to if consistency problems are 
+        later discovered in the protocol.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Shared secret to have its consistency verified.
+
+        Returns
+        -------
+        consistency: :class:`bool`
+            True if ZKP is successful i.e., everyone has demonstrated that they know consistent shares, and False otherwise.
+        """
+        self._assert_unary_compatible(operand, "operand")
+
+        a_share = operand.additive_subshare
+        s_share = operand.shamir_subshare
+        zero = cicada.shamir.ShamirArrayShare(self.sprotocol.field.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.field.order-2, self.field.order) * a_share.storage) % self.field.order, dtype=object)))
+        consistency = numpy.all(self.sprotocol.reveal(zero, encoding=Identity()) == numpy.zeros(zero.storage.shape))
+        return consistency
+
+
 #    def zigmoid(self, operand):
 #        r"""Compute the elementwise zigmoid function of a secret value.
 #
