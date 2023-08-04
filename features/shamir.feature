@@ -445,28 +445,28 @@ Feature: Shamir Protocol
         | 3       | 2      | [2.3, 7.9]    | [-2.3, -7.9]|
 
 
-#    @calculator
-#    Scenario Outline: Power
-#        Given a calculator service with <players> players
-#        And a new Shamir protocol suite
-#        And player 0 secret shares <a>
-#        And public value <b>
-#        When the players raise the share to the public power
-#        And the players reveal the secret
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players | a    | b    | result   |
-#        | 3       | 0    | 5    | 0        |
-#        | 3       | 1    | 5    | 1        |
-#        | 3       | 2    | 16   | 65536    |
-#        | 3       | -1   | 4    | 1        |
-#        | 3       | -2   | 16   | 65536    |
-#        | 3       | -1   | 5    | -1       |
-#
-#        Examples:
-#        | players | a                      | b  | result                                |
-#        | 3       | [-1, 2, 3.75, -2.0625] | 3  | [-1, 8, 52.734375, -8.773681640625]   |
+    @calculator
+    Scenario Outline: Power
+        Given a calculator service with <players> players
+        And a new Shamir protocol suite
+        And player 0 secret shares <a>
+        And public value <b>
+        When the players raise the share to the public power
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a    | b    | result   |
+        | 3       | 0    | 5    | 0        |
+        | 3       | 1    | 5    | 1        |
+        | 3       | 2    | 16   | 65536    |
+        | 3       | -1   | 4    | 1        |
+        | 3       | -2   | 16   | 65536    |
+        | 3       | -1   | 5    | -1       |
+
+        Examples:
+        | players | a                      | b  | result                                |
+        | 3       | [-1, 2, 3.75, -2.0625] | 3  | [-1, 8, 52.734375, -8.773681640625]   |
 
 
     @calculator

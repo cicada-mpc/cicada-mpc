@@ -1374,73 +1374,50 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def private_public_power(self, lhs, rhspub):
-#        """Raise the array contained in lhs to the power rshpub on an elementwise basis
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Shared secret to which floor should be applied.
-#        rhspub: :class:`int`, required
-#            a publically known integer and the power to which each element in lhs should be raised 
-#
-#        Returns
-#        -------
-#        array: :class:`ShamirArrayShare`
-#            Share of the array elements from lhs all raised to the power rhspub.
-#        """
-#        if not isinstance(lhs, ShamirArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
-#
-#        ans=[]
-#        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
-#            rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
-#            tmp = ShamirArrayShare(lhse)
-#            it_ans = self._share(src = 0, secret=numpy.full(lhse.shape, self._encoder.encode(numpy.array(1)), dtype=self.field.dtype),shape=lhse.shape)
-#            limit = len(rhsbits)-1
-#            for i, bit in enumerate(rhsbits):
-#                if bit:
-#                    it_ans = self.untruncated_multiply(it_ans, tmp)
-#                    it_ans = self.truncate(it_ans)
-#                if i < limit:
-#                    tmp = self.untruncated_multiply(tmp,tmp)
-#                    tmp = self.truncate(tmp)
-#            ans.append(it_ans)
-#        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape)) 
-#
-#
-#    def private_public_power_field(self, lhs, rhspub):
-#        """Raise the array contained in lhs to the power rshpub on an elementwise basis
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ShamirArrayShare`, required
-#            Shared secret to which floor should be applied.
-#        rhspub: :class:`int`, required 
-#            a publically known integer and the power to which each element in lhs should be raised 
-#
-#        Returns
-#        -------
-#        array: :class:`ShamirArrayShare`
-#            Share of the array elements from lhs all raised to the power rhspub.
-#        """
-#        if not isinstance(lhs, ShamirArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ShamirArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        if isinstance(rhspub, int):
-#            rhspub = numpy.full(lhs.storage.shape, rhspub, dtype=self.field.dtype)
-#        ans = []
-#        for lhse, rhse in numpy.nditer([lhs.storage, rhspub], flags=(["refs_ok"])):  
-#            rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
-#            tmp = ShamirArrayShare(lhse)
-#            it_ans = self._share(src = 0, secret=numpy.full(lhse.shape, numpy.array(1), dtype=self.field.dtype),shape=lhse.shape)
-#            limit = len(rhsbits)-1
-#            for i, bit in enumerate(rhsbits):
-#                if bit:
-#                    it_ans = self.untruncated_multiply(it_ans, tmp)
-#                if i < limit:
-#                    tmp = self.untruncated_multiply(tmp,tmp)
-#            ans.append(it_ans)
-#        return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+    def power(self, lhs, rhs, *, encoding=None):
+        """Raise the array contained in lhs to the power rhs on an elementwise basis
+
+        Parameters
+        ----------
+        lhs: :class:`ShamirArrayShare`, required
+            Shared secret to which floor should be applied.
+        rhs: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
+
+        Returns
+        -------
+        array: :class:`ShamirArrayShare`
+            Share of the array elements from lhs all raised to the power rhs.
+        """
+        encoding = self._require_encoding(encoding)
+
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
+            pass
+
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
+            if isinstance(rhs, int):
+                rhs = self.field.full_like(lhs.storage, rhs)
+
+            ans=[]
+            for lhse, rhse in numpy.nditer([lhs.storage, rhs], flags=(["refs_ok"])):
+                rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
+                tmp = ShamirArrayShare(lhse)
+                it_ans = self.share(src = 0, secret=self.field.full_like(tmp.storage, encoding.encode(numpy.array(1), self.field)),shape=tmp.storage.shape, encoding=Identity())
+                limit = len(rhsbits)-1
+                for i, bit in enumerate(rhsbits):
+                    if bit:
+                        it_ans = self.field_multiply(it_ans, tmp)
+                        it_ans = self.right_shift(it_ans, bits=encoding.precision)
+                    if i < limit:
+                        tmp = self.field_multiply(tmp,tmp)
+                        tmp = self.right_shift(tmp, bits=encoding.precision)
+                ans.append(it_ans)
+            return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def _public_bitwise_less_than(self, *, lhspub, rhs):

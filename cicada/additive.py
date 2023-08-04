@@ -1216,6 +1216,7 @@ class AdditiveProtocolSuite(object):
         result = self.reveal(self.multiply(mask, result_num))/self.reveal(self.multiply(mask,result_den))
         return result
 
+
     def power(self, lhs, rhs, *, encoding=None):
         """Raise the array contained in lhs to the power rhs on an elementwise basis
 
@@ -1232,6 +1233,9 @@ class AdditiveProtocolSuite(object):
             Share of the array elements from lhs all raised to the power rhs.
         """
         encoding = self._require_encoding(encoding)
+
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            pass
 
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
@@ -1252,6 +1256,9 @@ class AdditiveProtocolSuite(object):
                         tmp = self.right_shift(tmp, bits=encoding.precision)
                 ans.append(it_ans)
             return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            pass
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
