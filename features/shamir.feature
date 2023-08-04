@@ -18,6 +18,7 @@ Feature: Shamir Protocol
         | 3       | -1    | 1             |
         | 3       | -37.3 | 37.3          |
 
+
     @calculator
     Scenario Outline: Add
         Given a calculator service with <players> players
@@ -654,4 +655,5 @@ Feature: Shamir Protocol
         | 3       | -.0625                   | .4375                   |
         | 3       | -.5                      | 0                       |
         | 3       | [[0, 3.4],[-1234, 1234]] | [[0.5, 1],[0, 1]]       |
+
 
