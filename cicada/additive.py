@@ -1175,6 +1175,7 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
+
     def _pade_approx(self, func, operand,*, center=0, encoding=None, degree=9):
         """Return the pade approximation of func evaluated at operand.
 
@@ -1185,10 +1186,8 @@ class AdditiveProtocolSuite(object):
         ----------
         func: :class:`callable object`, required
             The function to be approximated via the pade method
-        endpoints: :class:`tuple`, required
-            The start and end of the range of interest for approximation/interpolation
-        resolution: :class:`float`, required
-            The resolution of the approximation to be done between the endpoints
+        center: :class:`float`, required
+            The value at which the approximation should be centered. The approximation gets worse the further from this point that the evaulation of the approximation actually occurs
         operand: :class:`AdditiveArrayShare`, required
             The secret share which represents the point at which the function func should be evaluated in a privacy preserving manner
 
@@ -1204,19 +1203,19 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         encoding = self._require_encoding(encoding)
 
-        func_taylor = approximate_taylor_polynomial(func, center, degree, 1)
+        func_taylor = approximate_taylor_polynomial(func, center, degree, degree+1)
         func_pade_num, func_pade_den = pade(func_taylor, den_deg, n=num_deg)
         enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
         enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
         op_pows_num = [self.share(src=1, secret=numpy.array(1), shape=())]
         for i in range(num_deg):
-            op_pows_num.append(self.multiply(operand, op_pows_num[-1]))
+            op_pows_num_list.append(self.multiply(operand, op_pows_num_list[-1]))
         if degree%2:
-            op_pows_den=[thing for thing in op_pows_num[:-1]]
+            op_pows_den_list=[thing for thing in op_pows_num_list[:-1]]
         else:
-            op_pows_den=[thing for thing in op_pows_num]
-        op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num]))
-        op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den]))
+            op_pows_den_list=[thing for thing in op_pows_num_list]
+        op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
+        op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
 
         result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
         result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
