@@ -1287,31 +1287,31 @@ Feature: Active Protocol
 #        | 3       | 1      | 2.56          | 2.56        |
 #        | 3       | 2      | -3.5          | -3.5        |
 #        | 3       | 2      | [2.3, 7.9]    | [2.3, 7.9]  |
-#
-#
-#    @calculator
-#    Scenario Outline: Round Trip Sharing
-#        Given a calculator service with <players> players
-#        And a new Active protocol suite
-#        And player <player> secret shares <value>
-#        When the players reveal the secret
-#        Then the result should match <value> to within 4 digits
-#
-#        Examples:
-#        | players | player | value         |
-#        | 3       | 0      | 1             |
-#        | 3       | 1      | 2.56          |
-#        | 3       | 2      | -3.5          |
-#        | 3       | 2      | [2.3, 7.9]    |
-#
-#
-#    @calculator
-#    Scenario Outline: Startup Reliability
-#        Given a calculator service with <players> players
-#        Then <count> Active protocol objects can be created without error
-#
-#        Examples:
-#        | players | count |
-#        | 3       | 10    |
-#        | 10      | 10    |
-#
+
+
+    @calculator
+    Scenario Outline: Round Trip Sharing
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player <player> secret shares <value>
+        When the players reveal the secret
+        Then the result should match <value> to within 4 digits
+
+        Examples:
+        | players | player | value         |
+        | 3       | 0      | 1             |
+        | 3       | 1      | 2.56          |
+        | 3       | 2      | -3.5          |
+        | 3       | 2      | [2.3, 7.9]    |
+
+
+    @calculator
+    Scenario Outline: Startup Reliability
+        Given a calculator service with <players> players
+        Then <count> Active protocol objects can be created without error
+
+        Examples:
+        | players | count |
+        | 3       | 10    |
+        | 10      | 10    |
+
