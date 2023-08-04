@@ -543,33 +543,34 @@ class ActiveProtocolSuite(object):
             self.sprotocol.less(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
-#    def less_than_zero(self, operand):
-#        """Return an elementwise less-than comparison between operand elements and zero.
-#
-#        The result is the secret shared elementwise comparison `operand` < `0`.
-#        When revealed, the result will contain the values `0` or `1`, which do
-#        not need to be decoded.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Secret shared value to be compared.
-#
-#        Returns
-#        -------
-#        result: :class:`ActiveArrayShare`
-#            Secret-shared result of computing `operand` < `0` elementwise.
-#        """
-#        if not isinstance(operand, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        return ActiveArrayShare((self.aprotocol.less_than_zero(operand.additive_subshare), self.sprotocol.less_than_zero(operand.shamir_subshare)))
-#
-#
+    def less_zero(self, operand):
+        """Return an elementwise less-than comparison between operand elements and zero.
+
+        The result is the secret shared elementwise comparison `operand` < `0`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`ActiveArrayShare`
+            Secret-shared result of computing `operand` < `0` elementwise.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((
+            self.aprotocol.less_zero(operand.additive_subshare),
+            self.sprotocol.less_zero(operand.shamir_subshare)))
+
+
 #    def logical_and(self, lhs, rhs):
 #        """Return an elementwise logical AND of two secret shared arrays.
 #
