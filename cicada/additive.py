@@ -110,7 +110,7 @@ class AdditiveProtocolSuite(object):
         Defaults to an instance of :class:`FixedPoint` with 16 bits of floating-point
         precision.
     """
-    def __init__(self, communicator, seed=None, seed_offset=None, order=None, encoding=None):
+    def __init__(self, communicator, *, seed=None, seed_offset=None, order=None, encoding=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
