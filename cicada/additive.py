@@ -1162,7 +1162,7 @@ class AdditiveProtocolSuite(object):
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
 
-    def _pade_approx(self, func, operand,*, center=0, encoding=None, degree=9):
+    def _pade_approx(self, func, operand,*, center=0, encoding=None, degree=12):
         """Return the pade approximation of func evaluated at operand.
 
         This is a collective operation that *must* be called
@@ -1189,11 +1189,11 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         encoding = self._require_encoding(encoding)
 
-        func_taylor = approximate_taylor_polynomial(func, center, degree, degree+1)
-        func_pade_num, func_pade_den = pade(func_taylor, den_deg, n=num_deg)
+        func_taylor = approximate_taylor_polynomial(func, center, degree, 3)
+        func_pade_num, func_pade_den = pade([x for x in func_taylor][::-1], den_deg, n=num_deg)
         enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
         enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
-        op_pows_num = [self.share(src=1, secret=numpy.array(1), shape=())]
+        op_pows_num_list = [self.share(src=1, secret=numpy.array(1), shape=())]
         for i in range(num_deg):
             op_pows_num_list.append(self.multiply(operand, op_pows_num_list[-1]))
         if degree%2:
@@ -1212,7 +1212,7 @@ class AdditiveProtocolSuite(object):
         #result = self.divide(result_num, result_den)
         # the thing I have to do right now for a bit till division is sorted
         _, mask = self.random_bitwise_secret(bits=16)
-        result = self.reveal(self.multiply(mask, result_num))/self.reveal(self.multiply(mask,result_den))
+        result = self.reveal(self.field_multiply(mask, result_num))/self.reveal(self.field_multiply(mask,result_den))
         return result
 
 
