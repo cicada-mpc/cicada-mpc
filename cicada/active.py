@@ -241,33 +241,6 @@ class ActiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-#    def additive_inverse(self, operand):
-#        """Return an elementwise additive inverse of a shared array
-#        in the context of the underlying finite field. Explicitly, this
-#        function returns a same shape array which, when added
-#        elementwise with operand, will return a same shape array comprised
-#        entirely of zeros (the additive identity).
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#        This function does not take into account any field-external symantics.
-#
-#        Parameters
-#        ----------
-#        operand: :class:`ActiveArrayShare`, required
-#            Secret shared array to be additively inverted.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            The secret additive inverse of operand on an elementwise basis.
-#        """
-#        self._assert_unary_compatible(operand, "operand")
-#
-#        return ActiveArrayShare((self.aprotocol.additive_inverse(operand.additive_subshare), self.sprotocol.additive_inverse(operand.shamir_subshare)))
-#
 #    def bit_compose(self, operand):
 #        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
 #
@@ -786,8 +759,37 @@ class ActiveProtocolSuite(object):
 #        result = self.untruncated_multiply(lhs, rhs)
 #        result = self.truncate(result)
 #        return result
-#
-#
+
+
+    def negative(self, operand):
+        """Return an elementwise additive inverse of a shared array
+        in the context of the underlying finite field. Explicitly, this
+        function returns a same shape array which, when added
+        elementwise with operand, will return a same shape array comprised
+        entirely of zeros (the additive identity).
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+        This function does not take into account any field-external symantics.
+
+        Parameters
+        ----------
+        operand: :class:`ActiveArrayShare`, required
+            Secret shared array to be additively inverted.
+
+        Returns
+        -------
+        value: :class:`ActiveArrayShare`
+            The secret additive inverse of operand on an elementwise basis.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return ActiveArrayShare((
+            self.aprotocol.negative(operand.additive_subshare),
+            self.sprotocol.negative(operand.shamir_subshare)))
+
+
 #    def private_public_power(self, lhs, rhspub):
 #        """Raise the array contained in lhs to the power rshpub on an elementwise basis
 #
