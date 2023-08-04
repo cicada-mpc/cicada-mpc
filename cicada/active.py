@@ -421,6 +421,37 @@ class ActiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
+    def field_power(self, lhs, rhs):
+        """Raise the array contained in lhs to the power rshpub on an elementwise basis
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Shared secret to which floor should be applied.
+        rhspub: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
+
+        Returns
+        -------
+        array: :class:`ActiveArrayShare`
+            Share of the array elements from lhs all raised to the power rhspub.
+        """
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
+            pass
+
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
+            if isinstance(rhs, int):
+                rhs = self.field.full_like(lhs.additive_subshare.storage, rhs)
+            return ActiveArrayShare((
+                self.aprotocol.field_power(lhs.additive_subshare, rhs),
+                self.sprotocol.field_power(lhs.shamir_subshare, rhs)))
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
     def field_subtract(self, lhs, rhs):
         """Return the elementwise sum of two secret shared arrays.
 
@@ -815,26 +846,6 @@ class ActiveProtocolSuite(object):
 #        if not isinstance(lhs, ActiveArrayShare):
 #            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 #        return ActiveArrayShare((self.aprotocol.private_public_power(lhs.additive_subshare, rhspub), self.sprotocol.private_public_power(lhs.shamir_subshare, rhspub)))
-#
-#
-#    def private_public_power_field(self, lhs, rhspub):
-#        """Raise the array contained in lhs to the power rshpub on an elementwise basis
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Shared secret to which floor should be applied.
-#        rhspub: :class:`int`, required
-#            a publically known integer and the power to which each element in lhs should be raised
-#
-#        Returns
-#        -------
-#        array: :class:`ActiveArrayShare`
-#            Share of the array elements from lhs all raised to the power rhspub.
-#        """
-#        if not isinstance(lhs, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        return ActiveArrayShare((self.aprotocol.private_public_power_field(lhs.additive_subshare, rhspub), self.sprotocol.private_public_power_field(lhs.shamir_subshare, rhspub)))
 #
 #
 #    def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
