@@ -346,29 +346,31 @@ class ActiveProtocolSuite(object):
 #        result = self.sum(result)
 #        result = self.truncate(result)
 #        return result
-#
-#
-#    def equal(self, lhs, rhs):
-#        """Return an elementwise probabilistic equality comparison between secret shared arrays.
-#
-#        The result is the secret shared elementwise comparison `lhs` == `rhs`.
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared value to be compared.
-#        rhs: :class:`ActiveArrayShare`, required
-#            Secret shared value to be compared.
-#
-#        Returns
-#        -------
-#        result: :class:`ActiveArrayShare`
-#            Secret-shared result of computing `lhs` == `rhs` elementwise.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return ActiveArrayShare((self.aprotocol.equal(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.equal(lhs.shamir_subshare, rhs.shamir_subshare)))
+
+
+    def equal(self, lhs, rhs):
+        """Return an elementwise probabilistic equality comparison between secret shared arrays.
+
+        The result is the secret shared elementwise comparison `lhs` == `rhs`.
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared value to be compared.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`ActiveArrayShare`
+            Secret-shared result of computing `lhs` == `rhs` elementwise.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ActiveArrayShare((
+            self.aprotocol.equal(lhs.additive_subshare, rhs.additive_subshare),
+            self.sprotocol.equal(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
     @property

@@ -127,30 +127,30 @@ Feature: Active Protocol
 #        | 3       | 5          | -2.5    | -12.5  |
 #        | 3       | -5         | -2.5    | 12.5   |
 #        | 3       | [5, 3.5]   | [2, 4]  | 24     |
-#
-#
-#    @calculator
-#    Scenario Outline: Equal
-#        Given a calculator service with <players> players
-#        And a new Active protocol suite
-#        And player 0 secret shares <a>
-#        And player 1 secret shares <b>
-#        When the players compare the shares for equality
-#        And the players reveal the secret bits
-#        Then the result should match <result>
-#
-#        Examples:
-#        | players  | a                 | b                | result     |
-#        | 3        | 2                 | 2                | 1          |
-#        | 3        | 2                 | 3                | 0          |
-#        | 3        | 2                 | 2.1              | 0          |
-#        | 3        | 2.1               | 2.1              | 1          |
-#        | 3        | -2                | -2               | 1          |
-#        | 3        | -2                | -3               | 0          |
-#        | 3        | -2                | -2.1             | 0          |
-#        | 3        | -2.1              | -2.1             | 1          |
-#        | 3        | -2                | 2                | 0          |
-#        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | [1,0,1,1]  |
+
+
+    @calculator
+    Scenario Outline: Equal
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players compare the shares for equality
+        And the players reveal the secret bits
+        Then the result should match <result>
+
+        Examples:
+        | players  | a                 | b                | result     |
+        | 3        | 2                 | 2                | 1          |
+        | 3        | 2                 | 3                | 0          |
+        | 3        | 2                 | 2.1              | 0          |
+        | 3        | 2.1               | 2.1              | 1          |
+        | 3        | -2                | -2               | 1          |
+        | 3        | -2                | -3               | 0          |
+        | 3        | -2                | -2.1             | 0          |
+        | 3        | -2.1              | -2.1             | 1          |
+        | 3        | -2                | 2                | 0          |
+        | 3        | [1, -2, 3, -4.5]  | [1, 2, 3, -4.5]  | [1,0,1,1]  |
 
 
     @calculator
