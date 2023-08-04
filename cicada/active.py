@@ -725,36 +725,38 @@ class ActiveProtocolSuite(object):
             self.sprotocol.maximum(lhs.shamir_subshare, rhs.shamir_subshare)))
 
 
-#    def min(self, lhs, rhs):
-#        """Return the elementwise minimum of two secret shared arrays.
-#
-#        The result is the secret shared elementwise minimum of the operands.
-#        If revealed, the result will need to be decoded to obtain the actual
-#        minimum values. Note: the field element ( if in the 'negative' range
-#        of the field consider only its magnitude ) should be less than
-#        a quarter of the modulus for this method to be accurate in general.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared operand.
-#        rhs: :class:`ActiveArrayShare`, required
-#            Secret shared operand.
-#
-#        Returns
-#        -------
-#        min: :class:`ActiveArrayShare`
-#            Secret-shared elementwise minimum of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return ActiveArrayShare((self.aprotocol.min(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.min(lhs.shamir_subshare, rhs.shamir_subshare)))
-#
-#
+    def minimum(self, lhs, rhs):
+        """Return the elementwise minimum of two secret shared arrays.
+
+        The result is the secret shared elementwise minimum of the operands.
+        If revealed, the result will need to be decoded to obtain the actual
+        minimum values. Note: the field element ( if in the 'negative' range
+        of the field consider only its magnitude ) should be less than
+        a quarter of the modulus for this method to be accurate in general.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared operand.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared operand.
+
+        Returns
+        -------
+        min: :class:`ActiveArrayShare`
+            Secret-shared elementwise minimum of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ActiveArrayShare((
+            self.aprotocol.minimum(lhs.additive_subshare, rhs.additive_subshare),
+            self.sprotocol.minimum(lhs.shamir_subshare, rhs.shamir_subshare)))
+
+
 #    def multiplicative_inverse(self, operand):
 #        """Return an elementwise multiplicative inverse of a shared array
 #        in the context of the underlying finite field. Explicitly, this
