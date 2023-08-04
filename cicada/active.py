@@ -836,37 +836,6 @@ class ActiveProtocolSuite(object):
 #            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 #        return ActiveArrayShare((self.aprotocol.private_public_power_field(lhs.additive_subshare, rhspub), self.sprotocol.private_public_power_field(lhs.shamir_subshare, rhspub)))
 #
-#    def private_public_subtract(self, lhs, rhs):
-#        """Return the elementwise difference between public and secret shared arrays.
-#
-#        All players *must* supply the same value of `lhs` when calling this
-#        method.  The result will be the secret shared elementwise difference
-#        between the public (known to all players) `lhs` array and the private
-#        (secret shared) `rhs` array.  If revealed, the result will need to be
-#        decoded to obtain the actual difference.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared value from which rhs should be subtracted.
-#        rhs: :class:`numpy.ndarray`, required
-#            Public value, which must have been encoded with this protocol's
-#            :attr:`encoder`.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            The secret shared difference `lhs` - `rhs`.
-#        """
-#        self._assert_unary_compatible(lhs, "lhs")
-#
-#        return ActiveArrayShare((self.aprotocol.private_public_subtract(lhs.additive_subshare, rhs), self.sprotocol.private_public_subtract(lhs.shamir_subshare, rhs)))
-#
 #
 #    def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
 #        """Return a vector of randomly generated bits.
