@@ -39,8 +39,6 @@ class AdditiveArrayShare(object):
         Local additive share of a secret array.
     """
     def __init__(self, storage):
-        if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.")
         self.storage = storage
 
 
@@ -69,6 +67,8 @@ class AdditiveArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
+        if not isinstance(storage, numpy.ndarray):
+            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.")
         self._storage = numpy.array(storage, dtype=object)
 
 
@@ -610,6 +610,9 @@ class AdditiveProtocolSuite(object):
         array: :class:`AdditiveArrayShare`
             Share of the array elements from lhs all raised to the power rhs.
         """
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            pass
+
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
                 rhs = self.field.full_like(lhs.storage, rhs)
@@ -627,6 +630,9 @@ class AdditiveProtocolSuite(object):
                         tmp = self.field_multiply(tmp,tmp)
                 ans.append(it_ans)
             return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            pass
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
@@ -870,7 +876,7 @@ class AdditiveProtocolSuite(object):
             The secret elementwise logical NOT of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
-        return self.field_subtract(lhs=self.field.ones(operand.storage.shape), rhs=operand)
+        return self.field_subtract(self.field.ones_like(operand.storage), operand)
 
 
     def logical_or(self, lhs, rhs):
@@ -960,7 +966,7 @@ class AdditiveProtocolSuite(object):
         """
         one = numpy.array(1, dtype=self.field.dtype)
         lop = AdditiveArrayShare(operand.storage.flatten())
-        tmpBW, tmp = self.random_bitwise_secret(bits=self.field._fieldbits, shape=lop.storage.shape)
+        tmpBW, tmp = self.random_bitwise_secret(bits=self.field.fieldbits, shape=lop.storage.shape)
         maskedlop = self.field_add(lop, tmp)
         c = self.reveal(maskedlop, encoding=Identity())
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
@@ -1044,7 +1050,6 @@ class AdditiveProtocolSuite(object):
         min_share = self.field_subtract(self.field_add(lhs, rhs), abs_diff)
         shift_right = self.field.full_like(lhs.storage, pow(2, self.field.order-2, self.field.order))
         min_share = self.field_multiply(min_share, shift_right)
-
         return min_share
 
 
@@ -1156,7 +1161,8 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
-    def pade_approx(self, func, center, operand,*, encoding=None, degree=9):
+
+    def _pade_approx(self, func, operand,*, center=0, encoding=None, degree=9):
         """Return the pade approximation of func evaluated at operand.
 
         This is a collective operation that *must* be called
@@ -1187,7 +1193,7 @@ class AdditiveProtocolSuite(object):
         func_pade_num, func_pade_den = pade(func_taylor, den_deg, n=num_deg)
         enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
         enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
-        op_pows_num_list = [operand]
+        op_pows_num = [self.share(src=1, secret=numpy.array(1), shape=())]
         for i in range(num_deg):
             op_pows_num_list.append(self.multiply(operand, op_pows_num_list[-1]))
         if degree%2:
@@ -1196,19 +1202,19 @@ class AdditiveProtocolSuite(object):
             op_pows_den_list=[thing for thing in op_pows_num_list]
         op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
         op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
-        
-        
+
         result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
-        result_num = self.sum(result_num_prod)
+        result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
 
         result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
-        result_den = self.sum(result_den_prod)
-        #legit last step 
+        result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
+        # the legit thing to do
         #result = self.divide(result_num, result_den)
-        #what I have to do till divide gets sorted to see if this is working:
-        rev_res_num = self.reveal(result_num)
-        rev_res_den = self.reveal(result_den)
-        return rev_res_num/rev_res_den
+        # the thing I have to do right now for a bit till division is sorted
+        _, mask = self.random_bitwise_secret(bits=16)
+        result = self.reveal(self.multiply(mask, result_num))/self.reveal(self.multiply(mask,result_den))
+        return result
+
 
     def power(self, lhs, rhs, *, encoding=None):
         """Raise the array contained in lhs to the power rhs on an elementwise basis
@@ -1226,6 +1232,9 @@ class AdditiveProtocolSuite(object):
             Share of the array elements from lhs all raised to the power rhs.
         """
         encoding = self._require_encoding(encoding)
+
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            pass
 
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
@@ -1246,6 +1255,9 @@ class AdditiveProtocolSuite(object):
                         tmp = self.right_shift(tmp, bits=encoding.precision)
                 ans.append(it_ans)
             return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            pass
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
@@ -1311,7 +1323,7 @@ class AdditiveProtocolSuite(object):
             for i in range(1,bitwidth):
                 result = self.field_add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
-        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
+        return AdditiveArrayShare(numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
@@ -1662,7 +1674,7 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             return self.field_subtract(encoding.encode(lhs, self.field), rhs)
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def sum(self, operand):
@@ -1688,6 +1700,46 @@ class AdditiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return AdditiveArrayShare(self.field.sum(operand.storage))
+
+
+    def taylor_approx(self, func, operand,*, center=0, degree=7, encoding=None):
+
+        """Return the evaluation of a public function evaluated at a shared secret, by taylor approximation
+
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be summed.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `operand`'s elements.
+        """
+        from scipy.interpolate import approximate_taylor_polynomial
+
+        self._assert_unary_compatible(operand, "operand")
+        encoding = self._require_encoding(encoding)
+
+        taylor_poly = approximate_taylor_polynomial(func, center, degree, 1)
+
+        enc_taylor_coef = encoding.encode(numpy.array([x for x in taylor_poly]), self.field)
+        op_pow_list = [self.share(src=1, secret=numpy.array(1), shape=())]
+        for i in range(degree):
+            op_pow_list.append(self.multiply(operand, op_pow_list[-1]))
+
+        op_pow_shares = AdditiveArrayShare(numpy.array([x.storage for x in op_pow_list]))
+            
+        result = self.field_multiply(op_pow_shares, enc_taylor_coef)
+        result = self.sum(result)
+        result = self.right_shift(result, bits=encoding.precision)
+        return result
 
 
 #    def untruncated_divide(self, lhs, rhs, *, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
