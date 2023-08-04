@@ -828,26 +828,37 @@ class ActiveProtocolSuite(object):
             self.sprotocol.negative(operand.shamir_subshare)))
 
 
-#    def private_public_power(self, lhs, rhspub):
-#        """Raise the array contained in lhs to the power rshpub on an elementwise basis
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Shared secret to which floor should be applied.
-#        rhspub: :class:`int`, required
-#            a publically known integer and the power to which each element in lhs should be raised
-#
-#        Returns
-#        -------
-#        array: :class:`ActiveArrayShare`
-#            Share of the array elements from lhs all raised to the power rhspub.
-#        """
-#        if not isinstance(lhs, ActiveArrayShare):
-#            raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
-#        return ActiveArrayShare((self.aprotocol.private_public_power(lhs.additive_subshare, rhspub), self.sprotocol.private_public_power(lhs.shamir_subshare, rhspub)))
-#
-#
+    def power(self, lhs, rhs, *, encoding=None):
+        """Raise the array contained in lhs to the power rhs on an elementwise basis
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+        rhs: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the array elements from lhs all raised to the power rhs.
+        """
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
+            pass
+
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
+            if isinstance(rhs, int):
+                rhs = self.field.full_like(lhs.storage, rhs)
+            return ActiveArrayShare((
+                self.aprotocol.power(lhs.additive_subshare, rhs),
+                self.sprotocol.power(lhs.shamir_subshare, rhs)))
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
 #    def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
 #        """Return a vector of randomly generated bits.
 #
