@@ -299,30 +299,73 @@ class ActiveProtocolSuite(object):
         return self._communicator
 
 
-#    def divide(self, lhs, rhs):
-#        """Elementwise division of two secret shared arrays.
-#
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared array.
-#        rhs: :class:`ActiveArrayShare`, required
-#            Secret shared array.
-#
-#        Returns
-#        -------
-#        result: :class:`ActiveArrayShare`
-#            Secret-shared elementwise division of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        result = self.untruncated_divide(lhs, rhs)
-#        result = self.truncate(result)
-#        return result
-#
-#
+    def divide(self, lhs, rhs, *, encoding=None):
+        """Elementwise division of two secret shared arrays.
+
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared array.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared array.
+
+        Returns
+        -------
+        result: :class:`ActiveArrayShare`
+            Secret-shared elementwise division of `lhs` and `rhs`.
+        """
+        encoding = self._require_encoding(encoding)
+
+        # Private-private division.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
+            fieldbits = self.field.fieldbits
+            truncbits = encoding.precision
+            tbm, tshare = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+
+            tbm, mask1 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+            tbm, rem1 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive_subshare.storage.shape)
+            tbm, mask2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+            tbm, rem2 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive_subshare.storage.shape)
+            rev = self.reveal(tshare)
+            resa = self.aprotocol.divide(
+                lhs.additive_subshare,
+                rhs.additive_subshare,
+                encoding=encoding,
+                rmask=tshare.additive_subshare,
+                mask1=mask1.additive_subshare,
+                rem1=rem1.additive_subshare,
+                mask2=mask2.additive_subshare,
+                rem2=rem2.additive_subshare,
+                )
+            ress = self.sprotocol.divide(
+                lhs.shamir_subshare,
+                rhs.shamir_subshare,
+                encoding=encoding,
+                rmask=tshare.shamir_subshare,
+                mask1=mask1.shamir_subshare,
+                rem1=rem1.shamir_subshare,
+                mask2=mask2.shamir_subshare,
+                rem2=rem2.shamir_subshare,
+                )
+            return ActiveArrayShare((resa, ress))
+
+        # Private-public division.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            divisor = encoding.encode(numpy.array(1 / rhs), self.field)
+            result = self.field_multiply(lhs, divisor)
+            result = self.right_shift(result, bits=encoding.precision)
+            return result
+
+        # Public-private division.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
 #    def dot(self, lhs, rhs):
 #        """Return the dot product of two secret shared vectors.
 #
@@ -1297,67 +1340,6 @@ class ActiveProtocolSuite(object):
 #        tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
 #        rbm, rshare = self.random_bitwise_secret(bits=self._encoder.fieldbits-bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
 #        return ActiveArrayShare((self.aprotocol.truncate(operand.additive_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.additive_subshare, rem_mask=rshare.additive_subshare), self.sprotocol.truncate(operand.shamir_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.shamir_subshare, rem_mask=rshare.shamir_subshare)))
-#
-#
-#
-#    def untruncated_divide(self, lhs, rhs):
-#        """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
-#        close to or bigger than 2^precision
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared array dividend.
-#        rhs: :class:`numpy.ndarray`, required
-#            Public array divisor, which must *not* be encoded.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            The secret element-wise result of lhs / rhs.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        fieldbits = self._encoder.fieldbits
-#        truncbits = self._encoder.precision
-#        tbm, tshare = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
-#
-#        tbm, mask1 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
-#        tbm, rem1 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive_subshare.storage.shape)
-#        tbm, mask2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
-#        tbm, rem2 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive_subshare.storage.shape)
-#        rev = self.reveal(tshare)
-#        resa = self.aprotocol.untruncated_divide(lhs.additive_subshare, rhs.additive_subshare, tshare.additive_subshare, mask1.additive_subshare, rem1.additive_subshare, mask2.additive_subshare, rem2.additive_subshare)
-#        ress = self.sprotocol.untruncated_divide(lhs.shamir_subshare, rhs.shamir_subshare,tshare.shamir_subshare, mask1.shamir_subshare, rem1.shamir_subshare, mask2.shamir_subshare, rem2.shamir_subshare)
-#        return ActiveArrayShare((resa, ress))
-#
-#
-#    def untruncated_private_public_divide(self, lhs, rhs):
-#        """Element-wise division of private and public values.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared array dividend.
-#        rhs: :class:`numpy.ndarray`, required
-#            Public array divisor, which must *not* be encoded.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            The secret element-wise result of lhs / rhs.
-#        """
-#        self._assert_unary_compatible(lhs, "lhs")
-#        return ActiveArrayShare((self.aprotocol.untruncated_private_public_divide(lhs.additive_subshare, rhs), self.sprotocol.untruncated_private_public_divide(lhs.shamir_subshare, rhs)))
 
 
     def verify(self, operand):
