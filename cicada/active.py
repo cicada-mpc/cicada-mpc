@@ -45,7 +45,9 @@ class ActiveArrayShare(object):
 
 
     def __getitem__(self, index):
-        return ActiveArrayShare((cicada.additive.AdditiveArrayShare(self.additive_subshare.storage[index]), cicada.shamir.ShamirArrayShare(self.shamir_subshare.storage[index])))
+        return ActiveArrayShare((
+            cicada.additive.AdditiveArrayShare(self.additive_subshare.storage[index]),
+            cicada.shamir.ShamirArrayShare(self.shamir_subshare.storage[index])))
 
 
     @property
@@ -198,35 +200,47 @@ class ActiveProtocolSuite(object):
 #        """
 #        self._assert_unary_compatible(operand, "operand")
 #        return ActiveArrayShare((self.aprotocol.absolute(operand.additive_subshare), self.sprotocol.absolute(operand.shamir_subshare)))
-#
-#
-#    def add(self, lhs, rhs):
-#        """Return the elementwise sum of two secret shared arrays.
-#
-#        The result is the secret shared elementwise sum of the operands.  If
-#        revealed, the result will need to be decoded to obtain the actual sum.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        lhs: :class:`ActiveArrayShare`, required
-#            Secret shared value to be added.
-#        rhs: :class:`ActiveArrayShare`, required
-#            Secret shared value to be added.
-#
-#        Returns
-#        -------
-#        value: :class:`ActiveArrayShare`
-#            Secret-shared sum of `lhs` and `rhs`.
-#        """
-#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-#        return ActiveArrayShare((self.aprotocol.add(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.add(lhs.shamir_subshare, rhs.shamir_subshare)))
-#
-#
+
+
+    def add(self, lhs, rhs, *, encoding=None):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        encoding = self._require_encoding(encoding)
+
+        # Private-private addition.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
+            return self.field_add(lhs, rhs)
+
+        # Private-public addition.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            return self.field_add(lhs, encoding.encode(rhs, self.field))
+
+        # Public-private addition.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
+            return self.field_add(encoding.encode(lhs, self.field), rhs)
+
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
 #    def additive_inverse(self, operand):
 #        """Return an elementwise additive inverse of a shared array
 #        in the context of the underlying finite field. Explicitly, this
@@ -377,8 +391,51 @@ class ActiveProtocolSuite(object):
 #        """
 #        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 #        return ActiveArrayShare((self.aprotocol.equal(lhs.additive_subshare, rhs.additive_subshare), self.sprotocol.equal(lhs.shamir_subshare, rhs.shamir_subshare)))
-#
-#
+
+
+    def field_add(self, lhs, rhs):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`ActiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        # Private-private addition.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
+            return ActiveArrayShare((
+                self.aprotocol.add(lhs.additive_subshare, rhs.additive_subshare),
+                self.sprotocol.add(lhs.shamir_subshare, rhs.shamir_subshare)))
+
+        # Private-public addition.
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            return ActiveArrayShare((
+                self.aprotocol.add(lhs.additive_subshare, rhs),
+                self.sprotocol.add(lhs.shamir_subshare, rhs)))
+
+        # Public-private addition.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
+            return ActiveArrayShare((
+                self.aprotocol.add(lhs, rhs.additive_subshare),
+                self.sprotocol.add(lhs, rhs.shamir_subshare)))
+
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
 #    def floor(self, operand):
 #        """Return the largest integer less-than-or-equal-to `operand`.
 #
