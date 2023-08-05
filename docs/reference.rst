@@ -23,7 +23,6 @@ API Reference
     cicada.communicator.socket.rst
     cicada.communicator.socket.connect.rst
     cicada.encoding.rst
-    cicada.encoding.fixedpoint.rst
     cicada.interactive.rst
     cicada.logging.rst
     cicada.shamir.rst
