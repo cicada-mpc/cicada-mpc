@@ -80,6 +80,11 @@ def step_impl(context, value):
     numpy.testing.assert_array_equal(context.decoded, value)
 
 
+@then(u'the decoded value should be an array or None')
+def step_impl(context):
+    test.assert_is_instance(context.decoded, (numpy.ndarray, type(None)))
+
+
 #def assert_is_fixed_field_representation(array):
 #    test.assert_is_instance(array, numpy.ndarray)
 #    test.assert_equal(array.dtype, object)

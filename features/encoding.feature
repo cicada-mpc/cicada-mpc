@@ -18,7 +18,8 @@ Feature: Encodings
 	Given a <encoding>
 	And a <field>
 	When <x> is encoded and decoded
-	Then the decoded value should match <x>
+    Then the decoded value should be an array or None
+	And the decoded value should match <x>
 
         Examples:
         | encoding                           | field                 | x                     |
