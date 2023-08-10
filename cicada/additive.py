@@ -107,7 +107,7 @@ class AdditiveProtocolSuite(object):
         less than :math:`2^{64}`.
     encoding: :class:`object`, optional
         Encoding to use by default for operations that require encoding/decoding.
-        Defaults to an instance of :class:`FixedPoint` with 16 bits of floating-point
+        Defaults to an instance of :any:`FixedPoint` with 16 bits of floating-point
         precision.
     """
     def __init__(self, communicator, *, seed=None, seed_offset=None, order=None, encoding=None):
@@ -628,7 +628,7 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`or :class:`numpy.ndarray`, required
+        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
             Shared value.
         rhs: :class:`AdditiveArrayShare`, required
             Shared value to be subtracted.
@@ -1147,7 +1147,7 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        func: :class:`callable object`, required
+        func: callable object, required
             The function to be approximated via the pade method
         center: :class:`float`, required
             The value at which the approximation should be centered. The approximation gets worse the further from this point that the evaulation of the approximation actually occurs
@@ -1684,7 +1684,7 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        func: :class:`callable object`, required
+        func: callable object, required
             The function to be approximated via the taylor method
         center: :class:`float`, required
             The value at which the approximation should be centered. The approximation gets worse the further from this point that the evaulation of the approximation actually occurs
