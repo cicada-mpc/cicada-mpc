@@ -22,20 +22,15 @@ from random import randrange
 
 import numpy
 
+from cicada.arithmetic import Field
 from cicada.communicator.interface import Communicator
 from cicada.encoding import FixedPoint, Identity
-import cicada.arithmetic
 
 class ShamirArrayShare(object):
-    """Stores the local share of a Shamir-shared secret array.
+    """Stores the local share of a secret shared array for :class:`ShamirProtocolSuite`.
 
     Instances of :class:`ShamirArrayShare` should only be created using
-    methods from :class:`ShamirBasicProtocolSuite` or :class:`ShamirProtocolSuite`.
-
-    Parameters
-    ----------
-    storage: :class:`numpy.ndarray`, required
-        Local Shamir share of a secret array.
+    :class:`ShamirBasicProtocolSuite` or :class:`ShamirProtocolSuite`.
     """
     def __init__(self, storage):
         self.storage = storage
@@ -47,15 +42,10 @@ class ShamirArrayShare(object):
 
     @property
     def storage(self):
-        """Local share of a Shamir-shared secret array.
-
-        Returns
-        -------
-        storage: :class:`numpy.ndarray`
-            Private storage for the local share of a Shamir-shared secret
-            array.  Access is provided only for serialization and communication
-            - callers must use :class:`ShamirBasicProtocolSuite` or
-            :class:`ShamirProtocolSuite` to manipulate secret shares.
+        """Private storage for the local share of a secret shared array.
+        Access is provided only for serialization and communication -
+        callers must use :class:`ShamirBasicProtocolSuite` or
+        :class:`ShamirProtocolSuite` to manipulate secret shares.
         """
         return self._storage
 
@@ -136,7 +126,7 @@ class ShamirBasicProtocolSuite(object):
             indices = numpy.array(communicator.ranks) + 1
 
         self._communicator = communicator
-        self._field = cicada.arithmetic.Field(order=order)
+        self._field = Field(order=order)
         self._encoding = encoding
         self._indices = self._field(indices)
         self._revealing_coef = self._lagrange_coef()

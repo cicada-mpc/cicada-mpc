@@ -17,24 +17,21 @@
 """Functionality for creating, manipulating, and revealing additive-shared secrets."""
 
 import logging
-import random
 
 import numpy
 
+from cicada.arithmetic import Field
 from cicada.communicator.interface import Communicator
 from cicada.encoding import FixedPoint, Identity
-import cicada.arithmetic
 import cicada.additive
 import cicada.shamir
 
 
 class ActiveArrayShare(object):
-    """Stores the local share of a shared secret array for the Active protocol suite.
+    """Stores the local share of a secret shared array for :class:`ActiveProtocolSuite`.
 
-    Parameters
-    ----------
-    storage: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`), required
-        Local share of a secret array.
+    Instances of :class:`ActiveArrayShare` should only be created
+    using :class:`ActiveProtocolSuite`.
     """
     def __init__(self, storage):
         self.storage = storage
@@ -52,44 +49,19 @@ class ActiveArrayShare(object):
 
     @property
     def storage(self):
-        """Local share of an shared secret array.
-
-        Returns
-        -------
-        storage: :class:`object`
-            Private storage for the local share of a secret array created by
-            the active protocol suite.  Access is provided only for
-            serialization and communication - callers must use
-            :class:`ActiveProtocolSuite` to manipulate secret shares.
+        """Private storage for the local share of a secret shared array.
+        Access is provided only for serialization and communication -
+        callers must use :class:`ActiveProtocolSuite` to manipulate secret
+        shares.
         """
         return self._storage
 
     @property
     def additive_subshare(self):
-        """Local share of an shared secret array.
-
-        Returns
-        -------
-        storage: :class:`object`
-            Private storage for the local share of a secret array created by
-            the active protocol suite.  Access is provided only for
-            serialization and communication - callers must use
-            :class:`ActiveProtocolSuite` to manipulate secret shares.
-        """
         return self._storage[0]
 
     @property
     def shamir_subshare(self):
-        """Local share of an shared secret array.
-
-        Returns
-        -------
-        storage: :class:`object`
-            Private storage for the local share of a secret array created by
-            the active protocol suite.  Access is provided only for
-            serialization and communication - callers must use
-            :class:`ActiveProtocolSuite` to manipulate secret shares.
-        """
         return self._storage[1]
 
     @storage.setter
@@ -155,7 +127,7 @@ class ActiveProtocolSuite(object):
             raise ValueError(f"threshold must be <= {max_threshold}, or world_size must be >= {min_world_size}")
 
         self._communicator = communicator
-        self._field = cicada.arithmetic.Field(order=order)
+        self._field = Field(order=order)
         self.aprotocol = cicada.additive.AdditiveProtocolSuite(communicator=communicator, seed=seed, seed_offset=seed_offset, order=order, encoding=encoding)
         self.sprotocol = cicada.shamir.ShamirProtocolSuite(communicator=communicator, threshold=threshold, seed=seed, seed_offset=seed_offset, order=order, encoding=encoding)
 
