@@ -702,7 +702,7 @@ class SocketCommunicator(Communicator):
 
 
     @staticmethod
-    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5):
+    def run(*, world_size, fn, identities=None, trusted=None, args=(), kwargs={}, family="tcp", name="world", timeout=5, startup_timeout=5, show_traceback=False):
         """Run a function in parallel using sub-processes on the local host.
 
         This method returns when the callback functions finish, returning a
@@ -745,6 +745,8 @@ class SocketCommunicator(Communicator):
         startup_timeout: :class:`numbers.Number`, optional
             Maximum time allowed to setup the communicator in seconds.
             Defaults to five seconds.
+        show_traceback: :class:`bool`, optional
+            If :any:`True`, a traceback will be printed for every player that fails.
 
         Returns
         -------
@@ -856,18 +858,19 @@ class SocketCommunicator(Communicator):
 
         for rank, result in enumerate(output):
             if isinstance(result, Failed):
-                log.warning(f"Comm {name} player {rank} failed: {result.exception!r}")
+                log.error(f"Comm {name} player {rank} failed: {result.exception!r}")
             elif isinstance(result, Exception):
-                log.warning(f"Comm {name} player {rank} failed: {result!r}")
+                log.error(f"Comm {name} player {rank} failed: {result!r}")
             else:
                 log.info(f"Comm {name} player {rank} result: {result}")
 
         # Print a traceback for players that failed.
-        for rank, result in enumerate(output):
-            if isinstance(result, Failed):
-                log.error("*" * 80)
-                log.error(f"Comm {name} player {rank} traceback:")
-                log.error(result.traceback)
+        if show_traceback:
+            for rank, result in enumerate(output):
+                if isinstance(result, Failed):
+                    log.error("*" * 80)
+                    log.error(f"Comm {name} player {rank} traceback:")
+                    log.error(result.traceback)
 
         return output
 
