@@ -294,6 +294,12 @@ class Field(object):
         return self._order
 
 
+    @property
+    def posbound(self):
+        """Return the boundary between positive and negative values."""
+        return self._order // 2
+
+
     def subtract(self, lhs, rhs):
         """Return the element-wise difference between two field arrays.
 
