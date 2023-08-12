@@ -20,11 +20,11 @@ import logging
 
 import numpy
 
+from cicada.additive import AdditiveArrayShare, AdditiveProtocolSuite
 from cicada.arithmetic import Field
 from cicada.communicator.interface import Communicator
 from cicada.encoding import FixedPoint, Identity
-import cicada.additive
-import cicada.shamir
+from cicada.shamir import ShamirArrayShare, ShamirProtocolSuite
 
 
 class ActiveArrayShare(object):
@@ -43,8 +43,8 @@ class ActiveArrayShare(object):
 
     def __getitem__(self, index):
         return ActiveArrayShare((
-            cicada.additive.AdditiveArrayShare(self.additive_subshare.storage[index]),
-            cicada.shamir.ShamirArrayShare(self.shamir_subshare.storage[index])))
+            AdditiveArrayShare(self.additive.storage[index]),
+            ShamirArrayShare(self.shamir.storage[index])))
 
 
     @property
@@ -57,20 +57,20 @@ class ActiveArrayShare(object):
         return self._storage
 
     @property
-    def additive_subshare(self):
+    def additive(self):
         return self._storage[0]
 
     @property
-    def shamir_subshare(self):
+    def shamir(self):
         return self._storage[1]
 
     @storage.setter
     def storage(self, storage):
         if not len(storage) == 2:
             raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.") # pragma: no cover
-        if not isinstance(storage[0], cicada.additive.AdditiveArrayShare):
+        if not isinstance(storage[0], AdditiveArrayShare):
             raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.") # pragma: no cover
-        if not isinstance(storage[1], cicada.shamir.ShamirArrayShare):
+        if not isinstance(storage[1], ShamirArrayShare):
             raise ValueError(f"Expected instances of AdditiveArrayShare and ShamirArrayShare, got {storage} instead.") # pragma: no cover
         self._storage = (storage[0], storage[1])
 
@@ -128,17 +128,17 @@ class ActiveProtocolSuite(object):
 
         self._communicator = communicator
         self._field = Field(order=order)
-        self.aprotocol = cicada.additive.AdditiveProtocolSuite(communicator=communicator, seed=seed, seed_offset=seed_offset, order=order, encoding=encoding)
-        self.sprotocol = cicada.shamir.ShamirProtocolSuite(communicator=communicator, threshold=threshold, seed=seed, seed_offset=seed_offset, order=order, encoding=encoding)
+        self.aprotocol = AdditiveProtocolSuite(communicator=communicator, seed=seed, seed_offset=seed_offset, order=order, encoding=encoding)
+        self.sprotocol = ShamirProtocolSuite(communicator=communicator, threshold=threshold, seed=seed, seed_offset=seed_offset, order=order, encoding=encoding)
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
         self._assert_unary_compatible(lhs, lhslabel)
         self._assert_unary_compatible(rhs, rhslabel)
-        if lhs.additive_subshare.storage.shape != rhs.additive_subshare.storage.shape :
-            raise ValueError(f"{lhslabel} and {rhslabel} additive shares, the additive subshares must be the same shape, got {lhs.additive_subshare.storage.shape} and {rhs.additive_subshare.storage.shape} instead.") # pragma: no cover
-        if lhs.shamir_subshare.storage.shape != rhs.shamir_subshare.storage.shape:
-            raise ValueError(f"{lhslabel} and {rhslabel} shamir shares, the Shamir subshares must be the same shape, got {lhs.shamir_subshare.storage.shape} and {rhs.shamir_subshare.storage.shape} instead.") # pragma: no cover
+        if lhs.additive.storage.shape != rhs.additive.storage.shape :
+            raise ValueError(f"{lhslabel} and {rhslabel} additive shares, the additive subshares must be the same shape, got {lhs.additive.storage.shape} and {rhs.additive.storage.shape} instead.") # pragma: no cover
+        if lhs.shamir.storage.shape != rhs.shamir.storage.shape:
+            raise ValueError(f"{lhslabel} and {rhslabel} shamir shares, the Shamir subshares must be the same shape, got {lhs.shamir.storage.shape} and {rhs.shamir.storage.shape} instead.") # pragma: no cover
 
 
     def _assert_unary_compatible(self, share, label):
@@ -172,8 +172,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.absolute(operand.additive_subshare),
-            self.sprotocol.absolute(operand.shamir_subshare)))
+            self.aprotocol.absolute(operand.additive),
+            self.sprotocol.absolute(operand.shamir)))
 
 
     def add(self, lhs, rhs, *, encoding=None):
@@ -236,8 +236,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.bit_compose(operand.additive_subshare),
-            self.sprotocol.bit_compose(operand.shamir_subshare)))
+            self.aprotocol.bit_compose(operand.additive),
+            self.sprotocol.bit_compose(operand.shamir)))
 
 
     def bit_decompose(self, operand, *, bits=None):
@@ -261,8 +261,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.bit_decompose(operand.additive_subshare, bits=bits),
-            self.sprotocol.bit_decompose(operand.shamir_subshare, bits=bits)))
+            self.aprotocol.bit_decompose(operand.additive, bits=bits),
+            self.sprotocol.bit_decompose(operand.shamir, bits=bits)))
 
 
     @property
@@ -295,32 +295,32 @@ class ActiveProtocolSuite(object):
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
             fieldbits = self.field.fieldbits
             truncbits = encoding.precision
-            tbm, tshare = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
+            tbm, tshare = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive.storage.shape)
 
-            tbm, mask1 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
-            tbm, rem1 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive_subshare.storage.shape)
-            tbm, mask2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive_subshare.storage.shape)
-            tbm, rem2 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive_subshare.storage.shape)
+            tbm, mask1 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive.storage.shape)
+            tbm, rem1 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive.storage.shape)
+            tbm, mask2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive.storage.shape)
+            tbm, rem2 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive.storage.shape)
             rev = self.reveal(tshare)
             resa = self.aprotocol.divide(
-                lhs.additive_subshare,
-                rhs.additive_subshare,
+                lhs.additive,
+                rhs.additive,
                 encoding=encoding,
-                rmask=tshare.additive_subshare,
-                mask1=mask1.additive_subshare,
-                rem1=rem1.additive_subshare,
-                mask2=mask2.additive_subshare,
-                rem2=rem2.additive_subshare,
+                rmask=tshare.additive,
+                mask1=mask1.additive,
+                rem1=rem1.additive,
+                mask2=mask2.additive,
+                rem2=rem2.additive,
                 )
             ress = self.sprotocol.divide(
-                lhs.shamir_subshare,
-                rhs.shamir_subshare,
+                lhs.shamir,
+                rhs.shamir,
                 encoding=encoding,
-                rmask=tshare.shamir_subshare,
-                mask1=mask1.shamir_subshare,
-                rem1=rem1.shamir_subshare,
-                mask2=mask2.shamir_subshare,
-                rem2=rem2.shamir_subshare,
+                rmask=tshare.shamir,
+                mask1=mask1.shamir,
+                rem1=rem1.shamir,
+                mask2=mask2.shamir,
+                rem2=rem2.shamir,
                 )
             return ActiveArrayShare((resa, ress))
 
@@ -358,8 +358,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((
-            self.aprotocol.dot(lhs.additive_subshare, rhs.additive_subshare, encoding=encoding),
-            self.sprotocol.dot(lhs.shamir_subshare, rhs.shamir_subshare, encoding=encoding)))
+            self.aprotocol.dot(lhs.additive, rhs.additive, encoding=encoding),
+            self.sprotocol.dot(lhs.shamir, rhs.shamir, encoding=encoding)))
 
 
     def equal(self, lhs, rhs):
@@ -383,8 +383,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((
-            self.aprotocol.equal(lhs.additive_subshare, rhs.additive_subshare),
-            self.sprotocol.equal(lhs.shamir_subshare, rhs.shamir_subshare)))
+            self.aprotocol.equal(lhs.additive, rhs.additive),
+            self.sprotocol.equal(lhs.shamir, rhs.shamir)))
 
 
     @property
@@ -417,20 +417,20 @@ class ActiveProtocolSuite(object):
         # Private-private addition.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.field_add(lhs.additive_subshare, rhs.additive_subshare),
-                self.sprotocol.field_add(lhs.shamir_subshare, rhs.shamir_subshare)))
+                self.aprotocol.field_add(lhs.additive, rhs.additive),
+                self.sprotocol.field_add(lhs.shamir, rhs.shamir)))
 
         # Private-public addition.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
             return ActiveArrayShare((
-                self.aprotocol.field_add(lhs.additive_subshare, rhs),
-                self.sprotocol.field_add(lhs.shamir_subshare, rhs)))
+                self.aprotocol.field_add(lhs.additive, rhs),
+                self.sprotocol.field_add(lhs.shamir, rhs)))
 
         # Public-private addition.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.field_add(lhs, rhs.additive_subshare),
-                self.sprotocol.field_add(lhs, rhs.shamir_subshare)))
+                self.aprotocol.field_add(lhs, rhs.additive),
+                self.sprotocol.field_add(lhs, rhs.shamir)))
 
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
@@ -462,20 +462,20 @@ class ActiveProtocolSuite(object):
         # Private-private multiplication.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.field_multiply(lhs.additive_subshare, rhs.additive_subshare),
-                self.sprotocol.field_multiply(lhs.shamir_subshare, rhs.shamir_subshare)))
+                self.aprotocol.field_multiply(lhs.additive, rhs.additive),
+                self.sprotocol.field_multiply(lhs.shamir, rhs.shamir)))
 
         # Public-private multiplication.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.field_multiply(lhs, rhs.additive_subshare),
-                self.sprotocol.field_multiply(lhs, rhs.shamir_subshare)))
+                self.aprotocol.field_multiply(lhs, rhs.additive),
+                self.sprotocol.field_multiply(lhs, rhs.shamir)))
 
         # Private-public multiplication.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
             return ActiveArrayShare((
-                self.aprotocol.field_multiply(lhs.additive_subshare, rhs),
-                self.sprotocol.field_multiply(lhs.shamir_subshare, rhs)))
+                self.aprotocol.field_multiply(lhs.additive, rhs),
+                self.sprotocol.field_multiply(lhs.shamir, rhs)))
 
         raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
@@ -500,10 +500,10 @@ class ActiveProtocolSuite(object):
 
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
-                rhs = self.field.full_like(lhs.additive_subshare.storage, rhs)
+                rhs = self.field.full_like(lhs.additive.storage, rhs)
             return ActiveArrayShare((
-                self.aprotocol.field_power(lhs.additive_subshare, rhs),
-                self.sprotocol.field_power(lhs.shamir_subshare, rhs)))
+                self.aprotocol.field_power(lhs.additive, rhs),
+                self.sprotocol.field_power(lhs.shamir, rhs)))
 
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
             pass
@@ -536,20 +536,20 @@ class ActiveProtocolSuite(object):
         # Private-private subtraction.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.field_subtract(lhs.additive_subshare, rhs.additive_subshare),
-                self.sprotocol.field_subtract(lhs.shamir_subshare, rhs.shamir_subshare)))
+                self.aprotocol.field_subtract(lhs.additive, rhs.additive),
+                self.sprotocol.field_subtract(lhs.shamir, rhs.shamir)))
 
         # Private-public subtraction.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
             return ActiveArrayShare((
-                self.aprotocol.field_subtract(lhs.additive_subshare, rhs),
-                self.sprotocol.field_subtract(lhs.shamir_subshare, rhs)))
+                self.aprotocol.field_subtract(lhs.additive, rhs),
+                self.sprotocol.field_subtract(lhs.shamir, rhs)))
 
         # Public-private subtraction.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.field_subtract(lhs, rhs.additive_subshare),
-                self.sprotocol.field_subtract(lhs, rhs.shamir_subshare)))
+                self.aprotocol.field_subtract(lhs, rhs.additive),
+                self.sprotocol.field_subtract(lhs, rhs.shamir)))
 
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
@@ -585,7 +585,7 @@ class ActiveProtocolSuite(object):
         shamadd = []
         for i in self.communicator.ranks:
             shamadd.append(self.sprotocol.share(src=i, secret=uniadd.storage, shape=uniadd.storage.shape, encoding=Identity()))
-        unisham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
+        unisham = ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
         return ActiveArrayShare((uniadd, unisham))
 
 
@@ -604,8 +604,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.floor(operand.additive_subshare, encoding=encoding),
-            self.sprotocol.floor(operand.shamir_subshare, encoding=encoding)))
+            self.aprotocol.floor(operand.additive, encoding=encoding),
+            self.sprotocol.floor(operand.shamir, encoding=encoding)))
 
 
     def less(self, lhs, rhs):
@@ -634,8 +634,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((
-            self.aprotocol.less(lhs.additive_subshare, rhs.additive_subshare),
-            self.sprotocol.less(lhs.shamir_subshare, rhs.shamir_subshare)))
+            self.aprotocol.less(lhs.additive, rhs.additive),
+            self.sprotocol.less(lhs.shamir, rhs.shamir)))
 
 
     def less_zero(self, operand):
@@ -662,8 +662,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.less_zero(operand.additive_subshare),
-            self.sprotocol.less_zero(operand.shamir_subshare)))
+            self.aprotocol.less_zero(operand.additive),
+            self.sprotocol.less_zero(operand.shamir)))
 
 
     def logical_and(self, lhs, rhs):
@@ -693,8 +693,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((
-            self.aprotocol.logical_and(lhs.additive_subshare, rhs.additive_subshare),
-            self.sprotocol.logical_and(lhs.shamir_subshare, rhs.shamir_subshare)))
+            self.aprotocol.logical_and(lhs.additive, rhs.additive),
+            self.sprotocol.logical_and(lhs.shamir, rhs.shamir)))
 
 
     def logical_not(self, operand):
@@ -722,8 +722,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.logical_not(operand.additive_subshare),
-            self.sprotocol.logical_not(operand.shamir_subshare)))
+            self.aprotocol.logical_not(operand.additive),
+            self.sprotocol.logical_not(operand.shamir)))
 
 
     def logical_or(self, lhs, rhs):
@@ -753,8 +753,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((
-            self.aprotocol.logical_or(lhs.additive_subshare, rhs.additive_subshare),
-            self.sprotocol.logical_or(lhs.shamir_subshare, rhs.shamir_subshare)))
+            self.aprotocol.logical_or(lhs.additive, rhs.additive),
+            self.sprotocol.logical_or(lhs.shamir, rhs.shamir)))
 
 
     def logical_xor(self, lhs, rhs):
@@ -784,8 +784,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((
-            self.aprotocol.logical_xor(lhs.additive_subshare, rhs.additive_subshare),
-            self.sprotocol.logical_xor(lhs.shamir_subshare, rhs.shamir_subshare)))
+            self.aprotocol.logical_xor(lhs.additive, rhs.additive),
+            self.sprotocol.logical_xor(lhs.shamir, rhs.shamir)))
 
 
     def maximum(self, lhs, rhs):
@@ -816,8 +816,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((
-            self.aprotocol.maximum(lhs.additive_subshare, rhs.additive_subshare),
-            self.sprotocol.maximum(lhs.shamir_subshare, rhs.shamir_subshare)))
+            self.aprotocol.maximum(lhs.additive, rhs.additive),
+            self.sprotocol.maximum(lhs.shamir, rhs.shamir)))
 
 
     def minimum(self, lhs, rhs):
@@ -848,8 +848,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((
-            self.aprotocol.minimum(lhs.additive_subshare, rhs.additive_subshare),
-            self.sprotocol.minimum(lhs.shamir_subshare, rhs.shamir_subshare)))
+            self.aprotocol.minimum(lhs.additive, rhs.additive),
+            self.sprotocol.minimum(lhs.shamir, rhs.shamir)))
 
 
     def multiplicative_inverse(self, operand):
@@ -881,8 +881,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.multiplicative_inverse(operand.additive_subshare),
-            self.sprotocol.multiplicative_inverse(operand.shamir_subshare)))
+            self.aprotocol.multiplicative_inverse(operand.additive),
+            self.sprotocol.multiplicative_inverse(operand.shamir)))
 
 
     def multiply(self, lhs, rhs, *, encoding=None):
@@ -909,20 +909,20 @@ class ActiveProtocolSuite(object):
         # Private-private multiplication.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.multiply(lhs.additive_subshare, rhs.additive_subshare, encoding=encoding),
-                self.sprotocol.multiply(lhs.shamir_subshare, rhs.shamir_subshare, encoding=encoding)))
+                self.aprotocol.multiply(lhs.additive, rhs.additive, encoding=encoding),
+                self.sprotocol.multiply(lhs.shamir, rhs.shamir, encoding=encoding)))
 
         # Private-public multiplication.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
             return ActiveArrayShare((
-                self.aprotocol.multiply(lhs.additive_subshare, rhs, encoding=encoding),
-                self.sprotocol.multiply(lhs.shamir_subshare, rhs, encoding=encoding)))
+                self.aprotocol.multiply(lhs.additive, rhs, encoding=encoding),
+                self.sprotocol.multiply(lhs.shamir, rhs, encoding=encoding)))
 
         # Public-private multiplication.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
             return ActiveArrayShare((
-                self.aprotocol.multiply(lhs, rhs.additive_subshare, encoding=encoding),
-                self.sprotocol.multiply(lhs, rhs.shamir_subshare, encoding=encoding)))
+                self.aprotocol.multiply(lhs, rhs.additive, encoding=encoding),
+                self.sprotocol.multiply(lhs, rhs.shamir, encoding=encoding)))
 
         raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
@@ -952,8 +952,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.negative(operand.additive_subshare),
-            self.sprotocol.negative(operand.shamir_subshare)))
+            self.aprotocol.negative(operand.additive),
+            self.sprotocol.negative(operand.shamir)))
 
 
 
@@ -1030,8 +1030,8 @@ class ActiveProtocolSuite(object):
             if isinstance(rhs, int):
                 rhs = self.field.full_like(lhs.storage, rhs)
             return ActiveArrayShare((
-                self.aprotocol.power(lhs.additive_subshare, rhs),
-                self.sprotocol.power(lhs.shamir_subshare, rhs)))
+                self.aprotocol.power(lhs.additive, rhs),
+                self.sprotocol.power(lhs.shamir, rhs)))
 
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
             pass
@@ -1071,11 +1071,11 @@ class ActiveProtocolSuite(object):
         shamadd = []
         for i in self.communicator.ranks:
             shamadd.append(self.sprotocol.share(src=i, secret=ss_add.storage, shape=ss_add.storage.shape, encoding=Identity()))
-        ss_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
+        ss_sham = ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
         shamadd = []
         for i in self.communicator.ranks:
             shamadd.append(self.sprotocol.share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape, encoding=Identity()))
-        bs_sham = cicada.shamir.ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
+        bs_sham = ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
         return (ActiveArrayShare((bs_add, bs_sham)), ActiveArrayShare((ss_add, ss_sham)))
 
 
@@ -1099,8 +1099,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.relu(operand.additive_subshare),
-            self.sprotocol.relu(operand.shamir_subshare)))
+            self.aprotocol.relu(operand.additive),
+            self.sprotocol.relu(operand.shamir)))
 
 
     def reshare(self, operand):
@@ -1124,8 +1124,8 @@ class ActiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
 
         reshared = ActiveArrayShare((
-            self.aprotocol.reshare(operand.additive_subshare),
-            self.sprotocol.reshare(operand.shamir_subshare)))
+            self.aprotocol.reshare(operand.additive),
+            self.sprotocol.reshare(operand.shamir)))
 
         if not self.verify(reshared):
             raise ConsistencyError("Secret Shares being reshared are inconsistent")
@@ -1168,15 +1168,15 @@ class ActiveProtocolSuite(object):
 
         encoding = self._require_encoding(encoding)
 
-        zshare = cicada.shamir.ShamirArrayShare(self.sprotocol.field.subtract(share.shamir_subshare.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.field.order-2, self.field.order) * share.additive_subshare.storage) % self.field.order, dtype=self.field.dtype)))
+        zshare = ShamirArrayShare(self.sprotocol.field.subtract(share.shamir.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.field.order-2, self.field.order) * share.additive.storage) % self.field.order, dtype=self.field.dtype)))
 
-        a_storage = numpy.array(self.communicator.allgather(share.additive_subshare.storage), dtype=self.field.dtype)
+        a_storage = numpy.array(self.communicator.allgather(share.additive.storage), dtype=self.field.dtype)
         z_storage = numpy.array(self.communicator.allgather(zshare.storage), dtype=self.field.dtype)
         secret = []
         revealing_coef = self.sprotocol._revealing_coef
         for index in numpy.ndindex(z_storage[0].shape):
             secret.append(sum([revealing_coef[i]*z_storage[i][index] for i in range(len(revealing_coef))]))
-        rev = numpy.array([x%self.field.order for x in secret], dtype=self.field.dtype).reshape(share.additive_subshare.storage.shape)
+        rev = numpy.array([x%self.field.order for x in secret], dtype=self.field.dtype).reshape(share.additive.storage.shape)
         if len(rev.shape) == 0 and rev:
             raise ConsistencyError("Secret Shares are inconsistent in the first stage")
         if len(rev.shape) > 0 and numpy.any(rev):
@@ -1185,7 +1185,7 @@ class ActiveProtocolSuite(object):
         secret = []
         for index in numpy.ndindex(a_storage[0].shape):
             secret.append(sum([a_storage[i][index] for i in range(len(revealing_coef))]))
-        reva = numpy.array([x%self.field.order for x in secret], dtype=self.field.dtype).reshape(share.additive_subshare.storage.shape)
+        reva = numpy.array([x%self.field.order for x in secret], dtype=self.field.dtype).reshape(share.additive.storage.shape)
         bs_storage=numpy.zeros(z_storage.shape, dtype=self.field.dtype)
         for i, c in enumerate(revealing_coef):
             bs_storage[i] =  self.sprotocol.field.add(z_storage[i], numpy.array((pow(self.sprotocol._revealing_coef[i], self.field.order-2, self.field.order) * a_storage[i]) % self.field.order, dtype=self.field.dtype))
@@ -1205,7 +1205,7 @@ class ActiveProtocolSuite(object):
                 loop_acc += revealing_coef[i]*bs_storage[v-1]
             sub_secret.append(loop_acc % self.field.order)
 
-        revs = numpy.array(sub_secret, dtype=self.field.dtype).reshape(share.additive_subshare.storage.shape)
+        revs = numpy.array(sub_secret, dtype=self.field.dtype).reshape(share.additive.storage.shape)
         while True:
             s2 = numpy.sort(numpy.random.choice(self.sprotocol.indices, self.sprotocol._d+1, replace=False))
             if not numpy.array_equal(s1, s2):
@@ -1224,7 +1224,7 @@ class ActiveProtocolSuite(object):
                 loop_acc += revealing_coef[i]*bs_storage[v-1]
             sub_secret2.append(loop_acc % self.field.order)
 
-        revs2 = numpy.array(sub_secret2, dtype=self.field.dtype).reshape(share.additive_subshare.storage.shape)
+        revs2 = numpy.array(sub_secret2, dtype=self.field.dtype).reshape(share.additive.storage.shape)
         if len(revs.shape) > 0 or len(revs2.shape) > 0:
             if numpy.any(revs != reva) or numpy.any(revs2 != reva):
                 raise ConsistencyError("Secret Shares are inconsistent in the second stage")
@@ -1264,11 +1264,11 @@ class ActiveProtocolSuite(object):
         if not isinstance(operand, ActiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
-        tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
-        rbm, rshare = self.random_bitwise_secret(bits=self.field.fieldbits-bits, src=src, generator=generator, shape=operand.additive_subshare.storage.shape)
+        tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.additive.storage.shape)
+        rbm, rshare = self.random_bitwise_secret(bits=self.field.fieldbits-bits, src=src, generator=generator, shape=operand.additive.storage.shape)
         return ActiveArrayShare((
-            self.aprotocol.right_shift(operand.additive_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.additive_subshare, rem_mask=rshare.additive_subshare),
-            self.sprotocol.right_shift(operand.shamir_subshare, bits=bits, src=src, generator=generator, trunc_mask=tshare.shamir_subshare, rem_mask=rshare.shamir_subshare)))
+            self.aprotocol.right_shift(operand.additive, bits=bits, src=src, generator=generator, trunc_mask=tshare.additive, rem_mask=rshare.additive),
+            self.sprotocol.right_shift(operand.shamir, bits=bits, src=src, generator=generator, trunc_mask=tshare.shamir, rem_mask=rshare.shamir)))
 
 
     def share(self, *, src, secret, shape, encoding=None):
@@ -1362,8 +1362,8 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.sum(operand.additive_subshare),
-            self.sprotocol.sum(operand.shamir_subshare)))
+            self.aprotocol.sum(operand.additive),
+            self.sprotocol.sum(operand.shamir)))
 
 
     def verify(self, operand):
@@ -1384,9 +1384,9 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        a_share = operand.additive_subshare
-        s_share = operand.shamir_subshare
-        zero = cicada.shamir.ShamirArrayShare(self.sprotocol.field.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.field.order-2, self.field.order) * a_share.storage) % self.field.order, dtype=object)))
+        a_share = operand.additive
+        s_share = operand.shamir
+        zero = ShamirArrayShare(self.sprotocol.field.subtract(s_share.storage, numpy.array((pow(self.sprotocol._revealing_coef[self.communicator.rank], self.field.order-2, self.field.order) * a_share.storage) % self.field.order, dtype=object)))
         consistency = numpy.all(self.sprotocol.reveal(zero, encoding=Identity()) == numpy.zeros(zero.storage.shape))
         return consistency
 
@@ -1467,6 +1467,6 @@ class ActiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
-            self.aprotocol.zigmoid(operand.additive_subshare, encoding=encoding),
-            self.sprotocol.zigmoid(operand.shamir_subshare, encoding=encoding)))
+            self.aprotocol.zigmoid(operand.additive, encoding=encoding),
+            self.sprotocol.zigmoid(operand.shamir, encoding=encoding)))
 
