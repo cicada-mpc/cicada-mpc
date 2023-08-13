@@ -88,6 +88,7 @@ Feature: Active Protocol
         | 3       |  3        |  [0]*44+[0,0,1,1]+[0]*16 |
 
 
+    @wip
     @calculator
     Scenario Outline: Divide
         Given a calculator service with <players> players
