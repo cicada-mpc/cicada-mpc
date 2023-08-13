@@ -107,7 +107,7 @@ Feature: SocketCommunicator
     Scenario Outline: Gather
         Given <players> players
         When player <dst> gathers <values>
-        Then the group should return <result>
+        Then the group result should equal <result>
 
         Examples:
         | players | dst  | values      | result                        |
@@ -120,7 +120,7 @@ Feature: SocketCommunicator
     Scenario Outline: GatherV
         Given <players> players
         When player <dst> gathers <values> from <sources>
-        Then the group should return <result>
+        Then the group result should equal <result>
 
         Examples:
         | players | dst  | values             | sources      | result                        |

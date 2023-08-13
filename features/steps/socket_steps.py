@@ -53,6 +53,14 @@ def step_impl(context):
     numpy.testing.assert_almost_equal(exit_delta, 0, decimal=2)
 
 
+@then(u'the group result should equal {}')
+def step_impl(context, result):
+    result = eval(result)
+    group = context.results
+
+    test.assert_equal(result, group)
+
+
 @then(u'the group should return {}')
 def step_impl(context, result):
     result = numpy.array(eval(result))
