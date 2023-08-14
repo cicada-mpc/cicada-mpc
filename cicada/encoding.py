@@ -14,11 +14,154 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Functionality for encoding real values in fields."""
+"""Functionality for encoding domain values using integer fields."""
 
 import numbers
 
 import numpy
+
+
+class Bits(object):
+    """Converts arrays of bit values to and from field values.
+    """
+
+    def __eq__(self, other):
+        return isinstance(other, Identity)
+
+
+    def __repr__(self):
+        return f"cicada.encoding.Bits()" # pragma: no cover
+
+
+    def decode(self, array, field):
+        """Convert an array of field values to bit values.
+
+        Parameters
+        ----------
+        array: :class:`numpy.ndarray`, or :any:`None`, required
+            Array of field values containing only :math:`0` or :math:`1`.
+        field: :class:`cicada.arithmetic.Field`, required
+            Field over which the values in `array` are defined.
+
+        Returns
+        -------
+        decoded: :class:`numpy.ndarray` or :any:`None`
+            Array of integers containing the values :math:`0` and :math:`1`, or
+            :any:`None` if the input was :any:`None`.
+        """
+        if array is None:
+            return array
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+        if not array.dtype == field.dtype:
+            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.")
+
+        # Strict enforcement - input must only contain zeros and ones.
+        result = array.astype(bool)
+        if not numpy.array_equal(array, result):
+            raise ValueError(f"Expected array to contain only zeros and ones, got {array} instead.")
+
+        return array.astype(numpy.uint8)
+
+
+    def encode(self, array, field):
+        """Convert an array of bit values to field values.
+
+        Parameters
+        ----------
+        array: :class:`numpy.ndarray` or :any:`None`, required
+            Array to convert containing only :math:`0` or :math:`1`.
+        field: :class:`cicada.arithmetic.Field`, required
+            Field over which the returned values are defined.
+
+        Returns
+        -------
+        encoded: :class:`numpy.ndarray` or :any:`None`
+            Encoded array with the same shape as the input, containing the
+            `field` values :math:`0` and :math:`1`, or :any:`None` if the input
+            was :any:`None`.
+        """
+        if array is None:
+            return array
+
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+
+        # Strict enforcement - input must only contain zeros and ones.
+        result = array.astype(bool)
+        if not numpy.array_equal(array, result):
+            raise ValueError(f"Expected array to contain only zeros and ones, got {array} instead.")
+
+        # Convert to the field.
+        return field(result)
+
+
+class Boolean(object):
+    """Converts arrays of boolean values to and from field values.
+    """
+
+    def __eq__(self, other):
+        return isinstance(other, Identity)
+
+
+    def __repr__(self):
+        return f"cicada.encoding.Boolean()" # pragma: no cover
+
+
+    def decode(self, array, field):
+        """Convert an array of field values to boolean values.
+
+        Parameters
+        ----------
+        array: :class:`numpy.ndarray`, or :any:`None`, required
+            Array of field values containing only :math:`0` or :math:`1`.
+        field: :class:`cicada.arithmetic.Field`, required
+            Field over which the values in `array` are defined.
+
+        Returns
+        -------
+        decoded: :class:`numpy.ndarray` or :any:`None`
+            Array of integers containing the values :math:`0` and :math:`1`, or
+            :any:`None` if the input was :any:`None`.
+        """
+        if array is None:
+            return array
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+        if not array.dtype == field.dtype:
+            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.")
+
+        return array.astype(bool)
+
+
+    def encode(self, array, field):
+        """Convert an array of boolean values to field values.
+
+        Parameters
+        ----------
+        array: :class:`numpy.ndarray` or :any:`None`, required
+            Array to convert.  Nonzero values are considered True, zero values are considered False.
+        field: :class:`cicada.arithmetic.Field`, required
+            Field over which the returned values are defined.
+
+        Returns
+        -------
+        encoded: :class:`numpy.ndarray` or :any:`None`
+            Encoded array with the same shape as the input, containing the
+            `field` values :math:`0` and :math:`1`, or :any:`None` if the input
+            was :any:`None`.
+        """
+        if array is None:
+            return array
+
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+
+        # Permissive coercion of truthy values.
+        result = array.astype(bool)
+
+        # Convert to the field.
+        return field(result)
 
 
 class FixedPoint(object):
