@@ -26,7 +26,8 @@ class FixedPoint(object):
 
     Encoded values are :class:`numpy.ndarray` instances containing Python
     integers, with `precision` bits reserved for encoding fractional digits.
-    Encoded values will be decoded as 64-bit floating-point arrays.
+    Decoded values will be :class:`numpy.ndarray` instances containining 64-bit
+    floating point values.
 
     Parameters
     ----------
@@ -82,12 +83,14 @@ class FixedPoint(object):
         order = field.order
         posbound = order // 2
 
+        # Set aside storage for the result (ensures that we return an array and not a scalar).
+        output = numpy.empty_like(array, dtype=numpy.float64)
         # Convert from the field to a plain array of integers.
         result = numpy.copy(array, subok=False)
         # Switch from twos-complement notation to negative values.
         result = numpy.where(result > posbound, -(order - result), result)
         # Shift values back to the right and convert to reals.
-        return result.astype(numpy.float64) / self._scale
+        return numpy.divide(result.astype(numpy.float64), self._scale, out=output)
 
 
     def encode(self, array, field):
