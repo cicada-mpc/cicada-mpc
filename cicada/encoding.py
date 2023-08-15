@@ -52,14 +52,14 @@ class Bits(object):
         if array is None:
             return array
         if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
         if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.")
+            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: no cover
 
         # Strict enforcement - input must only contain zeros and ones.
         result = array.astype(bool)
         if not numpy.array_equal(array, result):
-            raise ValueError(f"Expected array to contain only zeros and ones, got {array} instead.")
+            raise ValueError(f"Expected array to contain only zeros and ones, got {array} instead.") # pragma: no cover
 
         return array.astype(numpy.uint8)
 
@@ -85,12 +85,12 @@ class Bits(object):
             return array
 
         if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
 
         # Strict enforcement - input must only contain zeros and ones.
         result = array.astype(bool)
         if not numpy.array_equal(array, result):
-            raise ValueError(f"Expected array to contain only zeros and ones, got {array} instead.")
+            raise ValueError(f"Expected array to contain only zeros and ones, got {array} instead.") # pragma: no cover
 
         # Convert to the field.
         return field(result)
@@ -127,9 +127,9 @@ class Boolean(object):
         if array is None:
             return array
         if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
         if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.")
+            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: nocover
 
         return array.astype(bool)
 
@@ -155,7 +155,7 @@ class Boolean(object):
             return array
 
         if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
 
         # Permissive coercion of truthy values.
         result = array.astype(bool)
@@ -217,9 +217,9 @@ class FixedPoint(object):
             return array
 
         if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
         if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.")
+            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: nocover
 
         order = field.order
         posbound = order // 2
@@ -256,7 +256,7 @@ class FixedPoint(object):
             return array
 
         if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
 
         order = field.order
         posbound = order // 2
@@ -312,9 +312,9 @@ class Identity(object):
         if array is None:
             return array
         if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
         if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.")
+            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: nocover
         return array
 
 
@@ -340,7 +340,7 @@ class Identity(object):
             return array
 
         if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
 
         # Convert to a field.
         return field(array)

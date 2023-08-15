@@ -27,6 +27,7 @@ Feature: Encodings
 
         Examples:
         | encoding                           | field                 | x                     |
+        | default FixedPoint encoding        | default Field         | None                  |
         | default FixedPoint encoding        | default Field         | 1                     |
         | default FixedPoint encoding        | default Field         | 2**8                  |
         | default FixedPoint encoding        | default Field         | 2**8+1                |
@@ -69,17 +70,18 @@ Feature: Encodings
         | default FixedPoint encoding        | default Field         | [1.5]                 |
         | default FixedPoint encoding        | default Field         | [1.5,2.5,3.5]         |
         | default FixedPoint encoding        | default Field         | [[1.5,2.5],[3.5,4.5]] |
-        | default FixedPoint encoding        | default Field         | None                  |
         | Identity encoding                  | default Field         | None                  |
         | Identity encoding                  | default Field         | 1                     |
         | Identity encoding                  | default Field         | 256                   |
         | Identity encoding                  | default Field         | [1]                   |
         | Identity encoding                  | default Field         | [1, 256]              |
         | Identity encoding                  | default Field         | [[1, 2], [3, 4]]      |
+        | Bits encoding                      | default Field         | None                  |
         | Bits encoding                      | default Field         | 0                     |
         | Bits encoding                      | default Field         | 1                     |
         | Bits encoding                      | default Field         | [1]                   |
         | Bits encoding                      | default Field         | [0, 1]                |
+        | Boolean encoding                   | default Field         | None                  |
         | Boolean encoding                   | default Field         | 0                     |
         | Boolean encoding                   | default Field         | 1                     |
         | Boolean encoding                   | default Field         | [1]                   |
