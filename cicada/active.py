@@ -632,7 +632,7 @@ class ActiveProtocolSuite(object):
                 self.aprotocol.field_subtract(lhs, rhs.additive),
                 self.sprotocol.field_subtract(lhs, rhs.shamir)))
 
-        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def field_uniform(self, *, shape=None, generator=None):
@@ -1491,17 +1491,23 @@ class ActiveProtocolSuite(object):
 
         # Private-private subtraction.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
-            return self.field_subtract(lhs, rhs)
+            return ActiveArrayShare((
+                self.aprotocol.subtract(lhs.additive, rhs.additive),
+                self.sprotocol.subtract(lhs.shamir, rhs.shamir)))
 
         # Private-public subtraction.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
-            return self.field_subtract(lhs, encoding.encode(rhs, self.field))
+            return ActiveArrayShare((
+                self.aprotocol.subtract(lhs.additive, rhs),
+                self.sprotocol.subtract(lhs.shamir, rhs)))
 
         # Public-private subtraction.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
-            return self.field_subtract(encoding.encode(lhs, self.field), rhs)
+            return ActiveArrayShare((
+                self.aprotocol.subtract(lhs, rhs.additive),
+                self.sprotocol.subtract(lhs, rhs.shamir)))
 
-        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def sum(self, operand):

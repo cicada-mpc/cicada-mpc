@@ -340,7 +340,7 @@ class ShamirBasicProtocolSuite(object):
         if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
             return ShamirArrayShare(self.field.subtract(lhs.storage, rhs))
 
-        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def field_uniform(self, *, shape=None, generator=None):
@@ -674,7 +674,7 @@ class ShamirBasicProtocolSuite(object):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
             return self.field_subtract(encoding.encode(lhs, self.field), rhs)
 
-        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def sum(self, operand):

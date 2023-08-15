@@ -667,6 +667,42 @@ Feature: Active Protocol
 
 
     @calculator
+    Scenario Outline: Subtract Public Private
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And public value <a>
+        And player 1 secret shares <b>
+        When the players subtract the shares
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a       | b           | result        |
+        | 3       | 5       | 1           | 4             |
+        | 3       | 5       | 1.1         | 3.9           |
+        | 3       | 5       | 1.5         | 3.5           |
+        | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
+
+
+    @calculator
+    Scenario Outline: Subtract Private Public
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        And public value <b>
+        When the players subtract the shares
+        And the players reveal the secret
+        Then the result should match <result> to within 4 digits
+
+        Examples:
+        | players | a       | b           | result        |
+        | 3       | 5       | 1           | 4             |
+        | 3       | 5       | 1.1         | 3.9           |
+        | 3       | 5       | 1.5         | 3.5           |
+        | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
+
+
+    @calculator
     Scenario Outline: Sum
         Given a calculator service with <players> players
         And a new Active protocol suite
