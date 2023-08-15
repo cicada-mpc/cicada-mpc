@@ -23,6 +23,20 @@ import numpy
 import cicada.encoding
 
 
+@given(u'a Bits encoding')
+def step_impl(context):
+    if "encodings" not in context:
+        context.encodings = []
+    context.encodings.append(cicada.encoding.Bits())
+
+
+@given(u'a Boolean encoding')
+def step_impl(context):
+    if "encodings" not in context:
+        context.encodings = []
+    context.encodings.append(cicada.encoding.Boolean())
+
+
 @given(u'a Identity encoding')
 def step_impl(context):
     if "encodings" not in context:
@@ -48,6 +62,8 @@ def step_impl(context, bits):
 @when(u'{value} is encoded and decoded')
 def step_impl(context, value):
     value = eval(value)
+    if value is not None:
+        value = numpy.array(value)
 
     encoding = context.encodings[-1]
     field = context.fields[-1]

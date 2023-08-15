@@ -26,7 +26,7 @@ class Bits(object):
     """
 
     def __eq__(self, other):
-        return isinstance(other, Identity)
+        return isinstance(other, Bits)
 
 
     def __repr__(self):
@@ -101,7 +101,7 @@ class Boolean(object):
     """
 
     def __eq__(self, other):
-        return isinstance(other, Identity)
+        return isinstance(other, Boolean)
 
 
     def __repr__(self):
@@ -196,11 +196,6 @@ class FixedPoint(object):
         return f"cicada.encoding.FixedPoint(precision={self._precision})" # pragma: no cover
 
 
-    def _assert_unary_compatible(self, array, label):
-        if not isinstance(array, numpy.ndarray) and array.dtype == numpy.dtype(object):
-            raise ValueError(f"Expected {label} to be an instance of numpy.ndarray with dtype 'object', got {type(array)} instead.") # pragma: no cover
-
-
     def decode(self, array, field):
         """Convert an array of field values to an array of real values.
 
@@ -221,7 +216,10 @@ class FixedPoint(object):
         if array is None:
             return array
 
-        self._assert_unary_compatible(array, "array")
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+        if not array.dtype == field.dtype:
+            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.")
 
         order = field.order
         posbound = order // 2
@@ -257,6 +255,9 @@ class FixedPoint(object):
         if array is None:
             return array
 
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+
         order = field.order
         posbound = order // 2
 
@@ -270,10 +271,7 @@ class FixedPoint(object):
         # Convert to integers, using the Python modulo operator to handle negative values.
         result = numpy.array([int(x) % order for x in numpy.nditer(result)], dtype=field.dtype).reshape(result.shape)
         # Convert to a field.
-        result = field(result)
-
-        self._assert_unary_compatible(result, "result")
-        return result
+        return field(result)
 
 
     @property
@@ -297,11 +295,6 @@ class Identity(object):
         return f"cicada.encoding.Identity()" # pragma: no cover
 
 
-    def _assert_unary_compatible(self, array, label):
-        if not isinstance(array, numpy.ndarray) and array.dtype == numpy.dtype(object):
-            raise ValueError(f"Expected {label} to be an instance of numpy.ndarray with dtype 'object', got {type(array)} instead.") # pragma: no cover
-
-
     def decode(self, array, field):
         """Return an array of field values without modification.
 
@@ -318,7 +311,10 @@ class Identity(object):
         """
         if array is None:
             return array
-        self._assert_unary_compatible(array, "array")
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
+        if not array.dtype == field.dtype:
+            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.")
         return array
 
 
@@ -343,8 +339,8 @@ class Identity(object):
         if array is None:
             return array
 
-        # Convert to a field.
-        result = field(array)
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.")
 
-        self._assert_unary_compatible(result, "result")
-        return result
+        # Convert to a field.
+        return field(array)

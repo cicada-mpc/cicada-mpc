@@ -12,6 +12,10 @@ Feature: Encodings
         | default FixedPoint encoding  | 13 bit FixedPoint encoding   | unequal  |
         | Identity encoding            | Default FixedPoint encoding  | unequal  |
         | Identity encoding            | Identity encoding            | equal    |
+        | Bits encoding                | Bits encoding                | equal    |
+        | Bits encoding                | Identity encoding            | unequal  |
+        | Boolean encoding             | Boolean encoding             | equal    |
+        | Boolean encoding             | Identity encoding            | unequal  |
 
 
     Scenario Outline: Round Trip Encoding
@@ -72,4 +76,12 @@ Feature: Encodings
         | Identity encoding                  | default Field         | [1]                   |
         | Identity encoding                  | default Field         | [1, 256]              |
         | Identity encoding                  | default Field         | [[1, 2], [3, 4]]      |
+        | Bits encoding                      | default Field         | 0                     |
+        | Bits encoding                      | default Field         | 1                     |
+        | Bits encoding                      | default Field         | [1]                   |
+        | Bits encoding                      | default Field         | [0, 1]                |
+        | Boolean encoding                   | default Field         | 0                     |
+        | Boolean encoding                   | default Field         | 1                     |
+        | Boolean encoding                   | default Field         | [1]                   |
+        | Boolean encoding                   | default Field         | [0, 1]                |
 
