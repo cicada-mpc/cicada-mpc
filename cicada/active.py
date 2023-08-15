@@ -220,15 +220,21 @@ class ActiveProtocolSuite(object):
 
         # Private-private addition.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
-            return self.field_add(lhs, rhs)
+            return ActiveArrayShare((
+                self.aprotocol.add(lhs.additive, rhs.additive),
+                self.sprotocol.add(lhs.shamir, rhs.shamir)))
 
         # Private-public addition.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
-            return self.field_add(lhs, encoding.encode(rhs, self.field))
+            return ActiveArrayShare((
+                self.aprotocol.add(lhs.additive, rhs),
+                self.sprotocol.add(lhs.shamir, rhs)))
 
         # Public-private addition.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
-            return self.field_add(encoding.encode(lhs, self.field), rhs)
+            return ActiveArrayShare((
+                self.aprotocol.add(lhs, rhs.additive),
+                self.sprotocol.add(lhs, rhs.shamir)))
 
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
