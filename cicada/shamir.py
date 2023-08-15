@@ -875,10 +875,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
             result = self.right_shift(result, bits=encoding.precision)
             return result
 
-        # Public-private division.
-        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
-            pass
-
         raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
@@ -1070,9 +1066,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         result: :class:`ShamirArrayShare`
             Secret-shared result of raising `lhs` to the power(s) in `rhs`.
         """
-        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
-            pass
-
         if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
                 rhs = self.field.full_like(lhs.storage, rhs)
@@ -1091,10 +1084,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
                 ans.append(it_ans)
             return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
 
-        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
-            pass
-
-        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def floor(self, operand, *, encoding=None):
@@ -1561,9 +1551,6 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         """
         encoding = self._require_encoding(encoding)
 
-        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
-            pass
-
         if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
                 rhs = self.field.full_like(lhs.storage, rhs)
@@ -1584,10 +1571,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
                 ans.append(it_ans)
             return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
 
-        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
-            pass
-
-        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def _public_bitwise_less_than(self, *, lhspub, rhs):
