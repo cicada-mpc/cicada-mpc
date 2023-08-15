@@ -51,6 +51,68 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Add Public Private
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And public value <a>
+        And player 1 secret shares <b>
+        When the players add the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result       |
+        | 3       | -2         | -3.5       | -5.5         |
+        | 3       | -20        | -30        | -50          |
+        | 3       | -200       | -300       | -500         |
+        | 3       | -2000      | -3000      | -5000        |
+        | 3       | -20000     | -30000     | -50000       |
+        | 3       | -200000    | -300000    | -500000      |
+        | 3       | -2000000   | -3000000   | -5000000     |
+        | 3       | -20000000  | -30000000  | -50000000    |
+        | 3       | -200000000 | -300000000 | -500000000   |
+        | 3       | -21        | -35        | -56          |
+        | 3       | -212       | -351       | -563         |
+        | 3       | -2123      | -3512      | -5635        |
+        | 3       | -21234     | -35123     | -56357       |
+        | 3       | -212345    | -351234    | -563579      |
+        | 3       | -2123456   | -3512345   | -5635801     |
+        | 3       | -21234567  | -35123458  | -56358025    |
+        | 3       | -212345678 | -351234589 | -563580267   |
+
+
+    @calculator
+    Scenario Outline: Add Private Public
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        And public value <b>
+        When the players add the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result       |
+        | 3       | -2         | -3.5       | -5.5         |
+        | 3       | -20        | -30        | -50          |
+        | 3       | -200       | -300       | -500         |
+        | 3       | -2000      | -3000      | -5000        |
+        | 3       | -20000     | -30000     | -50000       |
+        | 3       | -200000    | -300000    | -500000      |
+        | 3       | -2000000   | -3000000   | -5000000     |
+        | 3       | -20000000  | -30000000  | -50000000    |
+        | 3       | -200000000 | -300000000 | -500000000   |
+        | 3       | -21        | -35        | -56          |
+        | 3       | -212       | -351       | -563         |
+        | 3       | -2123      | -3512      | -5635        |
+        | 3       | -21234     | -35123     | -56357       |
+        | 3       | -212345    | -351234    | -563579      |
+        | 3       | -2123456   | -3512345   | -5635801     |
+        | 3       | -21234567  | -35123458  | -56358025    |
+        | 3       | -212345678 | -351234589 | -563580267   |
+
+
+    @calculator
     Scenario Outline: Bit Compose
         Given a calculator service with <players> players
         And a new Additive protocol suite

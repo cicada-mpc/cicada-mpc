@@ -44,7 +44,7 @@ class ActiveArrayShare(object):
     def __getitem__(self, index):
         return ActiveArrayShare((
             AdditiveArrayShare(self.additive.storage[index]),
-            ShamirArrayShare(self.shamir.storage[index])))
+            ShamirArrayShare(self.shamir.storage[index]))) # pragma: no cover
 
 
     @property
@@ -230,7 +230,7 @@ class ActiveProtocolSuite(object):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
             return self.field_add(encoding.encode(lhs, self.field), rhs)
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def bit_compose(self, operand):
@@ -487,7 +487,7 @@ class ActiveProtocolSuite(object):
                 self.aprotocol.field_add(lhs, rhs.additive),
                 self.sprotocol.field_add(lhs, rhs.shamir)))
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def field_multiply(self, lhs, rhs):

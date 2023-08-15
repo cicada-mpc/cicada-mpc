@@ -298,7 +298,21 @@ def main(listen_socket, communicator):
                 _send_result(client)
 
             # Unary protocol suite operations.
-            elif command == "protocol" and kwargs["subcommand"] in ["absolute", "negative", "bit_compose", "bit_decompose", "floor", "logical_not", "less_zero", "multiplicative_inverse", "relu", "sum", "truncate", "verify", "zigmoid"]:
+            elif command == "protocol" and kwargs["subcommand"] in [
+                "absolute",
+                "bit_compose",
+                "bit_decompose",
+                "floor",
+                "less_zero",
+                "logical_not",
+                "multiplicative_inverse",
+                "negative",
+                "relu",
+                "sum",
+                "truncate",
+                "verify",
+                "zigmoid",
+                ]:
                 protocol = protocol_stack[-1]
                 a = operand_stack.pop()
                 result = getattr(protocol, kwargs["subcommand"])(a)
@@ -306,7 +320,26 @@ def main(listen_socket, communicator):
                 _send_result(client)
 
             # Binary protocol suite operations.
-            elif command == "protocol" and kwargs["subcommand"] in ["subtract", "add", "field_add", "divide", "dot", "equal", "less", "logical_and", "logical_or", "logical_xor", "maximum", "minimum", "multiply", "power", "field_power", "field_subtract", "untruncated_divide", "field_multiply"]:
+            elif command == "protocol" and kwargs["subcommand"] in [
+                "add",
+                "divide",
+                "dot",
+                "equal",
+                "field_add",
+                "field_multiply",
+                "field_power",
+                "field_subtract",
+                "less",
+                "logical_and",
+                "logical_or",
+                "logical_xor",
+                "maximum",
+                "minimum",
+                "multiply",
+                "power",
+                "subtract",
+                "untruncated_divide",
+                ]:
                 protocol = protocol_stack[-1]
                 b = operand_stack.pop()
                 a = operand_stack.pop()

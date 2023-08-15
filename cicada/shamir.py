@@ -53,7 +53,7 @@ class ShamirArrayShare(object):
     @storage.setter
     def storage(self, storage):
         if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.")
+            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.") # pragma: no cover
         self._storage = numpy.array(storage, dtype=object)
 
 
@@ -205,7 +205,7 @@ class ShamirBasicProtocolSuite(object):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
             return self.field_add(encoding.encode(lhs, self.field), rhs)
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def bit_compose(self, operand):
@@ -291,17 +291,13 @@ class ShamirBasicProtocolSuite(object):
 
         # Public-private addition.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
-            if self.communicator.rank == 0:
-                return ShamirArrayShare(self.field.add(lhs, rhs.storage))
-            return ShamirArrayShare(rhs.storage)
+             return ShamirArrayShare(self.field.add(lhs, rhs.storage))
 
         # Private-public addition.
         if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
-            if self.communicator.rank == 0:
-                return ShamirArrayShare(self.field.add(lhs.storage, rhs))
-            return ShamirArrayShare(lhs.storage)
+            return ShamirArrayShare(self.field.add(lhs.storage, rhs))
 
-        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def field_subtract(self, lhs, rhs):

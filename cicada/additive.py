@@ -41,7 +41,7 @@ class AdditiveArrayShare(object):
 
 
     def __getitem__(self, index):
-        return AdditiveArrayShare(numpy.array(self._storage[index], dtype=self._storage.dtype))
+        return AdditiveArrayShare(numpy.array(self._storage[index], dtype=self._storage.dtype)) # pragma: no cover
 
 
     @property
@@ -57,7 +57,7 @@ class AdditiveArrayShare(object):
     @storage.setter
     def storage(self, storage):
         if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.")
+            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.") # pragma: no cover
         self._storage = numpy.array(storage, dtype=object)
 
 
@@ -236,7 +236,7 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             return self.field_add(encoding.encode(lhs, self.field), rhs)
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def bit_compose(self, operand):
@@ -498,7 +498,7 @@ class AdditiveProtocolSuite(object):
                 return AdditiveArrayShare(self.field.add(lhs, rhs.storage))
             return rhs
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def field_dot(self, lhs, rhs):
