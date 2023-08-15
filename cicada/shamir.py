@@ -1043,7 +1043,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
             return ShamirArrayShare(self.field.multiply(lhs.storage, rhs))
 
-        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def field_power(self, lhs, rhs):
@@ -1529,7 +1529,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
             result = self.right_shift(result, bits=encoding.precision)
             return result
 
-        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def power(self, lhs, rhs, *, encoding=None):

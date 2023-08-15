@@ -612,7 +612,7 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             return AdditiveArrayShare(self.field.multiply(lhs.storage, rhs))
 
-        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def field_power(self, lhs, rhs):
@@ -1185,7 +1185,7 @@ class AdditiveProtocolSuite(object):
             result = self.right_shift(result, bits=encoding.precision)
             return result
 
-        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def negative(self, operand):

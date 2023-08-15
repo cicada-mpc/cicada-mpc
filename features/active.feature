@@ -522,6 +522,44 @@ Feature: Active Protocol
 
 
     @calculator
+    Scenario Outline: Multiply Public Private
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And public value <a>
+        And player 1 secret shares <b>
+        When the players multiply the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b       | result        |
+        | 3       | 5          | 2       | 10            |
+        | 3       | 5          | 2.5     | 12.5          |
+        | 3       | 5          | -2.5    | -12.5         |
+        | 3       | -5         | -2.5    | 12.5          |
+        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+
+
+    @calculator
+    Scenario Outline: Multiply Private Public
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        And public value <b>
+        When the players multiply the shares
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b       | result        |
+        | 3       | 5          | 2       | 10            |
+        | 3       | 5          | 2.5     | 12.5          |
+        | 3       | 5          | -2.5    | -12.5         |
+        | 3       | -5         | -2.5    | 12.5          |
+        | 3       | [5, 3.5]   | [2, 4]  | [10, 14]      |
+
+
+    @calculator
     Scenario Outline: Negative
         Given a calculator service with <players> players
         And a new Active protocol suite

@@ -543,7 +543,7 @@ class ActiveProtocolSuite(object):
                 self.aprotocol.field_multiply(lhs.additive, rhs),
                 self.sprotocol.field_multiply(lhs.shamir, rhs)))
 
-        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def field_power(self, lhs, rhs):
@@ -1027,7 +1027,7 @@ class ActiveProtocolSuite(object):
                 self.aprotocol.multiply(lhs, rhs.additive, encoding=encoding),
                 self.sprotocol.multiply(lhs, rhs.shamir, encoding=encoding)))
 
-        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def negative(self, operand):
