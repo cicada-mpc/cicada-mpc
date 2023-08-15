@@ -173,6 +173,28 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Divide Private Public
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        And public value <b>
+        When the players divide the shares
+        And the players reveal the secret
+        Then the result should match <result> to within 2 digits
+
+        Examples:
+        | players | a    | b    | result        |
+        | 3       | 0    | 5    | 0             |
+        | 3       | 1    | 5    | 0.2           |
+        | 3       | 2    | 16   | 1/8           |
+        | 3       | 37   | 1    | 37.0          |
+        | 3       | -1   | 5    | -0.2          |
+        | 3       | 2    | -16  | -1/8          |
+        | 3       | -37  | 1    | -37.0         |
+        | 3       | 0.5  | 0.3  | 1.6666        |
+
+
+    @calculator
     Scenario Outline: Dot Product
         Given a calculator service with <players> players
         And a new Additive protocol suite

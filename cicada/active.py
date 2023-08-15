@@ -370,16 +370,19 @@ class ActiveProtocolSuite(object):
 
         # Private-public division.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
-            divisor = encoding.encode(numpy.array(1 / rhs), self.field)
-            result = self.field_multiply(lhs, divisor)
-            result = self.right_shift(result, bits=encoding.precision)
-            return result
+            return ActiveArrayShare((
+                self.aprotocol.divide(lhs.additive, rhs, encoding=encoding),
+                self.sprotocol.divide(lhs.shamir, rhs, encoding=encoding)))
+#            divisor = encoding.encode(numpy.array(1 / rhs), self.field)
+#            result = self.field_multiply(lhs, divisor)
+#            result = self.right_shift(result, bits=encoding.precision)
+#            return result
 
         # Public-private division.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
             pass
 
-        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def dot(self, lhs, rhs, *, encoding=None):

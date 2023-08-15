@@ -879,7 +879,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
             pass
 
-        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def dot(self, lhs, rhs, *, encoding=None):
