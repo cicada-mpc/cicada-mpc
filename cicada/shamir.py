@@ -426,61 +426,6 @@ class ShamirBasicProtocolSuite(object):
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
 
-
-    def pade_approx(self, func, operand,*, encoding=None, center=0, degree=12, scale=3):
-        """Return the pade approximation of `func` sampled with `operand`.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        func: callable object, required
-            The function to be approximated via the pade method.
-        operand: :class:`ShamirArrayShare`, required
-            Secret-shared values where `func` should be evaluated.
-        center: :class:`float`, optional
-            The value at which the approximation should be centered. Sample
-            errors will be larger the further they are from this point.
-
-        Returns
-        -------
-        result: :class:`ShamirArrayShare`
-            Secret shared result of evaluating the pade approximant of func(operand) with the given parameters.
-        """
-        from scipy.interpolate import approximate_taylor_polynomial, pade
-        num_deg = degree%2+degree//2
-        den_deg = degree//2
-
-        self._assert_unary_compatible(operand, "operand")
-        encoding = self._require_encoding(encoding)
-
-        func_taylor = approximate_taylor_polynomial(func, center, degree, scale)
-        func_pade_num, func_pade_den = pade([x for x in func_taylor][::-1], den_deg, n=num_deg)
-        enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
-        enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
-        op_pows_num_list = [self.share(src=1, secret=numpy.array(1), shape=())]
-        for i in range(num_deg):
-            op_pows_num_list.append(self.multiply(operand, op_pows_num_list[-1]))
-        if degree%2:
-            op_pows_den_list=[thing for thing in op_pows_num_list[:-1]]
-        else:
-            op_pows_den_list=[thing for thing in op_pows_num_list]
-        op_pows_num = ShamirArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
-        op_pows_den = ShamirArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
-
-        result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
-        result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
-
-        result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
-        result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
-        result = self.divide(result_num, result_den)
-        return result
-
-
-
     def reshare(self, operand):
         """Privacy-preserving re-randomization of a secret shared array.
 
@@ -1523,6 +1468,61 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
             return result
 
         raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+
+
+
+    def pade_approx(self, func, operand,*, encoding=None, center=0, degree=12, scale=3):
+        """Return the pade approximation of `func` sampled with `operand`.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        func: callable object, required
+            The function to be approximated via the pade method.
+        operand: :class:`ShamirArrayShare`, required
+            Secret-shared values where `func` should be evaluated.
+        center: :class:`float`, optional
+            The value at which the approximation should be centered. Sample
+            errors will be larger the further they are from this point.
+
+        Returns
+        -------
+        result: :class:`ShamirArrayShare`
+            Secret shared result of evaluating the pade approximant of func(operand) with the given parameters.
+        """
+        from scipy.interpolate import approximate_taylor_polynomial, pade
+        num_deg = degree%2+degree//2
+        den_deg = degree//2
+
+        self._assert_unary_compatible(operand, "operand")
+        encoding = self._require_encoding(encoding)
+
+        func_taylor = approximate_taylor_polynomial(func, center, degree, scale)
+        func_pade_num, func_pade_den = pade([x for x in func_taylor][::-1], den_deg, n=num_deg)
+        enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
+        enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
+        op_pows_num_list = [self.share(src=1, secret=numpy.array(1), shape=())]
+        for i in range(num_deg):
+            op_pows_num_list.append(self.multiply(operand, op_pows_num_list[-1]))
+        if degree%2:
+            op_pows_den_list=[thing for thing in op_pows_num_list[:-1]]
+        else:
+            op_pows_den_list=[thing for thing in op_pows_num_list]
+        op_pows_num = ShamirArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
+        op_pows_den = ShamirArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
+
+        result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
+        result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
+
+        result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
+        result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
+        result = self.divide(result_num, result_den)
+        return result
+
 
 
     def power(self, lhs, rhs, *, encoding=None):
