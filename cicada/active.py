@@ -550,9 +550,6 @@ class ActiveProtocolSuite(object):
         result: :class:`ActiveArrayShare`
             Secret-shared result of raising `lhs` to the power(s) in `rhs`.
         """
-        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
-            pass
-
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
                 rhs = self.field.full_like(lhs.additive.storage, rhs)
@@ -560,10 +557,7 @@ class ActiveProtocolSuite(object):
                 self.aprotocol.field_power(lhs.additive, rhs),
                 self.sprotocol.field_power(lhs.shamir, rhs)))
 
-        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
-            pass
-
-        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def field_subtract(self, lhs, rhs):
@@ -1127,9 +1121,6 @@ class ActiveProtocolSuite(object):
         result: :class:`ActiveArrayShare`
             Secret-shared result of raising `lhs` to the power(s) in `rhs`.
         """
-        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
-            pass
-
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
                 rhs = self.field.full_like(lhs.storage, rhs)
@@ -1137,10 +1128,7 @@ class ActiveProtocolSuite(object):
                 self.aprotocol.power(lhs.additive, rhs),
                 self.sprotocol.power(lhs.shamir, rhs)))
 
-        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
-            pass
-
-        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
     def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
