@@ -341,42 +341,19 @@ class ActiveProtocolSuite(object):
             truncbits = encoding.precision
             tbm, tshare = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive.storage.shape)
 
-            tbm, mask1 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive.storage.shape)
-            tbm, rem1 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive.storage.shape)
-            tbm, mask2 = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive.storage.shape)
-            tbm, rem2 = self.random_bitwise_secret(bits=fieldbits-truncbits, shape=rhs.additive.storage.shape)
-            rev = self.reveal(tshare)
-            resa = self.aprotocol.divide(
-                lhs.additive,
-                rhs.additive,
-                encoding=encoding,
-                rmask=tshare.additive,
-                mask1=mask1.additive,
-                rem1=rem1.additive,
-                mask2=mask2.additive,
-                rem2=rem2.additive,
-                )
-            ress = self.sprotocol.divide(
-                lhs.shamir,
-                rhs.shamir,
-                encoding=encoding,
-                rmask=tshare.shamir,
-                mask1=mask1.shamir,
-                rem1=rem1.shamir,
-                mask2=mask2.shamir,
-                rem2=rem2.shamir,
-                )
-            return ActiveArrayShare((resa, ress))
+            rhsmasked = self.field_multiply(tshare, rhs)
+            rhsmasked = self.right_shift(rhsmasked, bits=encoding.precision)
+            revealrhsmasked = self.reveal(rhsmasked, encoding=encoding)
+            almost_there = self.right_shift(self.field_multiply(lhs, tshare), bits=encoding.precision)
+            divisor = encoding.encode(numpy.array(1/revealrhsmasked), self.field)
+            quotient = self.field_multiply(almost_there, divisor)
+            return self.right_shift(quotient, bits=encoding.precision)
 
         # Private-public division.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
             return ActiveArrayShare((
                 self.aprotocol.divide(lhs.additive, rhs, encoding=encoding),
                 self.sprotocol.divide(lhs.shamir, rhs, encoding=encoding)))
-#            divisor = encoding.encode(numpy.array(1 / rhs), self.field)
-#            result = self.field_multiply(lhs, divisor)
-#            result = self.right_shift(result, bits=encoding.precision)
-#            return result
 
         # Public-private division.
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ActiveArrayShare):
@@ -1064,7 +1041,7 @@ class ActiveProtocolSuite(object):
 
 
 
-    def pade_approx(self, func, operand,*, encoding=None, center=0, degree=12, scale=3):
+    def _pade_approx(self, func, operand,*, encoding=None, center=0, degree=12, scale=3):
         """Return the pade approximation of `func` sampled with `operand`.
 
         Note
@@ -1105,8 +1082,13 @@ class ActiveProtocolSuite(object):
             op_pows_den_list=[thing for thing in op_pows_num_list[:-1]]
         else:
             op_pows_den_list=[thing for thing in op_pows_num_list]
-        op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
-        op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
+
+        num_add_shares = AdditiveArrayShare(numpy.array([x.additive.storage for x in op_pows_num_list]))
+        num_sham_shares = ShamirArrayShare(numpy.array([x.shamir.storage for x in op_pows_num_list]))
+        den_add_shares = AdditiveArrayShare(numpy.array([x.additive.storage for x in op_pows_den_list]))
+        den_sham_shares = ShamirArrayShare(numpy.array([x.shamir.storage for x in op_pows_den_list]))
+        op_pows_num = ActiveArrayShare((num_add_shares, num_sham_shares))
+        op_pows_den = ActiveArrayShare((den_add_shares, den_sham_shares ))
 
         result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
         result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
@@ -1214,15 +1196,16 @@ class ActiveProtocolSuite(object):
             bits in big-endian order, with shape `shape`.
         """
         bs_add, ss_add = self.aprotocol.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=shape)
-        shamadd = []
+        sham_bs_add = []
+        sham_assembled_add = []
         for i in self.communicator.ranks:
-            shamadd.append(self.sprotocol.share(src=i, secret=ss_add.storage, shape=ss_add.storage.shape, encoding=Identity()))
-        ss_sham = ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
-        shamadd = []
-        for i in self.communicator.ranks:
-            shamadd.append(self.sprotocol.share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape, encoding=Identity()))
-        bs_sham = ShamirArrayShare(numpy.array(sum([x.storage for x in shamadd]), dtype=self.field.dtype))
-        return (ActiveArrayShare((bs_add, bs_sham)), ActiveArrayShare((ss_add, ss_sham)))
+            sham_bs_add.append(self.sprotocol.share(src=i, secret=bs_add.storage, shape=bs_add.storage.shape, encoding=Identity()))
+            sham_assembled_add.append(self.sprotocol.share(src=i, secret=ss_add.storage, shape=ss_add.storage.shape, encoding=Identity()))
+        bs_sham = ShamirArrayShare(numpy.array(sum([x.storage for x in sham_bs_add])%self._field.order, dtype=self.field.dtype))
+        ss_sham = ShamirArrayShare(numpy.array(sum([x.storage for x in sham_assembled_add])%self._field.order, dtype=self.field.dtype))
+        bs_active = ActiveArrayShare((bs_add, bs_sham))
+        assembled_active = ActiveArrayShare((ss_add, ss_sham))
+        return (bs_active, assembled_active)
 
 
     def relu(self, operand):
@@ -1572,7 +1555,7 @@ class ActiveProtocolSuite(object):
 
 
 
-    def taylor_approx(self, func, operand,*, encoding=None, center=0, degree=7, scale=3):
+    def _taylor_approx(self, func, operand,*, encoding=None, center=0, degree=7, scale=3):
         """Return the taylor approximation of `func` sampled with `operand`.
 
         Note
@@ -1607,7 +1590,9 @@ class ActiveProtocolSuite(object):
         for i in range(degree):
             op_pow_list.append(self.multiply(operand, op_pow_list[-1]))
 
-        op_pow_shares = AdditiveArrayShare(numpy.array([x.storage for x in op_pow_list]))
+        op_pow_add_shares = AdditiveArrayShare(numpy.array([x.additive.storage for x in op_pow_list]))
+        op_pow_sham_shares = ShamirArrayShare(numpy.array([x.shamir.storage for x in op_pow_list]))
+        op_pow_shares = ActiveArrayShare((op_pow_add_shares, op_pow_sham_shares))
 
         result = self.field_multiply(op_pow_shares, enc_taylor_coef)
         result = self.sum(result)

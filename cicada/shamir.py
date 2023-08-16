@@ -820,7 +820,7 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         return ShamirArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(bits,)))
 
 
-    def divide(self, lhs, rhs, *, encoding=None, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
+    def divide(self, lhs, rhs, *, encoding=None, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None, mask3=None, rem3=None):
         """Privacy-preserving elementwise division of arrays.
 
         This method can be used to perform private-private and
@@ -866,7 +866,10 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
                 almost_there = self.right_shift(self.field_multiply(lhs, rmask), bits=encoding.precision)
             divisor = encoding.encode(numpy.array(1 / revealrhsmasked), self.field)
             quotient = ShamirArrayShare(self.field.multiply(almost_there.storage, divisor))
-            return self.right_shift(quotient, bits=encoding.precision)
+            if mask3 != None and rem3 != None:
+                return self.right_shift(quotient, bits=encoding.precision, trunc_mask=mask3, rem_mask=rem3)
+            else:
+                return self.right_shift(quotient, bits=encoding.precision)
 
         # Private-public division.
         if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
