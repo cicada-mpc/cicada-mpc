@@ -39,7 +39,7 @@ import numpy
 import pynetstring
 
 from ..interface import Communicator, Tag, tagname
-from .connect import LoggerAdapter, NetstringSocket, Timeout, Timer, direct, gettls, geturl, listen, message, rendezvous
+from .connect import NetstringSocket, Timeout, Timer, direct, getLogger, gettls, geturl, listen, message, rendezvous
 
 
 class BrokenPipe(Exception):
@@ -132,7 +132,8 @@ class SocketCommunicator(Communicator):
         self._rank = rank
         self._timeout = timeout
         self._revoked = False
-        self._log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+        self._log = getLogger(__name__, name, rank)
+        self._transcript = getLogger(__name__ + ".transcript", name, rank)
         self._players = sockets
 
         self._sent = {}
@@ -174,8 +175,8 @@ class SocketCommunicator(Communicator):
                 continue
 
             # Log queued messages.
-            if self._log.isEnabledFor(logging.DEBUG):
-                self._log.debug(f"<-- player {src} {tagname(tag)}") # pragma: no cover
+            if self._transcript.isEnabledFor(logging.DEBUG):
+                self._transcript.debug(f"<-- player {src} {tagname(tag)} {payload}") # pragma: no cover
 
             try:
                 tag = Tag(tag)
@@ -337,8 +338,8 @@ class SocketCommunicator(Communicator):
         if dst not in self.ranks:
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
 
-        if self._log.isEnabledFor(logging.DEBUG):
-            self._log.debug(f"--> player {dst} {tagname(tag)}") # pragma: no cover
+        if self._transcript.isEnabledFor(logging.DEBUG):
+            self._transcript.debug(f"--> player {dst} {tagname(tag)} {payload}") # pragma: no cover
 
         if tag not in self._sent:
             self._sent[tag] = {"messages": 0}

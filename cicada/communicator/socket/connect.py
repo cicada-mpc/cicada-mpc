@@ -32,6 +32,17 @@ import urllib.parse
 import pynetstring
 
 
+class CommunicatorEvents(object):
+    def __init__(self, name, rank):
+        self.name = name
+        self.rank = rank
+
+    def filter(self, record):
+        record.comm = self.name
+        record.rank = self.rank
+        return True
+
+
 class EncryptionFailed(Exception):
     """Raised if an encrypted connection can't be established with another player."""
     pass
@@ -229,7 +240,7 @@ def connect(*, address, rank, other_rank, name="world", tls=None):
     socket: :class:`NetstringSocket`
         The newly-connected socket, ready for use.
     """
-    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+    log = getLogger(__name__, name, rank)
 
     if address.scheme == "file":
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -326,7 +337,7 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
         raise ValueError(message(name, rank, f"timer must be an instance of Timer, got {timer} instead.")) # pragma: no cover
 
     # Setup logging
-    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+    log = getLogger(__name__, name, rank)
     log.info(f"direct connect with {[address.geturl() for address in addresses]}.")
 
     # Set aside storage for connections to the other players.
@@ -419,6 +430,12 @@ def direct(*, listen_socket, addresses, rank, name="world", timer=None, tls=None
                 raise Timeout(message(name, rank, f"timeout waiting for response from player {listener}."))
 
     return players
+
+
+def getLogger(name, comm, rank):
+    logger = logging.getLogger(name)
+    logger.addFilter(CommunicatorEvents(comm, rank))
+    return LoggerAdapter(logger, comm, rank)
 
 
 def getpeerurl(sock):
@@ -560,7 +577,7 @@ def listen(*, address, rank, name="world", timer=None):
         raise ValueError(message(name, rank, f"timer must be an instance of Timer, got {timer} instead.")) # pragma: no cover
 
     # Setup logging
-    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+    log = getLogger(__name__, name, rank)
 
     # Create the socket.
     while not timer.expired:
@@ -666,7 +683,7 @@ def rendezvous(*, listen_socket, root_address, world_size, rank, name="world", t
         raise ValueError(message(name, rank, f"timer must be an instance of Timer, got {timer} instead.")) # pragma: no cover
 
     # Setup logging
-    log = LoggerAdapter(logging.getLogger(__name__), name, rank)
+    log = getLogger(__name__, name, rank)
     log.info(f"rendezvous with {root_address.geturl()} from {geturl(listen_socket)}")
 
     # Set aside storage for connections to the other players.
