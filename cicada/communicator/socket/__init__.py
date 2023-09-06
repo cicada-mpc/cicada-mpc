@@ -133,7 +133,7 @@ class SocketCommunicator(Communicator):
         self._timeout = timeout
         self._revoked = False
         self._log = getLogger(__name__, name, rank)
-        self._transcript = getLogger(__name__ + ".transcript", name, rank)
+        self._transcript = logging.getLogger(__name__ + ".transcript")
         self._players = sockets
 
         self._sent = {}
@@ -176,7 +176,19 @@ class SocketCommunicator(Communicator):
 
             # Log queued messages.
             if self._transcript.isEnabledFor(logging.DEBUG):
-                self._transcript.debug(f"<-- player {src} {tagname(tag)} {payload}") # pragma: no cover
+                message = f"Comm {self._name} player {self._rank} <-- player {src} {tagname(tag)} {payload}"
+                self._transcript.debug(message, extra={
+                    "arrow": "<--",
+                    "comm": self._name,
+                    "dir": "<",
+                    "from": src,
+                    "other": src,
+                    "payload": payload,
+                    "rank": self._rank,
+                    "tag": tagname(tag),
+                    "to": self._rank,
+                    "verb": "receive",
+                }) # pragma: no cover
 
             try:
                 tag = Tag(tag)
@@ -339,7 +351,19 @@ class SocketCommunicator(Communicator):
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
 
         if self._transcript.isEnabledFor(logging.DEBUG):
-            self._transcript.debug(f"--> player {dst} {tagname(tag)} {payload}") # pragma: no cover
+            message = f"Comm {self._name} player {self._rank} --> player {dst} {tagname(tag)} {payload}"
+            self._transcript.debug(message, extra={
+                "arrow": "-->",
+                "comm": self._name,
+                "dir": ">",
+                "from": self._rank,
+                "other": dst,
+                "payload": payload,
+                "rank": self._rank,
+                "tag": tagname(tag),
+                "to": dst,
+                "verb": "send",
+            }) # pragma: no cover
 
         if tag not in self._sent:
             self._sent[tag] = {"messages": 0}
