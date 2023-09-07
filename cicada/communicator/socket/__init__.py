@@ -181,12 +181,12 @@ class SocketCommunicator(Communicator):
                     "arrow": "<--",
                     "comm": self._name,
                     "dir": "<",
-                    "from": src,
+                    "dst": self._rank,
                     "other": src,
                     "payload": payload,
                     "rank": self._rank,
+                    "src": src,
                     "tag": tagname(tag),
-                    "to": self._rank,
                     "verb": "receive",
                 }) # pragma: no cover
 
@@ -356,12 +356,12 @@ class SocketCommunicator(Communicator):
                 "arrow": "-->",
                 "comm": self._name,
                 "dir": ">",
-                "from": self._rank,
+                "dst": dst,
                 "other": dst,
                 "payload": payload,
                 "rank": self._rank,
+                "src": self._rank,
                 "tag": tagname(tag),
-                "to": dst,
                 "verb": "send",
             }) # pragma: no cover
 
