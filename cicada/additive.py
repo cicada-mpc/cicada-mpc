@@ -1808,16 +1808,20 @@ class AdditiveProtocolSuite(object):
         taylor_poly = approximate_taylor_polynomial(func, center, degree, scale)
 
         enc_taylor_coef = encoding.encode(numpy.array([x for x in taylor_poly]), self.field)
-        op_pow_list = [self.share(src=1, secret=numpy.array(1), shape=())]
-        for i in range(degree):
-            op_pow_list.append(self.multiply(operand, op_pow_list[-1]))
+        result_list=[]
+        for op in operand.storage:
+            single_op_share = AdditiveArrayShare(numpy.array(op, dtype=object))
+            op_pow_list = [self.share(src=1, secret=numpy.array(1), shape=())]
+            for i in range(degree):
+                op_pow_list.append(self.multiply(single_op_share, op_pow_list[-1]))
 
-        op_pow_shares = AdditiveArrayShare(numpy.array([x.storage for x in op_pow_list]))
+            op_pow_shares = AdditiveArrayShare(numpy.array([x.storage for x in op_pow_list]))
 
-        result = self.field_multiply(op_pow_shares, enc_taylor_coef)
-        result = self.sum(result)
-        result = self.right_shift(result, bits=encoding.precision)
-        return result
+            result = self.field_multiply(op_pow_shares, enc_taylor_coef)
+            result = self.sum(result)
+            result = self.right_shift(result, bits=encoding.precision)
+            result_list.append(result)    
+        return AdditiveArrayShare(numpy.array([s.storage for s in result_list], dtype=object))
 
 
     def zigmoid(self, operand, *, encoding=None):
