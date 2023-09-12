@@ -1243,23 +1243,27 @@ class AdditiveProtocolSuite(object):
         func_pade_num, func_pade_den = pade([x for x in func_taylor][::-1], den_deg, n=num_deg)
         enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
         enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
-        op_pows_num_list = [self.share(src=1, secret=numpy.array(1), shape=())]
-        for i in range(num_deg):
-            op_pows_num_list.append(self.multiply(operand, op_pows_num_list[-1]))
-        if degree%2:
-            op_pows_den_list=[thing for thing in op_pows_num_list[:-1]]
-        else:
-            op_pows_den_list=[thing for thing in op_pows_num_list]
-        op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
-        op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
 
-        result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
-        result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
+        result_list=[]
+        for op in operand.storage:
+            single_op_share = AdditiveArrayShare(numpy.array(op, dtype=object))
+            op_pows_num_list = [self.share(src=1, secret=numpy.array(1), shape=())]
+            for i in range(num_deg):
+                op_pows_num_list.append(self.multiply(single_op_share, op_pows_num_list[-1]))
+            if degree%2:
+                op_pows_den_list=[thing for thing in op_pows_num_list[:-1]]
+            else:
+                op_pows_den_list=[thing for thing in op_pows_num_list]
+            op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
+            op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
 
-        result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
-        result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
-        result = self.divide(result_num, result_den)
-        return result
+            result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
+            result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
+
+            result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
+            result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
+            result_list.append(self.divide(result_num, result_den))
+        return AdditiveArrayShare(numpy.array([s.storage for s in result_list], dtype=object))
 
 
     def power(self, lhs, rhs, *, encoding=None):
