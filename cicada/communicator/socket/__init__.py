@@ -41,6 +41,8 @@ import pynetstring
 from ..interface import Communicator, Tag, tagname
 from .connect import NetstringSocket, Timeout, Timer, direct, getLogger, gettls, geturl, listen, message, rendezvous
 
+logging.getLogger(__name__ + ".transcript").setLevel(logging.WARNING)
+
 
 class BrokenPipe(Exception):
     """Raised trying to send to another player that no longer exists."""
