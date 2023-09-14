@@ -364,24 +364,6 @@ def main(listen_socket, communicator):
                 operand_stack.append(secret)
                 _send_result(client)
 
-            # Inplace addition.
-            elif command == "protocol" and kwargs["subcommand"] == "inplace_add":
-                protocol = protocol_stack[-1]
-                b = operand_stack.pop()
-                a = operand_stack.pop()
-                protocol.field.inplace_add(a.storage, b)
-                operand_stack.append(a)
-                _send_result(client)
-
-            # Inplace subtraction.
-            elif command == "protocol" and kwargs["subcommand"] == "inplace_subtract":
-                protocol = protocol_stack[-1]
-                b = operand_stack.pop()
-                a = operand_stack.pop()
-                protocol.field.inplace_subtract(a.storage, b)
-                operand_stack.append(a)
-                _send_result(client)
-
             # Unknown command.
             else: # pragma: no cover
                 raise ValueError(f"Unknown command {pretty_command}")

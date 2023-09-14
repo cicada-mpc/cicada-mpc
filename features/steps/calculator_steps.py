@@ -140,24 +140,6 @@ def step_impl(context, player):
     _require_success(context.calculator.command("share", subcommand="setstorage", player=player))
 
 
-@when(u'player {player} adds {value} to the share in-place')
-def step_impl(context, player, value):
-    player = eval(player)
-    value = numpy.array(eval(value))
-    _require_success(context.calculator.command("oppush", value=value, player=player))
-    _require_success(context.calculator.command("protocol", subcommand="encode", player=player))
-    _require_success(context.calculator.command("protocol", subcommand="inplace_add", player=player))
-
-
-@when(u'player {player} subtracts {value} from the share in-place')
-def step_impl(context, player, value):
-    player = eval(player)
-    value = numpy.array(eval(value))
-    _require_success(context.calculator.command("oppush", value=value, player=player))
-    _require_success(context.calculator.command("protocol", subcommand="encode", player=player))
-    _require_success(context.calculator.command("protocol", subcommand="inplace_subtract", player=player))
-
-
 @when(u'the players add the shares in the field')
 def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="field_add"))
