@@ -187,13 +187,6 @@ def main(listen_socket, communicator):
             #############################################################
             # Commands related to the operand stack.
 
-            # Combine the top n values on the operand stack into a single operand.
-            elif command == "opcatn":
-                value = [operand_stack.pop() for index in range(kwargs["n"])]
-                value.reverse()
-                operand_stack.append(value)
-                _send_result(client)
-
             # Duplicate the value on top of the operand stack.
             elif command == "opdup":
                 value = operand_stack[-1]
@@ -220,13 +213,6 @@ def main(listen_socket, communicator):
                 operand_stack.append(operand)
                 _send_result(client)
 
-            # Split a sequence value on the top of the operand stack into separate stack values.
-            elif command == "opsplit":
-                value = operand_stack.pop()
-                for item in value:
-                    operand_stack.append(item)
-                _send_result(client)
-
             # Return a copy of the entire operand stack.
             elif command == "opstack":
                 _send_result(client, operand_stack)
@@ -237,25 +223,12 @@ def main(listen_socket, communicator):
                 _send_result(client)
 
             #############################################################
-            # Commands related to "normal" arithmetic.
-
-            elif command == "add":
-                operand_stack.append(operand_stack.pop() + operand_stack.pop())
-                _send_result(client)
-
-            #############################################################
             # Commands related to secret shares.
 
             # Extract the storage from a secret share on top of the operand stack.
             elif command == "share" and kwargs["subcommand"] == "getstorage":
                 share = operand_stack.pop()
                 operand_stack.append(share.storage)
-                _send_result(client)
-
-            # Replace the storage for a secret share on top of the operand stack.
-            elif command == "share" and kwargs["subcommand"] == "setstorage":
-                storage = operand_stack.pop()
-                operand_stack[-1].storage = storage
                 _send_result(client)
 
             #############################################################

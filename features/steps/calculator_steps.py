@@ -108,38 +108,6 @@ def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="reshare"))
 
 
-@given(u'player {player} tampers with the additive portion of its ActiveArrayShare')
-def step_impl(context, player):
-    player = eval(player)
-    _require_success(context.calculator.command("opdup", player=player))
-    _require_success(context.calculator.command("share", subcommand="getstorage", player=player))
-    _require_success(context.calculator.command("opsplit", player=player))
-    _require_success(context.calculator.command("opswap", player=player))
-    _require_success(context.calculator.command("opdup", player=player))
-    _require_success(context.calculator.command("share", subcommand="getstorage", player=player))
-    _require_success(context.calculator.command("oppush", value=numpy.array(1), player=player))
-    _require_success(context.calculator.command("add", player=player))
-    _require_success(context.calculator.command("share", subcommand="setstorage", player=player))
-    _require_success(context.calculator.command("opswap", player=player))
-    _require_success(context.calculator.command("opcatn", player=player, n=2))
-    _require_success(context.calculator.command("share", subcommand="setstorage", player=player))
-
-
-@given(u'player {player} tampers with the shamir portion of its ActiveArrayShare')
-def step_impl(context, player):
-    player = eval(player)
-    _require_success(context.calculator.command("opdup", player=player))
-    _require_success(context.calculator.command("share", subcommand="getstorage", player=player))
-    _require_success(context.calculator.command("opsplit", player=player))
-    _require_success(context.calculator.command("opdup", player=player))
-    _require_success(context.calculator.command("share", subcommand="getstorage", player=player))
-    _require_success(context.calculator.command("oppush", value=numpy.array(1), player=player))
-    _require_success(context.calculator.command("add", player=player))
-    _require_success(context.calculator.command("share", subcommand="setstorage", player=player))
-    _require_success(context.calculator.command("opcatn", player=player, n=2))
-    _require_success(context.calculator.command("share", subcommand="setstorage", player=player))
-
-
 @when(u'the players add the shares in the field')
 def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="field_add"))
