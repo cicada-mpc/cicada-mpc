@@ -23,7 +23,6 @@ dependencies = [
     "netifaces",
     "numpy",
     "pynetstring",
-    "scipy",
 ]
 description = "Flexible toolkit for fault tolerant secure multiparty computation."
 dynamic = ["version"]
@@ -37,7 +36,6 @@ all = [
     "coverage",
     "ipython",
     "nbsphinx",
-    "scipy",
     "sphinx >= 3.5",
     "sphinx-argparse",
     "sphinx-gallery < 0.11",
@@ -50,7 +48,6 @@ doc = [
     "sphinx-argparse",
     "sphinx-gallery < 0.11",
     "sphinx_rtd_theme",
-    "toyplot",
 ]
 
 [project.scripts]

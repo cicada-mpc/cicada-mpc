@@ -1209,61 +1209,61 @@ class AdditiveProtocolSuite(object):
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
 
-    def pade_approx(self, func, operand, *, encoding=None, center=0, degree=12, scale=3):
-        """Return the pade approximation of `func` sampled with `operand`.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        func: callable object, required
-            The function to be approximated via the pade method.
-        operand: :class:`AdditiveArrayShare`, required
-            Secret-shared values where `func` should be evaluated.
-        center: :class:`float`, optional
-            The value at which the approximation should be centered. Sample
-            errors will be larger the further they are from this point.
-
-        Returns
-        -------
-        result: :class:`AdditiveArrayShare`
-            Secret shared result of evaluating the pade approximant of func(operand) with the given parameters.
-        """
-        from scipy.interpolate import approximate_taylor_polynomial, pade
-        num_deg = degree%2+degree//2
-        den_deg = degree//2
-
-        self._assert_unary_compatible(operand, "operand")
-        encoding = self._require_encoding(encoding)
-
-        func_taylor = approximate_taylor_polynomial(func, center, degree, scale)
-        func_pade_num, func_pade_den = pade([x for x in func_taylor][::-1], den_deg, n=num_deg)
-        enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
-        enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
-
-        result_list=[]
-        for op in operand.storage:
-            single_op_share = AdditiveArrayShare(numpy.array(op, dtype=object))
-            op_pows_num_list = [self.share(src=1, secret=numpy.array(1), shape=())]
-            for i in range(num_deg):
-                op_pows_num_list.append(self.multiply(single_op_share, op_pows_num_list[-1]))
-            if degree%2:
-                op_pows_den_list=[thing for thing in op_pows_num_list[:-1]]
-            else:
-                op_pows_den_list=[thing for thing in op_pows_num_list]
-            op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
-            op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
-
-            result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
-            result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
-
-            result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
-            result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
-            result_list.append(self.divide(result_num, result_den))
-        return AdditiveArrayShare(numpy.array([s.storage for s in result_list], dtype=object))
+#    def pade_approx(self, func, operand, *, encoding=None, center=0, degree=12, scale=3):
+#        """Return the pade approximation of `func` sampled with `operand`.
+#
+#        Note
+#        ----
+#        This is a collective operation that *must* be called
+#        by all players that are members of :attr:`communicator`.
+#
+#        Parameters
+#        ----------
+#        func: callable object, required
+#            The function to be approximated via the pade method.
+#        operand: :class:`AdditiveArrayShare`, required
+#            Secret-shared values where `func` should be evaluated.
+#        center: :class:`float`, optional
+#            The value at which the approximation should be centered. Sample
+#            errors will be larger the further they are from this point.
+#
+#        Returns
+#        -------
+#        result: :class:`AdditiveArrayShare`
+#            Secret shared result of evaluating the pade approximant of func(operand) with the given parameters.
+#        """
+#        from scipy.interpolate import approximate_taylor_polynomial, pade
+#        num_deg = degree%2+degree//2
+#        den_deg = degree//2
+#
+#        self._assert_unary_compatible(operand, "operand")
+#        encoding = self._require_encoding(encoding)
+#
+#        func_taylor = approximate_taylor_polynomial(func, center, degree, scale)
+#        func_pade_num, func_pade_den = pade([x for x in func_taylor][::-1], den_deg, n=num_deg)
+#        enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
+#        enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
+#
+#        result_list=[]
+#        for op in operand.storage:
+#            single_op_share = AdditiveArrayShare(numpy.array(op, dtype=object))
+#            op_pows_num_list = [self.share(src=1, secret=numpy.array(1), shape=())]
+#            for i in range(num_deg):
+#                op_pows_num_list.append(self.multiply(single_op_share, op_pows_num_list[-1]))
+#            if degree%2:
+#                op_pows_den_list=[thing for thing in op_pows_num_list[:-1]]
+#            else:
+#                op_pows_den_list=[thing for thing in op_pows_num_list]
+#            op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
+#            op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
+#
+#            result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
+#            result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
+#
+#            result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
+#            result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
+#            result_list.append(self.divide(result_num, result_den))
+#        return AdditiveArrayShare(numpy.array([s.storage for s in result_list], dtype=object))
 
 
     def power(self, lhs, rhs, *, encoding=None):
@@ -1781,51 +1781,51 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(self.field.sum(operand.storage))
 
 
-    def taylor_approx(self, func, operand, *, encoding=None, center=0, degree=7, scale=3):
-        """Return the taylor approximation of `func` sampled with `operand`.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        func: callable object, required
-            The function to be approximated via the taylor method
-        operand: :class:`AdditiveArrayShare`, required
-            Secret-shared values where `func` should be evaluated.
-        center: :class:`float`, optional
-            The value at which the approximation should be centered. Sample
-            errors will be larger the further they are from this point.
-
-        Returns
-        -------
-        result: :class:`AdditiveArrayShare`
-            Secret shared result of evaluating the taylor approximant of func(operand) with the given parameters
-        """
-        from scipy.interpolate import approximate_taylor_polynomial
-
-        self._assert_unary_compatible(operand, "operand")
-        encoding = self._require_encoding(encoding)
-
-        taylor_poly = approximate_taylor_polynomial(func, center, degree, scale)
-
-        enc_taylor_coef = encoding.encode(numpy.array([x for x in taylor_poly]), self.field)
-        result_list=[]
-        for op in operand.storage:
-            single_op_share = AdditiveArrayShare(numpy.array(op, dtype=object))
-            op_pow_list = [self.share(src=1, secret=numpy.array(1), shape=())]
-            for i in range(degree):
-                op_pow_list.append(self.multiply(single_op_share, op_pow_list[-1]))
-
-            op_pow_shares = AdditiveArrayShare(numpy.array([x.storage for x in op_pow_list]))
-
-            result = self.field_multiply(op_pow_shares, enc_taylor_coef)
-            result = self.sum(result)
-            result = self.right_shift(result, bits=encoding.precision)
-            result_list.append(result)    
-        return AdditiveArrayShare(numpy.array([s.storage for s in result_list], dtype=object))
+#    def taylor_approx(self, func, operand, *, encoding=None, center=0, degree=7, scale=3):
+#        """Return the taylor approximation of `func` sampled with `operand`.
+#
+#        Note
+#        ----
+#        This is a collective operation that *must* be called
+#        by all players that are members of :attr:`communicator`.
+#
+#        Parameters
+#        ----------
+#        func: callable object, required
+#            The function to be approximated via the taylor method
+#        operand: :class:`AdditiveArrayShare`, required
+#            Secret-shared values where `func` should be evaluated.
+#        center: :class:`float`, optional
+#            The value at which the approximation should be centered. Sample
+#            errors will be larger the further they are from this point.
+#
+#        Returns
+#        -------
+#        result: :class:`AdditiveArrayShare`
+#            Secret shared result of evaluating the taylor approximant of func(operand) with the given parameters
+#        """
+#        from scipy.interpolate import approximate_taylor_polynomial
+#
+#        self._assert_unary_compatible(operand, "operand")
+#        encoding = self._require_encoding(encoding)
+#
+#        taylor_poly = approximate_taylor_polynomial(func, center, degree, scale)
+#
+#        enc_taylor_coef = encoding.encode(numpy.array([x for x in taylor_poly]), self.field)
+#        result_list=[]
+#        for op in operand.storage:
+#            single_op_share = AdditiveArrayShare(numpy.array(op, dtype=object))
+#            op_pow_list = [self.share(src=1, secret=numpy.array(1), shape=())]
+#            for i in range(degree):
+#                op_pow_list.append(self.multiply(single_op_share, op_pow_list[-1]))
+#
+#            op_pow_shares = AdditiveArrayShare(numpy.array([x.storage for x in op_pow_list]))
+#
+#            result = self.field_multiply(op_pow_shares, enc_taylor_coef)
+#            result = self.sum(result)
+#            result = self.right_shift(result, bits=encoding.precision)
+#            result_list.append(result)    
+#        return AdditiveArrayShare(numpy.array([s.storage for s in result_list], dtype=object))
 
 
     def zigmoid(self, operand, *, encoding=None):
