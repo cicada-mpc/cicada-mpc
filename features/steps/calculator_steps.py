@@ -83,6 +83,12 @@ def step_impl(context, value):
     _require_success(context.calculator.command("oppush", value=value))
 
 
+@given(u'public field value {value}')
+def step_impl(context, value):
+    value = numpy.array(eval(value), dtype=object)
+    _require_success(context.calculator.command("oppush", value=value))
+
+
 @given(u'player {player} secret shares the bits {secret}')
 def step_impl(context, player, secret):
     player = eval(player)

@@ -269,6 +269,38 @@ Feature: Additive Protocol
 
 
     @calculator
+    Scenario Outline: Field Add Public Private
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And public field value <a>
+        And player 1 secret shares <b>
+        When the players add the shares in the field
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result       |
+        | 3       | 65536      |  3.5       |  4.5         |
+        | 3       | 65536      | -3.5       | -2.5         |
+
+
+    @calculator
+    Scenario Outline: Field Add Private Public
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        And public field value <b>
+        When the players add the shares in the field
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result       |
+        | 3       |  3.5       | 65536      |  4.5         |
+        | 3       | -3.5       | 65536      | -2.5         |
+
+
+    @calculator
     Scenario Outline: Field Power
         Given a calculator service with <players> players
         And a new Additive protocol suite
@@ -308,6 +340,38 @@ Feature: Additive Protocol
         | 3       | 5       | 1.1         | 3.9           |
         | 3       | 5       | 1.5         | 3.5           |
         | 3       | [5, 3]  | [1.1, 3.2]  | [3.9, -0.2]   |
+
+
+    @calculator
+    Scenario Outline: Field Subtract Public Private
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And public field value <a>
+        And player 1 secret shares <b>
+        When the players subtract the shares in the field
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result       |
+        | 3       | 65536      |  3.5       | -2.5         |
+        | 3       | 65536      | -3.5       |  4.5         |
+
+
+    @calculator
+    Scenario Outline: Field Subtract Private Public
+        Given a calculator service with <players> players
+        And a new Additive protocol suite
+        And player 0 secret shares <a>
+        And public field value <b>
+        When the players subtract the shares in the field
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result       |
+        | 3       |  3.5       | 65536      |  2.5         |
+        | 3       | -3.5       | 65536      | -4.5         |
 
 
     @calculator
