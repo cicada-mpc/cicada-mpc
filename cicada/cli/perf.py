@@ -25,7 +25,8 @@ import time
 
 import numpy
 
-import cicada.additive
+import cicada
+from cicada.additive import AdditiveProtocolSuite
 from cicada.communicator import SocketCommunicator
 
 
@@ -150,12 +151,12 @@ def main():
     if arguments.command == "floor":
 
         def implementation(communicator, count, seed):
-            protocol = cicada.additive.AdditiveProtocol(communicator=communicator)
+            protocol = AdditiveProtocolSuite(communicator=communicator)
             generator = numpy.random.default_rng(seed=seed)
             timer = Timer()
             for index in range(count):
                 value = generator.uniform(low=-5, high=5, size=()) if communicator.rank == 0 else None
-                value_share = protocol.share(src=0, secret=protocol.encoder.encode(value), shape=())
+                value_share = protocol.share(src=0, secret=value, shape=())
                 floor_share = protocol.floor(value_share)
             return timer.elapsed()
 
