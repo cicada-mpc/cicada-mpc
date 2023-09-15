@@ -16,19 +16,20 @@
 
 import logging
 
-import cicada.additive
-import cicada.communicator
-import cicada.interactive
+from cicada.additive import AdditiveProtocolSuite
+from cicada.communicator import SocketCommunicator
+from cicada.interactive import secret_input
+from cicada.logging import Logger
 
 logging.basicConfig(level=logging.INFO)
 
-with cicada.communicator.SocketCommunicator.connect(startup_timeout=300) as communicator:
-    log = cicada.Logger(logging.getLogger(), communicator)
-    protocol = cicada.additive.AdditiveProtocolSuite(communicator)
+with SocketCommunicator.connect(startup_timeout=300) as communicator:
+    log = Logger(logging.getLogger(), communicator)
+    protocol = AdditiveProtocolSuite(communicator)
 
-    secret = cicada.interactive.secret_input(communicator=communicator, src=0)
+    secret = secret_input(communicator=communicator, src=0)
     log.info(f"Player {communicator.rank} secret: {secret}")
 
-    secret_share = protocol.share(src=0, secret=protocol.encoder.encode(secret), shape=())
+    secret_share = protocol.share(src=0, secret=secret, shape=())
     log.info(f"Player {communicator.rank} share: {secret_share}")
 

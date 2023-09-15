@@ -7,6 +7,16 @@
 Release Notes
 =============
 
+Cicada 1.0.0 - September 15th, 2023
+-----------------------------------
+
+* Split encoder objects into two separate concepts: field arithmetic and encodings.
+* Major cleanup and simplification of the public API, including:
+* The share() and reveal() methods handle all use-cases using encoding arguments, instead of separate methods.
+* An explicit distinction between encoding-agnostic and encoding-specific operations.
+* Consistent support for private/private, public/private, and private/public arithmetic, based on argument types instead of separate methods.
+* Added configurable logging for message transcripts.
+
 Cicada 0.8.1 - October 15th, 2022
 ---------------------------------
 

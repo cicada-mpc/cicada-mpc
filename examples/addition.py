@@ -16,8 +16,8 @@
 
 import numpy
 
-from cicada.communicator import SocketCommunicator
 from cicada.additive import AdditiveProtocolSuite
+from cicada.communicator import SocketCommunicator
 
 def main(communicator):
     protocol = AdditiveProtocolSuite(communicator)
@@ -25,7 +25,6 @@ def main(communicator):
     ashare = protocol.share(src=0, secret=numpy.array(2), shape=())
     bshare = protocol.share(src=0, secret=numpy.array(3), shape=())
     print("private-private addition:", protocol.reveal(protocol.add(ashare, bshare)))
-
     print("public-private addition:", protocol.reveal(protocol.add(numpy.array(1.5), ashare)))
     print("private-public addition:", protocol.reveal(protocol.add(bshare, numpy.array(3.5))))
 

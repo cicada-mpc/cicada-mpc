@@ -14,19 +14,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
 import logging
-import time
 
-from cicada.calculator import main, Client
+import numpy
+
+from cicada.additive import AdditiveProtocolSuite
 from cicada.communicator import SocketCommunicator
-
-parser = argparse.ArgumentParser(description="Calculator MPC-as-a-service example.")
-parser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
-arguments = parser.parse_args()
+from cicada.logging import Logger
 
 logging.basicConfig(level=logging.INFO)
 
-addresses, processes = SocketCommunicator.run_forever(world_size=arguments.world_size, fn=main)
-client = Client(addresses)
+def main(communicator):
+    log = Logger(logging.getLogger(), communicator=communicator)
+    protocol = AdditiveProtocolSuite(communicator=communicator)
 
+    a = numpy.array(5.5)
+    a_share = protocol.share(src=0, secret=a, shape=a.shape)
+    log.info(f"Player {communicator.rank} share: {a_share}")
+    log.info(f"Player {communicator.rank} revealed: {protocol.reveal(a_share)}")
+    a_share = protocol.reshare(a_share)
+    log.info(f"Player {communicator.rank} new share: {a_share}")
+    log.info(f"Player {communicator.rank} revealed: {protocol.reveal(a_share)}")
+
+SocketCommunicator.run(world_size=3, fn=main)

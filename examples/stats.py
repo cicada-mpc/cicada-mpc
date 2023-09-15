@@ -14,12 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
-import pprint
 import logging
+import pprint
 
-from cicada.communicator import SocketCommunicator
 from cicada.additive import AdditiveProtocolSuite
+from cicada.communicator import SocketCommunicator
 from cicada.logging import Logger
 
 logging.basicConfig(level=logging.INFO)

@@ -16,26 +16,30 @@
 
 import logging
 
-import cicada.additive
-import cicada.communicator
-import cicada.interactive
+import numpy
 
-logging.basicConfig(level=logging.INFO)
+from cicada.additive import AdditiveProtocolSuite
+from cicada.communicator import SocketCommunicator
+from cicada.encoding import Boolean
+from cicada.interactive import secret_input
+from cicada.logging import Logger
 
-with cicada.communicator.SocketCommunicator.connect(startup_timeout=300) as communicator:
-    log = cicada.Logger(logging.getLogger(), communicator)
-    protocol = cicada.additive.AdditiveProtocolSuite(communicator)
+logging.basicConfig(level=logging.INFO, format="{message}", style="{")
+
+with SocketCommunicator.connect(startup_timeout=300) as communicator:
+    log = Logger(logging.getLogger(), communicator)
+    protocol = AdditiveProtocolSuite(communicator)
 
     winner = None
-    winning_share = protocol.share(src=0, secret=protocol.encoder.zeros(shape=()), shape=())
+    winning_share = protocol.share(src=0, secret=numpy.zeros(shape=()), shape=())
 
     for rank in communicator.ranks:
-        fortune = cicada.interactive.secret_input(communicator=communicator, src=rank, prompt="Fortune: ")
-        fortune_share = protocol.share(src=rank, secret=protocol.encoder.encode(fortune), shape=())
+        fortune = secret_input(communicator=communicator, src=rank, prompt=f"Player {communicator.rank} fortune: ")
+        fortune_share = protocol.share(src=rank, secret=fortune, shape=())
         less_share = protocol.less(fortune_share, winning_share)
-        less = protocol.reveal(less_share)
+        less = protocol.reveal(less_share, encoding=Boolean())
         if not less:
             winner = rank
             winning_share = fortune_share
 
-    log.info(f"Player {communicator.rank} winner: {winner}")
+    log.info(f"Winner: player {winner}")

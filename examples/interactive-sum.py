@@ -18,21 +18,22 @@ import logging
 
 import numpy
 
-import cicada.additive
-import cicada.communicator
-import cicada.interactive
+from cicada.additive import AdditiveProtocolSuite
+from cicada.communicator import SocketCommunicator
+from cicada.interactive import secret_input
+from cicada.logging import Logger
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="{message}", style="{")
 
-with cicada.communicator.SocketCommunicator.connect(startup_timeout=300) as communicator:
-    log = cicada.Logger(logging.getLogger(), communicator)
-    protocol = cicada.additive.AdditiveProtocolSuite(communicator)
+with SocketCommunicator.connect(startup_timeout=300) as communicator:
+    log = Logger(logging.getLogger(), communicator)
+    protocol = AdditiveProtocolSuite(communicator)
 
-    total = protocol.share(src=0, secret=protocol.encoder.encode(numpy.array(0)), shape=())
+    total = protocol.share(src=0, secret=numpy.zeros(shape=()), shape=())
     for i in range(communicator.world_size):
-        secret = cicada.interactive.secret_input(communicator=communicator, src=i)
-        share = protocol.share(src=i, secret=protocol.encoder.encode(secret), shape=())
+        secret = secret_input(communicator=communicator, src=i)
+        share = protocol.share(src=i, secret=secret, shape=())
         total = protocol.add(total, share)
 
-    total = protocol.encoder.decode(protocol.reveal(total))
+    total = protocol.reveal(total)
     log.info(f"Player {communicator.rank} total: {total}")
