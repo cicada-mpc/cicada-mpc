@@ -337,7 +337,6 @@ class ActiveProtocolSuite(object):
 
         # Private-private division.
         if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, ActiveArrayShare):
-            fieldbits = self.field.fieldbits
             truncbits = encoding.precision
             tbm, tshare = self.random_bitwise_secret(bits=truncbits, shape=rhs.additive.storage.shape)
 
@@ -1395,7 +1394,7 @@ class ActiveProtocolSuite(object):
             raise ValueError(f"Expected operand to be an instance of ActiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
         tbm, tshare = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.additive.storage.shape)
-        rbm, rshare = self.random_bitwise_secret(bits=self.field.fieldbits-bits, src=src, generator=generator, shape=operand.additive.storage.shape)
+        rbm, rshare = self.random_bitwise_secret(bits=self.field.bits-bits, src=src, generator=generator, shape=operand.additive.storage.shape)
         return ActiveArrayShare((
             self.aprotocol.right_shift(operand.additive, bits=bits, src=src, generator=generator, trunc_mask=tshare.additive, rem_mask=rshare.additive),
             self.sprotocol.right_shift(operand.shamir, bits=bits, src=src, generator=generator, trunc_mask=tshare.shamir, rem_mask=rshare.shamir)))

@@ -300,7 +300,7 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
 
         if bits is None:
-            bits = self.field.fieldbits
+            bits = self.field.bits
         list_o_bits = []
         two_inv = numpy.array(pow(2, self.field.order-2, self.field.order), dtype=self.field.dtype)
         for element in operand.storage.flat: # Iterates in "C" order.
@@ -774,7 +774,7 @@ class AdditiveProtocolSuite(object):
 
         abs_op = self.absolute(operand)
         frac_bits = encoding.precision
-        field_bits = self.field.fieldbits
+        field_bits = self.field.bits
         lsbs = self.bit_decompose(abs_op, bits=encoding.precision)
         lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.negative(lsbs_composed)
@@ -1001,7 +1001,7 @@ class AdditiveProtocolSuite(object):
         """
         one = numpy.array(1, dtype=self.field.dtype)
         lop = AdditiveArrayShare(operand.storage.flatten())
-        tmpBW, tmp = self.random_bitwise_secret(bits=self.field.fieldbits, shape=lop.storage.shape)
+        tmpBW, tmp = self.random_bitwise_secret(bits=self.field.bits, shape=lop.storage.shape)
         maskedlop = self.field_add(lop, tmp)
         c = self.reveal(maskedlop, encoding=Identity())
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
@@ -1620,8 +1620,6 @@ class AdditiveProtocolSuite(object):
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
-        fieldbits = self.field.fieldbits
-
         shift_left = self.field.full_like(operand.storage, 2**bits)
         # Multiplicative inverse of shift_left.
         shift_right = self.field.full_like(operand.storage, pow(2**bits, self.field.order-2, self.field.order))
@@ -1635,7 +1633,7 @@ class AdditiveProtocolSuite(object):
             remaining_mask = rem_mask
         else:
             # Generate random bits that will mask everything outside the region to be truncated.
-            _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
+            _, remaining_mask = self.random_bitwise_secret(bits=self.field.bits-bits, src=src, generator=generator, shape=operand.storage.shape)
         remaining_mask.storage = self.field.multiply(remaining_mask.storage, shift_left)
 
         # Combine the two masks.

@@ -48,7 +48,7 @@ class Field(object):
         self._dtype = numpy.dtype(object)
         self._decoded_type = numpy.float64
         self._order = order
-        self._fieldbits = order.bit_length()
+        self._bits = order.bit_length()
 
 
     def __eq__(self, other):
@@ -109,15 +109,15 @@ class Field(object):
 
 
     @property
-    def fieldbits(self):
+    def bits(self):
         """Return the number of bits required to store field values."""
-        return self._fieldbits
+        return self._bits
 
 
     @property
-    def fieldbytes(self):
+    def bytes(self):
         """Return the number of bytes required to store field values."""
-        return ceil(self._fieldbits / 8)
+        return ceil(self._bits / 8)
 
 
     def full_like(self, other, fill_value):
@@ -355,7 +355,7 @@ class Field(object):
             Encoded array containing uniform random values with shape `size`.
         """
         elements = int(numpy.prod(size))
-        elementbytes = self.fieldbytes
+        elementbytes = self.bytes
         randombytes = generator.bytes(elements * elementbytes)
 
         values = [int.from_bytes(randombytes[start : start+elementbytes], "big") for start in range(0, elements * elementbytes, elementbytes)]
