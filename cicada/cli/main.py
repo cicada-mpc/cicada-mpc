@@ -207,7 +207,7 @@ credentials_subparser.add_argument("--unit", default=None, help="Certificate org
 
 # generate-shares
 generate_subparser = subparsers.add_parser("generate-shares", help="Generate secret shares for pedagogy.")
-generate_subparser.add_argument("--modulus", "-m", type=int, default=18446744073709551557, help="Field modulus. Default: %(default)s")
+generate_subparser.add_argument("--order", "-m", type=int, default=18446744073709551557, help="Field modulus. Default: %(default)s")
 generate_subparser.add_argument("--precision", "-p", type=int, default=16, help="Fractional precision. Default: %(default)s")
 generate_subparser.add_argument("--world-size", "-n", type=int, default=3, help="Number of players. Default: %(default)s")
 generate_subparser.add_argument("secret", help="Secret value.")
@@ -292,16 +292,16 @@ def main():
     if arguments.command == "generate-shares":
         logging.basicConfig(level=logging.INFO)
 
-        def main(communicator, precision, modulus, secret):
+        def main(communicator, precision, order, secret):
             log = Logger(logging.getLogger(), communicator)
 
-            protocol = AdditiveProtocolSuite(communicator, modulus=modulus, precision=precision)
+            protocol = AdditiveProtocolSuite(communicator, order=order, encoding=cicada.encoding.FixedPoint(precision=precision))
             secret = numpy.array(secret, dtype=float)
             share = protocol.share(src=0, secret=secret, shape=secret.shape)
 
             log.info(f"Player {communicator.rank} secret share: {share.storage}")
 
-        SocketCommunicator.run(world_size=arguments.world_size, fn=main, args=(arguments.precision, arguments.modulus, arguments.secret))
+        SocketCommunicator.run(world_size=arguments.world_size, fn=main, args=(arguments.precision, arguments.order, arguments.secret))
 
     # run
     if arguments.command == "run":
