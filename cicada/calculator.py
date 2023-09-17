@@ -234,14 +234,6 @@ def main(listen_socket, communicator):
             #############################################################
             # Commands related to protocol suites.
 
-            # Encode the value on top of the operand stack.
-            elif command == "protocol" and kwargs["subcommand"] == "encode":
-                protocol = protocol_stack[-1]
-                value = operand_stack.pop()
-                value = protocol.encoding.encode(value, protocol.field)
-                operand_stack.append(value)
-                _send_result(client)
-
             # Secret share a value from the top of the operand stack.
             elif command == "protocol" and kwargs["subcommand"] == "reshare":
                 protocol = protocol_stack[-1]
