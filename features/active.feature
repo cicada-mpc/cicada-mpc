@@ -303,6 +303,66 @@ Feature: Active Protocol
 
 
     @calculator
+    Scenario Outline: Field Multiply
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players multiply the shares in the field
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result        |
+        | 3       | 2          | 3.5        | 7 * 65536     |
+        | 3       | 20         | 30         | 600 * 65536   |
+        | 3       | 200        | 300        | 60000 * 65536 |
+        | 3       | -2         | 3.5        | -7 * 65536    |
+        | 3       | 2          | -3.5       | -7 * 65536    |
+        | 3       | -20        | -30        | 600 * 65536   |
+
+
+    @calculator
+    Scenario Outline: Field Multiply Public Private
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And public field value <a>
+        And player 1 secret shares <b>
+        When the players multiply the shares in the field
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result        |
+        | 3       | 2          | 3.5        | 7             |
+        | 3       | 20         | 30         | 600           |
+        | 3       | 200        | 300        | 60000         |
+        | 3       | -2         | 3.5        | -7            |
+        | 3       | 2          | -3.5       | -7            |
+        | 3       | -20        | -30        | 600           |
+
+
+    @calculator
+    Scenario Outline: Field Multiply Private Public
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        And public field value <b>
+        When the players multiply the shares in the field
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result        |
+        | 3       | 2          | 4          | 8             |
+        | 3       | 20         | 30         | 600           |
+        | 3       | 200        | 300        | 60000         |
+        | 3       | -2         | 4          | -8            |
+        | 3       | 2          | -4         | -8            |
+        | 3       | -20        | -30        | 600           |
+
+
+    @calculator
     Scenario Outline: Field Power
         Given a calculator service with <players> players
         And a new Active protocol suite
@@ -576,7 +636,7 @@ Feature: Active Protocol
         And a new Active protocol suite
         And player 0 secret shares <a>
         When the players compute the multiplicative inverse
-        And the players multiply the shares without truncation
+        And the players multiply the shares in the field
         And the players reveal the field values
         Then the result should match <result>
 

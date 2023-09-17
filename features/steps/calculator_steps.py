@@ -246,7 +246,7 @@ def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="multiply"))
 
 
-@when(u'the players multiply the shares without truncation')
+@when(u'the players multiply the shares in the field')
 def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="field_multiply"))
 
