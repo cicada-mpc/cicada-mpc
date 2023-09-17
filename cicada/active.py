@@ -1252,7 +1252,7 @@ class ActiveProtocolSuite(object):
             self.sprotocol.reshare(operand.shamir)))
 
         if not self.verify(reshared):
-            raise ConsistencyError("Secret Shares being reshared are inconsistent")
+            raise ConsistencyError("Secret Shares being reshared are inconsistent") # pragma: no cover
 
         return reshared
 
@@ -1306,9 +1306,9 @@ class ActiveProtocolSuite(object):
             secret.append(sum([revealing_coef[i]*z_storage[i][index] for i in range(len(revealing_coef))]))
         rev = numpy.array([x%self.field.order for x in secret], dtype=self.field.dtype).reshape(share.additive.storage.shape)
         if len(rev.shape) == 0 and rev:
-            raise ConsistencyError("Secret Shares are inconsistent in the first stage")
+            raise ConsistencyError("Secret Shares are inconsistent in the first stage") # pragma: no cover
         if len(rev.shape) > 0 and numpy.any(rev):
-            raise ConsistencyError("Secret Shares are inconsistent in the first stage")
+            raise ConsistencyError("Secret Shares are inconsistent in the first stage") # pragma: no cover
 
         secret = []
         for index in numpy.ndindex(a_storage[0].shape):
@@ -1355,10 +1355,10 @@ class ActiveProtocolSuite(object):
         revs2 = numpy.array(sub_secret2, dtype=self.field.dtype).reshape(share.additive.storage.shape)
         if len(revs.shape) > 0 or len(revs2.shape) > 0:
             if numpy.any(revs != reva) or numpy.any(revs2 != reva):
-                raise ConsistencyError("Secret Shares are inconsistent in the second stage")
+                raise ConsistencyError("Secret Shares are inconsistent in the second stage") # pragma: no cover
         else:
             if revs != reva or revs2 != reva:
-                raise ConsistencyError("Secret Shares are inconsistent in the second stage")
+                raise ConsistencyError("Secret Shares are inconsistent in the second stage") # pragma: no cover
 
         return encoding.decode(revs, self.field)
 
