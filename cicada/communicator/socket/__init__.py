@@ -892,7 +892,7 @@ class SocketCommunicator(Communicator):
                 log.info(f"Comm {name} player {rank} result: {result}")
 
         # Print a traceback for players that failed.
-        if show_traceback:
+        if show_traceback: # pragma: no cover
             for rank, result in enumerate(output):
                 if isinstance(result, Failed):
                     log.error("*" * 80)
