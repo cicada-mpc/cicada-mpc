@@ -713,7 +713,6 @@ Feature: Shamir Protocol
         And the players reveal the secret
         Then the results should match <result> to within 4 digits
 
-        @wip
         Examples:
         | players | player | value         | result      |
         | 3       | 0      | 1             | -1          |
