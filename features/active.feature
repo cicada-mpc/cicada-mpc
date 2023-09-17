@@ -303,6 +303,22 @@ Feature: Active Protocol
 
 
     @calculator
+    Scenario Outline: Field Dot
+        Given a calculator service with <players> players
+        And a new Active protocol suite
+        And player 0 secret shares <a>
+        And player 1 secret shares <b>
+        When the players compute the dot product of the shares in the field
+        And the players reveal the secret
+        Then the result should match <result>
+
+        Examples:
+        | players | a          | b          | result                          |
+        | 3       | [1, 2]     | [3, 4]     | ((1 * 3) + (2 * 4)) * 65536     |
+        | 3       | [1, 3]     | [-3, 4]    | ((1 * -3) + (3 * 4)) * 65536    |
+
+
+    @calculator
     Scenario Outline: Field Multiply
         Given a calculator service with <players> players
         And a new Active protocol suite

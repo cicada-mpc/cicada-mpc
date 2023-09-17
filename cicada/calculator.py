@@ -299,6 +299,7 @@ def main(listen_socket, communicator):
                 "dot",
                 "equal",
                 "field_add",
+                "field_dot",
                 "field_multiply",
                 "field_power",
                 "field_subtract",

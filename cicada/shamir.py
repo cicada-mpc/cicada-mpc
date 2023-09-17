@@ -248,7 +248,7 @@ class ShamirBasicProtocolSuite(object):
     @property
     def encoding(self):
         """Default encoding to use for operations that require encoding/decoding."""
-        return self._encoding
+        return self._encoding # pragma: no cover
 
 
     @property

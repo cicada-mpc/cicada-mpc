@@ -162,6 +162,11 @@ def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="dot"))
 
 
+@when(u'the players compute the dot product of the shares in the field')
+def step_impl(context):
+    _require_success(context.calculator.command("protocol", subcommand="field_dot"))
+
+
 @when(u'the players compute the floor of the share')
 def step_impl(context):
     _require_success(context.calculator.command("protocol", subcommand="floor"))

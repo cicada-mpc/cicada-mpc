@@ -475,6 +475,35 @@ class ActiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
+    def field_dot(self, lhs, rhs):
+        """Privacy-preserving dot product of two secret shared vectors.
+
+        Unlike :meth:`dot`, :meth:`field_dot` only operates on field values,
+        no right shift is performed on the results.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`ActiveArrayShare`, required
+            Secret shared vector.
+        rhs: :class:`ActiveArrayShare`, required
+            Secret shared vector.
+
+        Returns
+        -------
+        result: :class:`ActiveArrayShare`
+            Secret-shared dot product of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return ActiveArrayShare((
+            self.aprotocol.field_dot(lhs.additive, rhs.additive),
+            self.sprotocol.field_dot(lhs.shamir, rhs.shamir)))
+
+
     def field_multiply(self, lhs, rhs):
         """Privacy-preserving elementwise multiplication of arrays.
 
@@ -1031,7 +1060,6 @@ class ActiveProtocolSuite(object):
         return ActiveArrayShare((
             self.aprotocol.negative(operand.additive),
             self.sprotocol.negative(operand.shamir)))
-
 
 
 #    def _pade_approx(self, func, operand,*, encoding=None, center=0, degree=12, scale=3):
