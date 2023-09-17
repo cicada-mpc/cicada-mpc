@@ -283,9 +283,7 @@ class Field(object):
         array: :class:`numpy.ndarray`
             Encoded array of zeros with the same shape as `other`.
         """
-        result = numpy.ones(other.shape, dtype=self.dtype)
-        self._assert_unary_compatible(result, "result")
-        return result
+        return self.ones(other.shape)
 
 
     @property
