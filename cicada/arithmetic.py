@@ -39,9 +39,9 @@ class Field(object):
             order = 18446744073709551557
         else:
             if not isinstance(order, numbers.Integral):
-                raise ValueError(f"Expected integer order, got {type(order)} instead.") # pragma: no cover
+                raise ValueError(f"Expected integer order, got {type(order)} instead.")
             if order < 0:
-                raise ValueError(f"Expected non-negative order, got {order} instead.") # pragma: no cover
+                raise ValueError(f"Expected non-negative order, got {order} instead.")
             if not self._is_prob_prime(order):
                 raise ValueError(f"Expected order to be prime, got a composite instead.")
 
@@ -178,11 +178,9 @@ class Field(object):
         True means n is very likely a prime.
         """
         if not isinstance(n, int):
-            raise ValueError('Expected argument to primality test to be integral')
-            return False
+            return False # pragma: no cover
         if n in [0,1,4,6,8,9]:
             return False
-
         if n in [2,3,5,7]:
             return True
 

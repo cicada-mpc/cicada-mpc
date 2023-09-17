@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import logging
+import unittest
 import test
 
 from behave import *
@@ -45,6 +46,20 @@ def step_impl(context, x):
     if "fieldarrays" not in context:
         context.fieldarrays = []
     context.fieldarrays.append(field(x))
+
+
+@when(u'a field with order {order} is created, it should not raise an exception')
+def step_impl(context, order):
+    order = eval(order)
+    field = cicada.arithmetic.Field(order=order)
+
+
+@when(u'a field with order {order} is created, it should raise an exception')
+def step_impl(context, order):
+    order = eval(order)
+    with unittest.TestCase().assertRaises(ValueError) as cm:
+        field = cicada.arithmetic.Field(order=order)
+    print(cm.exception)
 
 
 @when(u'generating a field array of uniform random values with shape {shape}')
