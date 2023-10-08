@@ -188,16 +188,19 @@ Feature: SocketCommunicator
         | 10      | range(10)   | 10         | list(range(9)) + ["blah"]     |
 
 
-    @wip
     Scenario Outline: Predefined Communicator
         Given <players> players
         When players <group> create a new communicator with name <name> and direct addresses <addresses>
         Then the new communicator names should match <names>
         And the new communicator world sizes should match <world_sizes>
 
+        @wip
         Examples:
         | players | group        | name       | addresses                                          | names        | world_sizes   |
         | 2       | range(2)     | "red"      | ["tcp://127.0.0.1:34000", "tcp://127.0.0.1:34001"] | ["red"] * 2  | [2] * 2       |
+
+        Examples:
+        | players | group        | name       | addresses                                          | names        | world_sizes   |
         | 2       | range(2)     | "blue"     | ["file:///tmp/cicada0", "file:///tmp/cicada1"]     | ["blue"] * 2 | [2] * 2       |
 
 
