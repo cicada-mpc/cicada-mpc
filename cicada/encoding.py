@@ -48,6 +48,11 @@ class Bits(object):
         decoded: :class:`numpy.ndarray` or :any:`None`
             Array of integers containing the values :math:`0` and :math:`1`, or
             :any:`None` if the input was :any:`None`.
+
+        Raises
+        ------
+        ValueError
+            If `array` contains anything but :math:`0` or :math:`1`.
         """
         if array is None:
             return array
@@ -80,6 +85,11 @@ class Bits(object):
             Encoded array with the same shape as the input, containing the
             `field` values :math:`0` and :math:`1`, or :any:`None` if the input
             was :any:`None`.
+
+        Raises
+        ------
+        ValueError
+            If `array` contains anything but :math:`0` or :math:`1`.
         """
         if array is None:
             return array
@@ -121,7 +131,7 @@ class Boolean(object):
         Returns
         -------
         decoded: :class:`numpy.ndarray` or :any:`None`
-            Array of integers containing the values :math:`0` and :math:`1`, or
+            Array of boolean values :math:`True` and :math:`False`, or
             :any:`None` if the input was :any:`None`.
         """
         if array is None:
@@ -140,7 +150,7 @@ class Boolean(object):
         Parameters
         ----------
         array: :class:`numpy.ndarray` or :any:`None`, required
-            Array to convert.  Nonzero values are considered True, zero values are considered False.
+            Array to convert.  Nonzero values are considered :math:`True`, zero values are considered :math:`False`.
         field: :class:`cicada.arithmetic.Field`, required
             Field over which the returned values are defined.
 
