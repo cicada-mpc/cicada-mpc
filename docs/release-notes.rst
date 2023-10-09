@@ -7,6 +7,14 @@
 Release Notes
 =============
 
+Cicada 1.1.0 - October 9th, 2023
+--------------------------------
+
+* Moved the PRZS implementation into its own protocol object.
+* Began running regression tests using Python 3.12.
+* Minor documentation improvements.
+* Restored missing regression tests, improved code coverage, and removed obsolete code.
+
 Cicada 1.0.0 - September 15th, 2023
 -----------------------------------
 
