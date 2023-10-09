@@ -398,7 +398,7 @@ class Tag(enum.IntEnum):
     LOGSYNC = -20
 
     # Protocol-specific operations.
-    PRSZ = -30
+    PRZS = -30 # Pseudorandom Zero-Sharing.
 
 
 def tagname(tag):

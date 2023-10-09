@@ -22,8 +22,9 @@ import math
 import numpy
 
 from cicada.arithmetic import Field
-from cicada.communicator.interface import Communicator, Tag
+from cicada.communicator.interface import Communicator
 from cicada.encoding import FixedPoint, Identity
+from cicada.przs import PRZSProtocol
 
 
 class AdditiveArrayShare(object):
@@ -103,18 +104,11 @@ class AdditiveProtocolSuite(object):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
-        # Setup a pseudo-random sharing of zero, using code drawn from
-        # https://github.com/facebookresearch/CrypTen/blob/master/crypten/__init__.py
-
-        # Generate random seeds for Generators
-        # NOTE: Chosen seed can be any number, but we choose a random 64-bit
-        # integer here so other players cannot guess its value.
-
-        # We typically get here from a forked process, which causes all players
-        # to have the same RNG state. Reset the seed to make sure RNG streams
-        # are different for all the players. We use numpy's random generator
-        # here since initializing it without a seed will produce different
-        # seeds even from forked processes.
+        # Choose a random seed, if the caller hasn't chosen one already. The
+        # chosen seed could be any number, but we choose a random 64-bit
+        # integer here so other players cannot guess its value.  We typically
+        # get here from a forked process, so we use numpy's random generator
+        # because it will produce different seeds even from forked processes.
         if seed is None:
             seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
         else:
@@ -125,28 +119,12 @@ class AdditiveProtocolSuite(object):
         if encoding is None:
             encoding = FixedPoint()
 
-        # Send random seed to next party, receive random seed from prev party
-        if communicator.world_size >= 2:  # Otherwise sending seeds will segfault.
-            next_rank = (communicator.rank + 1) % communicator.world_size
-            prev_rank = (communicator.rank - 1) % communicator.world_size
-
-            request = communicator.isend(value=seed, dst=next_rank, tag=Tag.PRSZ)
-            result = communicator.irecv(src=prev_rank, tag=Tag.PRSZ)
-
-            request.wait()
-            result.wait()
-
-            prev_seed = result.value
-        else:
-            prev_seed = seed
-
-        # Setup random number generators
-        self._g0 = numpy.random.default_rng(seed=seed)
-        self._g1 = numpy.random.default_rng(seed=prev_seed)
+        field = Field(order=order)
 
         self._communicator = communicator
-        self._field = Field(order=order)
+        self._field = field
         self._encoding = encoding
+        self._przs = PRZSProtocol(communicator=communicator, field=field, seed=seed)
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -1700,11 +1678,10 @@ class AdditiveProtocolSuite(object):
 
         encoding = self._require_encoding(encoding)
 
-        # Generate a pseudo-random sharing of zero ...
-        przs = self.field.uniform(size=shape, generator=self._g0)
-        self.field.inplace_subtract(przs, self.field.uniform(size=shape, generator=self._g1))
+        # Generate a pseudorandom zero-sharing.
+        przs = self._przs(shape=shape)
 
-        # Add the secret to the PRSZ
+        # Add the secret to the PRZS
         if self.communicator.rank == src:
             secret = encoding.encode(secret, self.field)
             self.field.inplace_add(przs, secret)
