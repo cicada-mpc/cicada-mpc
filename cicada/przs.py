@@ -99,10 +99,12 @@ class PRZSProtocol(object):
 
     @property
     def communicator(self):
+        """The :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
         return self._communicator # pragma: no cover
 
 
     @property
     def field(self):
+        """The :class:`~cicada.arithmetic.Field` used by this protocol."""
         return self._field
 

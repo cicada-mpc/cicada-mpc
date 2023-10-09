@@ -25,4 +25,5 @@ API Reference
     cicada.encoding.rst
     cicada.interactive.rst
     cicada.logging.rst
+    cicada.przs.rst
     cicada.shamir.rst
