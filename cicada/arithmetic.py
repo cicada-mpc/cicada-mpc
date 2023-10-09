@@ -121,12 +121,14 @@ class Field(object):
 
 
     def full_like(self, other, fill_value):
-        """Return a field array of ones with the same shape as another field array.
+        """Return a field array of values with the same shape as another field array.
 
         Parameters
         ----------
         other: :class:`numpy.ndarray`, required
             The result will have the same shape as this array.
+        fill_value: :class:`int`, required
+            Field value that will be assigned to every element in the result array.
 
         Returns
         -------
@@ -379,7 +381,7 @@ class Field(object):
 
 
     def zeros_like(self, other):
-        """Return an field array of zeros with the same shape as another field array.
+        """Return a field array of zeros with the same shape as another field array.
 
         Parameters
         ----------
