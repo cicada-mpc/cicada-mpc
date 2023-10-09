@@ -16,7 +16,7 @@
 
 """Functionality for fault-tolerant secure multiparty computation."""
 
-__version__ = "1.1.0"
+__version__ = "1.2.0-dev"
 
 
 from cicada.logging import Logger
