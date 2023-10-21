@@ -18,9 +18,12 @@
 """
 
 from math import log2, ceil
+import inspect
 import numbers
 
 import numpy
+
+from cicada import transcript
 
 
 class Field(object):
@@ -92,6 +95,8 @@ class Field(object):
             The sum of the two operands.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+
+        self.write_transcript()
 
         # We make an explicit copy and use in-place operators to avoid overflow
         # and/or unwanted conversion from a numpy scalar to a Python int.
@@ -360,6 +365,14 @@ class Field(object):
         result = numpy.array(values, dtype=self.dtype).reshape(size)
         self._assert_unary_compatible(result, "result")
         return result
+
+
+    def write_transcript(self):
+        transcript.log(
+            transcript.Category.ARITHMETIC,
+            arithmetic = self.__class__.__name__,
+            operation = inspect.currentframe().f_back.f_code.co_name,
+            )
 
 
     def zeros(self, shape):

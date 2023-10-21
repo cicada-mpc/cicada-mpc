@@ -16,10 +16,13 @@
 
 """Pseudorandom Zero-Sharing functionality."""
 
+import inspect
+
 import numpy
 
 from cicada.arithmetic import Field
 from cicada.communicator.interface import Communicator, Tag
+from cicada import transcript
 
 
 class PRZSProtocol(object):
@@ -48,6 +51,8 @@ class PRZSProtocol(object):
         if not isinstance(field, Field):
             raise ValueError("A Cicada field is required.") # pragma: no cover
         self._field = field
+
+        self.write_transcript()
 
         # Send random seed to next party, receive random seed from prev party
         if communicator.world_size >= 2:  # Otherwise sending seeds will segfault.
@@ -107,4 +112,15 @@ class PRZSProtocol(object):
     def field(self):
         """The :class:`~cicada.arithmetic.Field` used by this protocol."""
         return self._field
+
+
+    def write_transcript(self):
+        transcript.log(
+            transcript.Category.PROTOCOL,
+            comm = self.communicator.name,
+            protocol = self.__class__.__name__,
+            operation = inspect.currentframe().f_back.f_code.co_name,
+            rank = self.communicator.rank,
+            )
+
 

@@ -40,6 +40,7 @@ import pynetstring
 
 from ..interface import Communicator, Tag, tagname
 from .connect import NetstringSocket, Timeout, Timer, direct, getLogger, gettls, geturl, listen, message, rendezvous
+from cicada import transcript
 
 logging.getLogger(__name__ + ".transcript").setLevel(logging.WARNING)
 
@@ -177,6 +178,21 @@ class SocketCommunicator(Communicator):
                 continue
 
             # Log queued messages.
+            transcript.log(
+                transcript.Category.COMMUNICATOR,
+                "Received message",
+                arrow = "<--",
+                comm = self._name,
+                dir = "<",
+                dst = self._rank,
+                other = src,
+                payload = payload,
+                rank = self._rank,
+                src = src,
+                tag = tagname(tag),
+                verb = "receive",
+                )
+
             if self._transcript.isEnabledFor(logging.DEBUG):
                 message = f"Comm {self._name} player {self._rank} <-- player {src} {tagname(tag)} {payload}"
                 self._transcript.debug(message, extra={
@@ -351,6 +367,21 @@ class SocketCommunicator(Communicator):
     def _send(self, *, tag, payload, dst):
         if dst not in self.ranks:
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
+
+        transcript.log(
+            transcript.Category.COMMUNICATOR,
+            "Sent message",
+            arrow = "-->",
+            comm = self._name,
+            dir = ">",
+            dst = dst,
+            other = dst,
+            payload = payload,
+            rank=self._rank,
+            src = self._rank,
+            tag = tagname(tag),
+            verb="send",
+            )
 
         if self._transcript.isEnabledFor(logging.DEBUG):
             message = f"Comm {self._name} player {self._rank} --> player {dst} {tagname(tag)} {payload}"
