@@ -37,13 +37,13 @@ class Category(enum.Enum):
 class Formatter(object):
     def __init__(self, appfmt=None, protofmt=None, commfmt=None, mathfmt=None):
         if appfmt is None:
-            appfmt = "Comm {comm} player {rank} {msg}"
+            appfmt = "{processName} {msg}"
         if protofmt is None:
-            protofmt = "Comm {comm} player {rank} {protocol} {operation}"
+            protofmt = "{processName} {protocol} {operation}"
         if commfmt is None:
-            commfmt = "Comm {comm} player {rank} {arrow} {other} {tag} {payload}"
+            commfmt = "{processName} {arrow} {other} {tag} {payload}"
         if mathfmt is None:
-            mathfmt = "{processName} {arithmetic} {operation}"
+            mathfmt = "{processName} {arithmetic} {operation} {operands} {result}"
 
         self._appfmt = appfmt
         self._protofmt = protofmt

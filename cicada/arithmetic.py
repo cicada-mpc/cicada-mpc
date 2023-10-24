@@ -17,8 +17,9 @@
 """Functionality for working with field arithmetic.
 """
 
-from math import log2, ceil
+import copy
 import inspect
+import math
 import numbers
 
 import numpy
@@ -73,6 +74,16 @@ class Field(object):
         if array.dtype != self.dtype:
             raise ValueError(f"Expected {label} to be created with a compatible instance of this encoder.") # pragma: no cover
 
+    def _write_transcript(self, operands=None, result=None):
+        transcript.log(
+            transcript.Category.ARITHMETIC,
+            arithmetic = self.__class__.__name__,
+            operation = inspect.currentframe().f_back.f_code.co_name,
+            operands = operands,
+            result = result
+            )
+
+
     def __call__(self, array):
         # Convert an existing array to a field array.
         result = numpy.array(array, dtype=self._dtype)
@@ -96,7 +107,7 @@ class Field(object):
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
-        self.write_transcript()
+        self._write_transcript()
 
         # We make an explicit copy and use in-place operators to avoid overflow
         # and/or unwanted conversion from a numpy scalar to a Python int.
@@ -122,7 +133,7 @@ class Field(object):
     @property
     def bytes(self):
         """Return the number of bytes required to store field values."""
-        return ceil(self._bits / 8)
+        return math.ceil(self._bits / 8)
 
 
     def full_like(self, other, fill_value):
@@ -156,9 +167,13 @@ class Field(object):
         rhs: :class:`numpy.ndarray`, required
             Second operand.  This value will be added in-place to `lhs`.
         """
+        operands = [lhs.tolist(), rhs.tolist()]
+
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         lhs += rhs
         lhs %= self._order
+
+        self._write_transcript(operands=operands, result=lhs.tolist())
 
 
     def inplace_subtract(self, lhs, rhs):
@@ -205,7 +220,7 @@ class Field(object):
                 if pow(a, 2**i * d, n) == n-1:
                     return False
             return True
-        num_bytes = ceil(log2(n)/8)
+        num_bytes = math.ceil(math.log2(n)/8)
         for i in range(32):#number of trials more means higher accuracy - 32 -> error probability ~4^-32 ~2^-64
             a =0
             while a == 0 or a == 1:
@@ -365,14 +380,6 @@ class Field(object):
         result = numpy.array(values, dtype=self.dtype).reshape(size)
         self._assert_unary_compatible(result, "result")
         return result
-
-
-    def write_transcript(self):
-        transcript.log(
-            transcript.Category.ARITHMETIC,
-            arithmetic = self.__class__.__name__,
-            operation = inspect.currentframe().f_back.f_code.co_name,
-            )
 
 
     def zeros(self, shape):
