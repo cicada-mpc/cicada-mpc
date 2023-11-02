@@ -37,7 +37,7 @@ class Formatter(object):
         if appfmt is None:
             appfmt = "{processName} {msg}"
         if protofmt is None:
-            protofmt = "{processName} {operation}"
+            protofmt = "{processName} {operation} {operands} {result}"
         if commfmt is None:
             commfmt = "{processName} {arrow} {other} {tag} {payload}"
         if mathfmt is None:
@@ -78,20 +78,22 @@ import numpy
 from .communicator.interface import tagname
 
 
-def _operands(locals, args):
-    results = [locals.get(arg) for arg in args]
-    for index, item in enumerate(results):
-        if isinstance(item, numpy.ndarray):
-            results[index] = item.tolist()
-    return results
+def _argument(value):
+    if isinstance(value, numpy.ndarray):
+        return value.tolist()
+    return value
+
+
+def _arguments(locals, kwargs):
+    return [_argument(locals.get(arg)) for arg in kwargs]
 
 
 class TraceCall(object):
-    def __init__(self, category, args=None):
-        if args is None:
-            args = []
+    def __init__(self, category, kwargs=None):
+        if kwargs is None:
+            kwargs = []
         self._category = category
-        self._args = args
+        self._kwargs = kwargs
 
     def __call__(self, event):
         if event.kind != "call":
@@ -99,32 +101,41 @@ class TraceCall(object):
         log(
             self._category,
             "",
-            operands = _operands(event.locals, self._args),
+            operands = _arguments(event.locals, self._kwargs),
             operation = event.function_object.__qualname__,
             result = None,
             )
 
 
 class TraceCallReturn(object):
-    def __init__(self, category, args=None):
-        if args is None:
-            args = []
+    def __init__(self, category, kwargs=None, result=None):
+        if kwargs is None:
+            kwargs = []
+
         self._category = category
-        self._args = args
+        self._kwargs = kwargs
+        self._result = result
         self._stack = []
 
     def __call__(self, event):
         if event.kind == "call":
-            self._stack.append((event.function, event.locals))
+            self._stack.append(_arguments(event.locals, self._kwargs))
             return
 
         if event.kind == "return":
+            if self._result is None:
+                result = event.arg
+            elif isinstance(self._result, str):
+                result = _argument(event.locals.get(self._result))
+            else:
+                result = _arguments(event.locals, self._result)
+
             log(
                 self._category,
                 "",
-                operands = _operands(self._stack.pop()[1], self._args),
+                operands = self._stack.pop(),
                 operation = event.function_object.__qualname__,
-                result = event.arg,
+                result = result,
                 )
 
 
@@ -184,10 +195,11 @@ class Trace(hunter.actions.ColorStreamAction):
     def __init__(self):
         self.mappings = {
             "AdditiveProtocolSuite.reveal" : TraceCall(Category.PROTOCOL),
-            "AdditiveProtocolSuite.share" : TraceCall(Category.PROTOCOL),
-            "Field.add" : TraceCallReturn(Category.ARITHMETIC, args=["lhs", "rhs"]),
-            "Field.inplace_add" : TraceCallReturn(Category.ARITHMETIC, args=["lhs", "rhs"]),
-            "FixedPoint.encode" : TraceCallReturn(Category.ARITHMETIC),
+            "AdditiveProtocolSuite.share" : TraceCall(Category.PROTOCOL, kwargs=["src", "secret"]),
+            "Field.add" : TraceCallReturn(Category.ARITHMETIC, kwargs=["lhs", "rhs"]),
+            "Field.inplace_add" : TraceCallReturn(Category.ARITHMETIC, kwargs=["lhs", "rhs"], result="lhs"),
+            "FixedPoint.decode" : TraceCallReturn(Category.ARITHMETIC, kwargs=["array"]),
+            "FixedPoint.encode" : TraceCallReturn(Category.ARITHMETIC, kwargs=["array"]),
             "PRZSProtocol.__init__" : TraceCall(Category.PROTOCOL),
             "SocketCommunicator._queue_message" : TraceQueueMessage(),
             "SocketCommunicator._send" : TraceSendMessage(),
@@ -202,19 +214,6 @@ class Trace(hunter.actions.ColorStreamAction):
             return
 
         self.mappings[qualname](event)
-
-#        if event.kind == "call":
-#            self._stack.append((event.function, event.locals))
-#            #print("call", event.function_object, event.locals)
-#
-#        if event.kind == "return":
-#            # module = event.module
-#            function = event.function_object.__qualname__
-#            _, arguments = self._stack.pop()
-#            if "self" in arguments:
-#                del arguments["self"]
-#            result = event.arg
-#            self._log.info(f"{function}({arguments}) => {result}")
 
 
 def record():
