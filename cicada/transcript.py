@@ -217,4 +217,4 @@ class Trace(hunter.actions.ColorStreamAction):
 
 
 def record():
-    return hunter.trace(kind_in=("call", "return"), action=Trace())
+    return hunter.trace(module_startswith="cicada", kind_in=("call", "return"), action=Trace())
