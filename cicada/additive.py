@@ -26,7 +26,6 @@ from cicada.arithmetic import Field
 from cicada.communicator.interface import Communicator
 from cicada.encoding import FixedPoint, Identity
 from cicada.przs import PRZSProtocol
-from cicada import transcript
 
 
 class AdditiveArrayShare(object):
@@ -1547,8 +1546,6 @@ class AdditiveProtocolSuite(object):
         value: :class:`numpy.ndarray` or :any:`None`
             The revealed secret, if this player is a member of `dst`, or :any:`None`.
         """
-        self.write_transcript()
-
         if not isinstance(share, AdditiveArrayShare):
             raise ValueError("share must be an instance of AdditiveArrayShare.") # pragma: no cover
 
@@ -1644,16 +1641,6 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(result)
 
 
-    def write_transcript(self):
-        transcript.log(
-            transcript.Category.PROTOCOL,
-            comm = self.communicator.name,
-            protocol = self.__class__.__name__,
-            operation = inspect.currentframe().f_back.f_code.co_name,
-            rank = self.communicator.rank,
-            )
-
-
     def share(self, *, src, secret, shape, encoding=None):
         """Convert an array of scalars to an additive secret share.
 
@@ -1681,8 +1668,6 @@ class AdditiveProtocolSuite(object):
         share: :class:`AdditiveArrayShare`
             The local share of the secret shared array.
         """
-        self.write_transcript()
-
         if not isinstance(shape, tuple):
             shape = (shape,)
 

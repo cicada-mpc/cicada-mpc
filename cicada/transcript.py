@@ -72,3 +72,133 @@ def log(category, message=None, **extra):
         logger.info(message, extra=extra)
 
 
+#########################################################################################
+# Functionality for non-intrusive logging using the Hunter library
+
+
+import hunter
+
+from .communicator.interface import tagname
+
+class TraceCall(object):
+    def __init__(self, args=None):
+        self._args = args
+
+    def __call__(self, event):
+        if event.kind != "call":
+            return
+        log(
+            Category.APP,
+            event.function_object.__qualname__,
+            )
+
+
+class TraceSendMessage(object):
+    def __call__(self, event):
+        if event.kind != "call":
+            return
+
+        communicator = event.locals["self"]
+        dst = event.locals["dst"]
+        payload = event.locals["payload"]
+        tag = event.locals["tag"]
+
+        log(
+            Category.COMMUNICATOR,
+            "Sent message",
+            arrow = "-->",
+            comm = communicator.name,
+            dir = ">",
+            dst = dst,
+            other = dst,
+            payload = payload,
+            rank = communicator.rank,
+            src = communicator.rank,
+            tag = tagname(tag),
+            verb = "send",
+            )
+
+
+class TraceQueueMessage(object):
+    def __call__(self, event):
+        if event.kind != "call":
+            return
+
+        communicator = event.locals["self"]
+        payload = event.locals["payload"]
+        src = event.locals["src"]
+        tag = event.locals["tag"]
+
+        log(
+            Category.COMMUNICATOR,
+            "Received message",
+            arrow = "<--",
+            comm = communicator.name,
+            dir = "<",
+            dst = communicator.rank,
+            other = src,
+            payload = payload,
+            rank = communicator.rank,
+            src = src,
+            tag = tagname(tag),
+            verb = "receive",
+            )
+
+
+class Trace(hunter.actions.ColorStreamAction):
+    def __init__(self):
+        self.mappings = {
+            "AdditiveProtocolSuite.reveal" : TraceCall(),
+            "AdditiveProtocolSuite.share" : TraceCall(),
+            "Field.add" : TraceCall(),
+            "Field.inplace_add" : TraceCall(),
+            "FixedPoint.encode" : TraceCall(),
+            "PRZSProtocol.__init__" : TraceCall(),
+            "SocketCommunicator._queue_message" : TraceQueueMessage(),
+            "SocketCommunicator._send" : TraceSendMessage(),
+            }
+
+    def __call__(self, event):
+        if not hasattr(event.function_object, "__qualname__"):
+            return
+
+        qualname = event.function_object.__qualname__
+        if qualname not in self.mappings:
+            return
+
+        self.mappings[qualname](event)
+
+#        if event.kind == "line":
+#            return
+#        if not hasattr(event.function_object, "__qualname__"):
+#            return
+#
+#        #if event.function_object.__qualname__.startswith("SocketCommunicator"):
+#        #    print(event)
+#
+#        if event.function_object.__qualname__ not in [
+#            "AdditiveProtocolSuite.share",
+#            "Field.add",
+#            "Field.inplace_add",
+#            "FixedPoint.encode",
+#            "SocketCommunicator._queue_message",
+#            "SocketCommunicator._send",
+#            ]:
+#            return
+#
+#        if event.kind == "call":
+#            self._stack.append((event.function, event.locals))
+#            #print("call", event.function_object, event.locals)
+#
+#        if event.kind == "return":
+#            # module = event.module
+#            function = event.function_object.__qualname__
+#            _, arguments = self._stack.pop()
+#            if "self" in arguments:
+#                del arguments["self"]
+#            result = event.arg
+#            self._log.info(f"{function}({arguments}) => {result}")
+
+
+def record():
+    return hunter.trace(kind_in=("call", "return"), action=Trace())

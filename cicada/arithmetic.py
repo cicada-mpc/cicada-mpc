@@ -24,8 +24,6 @@ import numbers
 
 import numpy
 
-from cicada import transcript
-
 
 class Field(object):
     """Performs arithmetic in an integer field.
@@ -74,16 +72,6 @@ class Field(object):
         if array.dtype != self.dtype:
             raise ValueError(f"Expected {label} to be created with a compatible instance of this encoder.") # pragma: no cover
 
-    def _write_transcript(self, operands=None, result=None):
-        transcript.log(
-            transcript.Category.ARITHMETIC,
-            arithmetic = self.__class__.__name__,
-            operation = inspect.currentframe().f_back.f_code.co_name,
-            operands = operands,
-            result = result
-            )
-
-
     def __call__(self, array):
         # Convert an existing array to a field array.
         result = numpy.array(array, dtype=self._dtype)
@@ -106,8 +94,6 @@ class Field(object):
             The sum of the two operands.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-
-        self._write_transcript()
 
         # We make an explicit copy and use in-place operators to avoid overflow
         # and/or unwanted conversion from a numpy scalar to a Python int.
@@ -172,8 +158,6 @@ class Field(object):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         lhs += rhs
         lhs %= self._order
-
-        self._write_transcript(operands=operands, result=lhs.tolist())
 
 
     def inplace_subtract(self, lhs, rhs):
