@@ -20,8 +20,6 @@
 import enum
 import logging
 
-enable = False
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.propagate = False
@@ -39,11 +37,11 @@ class Formatter(object):
         if appfmt is None:
             appfmt = "{processName} {msg}"
         if protofmt is None:
-            protofmt = "{processName} {protocol} {operation}"
+            protofmt = "{processName} {operation}"
         if commfmt is None:
             commfmt = "{processName} {arrow} {other} {tag} {payload}"
         if mathfmt is None:
-            mathfmt = "{processName} {arithmetic} {operation} {operands} {result}"
+            mathfmt = "{processName} {operation} {operands} {result}"
 
         self._appfmt = appfmt
         self._protofmt = protofmt
@@ -67,30 +65,67 @@ def log(category, message=None, **extra):
     if not isinstance(category, Category):
         raise ValueError(f"Expected an instance of cicada.transcript.Category, got {type(category)} instead.")
 
-    if enable:
-        extra["category"] = category
-        logger.info(message, extra=extra)
+    extra["category"] = category
+    logger.info(message, extra=extra)
 
 
 #########################################################################################
-# Functionality for non-intrusive logging using the Hunter library
-
+# Functionality for non-intrusive transcript-logging using the Hunter library
 
 import hunter
+import numpy
 
 from .communicator.interface import tagname
 
+
+def _operands(locals, args):
+    results = [locals.get(arg) for arg in args]
+    for index, item in enumerate(results):
+        if isinstance(item, numpy.ndarray):
+            results[index] = item.tolist()
+    return results
+
+
 class TraceCall(object):
-    def __init__(self, args=None):
+    def __init__(self, category, args=None):
+        if args is None:
+            args = []
+        self._category = category
         self._args = args
 
     def __call__(self, event):
         if event.kind != "call":
             return
         log(
-            Category.APP,
-            event.function_object.__qualname__,
+            self._category,
+            "",
+            operands = _operands(event.locals, self._args),
+            operation = event.function_object.__qualname__,
+            result = None,
             )
+
+
+class TraceCallReturn(object):
+    def __init__(self, category, args=None):
+        if args is None:
+            args = []
+        self._category = category
+        self._args = args
+        self._stack = []
+
+    def __call__(self, event):
+        if event.kind == "call":
+            self._stack.append((event.function, event.locals))
+            return
+
+        if event.kind == "return":
+            log(
+                self._category,
+                "",
+                operands = _operands(self._stack.pop()[1], self._args),
+                operation = event.function_object.__qualname__,
+                result = event.arg,
+                )
 
 
 class TraceSendMessage(object):
@@ -148,12 +183,12 @@ class TraceQueueMessage(object):
 class Trace(hunter.actions.ColorStreamAction):
     def __init__(self):
         self.mappings = {
-            "AdditiveProtocolSuite.reveal" : TraceCall(),
-            "AdditiveProtocolSuite.share" : TraceCall(),
-            "Field.add" : TraceCall(),
-            "Field.inplace_add" : TraceCall(),
-            "FixedPoint.encode" : TraceCall(),
-            "PRZSProtocol.__init__" : TraceCall(),
+            "AdditiveProtocolSuite.reveal" : TraceCall(Category.PROTOCOL),
+            "AdditiveProtocolSuite.share" : TraceCall(Category.PROTOCOL),
+            "Field.add" : TraceCallReturn(Category.ARITHMETIC, args=["lhs", "rhs"]),
+            "Field.inplace_add" : TraceCallReturn(Category.ARITHMETIC, args=["lhs", "rhs"]),
+            "FixedPoint.encode" : TraceCallReturn(Category.ARITHMETIC),
+            "PRZSProtocol.__init__" : TraceCall(Category.PROTOCOL),
             "SocketCommunicator._queue_message" : TraceQueueMessage(),
             "SocketCommunicator._send" : TraceSendMessage(),
             }
@@ -168,24 +203,6 @@ class Trace(hunter.actions.ColorStreamAction):
 
         self.mappings[qualname](event)
 
-#        if event.kind == "line":
-#            return
-#        if not hasattr(event.function_object, "__qualname__"):
-#            return
-#
-#        #if event.function_object.__qualname__.startswith("SocketCommunicator"):
-#        #    print(event)
-#
-#        if event.function_object.__qualname__ not in [
-#            "AdditiveProtocolSuite.share",
-#            "Field.add",
-#            "Field.inplace_add",
-#            "FixedPoint.encode",
-#            "SocketCommunicator._queue_message",
-#            "SocketCommunicator._send",
-#            ]:
-#            return
-#
 #        if event.kind == "call":
 #            self._stack.append((event.function, event.locals))
 #            #print("call", event.function_object, event.locals)

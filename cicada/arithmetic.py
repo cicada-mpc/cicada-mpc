@@ -153,8 +153,6 @@ class Field(object):
         rhs: :class:`numpy.ndarray`, required
             Second operand.  This value will be added in-place to `lhs`.
         """
-        operands = [lhs.tolist(), rhs.tolist()]
-
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         lhs += rhs
         lhs %= self._order
