@@ -38,7 +38,7 @@ class Formatter(object):
         if fmt is None:
             fmt = "{processName}: {msg}"
         if msgfmt is None:
-            msgfmt = "{processName}: comm {message.comm.name} player {message.comm.rank}: {message.arrow} {message.other} {message.tag} {message.payload}"
+            msgfmt = "{processName}: {message.arrow} {message.other} {message.tag} {message.payload}"
         if callfmt is None:
             callfmt = "{processName}: {trace.indent}{trace.qname}({trace.args})"
         if retfmt is None:
@@ -75,6 +75,11 @@ class Formatter(object):
 
 class FunctionTrace(object):
     pass
+
+
+class HideAllFunctions(object):
+    def __call__(self, record):
+        return not hasattr(record, "trace")
 
 
 class HideFunctions(object):
