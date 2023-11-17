@@ -33,26 +33,6 @@ logger.setLevel(logging.INFO)
 logger.propagate = False
 
 
-class Category(enum.Enum):
-    GENERIC = 1
-    OPERATION = 2
-    MESSAGE = 3
-
-
-class Placeholder(object):
-    def __bool__(self):
-        return False
-
-    def __format__(self, format_spec):
-        return ""
-
-    def __getattr__(self, key):
-        return Placeholder()
-
-    def __getitem__(self, key):
-        return Placeholder()
-
-
 class Fields(object):
     def __init__(self, fields):
         self._fields = dict(fields)
@@ -77,148 +57,239 @@ class Fields(object):
 
 
 class Formatter(object):
-    def __init__(self, fmt=None, opfmt=None, msgfmt=None):
+    def __init__(self, fmt=None, msgfmt=None, callfmt=None, retfmt=None):
         if fmt is None:
-            fmt = "Comm {comm.name} player {comm.rank}: {msg}"
-        if opfmt is None:
-            opfmt = "Comm {comm.name} player {comm.rank}: {operation} {operands} {result}"
+            fmt = "{processName}: {msg}"
         if msgfmt is None:
-            msgfmt = "Comm {comm.name} player {comm.rank}: {arrow} {other} {tag} {payload}"
+            msgfmt = "{processName}: comm {message.comm.name} player {message.comm.rank}: {message.arrow} {message.other} {message.tag} {message.payload}"
+        if callfmt is None:
+            callfmt = "{processName}: {trace.fqname}({trace.args})"
+        if retfmt is None:
+            retfmt = "{processName}: {trace.fqname} returned {trace.value}"
 
         self._fmt = fmt
-        self._opfmt = opfmt
         self._msgfmt = msgfmt
+        self._callfmt = callfmt
+        self._retfmt = retfmt
 
 
     def format(self, record):
         fields = Fields(record.__dict__)
 
-        if record.category == Category.GENERIC:
-            return self._fmt.format_map(fields)
-        if record.category == Category.OPERATION:
-            return self._opfmt.format_map(fields)
-        if record.category == Category.MESSAGE:
-            return self._msgfmt.format_map(fields)
+        if hasattr(record, "message"):
+            return self._msgfmt.format_map(record.__dict__)
 
-        raise ValueError(f"Unrecognized category: {record.category}")
+        if hasattr(record, "trace"):
+            trace = record.trace
+            if trace.kind == "call":
+                return self._callfmt.format_map(record.__dict__)
+            if trace.kind == "return":
+                return self._retfmt.format_map(record.__dict__)
+
+        return self._fmt.format_map(record.__dict__)
 
 
-def log(message=None, *, category=Category.GENERIC, **extra):
-    if not isinstance(category, Category):
-        raise ValueError(f"Expected an instance of cicada.transcript.Category, got {type(category)} instead.")
+class FunctionTrace(object):
+    pass
 
-    extra["category"] = category
+
+class HideFunctions(object):
+    def __init__(self, exclude):
+        self._exclude = set(exclude)
+
+    def __call__(self, record):
+        if hasattr(record, "trace") and record.trace.fqname in self._exclude:
+            return False
+        return True
+
+
+class HideCommunicationFunctions(HideFunctions):
+    def __init__(self):
+        super().__init__(exclude=[
+            "cicada.communicator.socket.SocketCommunicator.isend",
+            "cicada.communicator.socket.SocketCommunicator.irecv",
+            ])
+
+
+class HideDefaultFunctions(HideFunctions):
+    def __init__(self):
+        super().__init__(exclude=[
+            "cicada.additive.AdditiveProtocolSuite.communicator",
+            "cicada.additive.AdditiveProtocolSuite.field",
+            "cicada.arithmetic.Field.bytes",
+            "cicada.arithmetic.Field.dtype",
+            "cicada.arithmetic.Field.order",
+            "cicada.communicator.interface.Communicator.ranks",
+            "cicada.communicator.interface.tagname",
+            "cicada.communicator.socket.SocketCommunicator.free",
+            "cicada.communicator.socket.SocketCommunicator.irecv.<locals>.Result.value",
+            "cicada.communicator.socket.SocketCommunicator.irecv.<locals>.Result.wait",
+            "cicada.communicator.socket.SocketCommunicator.isend.<locals>.Result.wait",
+            "cicada.communicator.socket.SocketCommunicator.rank",
+            "cicada.communicator.socket.SocketCommunicator.run",
+            "cicada.communicator.socket.SocketCommunicator.world_size",
+            "cicada.communicator.socket.connect.NetstringSocket.close",
+            "cicada.communicator.socket.connect.NetstringSocket.feed",
+            "cicada.communicator.socket.connect.NetstringSocket.fileno",
+            "cicada.communicator.socket.connect.NetstringSocket.messages",
+            "cicada.communicator.socket.connect.NetstringSocket.next_message",
+            "cicada.communicator.socket.connect.NetstringSocket.send",
+            "cicada.communicator.socket.connect.Timer.elapsed",
+            "cicada.communicator.socket.connect.Timer.expired",
+            "cicada.communicator.socket.connect.connect",
+            "cicada.communicator.socket.connect.direct",
+            "cicada.communicator.socket.connect.getLogger",
+            "cicada.communicator.socket.connect.getpeerurl",
+            "cicada.communicator.socket.connect.gettls",
+            "cicada.communicator.socket.connect.geturl",
+            "cicada.communicator.socket.connect.listen",
+            "cicada.przs.PRZSProtocol.field",
+            "cicada.transcript.Formatter.format",
+            "cicada.transcript.log",
+            "cicada.transcript.record",
+            ])
+
+
+class HideInitFunctions(object):
+    def __call__(self, record):
+        if hasattr(record, "trace") and record.trace.name == "__init__":
+            return False
+        return True
+
+
+class HidePrivateFunctions(object):
+    def __call__(self, record):
+        if hasattr(record, "trace"):
+            trace = record.trace
+            if trace.name.startswith("_") and not trace.name.startswith("__"):
+                return False
+        return True
+
+
+class HideSelfArguments(object):
+    def __call__(self, record):
+        if hasattr(record, "trace") and record.trace.kind == "call":
+            record.trace.args = {key: value for key, value in record.trace.args.items() if key != "self"}
+        return True
+
+
+class HideSpecialFunctions(object):
+    def __call__(self, record):
+        if hasattr(record, "trace"):
+            trace = record.trace
+            if trace.name.startswith("__") and trace.name.endswith("__") and trace.name != "__init__":
+                return False
+        return True
+
+
+class LogFunctionCalls(hunter.actions.ColorStreamAction):
+    def __call__(self, event):
+        if not hasattr(event.function_object, "__qualname__"):
+            return
+
+        # Get the function name with varying degrees of specificity.
+        fqname = event.module + "." + event.function_object.__qualname__
+        qname = event.function_object.__qualname__
+        name = event.function_object.__name__
+
+        # Convert the hunter event into our own class for portability.
+        trace = FunctionTrace()
+        trace.fqname = fqname
+        trace.qname = qname
+        trace.name = name
+        trace.kind = event.kind
+        if event.kind == "call":
+            trace.args = event.locals
+        if event.kind == "return":
+            trace.value = event.arg
+
+        log(trace=trace)
+
+
+class Message(object):
+    pass
+
+
+class Placeholder(object):
+    def __bool__(self):
+        return False
+
+    def __format__(self, format_spec):
+        return ""
+
+    def __getattr__(self, key):
+        return Placeholder()
+
+    def __getitem__(self, key):
+        return Placeholder()
+
+
+class ShowReceivedMessages(object):
+    def __call__(self, record):
+        if hasattr(record, "trace") and record.trace.fqname == "cicada.communicator.socket.SocketCommunicator._queue_message":
+            if record.trace.kind == "call":
+                communicator = record.trace.args["self"]
+                src = record.trace.args["src"]
+                payload = record.trace.args["payload"]
+                tag = record.trace.args["tag"]
+
+                record.msg = "Received message"
+                record.message = Message()
+                record.message.arrow = "<--"
+                record.message.comm = communicator
+                record.message.dir = "<"
+                record.message.dst = communicator.rank
+                record.message.other = src
+                record.message.payload = payload
+                record.message.src = src
+                record.message.tag = tagname(tag)
+                record.message.verb = "receive"
+
+                del record.trace
+
+                return True
+
+            if record.trace.kind == "return":
+                return False
+
+        return True
+
+
+class ShowSentMessages(object):
+    def __call__(self, record):
+        if hasattr(record, "trace") and record.trace.fqname == "cicada.communicator.socket.SocketCommunicator._send":
+            if record.trace.kind == "call":
+                communicator = record.trace.args["self"]
+                dst = record.trace.args["dst"]
+                payload = record.trace.args["payload"]
+                tag = record.trace.args["tag"]
+
+                record.msg = "Sent message"
+                record.message = Message()
+                record.message.arrow = "-->"
+                record.message.comm = communicator
+                record.message.dir = ">"
+                record.message.dst = dst
+                record.message.other = dst
+                record.message.payload = payload
+                record.message.src = communicator.rank
+                record.message.tag = tagname(tag)
+                record.message.verb = "send"
+
+                del record.trace
+
+                return True
+
+            if record.trace.kind == "return":
+                return False
+
+        return True
+
+
+def log(message=None, **extra):
     logger.info(message, extra=extra)
 
 
-def _arguments(locals, kwargs):
-    return [locals.get(arg) for arg in kwargs]
-
-
-class LogResult(object):
-    def __init__(self, kwargs=None, result=None):
-        if kwargs is None:
-            kwargs = []
-
-        self._kwargs = kwargs
-        self._result = result
-        self._stack = []
-
-    def __call__(self, event):
-        if event.kind == "call":
-            self._stack.append(_arguments(event.locals, self._kwargs))
-            return
-
-        if event.kind == "return":
-            if self._result is None:
-                result = event.arg
-            elif isinstance(self._result, str):
-                result = event.locals.get(self._result)
-            else:
-                result = _arguments(event.locals, self._result)
-
-            kwargs = dict(
-                category = Category.OPERATION,
-                operands = self._stack.pop(),
-                operation = event.function_object.__qualname__,
-                result = result,
-            )
-
-            if "self" in event.locals and hasattr(event.locals["self"], "communicator"):
-                kwargs["comm"] = event.locals["self"].communicator
-
-            log("", **kwargs)
-
-
-class LogSendMessage(object):
-    def __call__(self, event):
-        if event.kind != "call":
-            return
-
-        communicator = event.locals["self"]
-        dst = event.locals["dst"]
-        payload = event.locals["payload"]
-        tag = event.locals["tag"]
-
-        log(
-            "Sent message",
-            category = Category.MESSAGE,
-            arrow = "-->",
-            comm = communicator,
-            dir = ">",
-            dst = dst,
-            other = dst,
-            payload = payload,
-            src = communicator.rank,
-            tag = tagname(tag),
-            verb = "send",
-            )
-
-
-class LogReceiveMessage(object):
-    def __call__(self, event):
-        if event.kind != "call":
-            return
-
-        communicator = event.locals["self"]
-        payload = event.locals["payload"]
-        src = event.locals["src"]
-        tag = event.locals["tag"]
-
-        log(
-            "Received message",
-            category = Category.MESSAGE,
-            arrow = "<--",
-            comm = communicator,
-            dir = "<",
-            dst = communicator.rank,
-            other = src,
-            payload = payload,
-            src = src,
-            tag = tagname(tag),
-            verb = "receive",
-            )
-
-
-class LogEvents(hunter.actions.ColorStreamAction):
-    def __init__(self):
-        self.mappings = {
-            "AdditiveProtocolSuite.reveal" : LogResult(kwargs=["share"]),
-            "AdditiveProtocolSuite.share" : LogResult(kwargs=["secret"]),
-            "Field.add" : LogResult(kwargs=["lhs", "rhs"]),
-            "Field.inplace_add" : LogResult(kwargs=["lhs", "rhs"], result="lhs"),
-            "FixedPoint.decode" : LogResult(kwargs=["array"]),
-            "FixedPoint.encode" : LogResult(kwargs=["array"]),
-            "SocketCommunicator._queue_message" : LogReceiveMessage(),
-            "SocketCommunicator._send" : LogSendMessage(),
-            }
-
-    def __call__(self, event):
-        if hasattr(event.function_object, "__qualname__"):
-            qualname = event.function_object.__qualname__
-            if qualname in self.mappings:
-                self.mappings[qualname](event)
-
-
 def record():
-    return hunter.trace(module_startswith="cicada", kind_in=("call", "return"), action=LogEvents())
+    return hunter.trace(module_startswith="cicada", kind_in=("call", "return"), action=LogFunctionCalls())
+
