@@ -34,6 +34,61 @@ logger.propagate = False
 
 
 class Formatter(object):
+    """Custom log formatter for transcription events.
+
+    Unlike the generic :class:`logging.Formatter` objects provided with Python, this
+    class is configured with more than one format string, to handle each type of
+    event that can be logged.  In addition to the standard format fields provided
+    by :ref:`logrecord-attributes`, the format strings can use the following.
+
+    For sent-message and received-message events:
+
+    * message.arrow - message direction, relative to the player logging the event.
+    * message.comm - communicator that sent / received the message.
+    * message.comm.name - name of the communicator that sent / received the message.
+    * message.comm.rank - rank of the player logging the event.
+    * message.dir - message direction, relative to the player logging the event.
+    * message.dst - rank of the player receiving the message.
+    * message.other - rank of the player sending or receiving with the player logging the event.
+    * message.payload - message payload contents.
+    * message.src - rank of the player sending the message.
+    * message.tag - message type.
+    * message.verb - message direction, relative to the player logging the event.
+
+    For function-call events:
+
+    * trace.fqname - fully qualified function name, including module.
+    * trace.qname - qualified function name.
+    * trace.name - function name.
+    * trace.kind - "call"
+    * trace.locals - function arguments.
+    * trace.depth - stack depth at the time the function is called (note: depth only reflects function calls that weren't filtered).
+    * trace.indent - stack depth formatted as a string for indented output.
+    * trace.args - function arguments, formatted as human-readable code.
+
+    For function-return events:
+
+    * trace.fqname - fully qualified function name, including module.
+    * trace.qname - qualified function name.
+    * trace.name - function name.
+    * trace.kind - "call"
+    * trace.locals - function arguments.
+    * trace.depth - stack depth at the time the function is called (note: depth only reflects function calls that weren't filtered).
+    * trace.indent - stack depth formatted as a string for indented output.
+    * trace.result - function return value (note: some filters may provide a return value for reference even for inline functions).
+
+
+    Parameters
+    ----------
+    fmt: :class:`str`, optional
+        Format string for general purpose events.
+    msgfmt: :class:`str`, optional
+        Format string for sent- and received-message events.
+    callfmt: :class:`str`, optional
+        Format string for function-call events.
+    retfmt: :class:`str`, optional
+        Format string for function-return events.
+    """
     def __init__(self, fmt=None, msgfmt=None, callfmt=None, retfmt=None):
         if fmt is None:
             fmt = "{processName}: {msg}"
@@ -53,6 +108,7 @@ class Formatter(object):
 
 
     def format(self, record):
+        """Formats a log record for display."""
         if hasattr(record, "message"):
             msg = self._msgfmt.format_map(record.__dict__)
             return msg
@@ -73,17 +129,29 @@ class Formatter(object):
         return msg
 
 
-class FunctionTrace(object):
+class _FunctionTrace(object):
     pass
 
 
 class HideAllFunctions(object):
+    """Removes all function call events from the transcript output."""
     def __call__(self, record):
         return not hasattr(record, "trace")
 
 
 class HideFunctions(object):
-    def __init__(self, exclude):
+    """Removes an explicit list of function call events from the transcript output.
+
+    The list of functions to exclude can be supplied at creation, or modified afterwards
+    using the `exclude` property.
+
+    Parameters
+    ----------
+    exclude: sequence of :class:`str`, required
+        A set of fully qualified function names (including module) to be
+        excluded from the output.
+    """
+    def __init__(self, exclude=[]):
         self._exclude = set(exclude)
 
     def __call__(self, record):
@@ -91,16 +159,43 @@ class HideFunctions(object):
             return False
         return True
 
+    @property
+    def exclude(self):
+        """The set of functions that will be hidden from output."""
+        return self._exclude
+
+    @exclude.setter
+    def exclude(self, value):
+        self._exclude = set(value)
+
 
 class HideCommunicationFunctions(HideFunctions):
+    """Removes collective and point-to-point communication functions from the transcript output."""
     def __init__(self):
         super().__init__(exclude=[
-            "cicada.communicator.socket.SocketCommunicator.isend",
+            "cicada.communicator.socket.SocketCommunicator.allgather",
+            "cicada.communicator.socket.SocketCommunicator.barrier",
+            "cicada.communicator.socket.SocketCommunicator.broadcast",
+            "cicada.communicator.socket.SocketCommunicator.gather",
+            "cicada.communicator.socket.SocketCommunicator.gatherv",
             "cicada.communicator.socket.SocketCommunicator.irecv",
+            "cicada.communicator.socket.SocketCommunicator.isend",
+            "cicada.communicator.socket.SocketCommunicator.recv",
+            "cicada.communicator.socket.SocketCommunicator.scatter",
+            "cicada.communicator.socket.SocketCommunicator.scatterv",
+            "cicada.communicator.socket.SocketCommunicator.send",
             ])
 
 
 class HideDefaultFunctions(HideFunctions):
+    """Removes a curated collection of low-utility function call events from the transcript output.
+
+    Uses :class:`HideFunctions` to filter-out a set of function calls judged by
+    the developers to be noisy and of little use in most scenarios.  Naturally,
+    this is somewhat arbitrary, so callers are free to modify this object's
+    list of exclusions using the `exclude` property after creation, or
+    substitute their own filters as desired.
+    """
     def __init__(self):
         super().__init__(exclude=[
             "cicada.additive.AdditiveProtocolSuite.communicator",
@@ -140,6 +235,7 @@ class HideDefaultFunctions(HideFunctions):
 
 
 class HideInitFunctions(object):
+    """Removes __init__ function calls from transcript output."""
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.name == "__init__":
             return False
@@ -147,6 +243,7 @@ class HideInitFunctions(object):
 
 
 class HidePrivateFunctions(object):
+    """Removes private function calls (functions whose name begins with an underscore) from transcript output."""
     def __call__(self, record):
         if hasattr(record, "trace"):
             trace = record.trace
@@ -156,6 +253,7 @@ class HidePrivateFunctions(object):
 
 
 class HideSelfArguments(object):
+    """Removes the `self` argument from transcript outputs."""
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.kind == "call":
             record.trace.locals = {key: value for key, value in record.trace.locals.items() if key != "self"}
@@ -163,6 +261,7 @@ class HideSelfArguments(object):
 
 
 class HideSpecialFunctions(object):
+    """Removes special (dunder) function calls from transcript output."""
     def __call__(self, record):
         if hasattr(record, "trace"):
             trace = record.trace
@@ -171,7 +270,7 @@ class HideSpecialFunctions(object):
         return True
 
 
-class LogFunctionCalls(hunter.actions.ColorStreamAction):
+class _LogFunctionCalls(hunter.actions.ColorStreamAction):
     def __call__(self, event):
         if not hasattr(event.function_object, "__qualname__"):
             return
@@ -182,7 +281,7 @@ class LogFunctionCalls(hunter.actions.ColorStreamAction):
         name = event.function_object.__name__
 
         # Convert the hunter event into our own class for portability.
-        trace = FunctionTrace()
+        trace = _FunctionTrace()
         trace.fqname = fqname
         trace.qname = qname
         trace.name = name
@@ -197,6 +296,15 @@ class LogFunctionCalls(hunter.actions.ColorStreamAction):
 
 
 class MapInlineResults(object):
+    """For inline functions that modify their arguments, makes the modified value visible in the transcript.
+
+    Parameters
+    ----------
+    mapping: :class:`dict` of `str` keys and values, required
+        The mapping keys must the fully-qualified function names, and the
+        values must be the arguments that will hold the modified value after
+        the function returns.
+    """
     def __init__(self, mapping):
         self._mapping = mapping
 
@@ -206,11 +314,17 @@ class MapInlineResults(object):
         return True
 
 
-class Message(object):
+class _Message(object):
     pass
 
 
 class ShowReceivedMessages(object):
+    """Converts function call events into message-received events.
+
+    Note that this filter needs access to private communicator function calls to operate, so it
+    *must* be added to a handler before adding filters like :class:`HidePrivateFunctions` that
+    remove private function call events.
+    """
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.fqname == "cicada.communicator.socket.SocketCommunicator._queue_message":
             if record.trace.kind == "call":
@@ -220,7 +334,7 @@ class ShowReceivedMessages(object):
                 tag = record.trace.locals["tag"]
 
                 record.msg = "Received message"
-                record.message = Message()
+                record.message = _Message()
                 record.message.arrow = "<--"
                 record.message.comm = communicator
                 record.message.dir = "<"
@@ -242,6 +356,12 @@ class ShowReceivedMessages(object):
 
 
 class ShowSentMessages(object):
+    """Converts function call events into message-sent events.
+
+    Note that this filter needs access to private communicator function calls to operate, so it
+    *must* be added to a handler before adding filters like :class:`HidePrivateFunctions` that
+    remove private function call events.
+    """
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.fqname == "cicada.communicator.socket.SocketCommunicator._send":
             if record.trace.kind == "call":
@@ -251,7 +371,7 @@ class ShowSentMessages(object):
                 tag = record.trace.locals["tag"]
 
                 record.msg = "Sent message"
-                record.message = Message()
+                record.message = _Message()
                 record.message.arrow = "-->"
                 record.message.comm = communicator
                 record.message.dir = ">"
@@ -273,9 +393,19 @@ class ShowSentMessages(object):
 
 
 def log(message=None, **extra):
+    """Log events to the transcription logger.
+
+    Application code should use this to log general-purpose events for transcription.
+    """
     logger.info(message, extra=extra)
 
 
 def record():
-    return hunter.trace(module_startswith="cicada", kind_in=("call", "return"), action=LogFunctionCalls())
+    """Enable transcription.
+
+    All transcription functionality depends on tracing function calls, so this must
+    be called to begin transcription.  The result is a context manager that can be
+    used in with-statements.
+    """
+    return hunter.trace(module_startswith="cicada", kind_in=("call", "return"), action=_LogFunctionCalls())
 
