@@ -33,29 +33,6 @@ logger.setLevel(logging.INFO)
 logger.propagate = False
 
 
-class Fields(object):
-    def __init__(self, fields):
-        self._fields = dict(fields)
-
-    def _mapvalue(self, value):
-        if isinstance(value, AdditiveArrayShare):
-            return value.storage.tolist()
-        if isinstance(value, numpy.ndarray):
-            return value.tolist()
-        return value
-
-
-    def __getitem__(self, key):
-        if key not in self._fields:
-            return Placeholder()
-        value = self._fields[key]
-        if isinstance(value, list):
-            value = [self._mapvalue(item) for item in value]
-        else:
-            value = self._mapvalue(value)
-        return value
-
-
 class Formatter(object):
     def __init__(self, fmt=None, msgfmt=None, callfmt=None, retfmt=None):
         if fmt is None:
@@ -63,30 +40,37 @@ class Formatter(object):
         if msgfmt is None:
             msgfmt = "{processName}: comm {message.comm.name} player {message.comm.rank}: {message.arrow} {message.other} {message.tag} {message.payload}"
         if callfmt is None:
-            callfmt = "{processName}: {trace.fqname}({trace.args})"
+            callfmt = "{processName}: {trace.indent}{trace.fqname}({trace.args})"
         if retfmt is None:
-            retfmt = "{processName}: {trace.fqname} returned {trace.value}"
+            retfmt = "{processName}: {trace.indent}{trace.fqname} => {trace.result}"
 
         self._fmt = fmt
         self._msgfmt = msgfmt
         self._callfmt = callfmt
         self._retfmt = retfmt
 
+        self._depth = 0
+
 
     def format(self, record):
-        fields = Fields(record.__dict__)
-
         if hasattr(record, "message"):
-            return self._msgfmt.format_map(record.__dict__)
+            msg = self._msgfmt.format_map(record.__dict__)
+            return msg
 
         if hasattr(record, "trace"):
             trace = record.trace
             if trace.kind == "call":
-                return self._callfmt.format_map(record.__dict__)
+                self._depth, trace.indent = self._depth + 1, "  " * self._depth
+                trace.args = ", ".join([f"{key}={value!r}" for key, value in trace.locals.items()])
+                msg = self._callfmt.format_map(record.__dict__)
+                return msg
             if trace.kind == "return":
-                return self._retfmt.format_map(record.__dict__)
+                self._depth, trace.indent = self._depth - 1, "  " * self._depth
+                msg = self._retfmt.format_map(record.__dict__)
+                return msg
 
-        return self._fmt.format_map(record.__dict__)
+        msg = self._fmt.format_map(record.__dict__)
+        return msg
 
 
 class FunctionTrace(object):
@@ -169,7 +153,7 @@ class HidePrivateFunctions(object):
 class HideSelfArguments(object):
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.kind == "call":
-            record.trace.args = {key: value for key, value in record.trace.args.items() if key != "self"}
+            record.trace.locals = {key: value for key, value in record.trace.locals.items() if key != "self"}
         return True
 
 
@@ -199,39 +183,36 @@ class LogFunctionCalls(hunter.actions.ColorStreamAction):
         trace.name = name
         trace.kind = event.kind
         if event.kind == "call":
-            trace.args = event.locals
+            trace.locals = event.locals
         if event.kind == "return":
-            trace.value = event.arg
+            trace.locals = event.locals
+            trace.result = event.arg
 
         log(trace=trace)
+
+
+class MapInlineResults(object):
+    def __init__(self, mapping):
+        self._mapping = mapping
+
+    def __call__(self, record):
+        if hasattr(record, "trace") and record.trace.kind == "return" and record.trace.fqname in self._mapping:
+            record.trace.result = record.trace.locals[self._mapping[record.trace.fqname]]
+        return True
 
 
 class Message(object):
     pass
 
 
-class Placeholder(object):
-    def __bool__(self):
-        return False
-
-    def __format__(self, format_spec):
-        return ""
-
-    def __getattr__(self, key):
-        return Placeholder()
-
-    def __getitem__(self, key):
-        return Placeholder()
-
-
 class ShowReceivedMessages(object):
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.fqname == "cicada.communicator.socket.SocketCommunicator._queue_message":
             if record.trace.kind == "call":
-                communicator = record.trace.args["self"]
-                src = record.trace.args["src"]
-                payload = record.trace.args["payload"]
-                tag = record.trace.args["tag"]
+                communicator = record.trace.locals["self"]
+                src = record.trace.locals["src"]
+                payload = record.trace.locals["payload"]
+                tag = record.trace.locals["tag"]
 
                 record.msg = "Received message"
                 record.message = Message()
@@ -259,10 +240,10 @@ class ShowSentMessages(object):
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.fqname == "cicada.communicator.socket.SocketCommunicator._send":
             if record.trace.kind == "call":
-                communicator = record.trace.args["self"]
-                dst = record.trace.args["dst"]
-                payload = record.trace.args["payload"]
-                tag = record.trace.args["tag"]
+                communicator = record.trace.locals["self"]
+                dst = record.trace.locals["dst"]
+                payload = record.trace.locals["payload"]
+                tag = record.trace.locals["tag"]
 
                 record.msg = "Sent message"
                 record.message = Message()
