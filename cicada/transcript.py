@@ -40,9 +40,9 @@ class Formatter(object):
         if msgfmt is None:
             msgfmt = "{processName}: comm {message.comm.name} player {message.comm.rank}: {message.arrow} {message.other} {message.tag} {message.payload}"
         if callfmt is None:
-            callfmt = "{processName}: {trace.indent}{trace.fqname}({trace.args})"
+            callfmt = "{processName}: {trace.indent}{trace.qname}({trace.args})"
         if retfmt is None:
-            retfmt = "{processName}: {trace.indent}{trace.fqname} => {trace.result}"
+            retfmt = "{processName}: {trace.indent}{trace.qname} => {trace.result}"
 
         self._fmt = fmt
         self._msgfmt = msgfmt
