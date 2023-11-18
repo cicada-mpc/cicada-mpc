@@ -392,6 +392,25 @@ class ShowSentMessages(object):
         return True
 
 
+def basic_config(handler, fmt=None, msgfmt=None, callfmt=None, retfmt=None):
+#    handler.addFilter(ShowSentMessages())
+#    handler.addFilter(ShowReceivedMessages())
+    handler.addFilter(HideSpecialFunctions())
+    handler.addFilter(HideInitFunctions())
+    handler.addFilter(HidePrivateFunctions())
+    handler.addFilter(HideDefaultFunctions())
+    handler.addFilter(HideCommunicationFunctions())
+    handler.addFilter(HideSelfArguments())
+    handler.addFilter(MapInlineResults({
+        "cicada.arithmetic.Field.inplace_add": "lhs",
+        "cicada.arithmetic.Field.inplace_subtract": "lhs",
+    }))
+
+    handler.setFormatter(Formatter(fmt=fmt, msgfmt=msgfmt, callfmt=callfmt, retfmt=retfmt))
+
+    return handler
+
+
 def log(message=None, **extra):
     """Log events to the transcription logger.
 
