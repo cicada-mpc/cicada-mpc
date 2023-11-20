@@ -56,6 +56,12 @@ class Logger(object):
         self._sync = sync
 
 
+    @property
+    def communicator(self):
+        """Returns the underlying communicator."""
+        return self._communicator
+
+
     def critical(self, msg, *args, src=None, **kwargs):
         """Log a critical message, synchronized among players.
 

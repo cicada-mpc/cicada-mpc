@@ -17,7 +17,9 @@
 """Functionality for working with field arithmetic.
 """
 
-from math import log2, ceil
+import copy
+import inspect
+import math
 import numbers
 
 import numpy
@@ -117,7 +119,7 @@ class Field(object):
     @property
     def bytes(self):
         """Return the number of bytes required to store field values."""
-        return ceil(self._bits / 8)
+        return math.ceil(self._bits / 8)
 
 
     def full_like(self, other, fill_value):
@@ -200,7 +202,7 @@ class Field(object):
                 if pow(a, 2**i * d, n) == n-1:
                     return False
             return True
-        num_bytes = ceil(log2(n)/8)
+        num_bytes = math.ceil(math.log2(n)/8)
         for i in range(32):#number of trials more means higher accuracy - 32 -> error probability ~4^-32 ~2^-64
             a =0
             while a == 0 or a == 1:

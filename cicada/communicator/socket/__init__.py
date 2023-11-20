@@ -40,6 +40,7 @@ import pynetstring
 
 from ..interface import Communicator, Tag, tagname
 from .connect import NetstringSocket, Timeout, Timer, direct, getLogger, gettls, geturl, listen, message, rendezvous
+from cicada import transcript
 
 logging.getLogger(__name__ + ".transcript").setLevel(logging.WARNING)
 
@@ -174,45 +175,33 @@ class SocketCommunicator(Communicator):
                 src, tag, payload = raw_message
             except Exception as e: # pragma: no cover
                 self._log.warning(f"ignoring message: {raw_message} exception: {e}")
-                continue
+                return
 
-            # Log queued messages.
-            if self._transcript.isEnabledFor(logging.DEBUG):
-                message = f"Comm {self._name} player {self._rank} <-- player {src} {tagname(tag)} {payload}"
-                self._transcript.debug(message, extra={
-                    "arrow": "<--",
-                    "comm": self._name,
-                    "dir": "<",
-                    "dst": self._rank,
-                    "other": src,
-                    "payload": payload,
-                    "rank": self._rank,
-                    "src": src,
-                    "tag": tagname(tag),
-                    "verb": "receive",
-                }) # pragma: no cover
-
-            try:
-                tag = Tag(tag)
-            except:
-                pass
-
-            if tag not in self._received:
-                self._received[tag] = {"messages": 0}
-            self._received[tag]["messages"] += 1
-
-            # Revoke messages don't get queued because they receive special handling.
-            if tag == Tag.REVOKE:
-                if not self._revoked:
-                    self._revoked = True
-                    self._log.warning(f"revoked by player {src}")
-                continue
-
-            # Insert the message into the correct queue.
-            with self._message_queue_lock:
-                self._message_queues[src].append(raw_message)
+            self._queue_message(src, tag, payload, raw_message)
 
         self._log.debug(f"queueing thread closed.")
+
+
+    def _queue_message(self, src, tag, payload, raw_message):
+        try:
+            tag = Tag(tag)
+        except:
+            pass
+
+        if tag not in self._received:
+            self._received[tag] = {"messages": 0}
+        self._received[tag]["messages"] += 1
+
+        # Revoke messages don't get queued because they receive special handling.
+        if tag == Tag.REVOKE:
+            if not self._revoked:
+                self._revoked = True
+                self._log.warning(f"revoked by player {src}")
+            return
+
+        # Insert the message into the correct queue.
+        with self._message_queue_lock:
+            self._message_queues[src].append(raw_message)
 
 
     def _receive_messages(self):
@@ -351,21 +340,6 @@ class SocketCommunicator(Communicator):
     def _send(self, *, tag, payload, dst):
         if dst not in self.ranks:
             raise ValueError(f"Unknown destination: {dst}") # pragma: no cover
-
-        if self._transcript.isEnabledFor(logging.DEBUG):
-            message = f"Comm {self._name} player {self._rank} --> player {dst} {tagname(tag)} {payload}"
-            self._transcript.debug(message, extra={
-                "arrow": "-->",
-                "comm": self._name,
-                "dir": ">",
-                "dst": dst,
-                "other": dst,
-                "payload": payload,
-                "rank": self._rank,
-                "src": self._rank,
-                "tag": tagname(tag),
-                "verb": "send",
-            }) # pragma: no cover
 
         if tag not in self._sent:
             self._sent[tag] = {"messages": 0}

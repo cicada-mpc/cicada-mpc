@@ -27,3 +27,4 @@ API Reference
     cicada.logging.rst
     cicada.przs.rst
     cicada.shamir.rst
+    cicada.transcript.rst

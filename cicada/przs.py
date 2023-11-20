@@ -16,6 +16,8 @@
 
 """Pseudorandom Zero-Sharing functionality."""
 
+import inspect
+
 import numpy
 
 from cicada.arithmetic import Field
@@ -107,4 +109,5 @@ class PRZSProtocol(object):
     def field(self):
         """The :class:`~cicada.arithmetic.Field` used by this protocol."""
         return self._field
+
 
