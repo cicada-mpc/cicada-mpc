@@ -19,13 +19,16 @@
 
 import collections
 import enum
+import json
 import logging
 
 import hunter
 import numpy
 
+from .active import ActiveArrayShare
 from .additive import AdditiveArrayShare
 from .communicator.interface import tagname
+from .shamir import ShamirArrayShare
 
 
 logger = logging.getLogger(__name__)
@@ -57,24 +60,24 @@ class Formatter(object):
 
     For function-call events:
 
-    * trace.fqname - fully qualified function name, including module.
-    * trace.qname - qualified function name.
-    * trace.name - function name.
-    * trace.kind - "call"
-    * trace.locals - function arguments.
+    * trace.args - function arguments.
     * trace.depth - stack depth at the time the function is called (note: depth only reflects function calls that weren't filtered).
+    * trace.fqname - fully qualified function name, including module.
     * trace.indent - stack depth formatted as a string for indented output.
-    * trace.args - function arguments, formatted as human-readable code.
+    * trace.kind - "call"
+    * trace.name - function name.
+    * trace.qname - qualified function name.
+    * trace.signature - function arguments formatted as a Python function signature.
 
     For function-return events:
 
-    * trace.fqname - fully qualified function name, including module.
-    * trace.qname - qualified function name.
-    * trace.name - function name.
-    * trace.kind - "call"
-    * trace.locals - function arguments.
     * trace.depth - stack depth at the time the function is called (note: depth only reflects function calls that weren't filtered).
+    * trace.fqname - fully qualified function name, including module.
     * trace.indent - stack depth formatted as a string for indented output.
+    * trace.kind - "call"
+    * trace.locals - function locals when the function returns.
+    * trace.name - function name.
+    * trace.qname - qualified function name.
     * trace.result - function return value (note: some filters may provide a return value for reference even for inline functions).
 
 
@@ -95,7 +98,7 @@ class Formatter(object):
         if msgfmt is None:
             msgfmt = "{processName}: {message.arrow} {message.other} {message.tag} {message.payload}"
         if callfmt is None:
-            callfmt = "{processName}: {trace.indent}{trace.qname}({trace.args})"
+            callfmt = "{processName}: {trace.indent}{trace.qname}({trace.signature})"
         if retfmt is None:
             retfmt = "{processName}: {trace.indent}{trace.qname} => {trace.result}"
 
@@ -117,7 +120,7 @@ class Formatter(object):
             trace = record.trace
             if trace.kind == "call":
                 self._depth, trace.indent = self._depth + 1, "  " * self._depth
-                trace.args = ", ".join([f"{key}={value!r}" for key, value in trace.locals.items()])
+                trace.signature = ", ".join([f"{key}={value!r}" for key, value in trace.args.items()])
                 msg = self._callfmt.format_map(record.__dict__)
                 return msg
             if trace.kind == "return":
@@ -256,7 +259,7 @@ class HideSelfArguments(object):
     """Removes the `self` argument from transcript outputs."""
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.kind == "call":
-            record.trace.locals = {key: value for key, value in record.trace.locals.items() if key != "self"}
+            record.trace.args = {key: value for key, value in record.trace.args.items() if key != "self"}
         return True
 
 
@@ -287,12 +290,35 @@ class _LogFunctionCalls(hunter.actions.ColorStreamAction):
         trace.name = name
         trace.kind = event.kind
         if event.kind == "call":
-            trace.locals = event.locals
+            trace.args = event.locals
         if event.kind == "return":
             trace.locals = event.locals
             trace.result = event.arg
 
         log(trace=trace)
+
+
+class _JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, numpy.ndarray):
+            return obj.tolist()
+        if isinstance(obj, ActiveArrayShare):
+            return obj.storage.tolist()
+        if isinstance(obj, AdditiveArrayShare):
+            return obj.storage.tolist()
+        if isinstance(obj, ShamirArrayShare):
+            return obj.storage.tolist()
+        return None
+
+
+class JSONArguments(object):
+    def __call__(self, record):
+        if hasattr(record, "trace") and record.trace.kind == "call":
+            record.trace.jsonargs = ",".join([f"{key},{json.dumps(value, cls=_JSONEncoder)}" for key, value in record.trace.args.items()])
+        if hasattr(record, "trace") and record.trace.kind == "return":
+            record.trace.jsonlocals = ",".join([f"{key},{json.dumps(value, cls=_JSONEncoder)}" for key, value in record.trace.locals.items()])
+            record.trace.jsonresult = json.dumps(record.trace.result, cls=_JSONEncoder)
+        return True
 
 
 class MapInlineResults(object):
@@ -328,10 +354,10 @@ class ShowReceivedMessages(object):
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.fqname == "cicada.communicator.socket.SocketCommunicator._queue_message":
             if record.trace.kind == "call":
-                communicator = record.trace.locals["self"]
-                src = record.trace.locals["src"]
-                payload = record.trace.locals["payload"]
-                tag = record.trace.locals["tag"]
+                communicator = record.trace.args["self"]
+                src = record.trace.args["src"]
+                payload = record.trace.args["payload"]
+                tag = record.trace.args["tag"]
 
                 record.msg = "Received message"
                 record.message = _Message()
@@ -365,10 +391,10 @@ class ShowSentMessages(object):
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.fqname == "cicada.communicator.socket.SocketCommunicator._send":
             if record.trace.kind == "call":
-                communicator = record.trace.locals["self"]
-                dst = record.trace.locals["dst"]
-                payload = record.trace.locals["payload"]
-                tag = record.trace.locals["tag"]
+                communicator = record.trace.args["self"]
+                dst = record.trace.args["dst"]
+                payload = record.trace.args["payload"]
+                tag = record.trace.args["tag"]
 
                 record.msg = "Sent message"
                 record.message = _Message()
