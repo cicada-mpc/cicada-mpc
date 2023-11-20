@@ -40,9 +40,6 @@ import pynetstring
 
 from ..interface import Communicator, Tag, tagname
 from .connect import NetstringSocket, Timeout, Timer, direct, getLogger, gettls, geturl, listen, message, rendezvous
-from cicada import transcript
-
-logging.getLogger(__name__ + ".transcript").setLevel(logging.WARNING)
 
 
 class BrokenPipe(Exception):
@@ -136,7 +133,6 @@ class SocketCommunicator(Communicator):
         self._timeout = timeout
         self._revoked = False
         self._log = getLogger(__name__, name, rank)
-        self._transcript = logging.getLogger(__name__ + ".transcript")
         self._players = sockets
 
         self._sent = {}
