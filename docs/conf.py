@@ -111,6 +111,7 @@ nbsphinx_thumbnails = {
     "user-guide/self-conscious-statisticians": "_static/logo.png",
     "user-guide/shamir": "_static/logo.png",
     "user-guide/sockets": "_static/logo.png",
+    "user-guide/transcripts": "_static/logo.png",
     "user-guide/zigmoid": "_static/zigmoid.png",
     "user-guide/communication-patterns": "_static/communication-patterns_generic.png",
     "user-guide/timeouts": "_static/timeouts.png",
