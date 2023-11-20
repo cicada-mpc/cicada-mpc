@@ -10,11 +10,20 @@ Installation
 Cicada
 ------
 
-To install the latest stable version of Cicada and its dependencies, use `pip`::
+To install the latest stable version of Cicada and most dependencies, use `pip`::
 
     $ pip install cicada-mpc
 
-... once it completes, you'll be able to use all of Cicada's features.
+... once it completes, you'll be able to use most of Cicada's features.
+
+Transcripts
+-----------
+
+Cicada includes special functionality for logging transcripts of program execution
+and communication for further analysis including zero knowledge proofs.  To enable
+this functionality, install Cicada with all dependencies:
+
+    $ pip install cicada-mpc[all]
 
 Local Documentation
 -------------------
