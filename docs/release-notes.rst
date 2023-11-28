@@ -7,6 +7,11 @@
 Release Notes
 =============
 
+Cicada 1.2.0 - November 28th, 2023
+----------------------------------
+
+* Added new API for generating transcripts - detailed logs for advanced debugging, network tracing, and zero-knowledge proofs using MPC-in-the-head.
+
 Cicada 1.1.0 - October 9th, 2023
 --------------------------------
 
