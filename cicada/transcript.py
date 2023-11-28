@@ -15,6 +15,16 @@
 # limitations under the License.
 
 """Functionality for generating transcripts of library activity.
+
+Use-cases include detailed debugging, logging network traffic, function
+tracing, and MPC-in-the-head for zero knowledge proofs.  The latter case
+is described in
+
+    Ishai, Yuval, et al. "Zero-knowledge from secure multiparty computation." *Proceedings of the thirty-ninth annual ACM symposium on Theory of computing. 2007.*
+
+Examples of this technique appear in
+https://csrc.nist.gov/projects/pqc-dig-sig/round-1-additional-signatures as
+proposals for NIST PQC standardization.
 """
 
 import collections
@@ -312,6 +322,11 @@ class _JSONEncoder(json.JSONEncoder):
 
 
 class JSONArguments(object):
+    """Convert function call arguments and return values into JSON-compatible strings.
+
+    The new, JSON-formatted values can be accessed in format strings as {jsonargs} (for
+    function calls), {jsonlocals} (for function returns) and {jsonresult} (for function returns).
+    """
     def __call__(self, record):
         if hasattr(record, "trace") and record.trace.kind == "call":
             record.trace.jsonargs = ",".join([f"{key},{json.dumps(value, cls=_JSONEncoder)}" for key, value in record.trace.args.items()])
@@ -419,8 +434,11 @@ class ShowSentMessages(object):
 
 
 def basic_config(handler, fmt=None, msgfmt=None, callfmt=None, retfmt=None):
-#    handler.addFilter(ShowSentMessages())
-#    handler.addFilter(ShowReceivedMessages())
+    """Configures a log handler with a default set of filters and formatter, for transcript logging.
+
+    Callers can add filters to the handler before or after calling this
+    function to further customize its behavior.
+    """
     handler.addFilter(HideSpecialFunctions())
     handler.addFilter(HideInitFunctions())
     handler.addFilter(HidePrivateFunctions())
