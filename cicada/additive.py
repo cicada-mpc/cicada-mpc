@@ -1553,20 +1553,7 @@ class AdditiveProtocolSuite(object):
         if dst is None:
             dst = self.communicator.ranks
 
-        encoding = self._require_encoding(encoding)
-
-        # Send data to the other players.
-        secret = None
-        for recipient in dst:
-            received_shares = self.communicator.gather(value=share.storage, dst=recipient)
-
-            # If we're a recipient, recover the secret.
-            if self.communicator.rank == recipient:
-                secret = received_shares[0].copy()
-                for received_share in received_shares[1:]:
-                    self.field.inplace_add(secret, received_share)
-
-        return encoding.decode(secret, self.field)
+        return reveal(communicator=self.communicator, share=share.storage, dst=dst, field=self.field, encoding = self._require_encoding(encoding))
 
 
     def right_shift(self, operand, *, bits, src=None, generator=None, trunc_mask=None, rem_mask=None):
@@ -1668,26 +1655,7 @@ class AdditiveProtocolSuite(object):
         share: :class:`AdditiveArrayShare`
             The local share of the secret shared array.
         """
-        if not isinstance(shape, tuple):
-            shape = (shape,)
-
-        if self.communicator.rank == src:
-            if not isinstance(secret, numpy.ndarray):
-                raise ValueError("secret must be an instance of numpy.ndarray.") # pragma: no cover
-            if secret.shape != shape:
-                raise ValueError(f"Expected secret.shape {shape}, got {secret.shape} instead.") # pragma: no cover
-
-        encoding = self._require_encoding(encoding)
-
-        # Generate a pseudorandom zero-sharing.
-        przs = self._przs(shape=shape)
-
-        # Add the secret to the PRZS
-        if self.communicator.rank == src:
-            secret = encoding.encode(secret, self.field)
-            self.field.inplace_add(przs, secret)
-        # Package the result.
-        return AdditiveArrayShare(przs)
+        return AdditiveArrayShare(share(przs=self._przs, communicator=self.communicator, src=src, secret=secret, shape=shape, field=self.field, encoding=self._require_encoding(encoding)))
 
 
     def subtract(self, lhs, rhs, *, encoding=None):
@@ -1852,4 +1820,105 @@ class AdditiveProtocolSuite(object):
         extracted_middlins = self.field_add(extracted_middlins, extracted_halfs)
         ones_part = self.field_multiply(nltzsmh, ones)
         return self.field_add(ones_part, extracted_middlins)
+
+
+def reveal(*, communicator, share, dst, field, encoding):
+    """Reveals a secret shared value to a subset of players.
+
+    Note
+    ----
+    This is a collective operation that *must* be called by all players
+    that are members of :attr:`communicator`, whether they are receiving
+    the revealed secret or not.
+
+    Parameters
+    ----------
+    share: :class:`AdditiveArrayShare`, required
+        The local share of the secret to be revealed.
+    dst: sequence of :class:`int`, optional
+        List of players who will receive the revealed secret.  If :any:`None`
+        (the default), the secret will be revealed to all players.
+    encoding: :class:`object`, optional
+        Encoding used to extract the revealed secret from field values.
+
+    Returns
+    -------
+    value: :class:`numpy.ndarray` or :any:`None`
+        The revealed secret, if this player is a member of `dst`, or :any:`None`.
+    """
+    if not isinstance(share, numpy.ndarray):
+        raise ValueError("share must be an instance of numpy.ndarray.") # pragma: no cover
+
+    # Identify who will be receiving shares.
+    if dst is None:
+        dst = communicator.ranks
+
+    # Send data to the other players.
+    secret = None
+    for recipient in dst:
+        received_shares = communicator.gather(value=share, dst=recipient)
+
+        # If we're a recipient, recover the secret.
+        if communicator.rank == recipient:
+            secret = received_shares[0].copy()
+            for received_share in received_shares[1:]:
+                field.inplace_add(secret, received_share)
+
+    return encoding.decode(secret, field)
+
+
+def share(*, przs, communicator, src, secret, shape, field, encoding):
+    """Convert an array of scalars to an additive secret share.
+
+    Note
+    ----
+    This is a collective operation that *must* be called
+    by all players that are members of :attr:`communicator`.
+
+    Parameters
+    ----------
+    przs: :class:`cicada.przs.PRZSProtocol`, required
+        PRZS protocol that will be used to generate shares.
+    communicator: :class:`cicada.communicator.interface.Communicator`, required
+        The communicator that will be used for communication.
+    src: :class:`int`, required
+        The player providing the private array to be secret shared.
+    secret: :class:`numpy.ndarray` or :any:`None`, required
+        The secret array to be shared.  This value is ignored for all
+        players except `src`.
+    shape: :class:`tuple`, required
+        The shape of the secret to be shared.  Note that all players *must*
+        specify the same shape.
+    field: :class:`object`, required
+        Field used to encode shared values.
+    encoding: :class:`object`, required
+        Encoding used to convert `secret` into field values.
+
+    Returns
+    -------
+    share: :class:`numpy.ndarray` of integers
+        The local share of the secret shared array.
+    """
+    if not isinstance(communicator, Communicator):
+        raise ValueError("`communicator` must be an instance of Cicada communicator.") # pragma: no cover
+
+    if not isinstance(shape, tuple):
+        shape = (shape,)
+
+    if communicator.rank == src:
+        if not isinstance(secret, numpy.ndarray):
+            raise ValueError("`secret` must be an instance of numpy.ndarray.") # pragma: no cover
+        if secret.shape != shape:
+            raise ValueError(f"Expected secret.shape {shape}, got {secret.shape} instead.") # pragma: no cover
+
+    # Generate a pseudorandom zero-sharing.
+    share = przs(shape=shape)
+
+    # Add the secret to the PRZS
+    if communicator.rank == src:
+        secret = encoding.encode(secret, field)
+        field.inplace_add(share, secret)
+    # Return the result.
+    return share
+
 
