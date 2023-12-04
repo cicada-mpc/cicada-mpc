@@ -16,25 +16,31 @@
 
 """Functionality for creating, manipulating, and revealing additive-shared secrets."""
 
-import inspect
 import logging
 import math
+import warnings
 
 import numpy
 
-from cicada.arithmetic import Field
-from cicada.communicator.interface import Communicator
+from cicada.communicator.interface import Communicator, Tag
 from cicada.encoding import FixedPoint, Identity
-from cicada.przs import PRZSProtocol
+import cicada.arithmetic
 
 
 class AdditiveArrayShare(object):
-    """Stores the local share of a secret shared array for :class:`AdditiveProtocolSuite`.
+    """Stores the local share of an additive-shared secret array.
 
     Instances of :class:`AdditiveArrayShare` should only be created
-    using :class:`AdditiveProtocolSuite`.
+    using instances of :class:`AdditiveProtocolSuite`.
+
+    Parameters
+    ----------
+    storage: :class:`numpy.ndarray`, required
+        Local additive share of a secret array.
     """
     def __init__(self, storage):
+        if not isinstance(storage, numpy.ndarray):
+            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.")
         self.storage = storage
 
 
@@ -43,23 +49,26 @@ class AdditiveArrayShare(object):
 
 
     def __getitem__(self, index):
-        return AdditiveArrayShare(numpy.array(self._storage[index], dtype=self._storage.dtype)) # pragma: no cover
+        return AdditiveArrayShare(numpy.array(self._storage[index], dtype=self._storage.dtype))
 
 
     @property
     def storage(self):
-        """Private storage for the local share of a secret shared array.
-        Access is provided only for serialization and communication -
-        callers must use :class:`AdditiveProtocolSuite` to manipulate secret
-        shares.
+        """Local share of an additive-shared secret array.
+
+        Returns
+        -------
+        storage: :class:`object`
+            Private storage for the local share of an additively-shared secret
+            array.  Access is provided only for serialization and communication
+            - callers must use :class:`AdditiveProtocolSuite` to manipulate
+            secret shares.
         """
         return self._storage
 
 
     @storage.setter
     def storage(self, storage):
-        if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.") # pragma: no cover
         self._storage = numpy.array(storage, dtype=object)
 
 
@@ -93,23 +102,30 @@ class AdditiveProtocolSuite(object):
     seed_offset: :class:`int`, optional
         Value added to the value of `seed`.  This value defaults to the player's
         rank.
-    order: :class:`int`, optional
+    modulus: :class:`int`, optional
         Field size for storing encoded values.  Defaults to the largest prime
         less than :math:`2^{64}`.
     encoding: :class:`object`, optional
-        Default encoding to use for operations that require encoding/decoding.
-        Uses an instance of :any:`FixedPoint` with 16 bits of
-        floating-point precision if :any:`None`.
+        Encoding to use by default for operations that require encoding/decoding.
+        Defaults to an instance of :class:`FixedPoint` with 16 bits of floating-point
+        precision.
     """
-    def __init__(self, communicator, *, seed=None, seed_offset=None, order=None, encoding=None):
+    def __init__(self, communicator, seed=None, seed_offset=None, order=None, encoding=None):
         if not isinstance(communicator, Communicator):
             raise ValueError("A Cicada communicator is required.") # pragma: no cover
 
-        # Choose a random seed, if the caller hasn't chosen one already. The
-        # chosen seed could be any number, but we choose a random 64-bit
-        # integer here so other players cannot guess its value.  We typically
-        # get here from a forked process, so we use numpy's random generator
-        # because it will produce different seeds even from forked processes.
+        # Setup a pseudo-random sharing of zero, using code drawn from
+        # https://github.com/facebookresearch/CrypTen/blob/master/crypten/__init__.py
+
+        # Generate random seeds for Generators
+        # NOTE: Chosen seed can be any number, but we choose a random 64-bit
+        # integer here so other players cannot guess its value.
+
+        # We typically get here from a forked process, which causes all players
+        # to have the same RNG state. Reset the seed to make sure RNG streams
+        # are different for all the players. We use numpy's random generator
+        # here since initializing it without a seed will produce different
+        # seeds even from forked processes.
         if seed is None:
             seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
         else:
@@ -120,12 +136,28 @@ class AdditiveProtocolSuite(object):
         if encoding is None:
             encoding = FixedPoint()
 
-        field = Field(order=order)
+        # Send random seed to next party, receive random seed from prev party
+        if communicator.world_size >= 2:  # Otherwise sending seeds will segfault.
+            next_rank = (communicator.rank + 1) % communicator.world_size
+            prev_rank = (communicator.rank - 1) % communicator.world_size
+
+            request = communicator.isend(value=seed, dst=next_rank, tag=Tag.PRSZ)
+            result = communicator.irecv(src=prev_rank, tag=Tag.PRSZ)
+
+            request.wait()
+            result.wait()
+
+            prev_seed = result.value
+        else:
+            prev_seed = seed
+
+        # Setup random number generators
+        self._g0 = numpy.random.default_rng(seed=seed)
+        self._g1 = numpy.random.default_rng(seed=prev_seed)
 
         self._communicator = communicator
-        self._field = field
+        self._field = cicada.arithmetic.Field(order=order)
         self._encoding = encoding
-        self._przs = PRZSProtocol(communicator=communicator, field=field, seed=seed)
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -147,7 +179,7 @@ class AdditiveProtocolSuite(object):
 
 
     def absolute(self, operand):
-        """Elementwise absolute value of a secret shared array.
+        """Return the elementwise absolute value of a secret shared array.
 
         Note
         ----
@@ -161,7 +193,7 @@ class AdditiveProtocolSuite(object):
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        value: :class:`AdditiveArrayShare`
             Secret-shared elementwise absolute value of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
@@ -174,12 +206,9 @@ class AdditiveProtocolSuite(object):
 
 
     def add(self, lhs, rhs, *, encoding=None):
-        """Privacy-preserving elementwise sum of arrays.
+        """Return the elementwise sum of two secret shared arrays.
 
-        This method can be used to perform private-private, public-private,
-        and private-public addition.  The result is the secret shared
-        elementwise sum of the operands.  Note that public-public addition
-        isn't allowed, as it isn't privacy-preserving!
+        The result is the secret shared elementwise sum of the operands.
 
         Note
         ----
@@ -188,17 +217,14 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public values to be added.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public values to be added.
-        encoding: :class:`object`, optional
-            Encodes public operands.  The protocol's :attr:`encoding`
-            is used by default if :any:`None`.
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        value: :class:`AdditiveArrayShare`
             Secret-shared sum of `lhs` and `rhs`.
         """
         encoding = self._require_encoding(encoding)
@@ -215,30 +241,27 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             return self.field_add(encoding.encode(lhs, self.field), rhs)
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def bit_compose(self, operand):
-        """Compose an array of secret-shared bits into an array of corresponding integer field values.
-
-        The result array will will have one fewer dimensions than the operand,
-        which must contain bits in big-endian order in its last dimension.
-        Note that the input must contain the field values :math:`0` and :math:`1`.
+        """given an operand in a bitwise decomposed representation, compose it into shares of its field element representation.
 
         Note
         ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in big-endian order.
 
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared array containing bits to be composed.
+            Shared secret to be truncated.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Share of the resulting field values.
+        array: :class:`AdditiveArrayShare`
+            Share of the bit decomposed secret.
         """
         self._assert_unary_compatible(operand, "operand")
 
@@ -253,33 +276,26 @@ class AdditiveProtocolSuite(object):
     def bit_decompose(self, operand, *, bits=None):
         """Decompose operand into shares of its bitwise representation.
 
-        The result array will have one more dimension than the operand,
-        containing the returned bits in big-endian order.  Note that the
-        results will contain the field values :math:`0` and :math:`1`.
-
         Note
         ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
+        The operand *must* be encoded with FixedFieldEncoder.  The result will
+        have one more dimension than the operand, containing the returned bits
+        in big-endian order.
 
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared array containing values to be decomposed.
-        bits: :class:`int`, optional
-            The number of rightmost bits in each value to extract.  Defaults to
-            all bits (i.e. the number of bits used for storage by the protocol's
-            :attr:`field`.
+            Shared secret to be truncated.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        array: :class:`AdditiveArrayShare`
             Share of the bit decomposed secret.
         """
         self._assert_unary_compatible(operand, "operand")
 
         if bits is None:
-            bits = self.field.bits
+            bits = self.field.fieldbits
         list_o_bits = []
         two_inv = numpy.array(pow(2, self.field.order-2, self.field.order), dtype=self.field.dtype)
         for element in operand.storage.flat: # Iterates in "C" order.
@@ -295,60 +311,33 @@ class AdditiveProtocolSuite(object):
 
     @property
     def communicator(self):
-        """The :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
+        """Return the :class:`~cicada.communicator.interface.Communicator` used by this protocol."""
         return self._communicator
 
 
-    def divide(self, lhs, rhs, *, encoding=None, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None, mask3=None, rem3=None):
-        """Privacy-preserving elementwise division of arrays.
+    def divide(self, lhs, rhs, *, encoding=None):
+        """Elementwise division of two secret shared arrays.
 
-        This method can be used to perform private-private and
-        private-public division.  The result is the secret shared
-        elementwise quotient of the operands.
-
-        Note
-        ----
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
 
         Parameters
         ----------
         lhs: :class:`AdditiveArrayShare`, required
-            Secret shared value to be divided.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public value to be divided.
-        encoding: :class:`object`, optional
-            Encodes public operands and determines the number of bits to
-            shift right from intermediate results.  The protocol's
-            :attr:`encoding` is used by default if :any:`None`.
+            Secret shared array.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
 
         Returns
         -------
         result: :class:`AdditiveArrayShare`
-            Secret-shared quotient of `lhs` and `rhs`.
+            Secret-shared elementwise division of `lhs` and `rhs`.
         """
         encoding = self._require_encoding(encoding)
 
         # Private-private division.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
-            if rmask is None:
-                _, rmask = self.random_bitwise_secret(bits=encoding.precision, shape=rhs.storage.shape)
-            rhsmasked = self.field_multiply(rmask, rhs)
-            if mask1 != None and rem1 != None:
-                rhsmasked = self.right_shift(rhsmasked, bits=encoding.precision, trunc_mask=mask1, rem_mask=rem1)
-            else:
-                rhsmasked = self.right_shift(rhsmasked, bits=encoding.precision)
-            revealrhsmasked = self.reveal(rhsmasked, encoding=encoding)
-            if mask2 != None and rem2 != None:
-                almost_there = self.right_shift(self.field_multiply(lhs, rmask), bits=encoding.precision, trunc_mask=mask2, rem_mask=rem2)
-            else:
-                almost_there = self.right_shift(self.field_multiply(lhs, rmask), bits=encoding.precision)
-            divisor = encoding.encode(numpy.array(1 / revealrhsmasked), self.field)
-            quotient = AdditiveArrayShare(self.field.multiply(almost_there.storage, divisor))
-            if mask3 != None and rem3 != None:
-                return self.right_shift(quotient, bits=encoding.precision, trunc_mask=mask3, rem_mask=rem3)
-            else:
-                return self.right_shift(quotient, bits=encoding.precision)
+            pass
 
         # Private-public division.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
@@ -357,14 +346,16 @@ class AdditiveProtocolSuite(object):
             result = self.right_shift(result, bits=encoding.precision)
             return result
 
-        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+        # Public-private division.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def dot(self, lhs, rhs, *, encoding=None):
-        """Privacy-preserving dot product of two secret shared vectors.
+        """Return the dot product of two secret shared vectors.
 
-        Note
-        ----
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
 
@@ -374,10 +365,6 @@ class AdditiveProtocolSuite(object):
             Secret shared vector.
         rhs: :class:`AdditiveArrayShare`, required
             Secret shared vector.
-        encoding: :class:`object`, optional
-            Determines the number of bits to truncate from intermediate
-            results.  The protocol's :attr:`encoding` is used by default if
-            :any:`None`.
 
         Returns
         -------
@@ -394,15 +381,42 @@ class AdditiveProtocolSuite(object):
 
     @property
     def encoding(self):
-        """Default encoding to use for operations that require encoding/decoding."""
         return self._encoding
 
 
     def equal(self, lhs, rhs):
-        """Elementwise probabilistic equality comparison between secret shared arrays.
+        """Return an elementwise probabilistic equality comparison between secret shared arrays.
 
-        The result is the secret shared elementwise comparison `lhs` == `rhs`.  Note
-        that the results will contain the field values :math:`0` and :math:`1`.
+        The result is the secret shared elementwise comparison `lhs` == `rhs`.
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be compared.
+
+        Returns
+        -------
+        result: :class:`AdditiveArrayShare`
+            Secret-shared result of computing `lhs` == `rhs` elementwise.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        diff = self.field_subtract(lhs, rhs)
+        return self.logical_not(self.field_power(diff, self.field.order - 1))
+
+
+    @property
+    def field(self):
+        return self._field
+
+
+    def field_add(self, lhs, rhs):
+        """Return the elementwise sum of two secret shared arrays.
+
+        The result is the secret shared elementwise sum of the operands.
 
         Note
         ----
@@ -412,52 +426,13 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         lhs: :class:`AdditiveArrayShare`, required
-            Secret shared array to be compared.
+            Secret shared value to be added.
         rhs: :class:`AdditiveArrayShare`, required
-            Secret shared array to be compared.
+            Secret shared value to be added.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared result from comparing `lhs` == `rhs` elementwise.
-        """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        diff = self.field_subtract(lhs, rhs)
-        return self.logical_not(self.field_power(diff, self.field.order - 1))
-
-
-    @property
-    def field(self):
-        """Integer :any:`Field` used for arithmetic on and storage of secret shared values."""
-        return self._field
-
-
-    def field_add(self, lhs, rhs):
-        """Privacy-preserving elementwise sum of arrays.
-
-        This method can be used to perform private-private, public-private,
-        and private-public addition.  The result is the secret shared
-        elementwise sum of the operands.  Note that public-public addition
-        isn't allowed, as it isn't privacy-preserving!
-
-        Unlike :meth:`add`, :meth:`field_add` only operates on field
-        values, no encoding is performed on its inputs.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public value to be added.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public value to be added.
-
-        Returns
-        -------
-        result: :class:`AdditiveArrayShare`
+        value: :class:`AdditiveArrayShare`
             Secret-shared sum of `lhs` and `rhs`.
         """
         # Private-private addition.
@@ -476,17 +451,49 @@ class AdditiveProtocolSuite(object):
                 return AdditiveArrayShare(self.field.add(lhs, rhs.storage))
             return rhs
 
-        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+        raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
-    def field_dot(self, lhs, rhs):
-        """Privacy-preserving dot product of two secret shared vectors.
+    def field_divide(self, lhs, rhs):
+        """Return the elementwise quotient of two secret shared arrays.
 
-        Unlike :meth:`dot`, :meth:`field_dot` only operates on field values,
-        no right shift is performed on the results.
+        The result is the secret shared elementwise sum of the operands.
 
         Note
         ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
+        """
+        # Private-private division.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
+            pass
+
+        # Private-public division.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            pass
+
+        # Public-private division.
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            pass
+
+        raise NotImplementedError(f"Privacy-preserving division not implemented for the given types: {type(lhs)} and {type(rhs)}.")
+
+
+    def field_dot(self, lhs, rhs):
+        """Return the dot product of two secret shared vectors.
+
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
 
@@ -509,16 +516,11 @@ class AdditiveProtocolSuite(object):
 
 
     def field_multiply(self, lhs, rhs):
-        """Privacy-preserving elementwise multiplication of arrays.
+        """Element-wise multiplication of two shared arrays.
 
-        This method can be used to perform private-private, public-private, and
-        private-public multiplication.  The result is the secret shared
-        elementwise sum of the operands.  Note that public-public
-        multiplication isn't allowed, as it isn't privacy-preserving!
-
-        Unlike :meth:`multiply`, :meth:`field_multiply` only operates on field
-        values, no encoding is performed on its inputs, and no right shift
-        is performed on the results.
+        Note that this operation multiplies field values in the field -
+        when using fixed-point encodings, the result must be shifted-right
+        before it can be revealed.  See :meth:`multiply` instead.
 
         Note
         ----
@@ -527,15 +529,15 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public value to be multiplied.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public value to be multiplied.
+        lhs: :class:`AdditiveArrayShare`, required
+            secret value to be multiplied.
+        rhs: :class:`AdditiveArrayShare`, required
+            secret value to be multiplied.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared product of `lhs` and `rhs`.
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise product of `lhs` and `rhs`.
         """
         # Private-private multiplication.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
@@ -590,32 +592,23 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             return AdditiveArrayShare(self.field.multiply(lhs.storage, rhs))
 
-        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def field_power(self, lhs, rhs):
-        """Privacy-preserving elementwise exponentiation.
-
-        Raises secret shared array values to public integer values.  Unlike :meth:`power`,
-        :meth:`field_power` only operates on field values, no right shift is performed on the
-        results.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
+        """Raise the private array `lhs` to the public power `rhs` on an elementwise basis
 
         Parameters
         ----------
         lhs: :class:`AdditiveArrayShare`, required
-            Secret shared values which iwll be raised to a power.
-        rhs: :class:`int` or integer :class:`numpy.ndarray`, required
-            Public integer power(s) to which each element in `lhs` will be raised.
+            Shared secret to which floor should be applied.
+        rhs: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared result of raising `lhs` to the power(s) in `rhs`.
+        array: :class:`AdditiveArrayShare`
+            Share of the array elements from lhs all raised to the power rhs.
         """
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
             if isinstance(rhs, int):
@@ -635,19 +628,15 @@ class AdditiveProtocolSuite(object):
                 ans.append(it_ans)
             return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
 
-        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def field_subtract(self, lhs, rhs):
-        """Privacy-preserving elementwise difference of arrays.
+        """Privacy-preserving subtraction of elements in the field.
 
-        This method can be used to perform private-private, public-private, and
-        private-public subtraction.  The result is the secret shared
-        elementwise difference of the operands.  Note that public-public
-        subtraction isn't allowed, as it isn't privacy-preserving!
-
-        Unlike :meth:`subtract`, :meth:`field_subtract` only operates on field
-        values, no encoding is performed on its inputs.
+        Two cases are currently supported - either `lhs` and `rhs` are secret shares,
+        or `lhs` is a public value and `rhs` is a secret share.  In the latter case, *all*
+        players *must* supply the same value for `lhs`.
 
         Note
         ----
@@ -656,15 +645,15 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public value to be subtracted.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public value to be subtracted.
+        lhs: :class:`AdditiveArrayShare`or :class:`numpy.ndarray`, required
+            Shared value.
+        rhs: :class:`AdditiveArrayShare`, required
+            Shared value to be subtracted.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared difference of `lhs` and `rhs`.
+        value: :class:`AdditiveArrayShare`
+            The difference `lhs` - `rhs`.
         """
         # Private-private subtraction.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
@@ -682,19 +671,18 @@ class AdditiveProtocolSuite(object):
                 return AdditiveArrayShare(self.field.subtract(lhs.storage, rhs))
             return AdditiveArrayShare(lhs.storage)
 
-        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def field_uniform(self, *, shape=None, generator=None):
-        """Generate private random field elements.
+        """Return a AdditiveSharedArray with the specified shape and filled with random field elements
 
-        This method can be used to generate a secret shared array containing
-        random field elements of any shape.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random field elements which are then added together
+        elementwise.  Computation costs increase with the number of elements to
+        generate and the number of players, while security increases with the
+        number of players.
 
         Parameters
         ----------
@@ -710,8 +698,8 @@ class AdditiveProtocolSuite(object):
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared array of random field elements.
+        secret: :class:`AdditiveArrayShare`
+            A share of the random generated value.
         """
 
         if shape is None:
@@ -724,25 +712,19 @@ class AdditiveProtocolSuite(object):
 
 
     def floor(self, operand, *, encoding=None):
-        """Privacy-preserving elementwise floor of encoded, secret-shared arrays.
+        """Remove the `bits` least significant bits from each element in a secret shared array
+            then shift back left so that only the original integer part of 'operand' remains.
 
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
 
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared values to which floor should be applied.
-        encoding: :class:`object`, optional
-            Determines the number of fractional bits used for encoded values.
-            The protocol's :attr:`encoding` is used by default if :any:`None`.
+            Shared secret to which floor should be applied.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared floor of `operand`.
+        array: :class:`AdditiveArrayShare`
+            Share of the shared integer part of operand.
         """
         self._assert_unary_compatible(operand, "operand")
         encoding = self._require_encoding(encoding)
@@ -753,7 +735,7 @@ class AdditiveProtocolSuite(object):
 
         abs_op = self.absolute(operand)
         frac_bits = encoding.precision
-        field_bits = self.field.bits
+        field_bits = self.field.fieldbits
         lsbs = self.bit_decompose(abs_op, bits=encoding.precision)
         lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.negative(lsbs_composed)
@@ -765,11 +747,11 @@ class AdditiveProtocolSuite(object):
 
 
     def less(self, lhs, rhs):
-        """Privacy-preserving elementwise less-than comparison.
+        """Return an elementwise less-than comparison between secret shared arrays.
 
-        The result is the secret shared elementwise comparison :math:`lhs \lt rhs`.
-        Note that the results will contain the field values :math:`0` or
-        :math:`1`, which do not require decoding if revealed.
+        The result is the secret shared elementwise comparison `lhs` < `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
 
         Note
         ----
@@ -779,14 +761,14 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         lhs: :class:`AdditiveArrayShare`, required
-            Secret shared values to be compared.
+            Secret shared value to be compared.
         rhs: :class:`AdditiveArrayShare`, required
-            Secret shared values to be compared.
+            Secret shared value to be compared.
 
         Returns
         -------
         result: :class:`AdditiveArrayShare`
-            Secret-shared comparison :math:`lhs \lt rhs`.
+            Secret-shared result of computing `lhs` < `rhs` elementwise.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
@@ -808,71 +790,11 @@ class AdditiveProtocolSuite(object):
 
 
     def less_zero(self, operand):
-        """Privacy-preserving elementwise less-than-zero comparison.
+        """Return an elementwise less-than comparison between operand elements and zero.
 
-        The result is the secret shared elementwise comparison :math:`operand \lt 0`.
-        Note that the results will contain the field values :math:`0` or
-        :math:`1`, which do not require decoding if revealed.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Secret shared values to be compared.
-        rhs: :class:`AdditiveArrayShare`, required
-            Secret shared values to be compared.
-
-        Returns
-        -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared comparison :math:`operand \lt 0`.
-        """
-        self._assert_unary_compatible(operand, "operand")
-        two = self.field.full_like(operand.storage, 2)
-        result = self.field_multiply(two, operand)
-        return self._lsb(result)
-
-
-    def logical_and(self, lhs, rhs):
-        """Privacy-preserving elementwise logical AND of secret shared arrays.
-
-        The operands *must* contain the field values :math:`0` or :math:`1`.
-        The result will be the secret shared elementwise logical AND of `lhs`
-        and `rhs`, and will also contain the field values :math:`0` or
-        :math:`1`, which do not require decoding if revealed.
-
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
-
-        Parameters
-        ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Secret shared array for logical AND.
-        rhs: :class:`AdditiveArrayShare`, required
-            Secret shared array for logical AND.
-
-        Returns
-        -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared elementwise logical AND of `lhs` and `rhs`.
-        """
-        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
-        return self.field_multiply(lhs, rhs)
-
-
-    def logical_not(self, operand):
-        """Privacy-preserving elementwise logical NOT.
-
-        The operand *must* contain the field values :math:`0` or :math:`1`.
-        The result will be the secret shared elementwise logical NOT of
-        `operand`, and will also contain the field values :math:`0` or
-        :math:`1`, which do not require decoding if revealed.
+        The result is the secret shared elementwise comparison `operand` < `0`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
 
         Note
         ----
@@ -882,24 +804,26 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared array for logical NOT.
+            Secret shared value to be compared.
 
         Returns
         -------
         result: :class:`AdditiveArrayShare`
-            Secret-shared elementwise logical NOT of `operand`.
+            Secret-shared result of computing `operand` < `0` elementwise.
         """
         self._assert_unary_compatible(operand, "operand")
-        return self.field_subtract(self.field.ones_like(operand.storage), operand)
+        two = self.field.full_like(operand.storage, 2)
+        result = self.field_multiply(two, operand)
+        return self._lsb(result)
 
 
-    def logical_or(self, lhs, rhs):
-        """Privacy-preserving elementwise logical OR of secret shared arrays.
+    def logical_and(self, lhs, rhs):
+        """Return an elementwise logical AND of two secret shared arrays.
 
-        The operands *must* contain the field values :math:`0` or :math:`1`.
-        The result will be the secret shared elementwise logical OR of `lhs`
-        and `rhs`, and will also contain the field values :math:`0` or
-        :math:`1`, which do not require decoding if revealed.
+        The operands *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical AND of `lhs` and `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
 
         Note
         ----
@@ -909,14 +833,70 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         lhs: :class:`AdditiveArrayShare`, required
-            Secret shared array for logical OR.
+            Secret shared array to be AND'ed.
         rhs: :class:`AdditiveArrayShare`, required
-            Secret shared array for logical OR.
+            Secret shared array to be AND'ed.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared elementwise logical OR of `lhs` and `rhs`.
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise logical AND of `lhs` and `rhs`.
+        """
+        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+        return self.field_multiply(lhs, rhs)
+
+
+    def logical_not(self, operand):
+        """Return the elementwise logical NOT of a secret shared arrays.
+
+        The operand *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical negation of `operand`.
+        When revealed, the result will contain the field values `0` or `1`, which do
+        not require decoding.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be negated.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise logical NOT of `operand`.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        return self.field_subtract(self.field.ones_like(operand.storage), operand)
+
+
+    def logical_or(self, lhs, rhs):
+        """Return an elementwise logical OR of two secret shared arrays.
+
+        The operands *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical OR of `lhs` and `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to be OR'd.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array to be OR'd.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise logical OR of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         total = self.field_add(lhs, rhs)
@@ -925,12 +905,12 @@ class AdditiveProtocolSuite(object):
 
 
     def logical_xor(self, lhs, rhs):
-        """Privacy-preserving elementwise logical XOR of secret shared arrays.
+        """Return an elementwise logical exclusive OR of two secret shared arrays.
 
-        The operands *must* contain the field values :math:`0` or :math:`1`.
-        The result will be the secret shared elementwise logical XOR of `lhs`
-        and `rhs`, and will also contain the field values :math:`0` or
-        :math:`1`, which do not require decoding if revealed.
+        The operands *must* contain the *field* values `0` or `1`.  The result
+        will be the secret shared elementwise logical XOR of `lhs` and `rhs`.
+        When revealed, the result will contain the values `0` or `1`, which do
+        not need to be decoded.
 
         Note
         ----
@@ -940,14 +920,14 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         lhs: :class:`AdditiveArrayShare`, required
-            Secret shared array for logical XOR.
+            Secret shared array to be exclusive OR'd.
         rhs: :class:`AdditiveArrayShare`, required
-            Secret shared array for logical XOR.
+            Secret shared array to be exclusive OR'd.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared elementwise logical XOR of `lhs` and `rhs`.
+        value: :class:`AdditiveArrayShare`
+            The secret elementwise logical exclusive OR of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         total = self.field_add(lhs, rhs)
@@ -974,13 +954,13 @@ class AdditiveProtocolSuite(object):
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        lsb: :class:`AdditiveArrayShare`
             Additive shared array containing the elementwise least significant
             bits of `operand`.
         """
         one = numpy.array(1, dtype=self.field.dtype)
         lop = AdditiveArrayShare(operand.storage.flatten())
-        tmpBW, tmp = self.random_bitwise_secret(bits=self.field.bits, shape=lop.storage.shape)
+        tmpBW, tmp = self.random_bitwise_secret(bits=self.field._fieldbits, shape=lop.storage.shape)
         maskedlop = self.field_add(lop, tmp)
         c = self.reveal(maskedlop, encoding=Identity())
         comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
@@ -1000,11 +980,13 @@ class AdditiveProtocolSuite(object):
 
 
     def maximum(self, lhs, rhs):
-        """Privacy-preserving elementwise maximum of secret shared arrays.
+        """Return the elementwise maximum of two secret shared arrays.
 
         The result is the secret shared elementwise maximum of the operands.
-        Note: the magnitude of the field elements should be less than one
-        quarter of the field order for this method to be accurate in general.
+        If revealed, the result will need to be decoded to obtain the actual
+        maximum values. Note: the field element ( if in the 'negative' range
+        of the field consider only its magnitude ) should be less than
+        a quarter of the modulus for this method to be accurate in general.
 
         Note
         ----
@@ -1020,7 +1002,7 @@ class AdditiveProtocolSuite(object):
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        max: :class:`AdditiveArrayShare`
             Secret-shared elementwise maximum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -1031,11 +1013,13 @@ class AdditiveProtocolSuite(object):
 
 
     def minimum(self, lhs, rhs):
-        """Privacy-preserving elementwise minimum of secret shared arrays.
+        """Return the elementwise minimum of two secret shared arrays.
 
         The result is the secret shared elementwise minimum of the operands.
-        Note: the magnitude of the field elements should be less than one
-        quarter of the field order for this method to be accurate in general.
+        If revealed, the result will need to be decoded to obtain the actual
+        minimum values. Note: the field element ( if in the 'negative' range
+        of the field consider only its magnitude ) should be less than
+        a quarter of the modulus for this method to be accurate in general.
 
         Note
         ----
@@ -1051,7 +1035,7 @@ class AdditiveProtocolSuite(object):
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        min: :class:`AdditiveArrayShare`
             Secret-shared elementwise minimum of `lhs` and `rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
@@ -1060,38 +1044,36 @@ class AdditiveProtocolSuite(object):
         min_share = self.field_subtract(self.field_add(lhs, rhs), abs_diff)
         shift_right = self.field.full_like(lhs.storage, pow(2, self.field.order-2, self.field.order))
         min_share = self.field_multiply(min_share, shift_right)
+
         return min_share
 
 
     def multiplicative_inverse(self, operand):
-        """Privacy-preserving elementwise multiplicative inverse of a secret shared array.
-
-        Returns the multiplicative inverse of a secret shared array
+        """Return an elementwise multiplicative inverse of a shared array
         in the context of the underlying finite field. Explicitly, this
         function returns a same shape array which, when multiplied
-        elementwise with `operand`, will return a same shape array comprised
-        entirely of ones, assuming `operand` is entirely non-trivial elements.
-
-        This function does not take into account any field-external symantics.
-        There is a potential for information leak here if `operand` contains any
-        zero elements, that will be revealed. There is a small probability,
-        2^-operand.storage.size, for this approach to fail by zero being randomly
-        generated by the parties as the mask.
+        elementwise with operand, will return a same shape array comprised
+        entirely of ones assuming operand is entirely non-trivial elements.
 
         Note
         ----
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
+        This function does not take into account any field-external symantics.
+        There is a potential for information leak here if operand contains any
+        zero elements, that will be revealed. There is a small probability,
+        2^-operand.storage.size, for this approach to fail by zero being randomly
+        generated by the parties as the mask.
 
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared operand to be multiplicatively inverted.
+            Secret shared array to be multiplicatively inverted.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared elementwise multiplicative inverse of `operand`.
+        value: :class:`AdditiveArrayShare`
+            The secret multiplicative inverse of operand on an elementwise basis.
         """
         self._assert_unary_compatible(operand, "operand")
 
@@ -1105,37 +1087,25 @@ class AdditiveProtocolSuite(object):
 
 
     def multiply(self, lhs, rhs, *, encoding=None):
-        """Privacy-preserving elementwise multiplication of arrays.
+        """Return the elementwise product of two secret shared arrays.
 
-        This method can be used to perform private-private, public-private, and
-        private-public multiplication.  The result is the secret shared
-        elementwise sum of the operands.  Note that public-public
-        multiplication isn't allowed, as it isn't privacy-preserving!
-
-        Unlike :meth:`field_multiply`, :meth:`multiply` is encoding aware:
-        encoding is performed on its public inputs, and the results are
-        shifted right to produce correct results when decoded.
-
-        Note
-        ----
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public value to be multiplied.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public value to be multiplied.
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared array.
         encoding: :class:`object`, optional
-            Encodes public operands and determines the number of bits to shift
-            right the results.  The protocol's :attr:`encoding` is used by
-            default if :any:`None`.
+            Encoding originally used to convert the secrets into field values.
+            The protocol's default encoding will be used if `None`.
 
         Returns
         -------
         result: :class:`AdditiveArrayShare`
-            Secret-shared product of `lhs` and `rhs`.
+            Secret-shared elementwise product of `lhs` and `rhs`.
         """
         encoding = self._require_encoding(encoding)
 
@@ -1157,120 +1127,104 @@ class AdditiveProtocolSuite(object):
             result = self.right_shift(result, bits=encoding.precision)
             return result
 
-        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+        raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def negative(self, operand):
-        """Privacy-preserving elementwise additive inverse of a secret shared array.
-
-        Returns the additive inverse of a secret shared array
+        """Return an elementwise additive inverse of a shared array
         in the context of the underlying finite field. Explicitly, this
         function returns a same shape array which, when added
-        elementwise with `operand`, will return a same shape array comprised
-        entirely of zeros.
+        elementwise with operand, will return a same shape array comprised
+        entirely of zeros (the additive identity).
 
         Note
         ----
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
+        This function does not take into account any field-external symantics.
 
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared operand to be additively inverted.
+            Secret shared array to be additively inverted.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared elementwise additive inverse of `operand`.
+        value: :class:`AdditiveArrayShare`
+            The secret additive inverse of operand on an elementwise basis.
         """
         self._assert_unary_compatible(operand, "operand")
         return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
 
+    def _pade_approx(self, func, operand,*, center=0, encoding=None, degree=9):
+        """Return the pade approximation of func evaluated at operand.
 
-#    def pade_approx(self, func, operand, *, encoding=None, center=0, degree=12, scale=3):
-#        """Return the pade approximation of `func` sampled with `operand`.
-#
-#        Note
-#        ----
-#        This is a collective operation that *must* be called
-#        by all players that are members of :attr:`communicator`.
-#
-#        Parameters
-#        ----------
-#        func: callable object, required
-#            The function to be approximated via the pade method.
-#        operand: :class:`AdditiveArrayShare`, required
-#            Secret-shared values where `func` should be evaluated.
-#        center: :class:`float`, optional
-#            The value at which the approximation should be centered. Sample
-#            errors will be larger the further they are from this point.
-#
-#        Returns
-#        -------
-#        result: :class:`AdditiveArrayShare`
-#            Secret shared result of evaluating the pade approximant of func(operand) with the given parameters.
-#        """
-#        from scipy.interpolate import approximate_taylor_polynomial, pade
-#        num_deg = degree%2+degree//2
-#        den_deg = degree//2
-#
-#        self._assert_unary_compatible(operand, "operand")
-#        encoding = self._require_encoding(encoding)
-#
-#        func_taylor = approximate_taylor_polynomial(func, center, degree, scale)
-#        func_pade_num, func_pade_den = pade([x for x in func_taylor][::-1], den_deg, n=num_deg)
-#        enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
-#        enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
-#
-#        result_list=[]
-#        for op in operand.storage:
-#            single_op_share = AdditiveArrayShare(numpy.array(op, dtype=object))
-#            op_pows_num_list = [self.share(src=1, secret=numpy.array(1), shape=())]
-#            for i in range(num_deg):
-#                op_pows_num_list.append(self.multiply(single_op_share, op_pows_num_list[-1]))
-#            if degree%2:
-#                op_pows_den_list=[thing for thing in op_pows_num_list[:-1]]
-#            else:
-#                op_pows_den_list=[thing for thing in op_pows_num_list]
-#            op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num_list]))
-#            op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den_list]))
-#
-#            result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
-#            result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
-#
-#            result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
-#            result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
-#            result_list.append(self.divide(result_num, result_den))
-#        return AdditiveArrayShare(numpy.array([s.storage for s in result_list], dtype=object))
-
-
-    def power(self, lhs, rhs, *, encoding=None):
-        """Privacy-preserving elementwise exponentiation.
-
-        Raises secret shared array values to public integer values.  Unlike
-        :meth:`field_power`, :meth:`power` operates on encoded values, shifting
-        the results right to ensure correct decoded results.
-
-        Note
-        ----
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, required
-            Secret shared values which iwll be raised to a power.
-        rhs: :class:`int` or integer :class:`numpy.ndarray`, required
-            Public integer power(s) to which each element in `lhs` will be raised.
-        encoding: :class:`object`, optional
-            Determines the number of bits to shift right the results.  The
-            protocol's :attr:`encoding` is used by default if :any:`None`.
+        func: :class:`callable object`, required
+            The function to be approximated via the pade method
+        endpoints: :class:`tuple`, required
+            The start and end of the range of interest for approximation/interpolation
+        resolution: :class:`float`, required
+            The resolution of the approximation to be done between the endpoints
+        operand: :class:`AdditiveArrayShare`, required
+            The secret share which represents the point at which the function func should be evaluated in a privacy preserving manner
 
         Returns
         -------
         result: :class:`AdditiveArrayShare`
-            Secret-shared result of raising `lhs` to the power(s) in `rhs`.
+            Secret shared result of evaluating the pade approximant of func(operand) with the given parameters
+        """
+        from scipy.interpolate import approximate_taylor_polynomial, pade
+        num_deg = degree%2+degree//2
+        den_deg = degree//2
+
+        self._assert_unary_compatible(operand, "operand")
+        encoding = self._require_encoding(encoding)
+
+        func_taylor = approximate_taylor_polynomial(func, center, degree, 1)
+        func_pade_num, func_pade_den = pade(func_taylor, den_deg, n=num_deg)
+        enc_func_pade_num = encoding.encode(numpy.array([x for x in func_pade_num]), self.field)
+        enc_func_pade_den = encoding.encode(numpy.array([x for x in func_pade_den]), self.field)
+        op_pows_num = [self.share(src=1, secret=numpy.array(1), shape=())]
+        for i in range(num_deg):
+            op_pows_num.append(self.multiply(operand, op_pows_num[-1]))
+        if degree%2:
+            op_pows_den=[thing for thing in op_pows_num[:-1]]
+        else:
+            op_pows_den=[thing for thing in op_pows_num]
+        op_pows_num = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_num]))
+        op_pows_den = AdditiveArrayShare(numpy.array([x.storage for x in op_pows_den]))
+
+        result_num_prod = self.field_multiply(op_pows_num, enc_func_pade_num)
+        result_num = self.right_shift(self.sum(result_num_prod), bits=encoding.precision)
+
+        result_den_prod = self.field_multiply(op_pows_den, enc_func_pade_den)
+        result_den = self.right_shift(self.sum(result_den_prod), bits=encoding.precision)
+        # the legit thing to do
+        #result = self.divide(result_num, result_den)
+        # the thing I have to do right now for a bit till division is sorted
+        _, mask = self.random_bitwise_secret(bits=16)
+        result = self.reveal(self.multiply(mask, result_num))/self.reveal(self.multiply(mask,result_den))
+        return result
+
+    def power(self, lhs, rhs, *, encoding=None):
+        """Raise the array contained in lhs to the power rhs on an elementwise basis
+
+        Parameters
+        ----------
+        lhs: :class:`AdditiveArrayShare`, required
+            Shared secret to which floor should be applied.
+        rhs: :class:`int`, required
+            a publically known integer and the power to which each element in lhs should be raised
+
+        Returns
+        -------
+        array: :class:`AdditiveArrayShare`
+            Share of the array elements from lhs all raised to the power rhs.
         """
         encoding = self._require_encoding(encoding)
 
@@ -1294,7 +1248,7 @@ class AdditiveProtocolSuite(object):
                 ans.append(it_ans)
             return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
 
-        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+        raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def _public_bitwise_less_than(self, *, lhspub, rhs):
@@ -1358,23 +1312,18 @@ class AdditiveProtocolSuite(object):
             for i in range(1,bitwidth):
                 result = self.field_add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
             results.append(result)
-        return AdditiveArrayShare(numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
+        return AdditiveArrayShare(storage = numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
 
 
-    def random_bitwise_secret(self, *, bits, shape=None, src=None, generator=None):
-        """Return secret values created by combining randomly generated bits.
+    def random_bitwise_secret(self, *, bits, src=None, generator=None, shape=None):
+        """Return a vector of randomly generated bits.
 
-        This method returns two outputs - a secret shared array of randomly
-        generated bits, and a secret shared array of values created by
-        combining the bits in big-endian order.  It is secure against
-        non-colluding semi-honest adversaries.  A subset of players (by
-        default: all) generate and secret share vectors of pseudo-random bits
-        which are then XOR-ed together elementwise.  Communication and
-        computation costs increase with the number of bits and the number of
-        players, while security increases with the number of players.
-
-        The bit array will have one more dimension than the secret array,
-        containing the bits in big-endian order.
+        This method is secure against non-colluding semi-honest adversaries.  A
+        subset of players (by default: all) generate and secret share vectors
+        of pseudo-random bits which are then xor-ed together elementwise.
+        Communication and computation costs increase with the number of bits
+        and the number of players, while security increases with the number of
+        players.
 
         .. warning::
 
@@ -1384,19 +1333,10 @@ class AdditiveProtocolSuite(object):
              with identical seed values, even numbers of players will produce
              all zero bits.
 
-        Note
-        ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`, even
-        if they aren't participating in the random bit generation.
-
         Parameters
         ----------
         bits: :class:`int`, required
             Number of bits to generate.
-        shape: sequence of :class:`int`, optional
-            Shape of the output `secrets` array.  The output `bits` array will have this
-            shape, plus one extra dimension for the bits.
         src: sequence of :class:`int`, optional
             Players that will contribute to random bit generation.  By default,
             all players contribute.
@@ -1407,11 +1347,9 @@ class AdditiveProtocolSuite(object):
         Returns
         -------
         bits: :class:`AdditiveArrayShare`
-            Secret shared array of randomly-generated bits, with shape
-            :math:`shape \\times bits`.
-        secrets: :class:`AdditiveArrayShare`
-            Secret shared array of values created by combining the generated
-            bits in big-endian order, with shape `shape`.
+            A share of the randomly-generated bits that make-up the secret.
+        secret: :class:`AdditiveArrayShare`
+            A share of the value defined by `bits` (in big-endian order).
         """
         bits = int(bits)
         shape_was_none = False
@@ -1465,7 +1403,7 @@ class AdditiveProtocolSuite(object):
 
 
     def relu(self, operand):
-        """Privacy-preserving elementwise ReLU of a secret shared array.
+        """Return the elementwise ReLU of a secret shared array.
 
         Note
         ----
@@ -1475,11 +1413,11 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared operand to which the ReLU function will be applied.
+            Secret shared value to which the ReLU function should be applied.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        value: :class:`AdditiveArrayShare`
             Secret-shared elementwise ReLU of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
@@ -1490,10 +1428,7 @@ class AdditiveProtocolSuite(object):
 
 
     def reshare(self, operand):
-        """Privacy-preserving re-randomization of a secret shared array.
-
-        This method returns a new set of secret shares that contain different
-        random values than the input but represent the same secret value.
+        """Rerandomize an additive secret share.
 
         Note
         ----
@@ -1502,13 +1437,13 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        operand: :class:`AdditiveArrayShare`, required
-            Secret shared operand which should be re-randomized.
+        operand: :class:`AdditiveArrayShare`
+            The local share of the secret shared array.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared, re-randomized version of `operand`.
+        share: :class:`AdditiveArrayShare`
+            The local share of the secret shared array, now rerandomized.
         """
         self._assert_unary_compatible(operand, "operand")
         recshares = []
@@ -1570,34 +1505,45 @@ class AdditiveProtocolSuite(object):
 
 
     def right_shift(self, operand, *, bits, src=None, generator=None, trunc_mask=None, rem_mask=None):
-        """Privacy-preserving elementwise right-shift of a secret shared array.
+        """Remove the `bits` least significant bits from each element in a secret shared array.
 
         Note
         ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
+        The operand *must* be encoded with FixedFieldEncoder
+
+        Also, this approach may probabilstically introduce a small error in the least significant bits 
+        of the result. The is that we generate masks for the two sections of the secret shared value 
+        of interest, one to be used in clearing out the low order bits, the other for masking the 
+        higher order bits that will remain. There is a chance that adding the masks in will generate 
+        a carry into the region that will remain after the shift. Therefore there is a chance that the 
+        effects of that carry will remain in the least significant bits of the final result, which, 
+        with the default parameters and encoding, means there could be an error in the final result on 
+        the order of 2^-16, and with decreasing probability 2^-15, or 2^-14 depending on how far the 
+        carry propagates.
 
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret-shared values to be shifted right.
+            Shared secret to be truncated.
         bits: :class:`int`, optional
-            Number of bits to shift.
+            Number of bits to truncate - defaults to the precision of the encoder.
         src: sequence of :class:`int`, optional
             Players who will participate in generating random bits as part of
-            the shift process.  More players increases security but
+            the truncation process.  More players increases security but
             decreases performance.  Defaults to all players.
         generator: :class:`numpy.random.Generator`, optional
-            A psuedorandom number generator for generating random bits.  By
-            default, `numpy.random.default_rng()` will be used.
+            A psuedorandom number generator for sampling.  By default,
+            `numpy.random.default_rng()` will be used.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared result of shifting `operand` to the right by `bits` bits.
+        array: :class:`AdditiveArrayShare`
+            Share of the truncated secret.
         """
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
+
+        fieldbits = self.field.fieldbits
 
         shift_left = self.field.full_like(operand.storage, 2**bits)
         # Multiplicative inverse of shift_left.
@@ -1612,7 +1558,7 @@ class AdditiveProtocolSuite(object):
             remaining_mask = rem_mask
         else:
             # Generate random bits that will mask everything outside the region to be truncated.
-            _, remaining_mask = self.random_bitwise_secret(bits=self.field.bits-bits, src=src, generator=generator, shape=operand.storage.shape)
+            _, remaining_mask = self.random_bitwise_secret(bits=fieldbits-bits, src=src, generator=generator, shape=operand.storage.shape)
         remaining_mask.storage = self.field.multiply(remaining_mask.storage, shift_left)
 
         # Combine the two masks.
@@ -1679,10 +1625,11 @@ class AdditiveProtocolSuite(object):
 
         encoding = self._require_encoding(encoding)
 
-        # Generate a pseudorandom zero-sharing.
-        przs = self._przs(shape=shape)
+        # Generate a pseudo-random sharing of zero ...
+        przs = self.field.uniform(size=shape, generator=self._g0)
+        self.field.inplace_subtract(przs, self.field.uniform(size=shape, generator=self._g1))
 
-        # Add the secret to the PRZS
+        # Add the secret to the PRSZ
         if self.communicator.rank == src:
             secret = encoding.encode(secret, self.field)
             self.field.inplace_add(przs, secret)
@@ -1691,12 +1638,9 @@ class AdditiveProtocolSuite(object):
 
 
     def subtract(self, lhs, rhs, *, encoding=None):
-        """Privacy-preserving elementwise difference of arrays.
+        """Return the elementwise difference of two secret shared arrays.
 
-        This method can be used to perform private-private, public-private, and
-        private-public addition.  The result is the secret shared elementwise
-        difference of the operands.  Note that public-public subtraction isn't
-        allowed, as it isn't privacy-preserving!
+        The result is the secret shared elementwise sum of the operands.
 
         Note
         ----
@@ -1705,18 +1649,15 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public values to be subtracted.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
-            Secret shared or public values to be subtracted.
-        encoding: :class:`object`, optional
-            Encodes public operands.  The protocol's :attr:`encoding`
-            is used by default if :any:`None`.
+        lhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
+        rhs: :class:`AdditiveArrayShare`, required
+            Secret shared value to be added.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
-            Secret-shared difference of `lhs` and `rhs`.
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `lhs` and `rhs`.
         """
         encoding = self._require_encoding(encoding)
 
@@ -1732,11 +1673,14 @@ class AdditiveProtocolSuite(object):
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             return self.field_subtract(encoding.encode(lhs, self.field), rhs)
 
-        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
+        raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.")
 
 
     def sum(self, operand):
-        """Privacy-preserving sum of a secret shared array's elements.
+        """Return the sum of a secret shared array's elements.
+
+        The result is the secret shared sum of the array elements.  If
+        revealed, the result will need to be decoded to obtain the actual sum.
 
         Note
         ----
@@ -1746,7 +1690,7 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared array containing elements to be summed.
+            Secret shared array to be summed.
 
         Returns
         -------
@@ -1757,8 +1701,49 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(self.field.sum(operand.storage))
 
 
-#    def taylor_approx(self, func, operand, *, encoding=None, center=0, degree=7, scale=3):
-#        """Return the taylor approximation of `func` sampled with `operand`.
+    def taylor_approx(self, func, operand,*, center=0, degree=7, encoding=None):
+
+        """Return the evaluation of a public function evaluated at a shared secret, by taylor approximation
+
+
+        Note
+        ----
+        This is a collective operation that *must* be called
+        by all players that are members of :attr:`communicator`.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be summed.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            Secret-shared sum of `operand`'s elements.
+        """
+        from scipy.interpolate import approximate_taylor_polynomial
+
+        self._assert_unary_compatible(operand, "operand")
+        encoding = self._require_encoding(encoding)
+
+        taylor_poly = approximate_taylor_polynomial(func, center, degree, 1)
+
+        enc_taylor_coef = encoding.encode(numpy.array([x for x in taylor_poly]), self.field)
+        op_pow_list = [self.share(src=1, secret=numpy.array(1), shape=())]
+        for i in range(degree):
+            op_pow_list.append(self.multiply(operand, op_pow_list[-1]))
+
+        op_pow_shares = AdditiveArrayShare(numpy.array([x.storage for x in op_pow_list]))
+            
+        result = self.field_multiply(op_pow_shares, enc_taylor_coef)
+        result = self.sum(result)
+        result = self.right_shift(result, bits=encoding.precision)
+        return result
+
+
+#    def untruncated_divide(self, lhs, rhs, *, rmask=None, mask1=None, rem1=None, mask2=None, rem2=None):
+#        """Element-wise division of private values. Note: this may have a chance to leak info is the secret contained in rhs is 
+#        close to or bigger than 2^precision
 #
 #        Note
 #        ----
@@ -1767,48 +1752,64 @@ class AdditiveProtocolSuite(object):
 #
 #        Parameters
 #        ----------
-#        func: callable object, required
-#            The function to be approximated via the taylor method
-#        operand: :class:`AdditiveArrayShare`, required
-#            Secret-shared values where `func` should be evaluated.
-#        center: :class:`float`, optional
-#            The value at which the approximation should be centered. Sample
-#            errors will be larger the further they are from this point.
+#        lhs: :class:`AdditiveArrayShare`, required
+#            Secret shared array dividend.
+#        rhs: :class:`numpy.ndarray`, required
+#            Public array divisor, which must *not* be encoded.
 #
 #        Returns
 #        -------
-#        result: :class:`AdditiveArrayShare`
-#            Secret shared result of evaluating the taylor approximant of func(operand) with the given parameters
+#        value: :class:`AdditiveArrayShare`
+#            The secret element-wise result of lhs / rhs.
 #        """
-#        from scipy.interpolate import approximate_taylor_polynomial
+#        self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
+#        if rmask is None:
+#            _, rmask = self.random_bitwise_secret(bits=self._encoding.precision, shape=rhs.storage.shape)
+#        rhsmasked = self.untruncated_multiply(rmask, rhs)
+#        if mask1 != None and rem1 != None:
+#            rhsmasked = self.truncate(rhsmasked, trunc_mask=mask1, rem_mask=rem1)
+#        else:
+#            rhsmasked = self.truncate(rhsmasked)
+#        revealrhsmasked = self._encoding.decode(self._reveal(rhsmasked), self.field)
+#        if mask2 != None and rem2 != None:
+#            almost_there = self.truncate(self.untruncated_multiply(lhs, rmask), trunc_mask=mask2, rem_mask=rem2)
+#        else:
+#            almost_there = self.truncate(self.untruncated_multiply(lhs, rmask))
+#        maskquotient = self.untruncated_private_public_divide(almost_there, revealrhsmasked)
+#        return maskquotient 
 #
-#        self._assert_unary_compatible(operand, "operand")
-#        encoding = self._require_encoding(encoding)
 #
-#        taylor_poly = approximate_taylor_polynomial(func, center, degree, scale)
+#    def untruncated_private_public_divide(self, lhs, rhs):
+#        """Element-wise division of private and public values.
 #
-#        enc_taylor_coef = encoding.encode(numpy.array([x for x in taylor_poly]), self.field)
-#        result_list=[]
-#        for op in operand.storage:
-#            single_op_share = AdditiveArrayShare(numpy.array(op, dtype=object))
-#            op_pow_list = [self.share(src=1, secret=numpy.array(1), shape=())]
-#            for i in range(degree):
-#                op_pow_list.append(self.multiply(single_op_share, op_pow_list[-1]))
+#        Note
+#        ----
+#        This is a collective operation that *must* be called
+#        by all players that are members of :attr:`communicator`.
 #
-#            op_pow_shares = AdditiveArrayShare(numpy.array([x.storage for x in op_pow_list]))
+#        Parameters
+#        ----------
+#        lhs: :class:`AdditiveArrayShare`, required
+#            Secret shared array dividend.
+#        rhs: :class:`numpy.ndarray`, required
+#            Public array divisor, which must *not* be encoded.
 #
-#            result = self.field_multiply(op_pow_shares, enc_taylor_coef)
-#            result = self.sum(result)
-#            result = self.right_shift(result, bits=encoding.precision)
-#            result_list.append(result)    
-#        return AdditiveArrayShare(numpy.array([s.storage for s in result_list], dtype=object))
+#        Returns
+#        -------
+#        value: :class:`AdditiveArrayShare`
+#            The secret element-wise result of lhs / rhs.
+#        """
+#        self._assert_unary_compatible(lhs, "lhs")
+#        divisor = self._encoding.encode(numpy.array(1 / rhs), self.field)
+#        quotient = AdditiveArrayShare(self.field.untruncated_multiply(lhs.storage, divisor))
+#        return quotient
 
 
     def zigmoid(self, operand, *, encoding=None):
-        r"""Privacy-preserving elementwise zigmoid of a secret shared array.
+        r"""Compute the elementwise zigmoid function of a secret value.
 
-        Zigmoid is a piecewise approximation to the popular sigmoid activation
-        function that is more efficient to compute in an MPC context:
+        Zigmoid is an approximation of sigmoid which is more angular and is a piecewise function much
+        more efficient to compute in an MPC context:
 
         .. math::
 
@@ -1828,11 +1829,11 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         operand: :class:`AdditiveArrayShare`, required
-            Secret shared operand to which the zigmoid function will be applied.
+            Secret shared value to which the zigmoid function should be applied.
 
         Returns
         -------
-        result: :class:`AdditiveArrayShare`
+        value: :class:`AdditiveArrayShare`
             Secret-shared elementwise zigmoid of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
