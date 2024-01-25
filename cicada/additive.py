@@ -24,7 +24,7 @@ import numpy
 
 from cicada.arithmetic import Field
 from cicada.communicator.interface import Communicator
-from cicada.encoding import FixedPoint, Identity
+from cicada.encoding import FixedPoint, Identity, Boolean
 from cicada.przs import PRZSProtocol
 
 
@@ -331,8 +331,17 @@ class AdditiveProtocolSuite(object):
 
         # Private-private division.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
-            if rmask is None:
-                _, rmask = self.random_bitwise_secret(bits=encoding.precision, shape=rhs.storage.shape)
+            zshare = self.share(src=0, secret=numpy.zeros_like(rhs.storage), shape=rhs.storage.shape)
+            if self.reveal(self.equal(rhs, zshare), encoding=Boolean()):
+                raise ZeroDivisionError()
+            oops = True
+            while oops:
+                if rmask is None:
+                    _, rmask = self.random_bitwise_secret(bits=encoding.precision, shape=rhs.storage.shape)
+                if self.reveal(self.equal(rmask, zshare), encoding=Boolean()):
+                    rmask = None
+                else:
+                    oops = False
             rhsmasked = self.field_multiply(rmask, rhs)
             if mask1 != None and rem1 != None:
                 rhsmasked = self.right_shift(rhsmasked, bits=encoding.precision, trunc_mask=mask1, rem_mask=rem1)
@@ -352,6 +361,8 @@ class AdditiveProtocolSuite(object):
 
         # Private-public division.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            if rhs == numpy.zeros_like(rhs):
+                raise ZeroDivisionError()
             divisor = encoding.encode(numpy.array(1 / rhs), self.field)
             result = self.field_multiply(lhs, divisor)
             result = self.right_shift(result, bits=encoding.precision)
