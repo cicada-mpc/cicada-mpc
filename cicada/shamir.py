@@ -989,14 +989,14 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
             count = ceil((self.communicator.world_size - 1) / 2)
             x = lhs.storage
             y = rhs.storage
-            xy=numpy.array((x * y) % self.field.order, dtype=self.field.dtype)
+            xy=self._field.multiply(x,y)
             lc = self._lagrange_coef()
             dubdeg = numpy.zeros((len(lc),)+lhs.storage.shape, dtype=self.field.dtype)
             for i, src in enumerate(self.communicator.ranks):
                 dubdeg[i]=self.share(src=src, secret=xy, shape=xy.shape, encoding=Identity()).storage #transpose
-            sharray = numpy.zeros(lhs.storage.shape, dtype=self.field.dtype)
+            sharray = self._field.full_like(lhs.storage, 0)
             for i in range(len(self.communicator.ranks)):
-                sharray = numpy.array((sharray + dubdeg[i]*lc[i]) % self.field.order, dtype=self.field.dtype)
+                sharray = self._field.add(sharray, self._field.multiply(dubdeg[i], numpy.array(lc[i], dtype=self.field.dtype)))
             return ShamirArrayShare(sharray)
 
         # Public-private multiplication.
