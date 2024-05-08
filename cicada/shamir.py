@@ -515,7 +515,7 @@ class ShamirBasicProtocolSuite(object):
                         revealing_coef = self._lagrange_coef([self._indices[x] for x in src])
                     secret = []
                     for index in numpy.ndindex(received_storage[0].shape):
-                        secret.append(sum([revealing_coef[i]*received_storage[i][index] for i in range(len(revealing_coef))]))
+                        secret.append(self._field.sum(numpy.array([self._field.multiply(numpy.array(revealing_coef[i], dtype=object), numpy.array(received_storage[i][index], dtype=object)) for i in range(len(revealing_coef))], dtype=object)))
         if secret is None:
             return secret
         else:
