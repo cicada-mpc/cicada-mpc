@@ -703,7 +703,7 @@ class ActiveProtocolSuite(object):
     def less(self, lhs, rhs):
         """Privacy-preserving elementwise less-than comparison.
 
-        The result is the secret shared elementwise comparison :math:`lhs \lt rhs`.
+        The result is the secret shared elementwise comparison :math:`lhs \\lt rhs`.
         Note that the results will contain the field values :math:`0` or
         :math:`1`, which do not require decoding if revealed.
 
@@ -722,7 +722,7 @@ class ActiveProtocolSuite(object):
         Returns
         -------
         result: :class:`ActiveArrayShare`
-            Secret-shared comparison :math:`lhs \lt rhs`.
+            Secret-shared comparison :math:`lhs \\lt rhs`.
         """
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
         return ActiveArrayShare((
@@ -733,7 +733,7 @@ class ActiveProtocolSuite(object):
     def less_zero(self, operand):
         """Privacy-preserving elementwise less-than-zero comparison.
 
-        The result is the secret shared elementwise comparison :math:`operand \lt 0`.
+        The result is the secret shared elementwise comparison :math:`operand \\lt 0`.
         Note that the results will contain the field values :math:`0` or
         :math:`1`, which do not require decoding if revealed.
 
@@ -752,7 +752,7 @@ class ActiveProtocolSuite(object):
         Returns
         -------
         result: :class:`ActiveArrayShare`
-            Secret-shared comparison :math:`operand \lt 0`.
+            Secret-shared comparison :math:`operand \\lt 0`.
         """
         self._assert_unary_compatible(operand, "operand")
         return ActiveArrayShare((
