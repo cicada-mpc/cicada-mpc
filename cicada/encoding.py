@@ -271,8 +271,8 @@ class FixedPoint(object):
         order = field.order
         posbound = order // 2
 
-        # Ensure we have an array, but don't copy data if it isn't necessary.
-        result = numpy.array(array, dtype=numpy.float64, copy=False)
+        # Ensure we have an array, but only copy data if necessary.
+        result = numpy.asarray(array, dtype=numpy.float64)
         # Shift array values left.  Don't do this inline!
         result = result * self._scale
         # Test to be sure our values are in-range for the field.
