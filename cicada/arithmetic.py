@@ -28,7 +28,7 @@ import numpy
 class Field(object):
     """Performs arithmetic in an integer field.
 
-    Field values are :class:`numpy.ndarray` instances containing Python
+    Field arrays are :class:`numpy.ndarray` instances containing Python
     integers.
 
     Parameters
@@ -48,7 +48,6 @@ class Field(object):
                 raise ValueError(f"Expected order to be prime, got a composite instead.")
 
         self._dtype = numpy.dtype(object)
-        self._decoded_type = numpy.float64
         self._order = order
         self._bits = order.bit_length()
 
@@ -70,13 +69,24 @@ class Field(object):
         if not isinstance(array, numpy.ndarray):
             raise ValueError(f"Expected {label} to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
         if array.dtype != self.dtype:
-            raise ValueError(f"Expected {label} to be created with a compatible instance of this encoder.") # pragma: no cover
+            raise ValueError(f"Expected {label} to be created with a compatible instance of this field.") # pragma: no cover
 
-    def __call__(self, array):
-        # Convert an existing array to a field array.
-        result = numpy.array(array, dtype=self._dtype)
-        result %= self._order
-        return result
+    def __call__(self, object):
+        """Create a field array from an :term:`array-like` object.
+
+        Parameters
+        ----------
+        object: :term:`array-like`, required
+            The array to be converted.
+
+        Returns
+        -------
+        array: :class:`numpy.ndarray`
+            The corresponding field array.
+        """
+        array = numpy.array(object, dtype=self._dtype)
+        array %= self._order
+        return array
 
 
     def add(self, lhs, rhs):
@@ -96,7 +106,7 @@ class Field(object):
         self._assert_binary_compatible(lhs, rhs, "lhs", "rhs")
 
         # We make an explicit copy and use in-place operators to avoid overflow
-        # and/or unwanted conversion from a numpy scalar to a Python int.
+        # and to prevent unwanted conversion from a numpy scalar to a Python int.
         result = lhs.copy()
         result += rhs
         result %= self._order
@@ -123,11 +133,11 @@ class Field(object):
 
 
     def full_like(self, other, fill_value):
-        """Return a field array of values with the same shape as another field array.
+        """Return a field array of values with the same shape as another array.
 
         Parameters
         ----------
-        other: :class:`numpy.ndarray`, required
+        other: :term:`array-like`, required
             The result will have the same shape as this array.
         fill_value: :class:`int`, required
             Field value that will be assigned to every element in the result array.
@@ -135,7 +145,7 @@ class Field(object):
         Returns
         -------
         array: :class:`numpy.ndarray`
-            Encoded array of zeros with the same shape as `other`.
+            Field array of `fill_value` with the same shape as `other`.
         """
         result = numpy.full_like(other, fill_value, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")
@@ -265,7 +275,7 @@ class Field(object):
         Returns
         -------
         array: :class:`numpy.ndarray`
-            Encoded array of ones with shape `shape`.
+            Field array of ones with shape `shape`.
         """
         result = numpy.ones(shape, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")
@@ -273,17 +283,17 @@ class Field(object):
 
 
     def ones_like(self, other):
-        """Return a field array of ones with the same shape as another field array.
+        """Return a field array of ones with the same shape as another array.
 
         Parameters
         ----------
-        other: :class:`numpy.ndarray`, required
+        other: :term:`array-like`, required
             The result will have the same shape as this array.
 
         Returns
         -------
         array: :class:`numpy.ndarray`
-            Encoded array of zeros with the same shape as `other`.
+            Field array of zeros with the same shape as `other`.
         """
         return self.ones(other.shape)
 
@@ -340,7 +350,7 @@ class Field(object):
 
 
     def uniform(self, *, size, generator):
-        """Return a random encoded array, uniformly distributed over the field.
+        """Return a random field array, uniformly distributed over the field.
 
         Parameters
         ----------
@@ -352,7 +362,7 @@ class Field(object):
         Returns
         -------
         random: :class:`numpy.ndarray`
-            Encoded array containing uniform random values with shape `size`.
+            Field array containing uniform random values with shape `size`.
         """
         elements = int(numpy.prod(size))
         elementbytes = self.bytes
@@ -375,7 +385,7 @@ class Field(object):
         Returns
         -------
         array: :class:`numpy.ndarray`
-            Encoded array of zeros with shape `shape`.
+            Field array of zeros with shape `shape`.
         """
         result = numpy.zeros(shape, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")
@@ -383,17 +393,17 @@ class Field(object):
 
 
     def zeros_like(self, other):
-        """Return a field array of zeros with the same shape as another field array.
+        """Return a field array of zeros with the same shape as another array.
 
         Parameters
         ----------
-        other: :class:`numpy.ndarray`, required
+        other: :term:`array-like`, required
             The result will have the same shape as this array.
 
         Returns
         -------
         array: :class:`numpy.ndarray`
-            Encoded array of zeros with the same shape as `other`.
+            Field array of zeros with the same shape as `other`.
         """
         result = numpy.zeros(other.shape, dtype=self.dtype)
         self._assert_unary_compatible(result, "result")

@@ -48,6 +48,7 @@ Documentation
     commands.rst
     development.rst
     reference.rst
+    glossary.rst
     compatibility.rst
     release-notes.rst
     support.rst
