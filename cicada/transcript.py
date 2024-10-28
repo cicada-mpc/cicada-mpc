@@ -71,9 +71,9 @@ class Formatter(object):
     For function-call events:
 
     * trace.args - function arguments.
-    * trace.depth - stack depth at the time the function is called (note: depth only reflects function calls that weren't filtered).
+    * trace.depth - stack depth at the time the function was called (note: depth doesn't include function calls that were filtered).
     * trace.fqname - fully qualified function name, including module.
-    * trace.indent - stack depth formatted as a string for indented output.
+    * trace.indent - stack depth formatted as whitespace for indented output.
     * trace.kind - "call"
     * trace.name - function name.
     * trace.qname - qualified function name.
@@ -81,10 +81,10 @@ class Formatter(object):
 
     For function-return events:
 
-    * trace.depth - stack depth at the time the function is called (note: depth only reflects function calls that weren't filtered).
+    * trace.depth - stack depth at the time the function was called (note: depth doesn't include function calls that were filtered).
     * trace.fqname - fully qualified function name, including module.
-    * trace.indent - stack depth formatted as a string for indented output.
-    * trace.kind - "call"
+    * trace.indent - stack depth formatted as whitespace for indented output.
+    * trace.kind - "return"
     * trace.locals - function locals when the function returns.
     * trace.name - function name.
     * trace.qname - qualified function name.
