@@ -31,6 +31,7 @@ import collections
 import enum
 import json
 import logging
+import types
 
 import hunter
 import numpy
@@ -142,7 +143,7 @@ class Formatter(object):
         return msg
 
 
-class _FunctionTrace(object):
+class FunctionTrace(types.SimpleNamespace):
     pass
 
 
@@ -294,7 +295,7 @@ class _LogFunctionCalls(hunter.actions.ColorStreamAction):
         name = event.function_object.__name__
 
         # Convert the hunter event into our own class for portability.
-        trace = _FunctionTrace()
+        trace = FunctionTrace()
         trace.fqname = fqname
         trace.qname = qname
         trace.name = name
@@ -355,7 +356,7 @@ class MapInlineResults(object):
         return True
 
 
-class _Message(object):
+class Message(types.SimpleNamespace):
     pass
 
 
@@ -375,7 +376,7 @@ class ShowReceivedMessages(object):
                 tag = record.trace.args["tag"]
 
                 record.msg = "Received message"
-                record.message = _Message()
+                record.message = Message()
                 record.message.arrow = "<--"
                 record.message.comm = communicator
                 record.message.dir = "<"
@@ -412,7 +413,7 @@ class ShowSentMessages(object):
                 tag = record.trace.args["tag"]
 
                 record.msg = "Sent message"
-                record.message = _Message()
+                record.message = Message()
                 record.message.arrow = "-->"
                 record.message.comm = communicator
                 record.message.dir = ">"
