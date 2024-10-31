@@ -303,7 +303,7 @@ class _LogFunctionCalls(hunter.actions.ColorStreamAction):
         if event.kind == "call":
             trace.args = event.locals
         if event.kind == "return":
-            trace.locals = event.locals
+            #trace.locals = event.locals
             trace.result = event.arg
 
         log(trace=trace)
@@ -473,3 +473,12 @@ def record():
     """
     return hunter.trace(module_startswith="cicada", kind_in=("call", "return"), action=_LogFunctionCalls())
 
+
+def assert_equal(lhs, rhs):
+    if isinstance(lhs, numpy.ndarray) or isinstance(rhs, numpy.ndarray):
+        if not numpy.array_equal(lhs, rhs):
+            raise AssertionError(f"{lhs} != {rhs}")
+        return
+
+    if not lhs == rhs:
+        raise AssertionError(f"{lhs} != {rhs}")
