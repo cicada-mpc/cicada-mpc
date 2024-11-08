@@ -343,20 +343,32 @@ def assert_equal(lhs, rhs):
         raise AssertionError(f"{lhs} != {rhs}")
 
 
-def code_handler(handler=None):
+def code_handler(handler=None, fmt=None, netmsgfmt=None, codefmt=None, sent=False, received=False):
     if handler is None:
         handler = logging.StreamHandler()
 
-    handler.setFormatter(Formatter(fmt="# {msg}", netmsgfmt="# Message: {netmsg.comm.rank} {netmsg.arrow} {netmsg.other} {netmsg.tag} {netmsg.payload}", codefmt="{msg}"))
+    if fmt is None:
+        fmt = "# {processName}: {msg}"
+    if netmsgfmt is None:
+        netmsgfmt = "# {processName}: {netmsg.comm.rank} {netmsg.arrow} {netmsg.other} {netmsg.tag} {netmsg.payload}"
+    if codefmt is None:
+        codefmt = "{msg}"
+
+    if not sent:
+        handler.addFilter(HideSentMessages())
+    if not received:
+        handler.addFilter(HideReceivedMessages())
+    handler.setFormatter(Formatter(fmt=fmt, netmsgfmt=netmsgfmt, codefmt=codefmt))
 
     return handler
 
 
-def netmsg_handler(handler=None, fmt=None, netmsgfmt=None, sent=True, received=True):
+def netmsg_handler(handler=None, fmt=None, netmsgfmt=None, sent=True, received=True, code=False):
     if handler is None:
         handler = logging.StreamHandler()
 
-    handler.addFilter(HideCode())
+    if not code:
+        handler.addFilter(HideCode())
     if not sent:
         handler.addFilter(HideSentMessages())
     if not received:
