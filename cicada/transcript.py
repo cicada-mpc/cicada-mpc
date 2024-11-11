@@ -58,18 +58,18 @@ class _CallLogger(hunter.actions.Action):
             payload = event.locals["payload"]
             tag = event.locals["tag"]
 
-            netmsg = Message()
-            netmsg.arrow = "-->"
-            netmsg.comm = communicator
-            netmsg.dir = ">"
-            netmsg.dst = dst
-            netmsg.other = dst
-            netmsg.payload = payload
-            netmsg.src = communicator.rank
-            netmsg.tag = tagname(tag)
-            netmsg.verb = "sent"
+            net = Message()
+            net.arrow = "-->"
+            net.comm = communicator
+            net.dir = ">"
+            net.dst = dst
+            net.other = dst
+            net.payload = payload
+            net.src = communicator.rank
+            net.tag = tagname(tag)
+            net.verb = "sent"
 
-            logger.info("Sent message", extra={"netmsg": netmsg})
+            logger.info("Sent message", extra={"net": net})
 
         #####################################################################################
         # Log received messages
@@ -80,21 +80,21 @@ class _CallLogger(hunter.actions.Action):
             payload = event.locals["payload"]
             tag = event.locals["tag"]
 
-            netmsg = Message()
-            netmsg.arrow = "<--"
-            netmsg.comm = communicator
-            netmsg.dir = "<"
-            netmsg.dst = communicator.rank
-            netmsg.other = src
-            netmsg.payload = payload
-            netmsg.src = src
-            netmsg.tag = tagname(tag)
-            netmsg.verb = "received"
+            net = Message()
+            net.arrow = "<--"
+            net.comm = communicator
+            net.dir = "<"
+            net.dst = communicator.rank
+            net.other = src
+            net.payload = payload
+            net.src = src
+            net.tag = tagname(tag)
+            net.verb = "received"
 
-            logger.info("Received message", extra={"netmsg": netmsg})
+            logger.info("Received message", extra={"net": net})
 
         #####################################################################################
-        # Log function calls
+        # Log consistency verification code
 
         # Hide __init__ functions.
         if name in ["__init__"]:
@@ -156,7 +156,7 @@ class _CallLogger(hunter.actions.Action):
             "cicada.transcript.log",
             "cicada.transcript.record",
             "cicada.transcript.code_handler",
-            "cicada.transcript.netmsg_handler",
+            "cicada.transcript.net_handler",
             "cicada.transcript.set_handler",
             ]:
             return
@@ -185,9 +185,9 @@ class _CallLogger(hunter.actions.Action):
                 rhs = self.repr(args["rhs"])
                 result = self.repr(locals["lhs"])
 
-                _log_code(f"lhs = {lhs}")
-                _log_code(f"{o}.{name}(lhs=lhs, rhs={rhs})")
-                _log_code(f"cicada.transcript.assert_equal(lhs, {result})")
+                _log_code(event, f"lhs = {lhs}", first=True)
+                _log_code(event, f"{o}.{name}(lhs=lhs, rhs={rhs})")
+                _log_code(event, f"cicada.transcript.assert_equal(lhs, {result})", last=True)
 
             elif fqname == "cicada.arithmetic.Field.uniform":
                 o = self.repr(args["self"])
@@ -196,22 +196,22 @@ class _CallLogger(hunter.actions.Action):
                 state = self.repr(args["generator"].bit_generator.state)
                 result = self.repr(result)
 
-                _log_code(f"bg = {bg}")
-                _log_code(f"bg.state = {state}")
-                _log_code(f"cicada.transcript.assert_equal({o}.{name}(size={size}, generator=numpy.random.Generator(bg)), {result})")
+                _log_code(event, f"bg = {bg}", first=True)
+                _log_code(event, f"bg.state = {state}")
+                _log_code(event, f"cicada.transcript.assert_equal({o}.{name}(size={size}, generator=numpy.random.Generator(bg)), {result})", last=True)
 
             elif "self" in args:
                 o = self.repr(args["self"])
                 signature = ", ".join([f"{key}={self.repr(value)}" for key, value in args.items() if key != "self"])
                 result = self.repr(result)
 
-                _log_code(f"cicada.transcript.assert_equal({o}.{name}({signature}), {result})")
+                _log_code(event, f"cicada.transcript.assert_equal({o}.{name}({signature}), {result})", first=True, last=True)
 
             else:
                 signature = ", ".join([f"{key}={self.repr(value)}" for key, value in args.items()])
                 result = self.repr(result)
 
-                _log_code(f"cicada.transcript.assert_equal({name}({signature}), {result})")
+                _log_code(event, f"cicada.transcript.assert_equal({name}({signature}), {result})", first=True, last=True)
 
 
     def repr(self, o):
@@ -224,6 +224,10 @@ class _CallLogger(hunter.actions.Action):
         return repr(o)
 
 
+class Code(types.SimpleNamespace):
+    pass
+
+
 class Formatter(object):
     """Custom log formatter for transcription messages.
 
@@ -234,51 +238,57 @@ class Formatter(object):
 
     For sent-message and received-message events:
 
-    * netmsg.arrow - message direction, relative to the player logging the event.
-    * netmsg.comm - communicator that sent / received the message.
-    * netmsg.comm.name - name of the communicator that sent / received the message.
-    * netmsg.comm.rank - rank of the player logging the event.
-    * netmsg.dir - message direction, relative to the player logging the event.
-    * netmsg.dst - rank of the player receiving the message.
-    * netmsg.other - rank of the player sending or receiving with the player logging the event.
-    * netmsg.payload - message payload contents.
-    * netmsg.src - rank of the player sending the message.
-    * netmsg.tag - message type.
-    * netmsg.verb - message direction, relative to the player logging the event.
+    * net.arrow - message direction, relative to the player logging the event.
+    * net.comm - communicator that sent / received the message.
+    * net.comm.name - name of the communicator that sent / received the message.
+    * net.comm.rank - rank of the player logging the event.
+    * net.dir - message direction, relative to the player logging the event.
+    * net.dst - rank of the player receiving the message.
+    * net.other - rank of the player sending or receiving with the player logging the event.
+    * net.payload - message payload contents.
+    * net.src - rank of the player sending the message.
+    * net.tag - message type.
+    * net.verb - message direction, relative to the player logging the event.
+
+    For code events:
+
+    * code.filename - the full path to the file containing the original statement.
+    * code.first - this is the first line of generated code associated with the original statement.
+    * code.last - this is the last line of generated code associated with the original statement.
+    * code.lineno - line number of the file containing the original statement.
 
     Parameters
     ----------
     fmt: :class:`str`, optional
         Format string for general purpose events.
-    netmsgfmt: :class:`str`, optional
+    netfmt: :class:`str`, optional
         Format string for sent- and received-message events.
     codefmt: :class:`str`, optional
         Format string for code-generation events.
     """
-    def __init__(self, fmt=None, netmsgfmt=None, codefmt=None):
-        if fmt is None:
-            fmt = "{processName}: {msg}"
-        if netmsgfmt is None:
-            netmsgfmt = "{processName}: {netmsg.arrow} {netmsg.other} {netmsg.tag} {netmsg.payload}"
-        if codefmt is None:
-            codefmt = "{processName}: {msg}"
-
+    def __init__(self, fmt, netfmt, codefmt, codepre, codepost):
         self._fmt = fmt
-        self._netmsgfmt = netmsgfmt
+        self._netfmt = netfmt
         self._codefmt = codefmt
+        self._codepre = codepre
+        self._codepost = codepost
 
 
     def format(self, record):
         """Formats a log record for display."""
 
         # Format network messages.
-        if hasattr(record, "netmsg"):
-            msg = self._netmsgfmt.format_map(record.__dict__)
+        if hasattr(record, "net"):
+            msg = self._netfmt.format_map(record.__dict__)
             return msg
 
         # Format code.
         if hasattr(record, "code"):
             msg = self._codefmt.format_map(record.__dict__)
+            if self._codepre and record.code.first:
+                msg = self._codepre.format_map(record.__dict__) + msg
+            if self._codepost and record.code.last:
+                msg = msg + self._codepost.format_map(record.__dict__)
             return msg
 
         # Format generic messages.
@@ -295,28 +305,28 @@ class HideCode(object):
 
 class HideContextMessages(object):
     def filter(self, record):
-        if not hasattr(record, "code") and not hasattr(record, "netmsg"):
+        if not hasattr(record, "code") and not hasattr(record, "net"):
             return False
         return True
 
 
 class HideNetworkMessages(object):
     def filter(self, record):
-        if hasattr(record, "netmsg"):
+        if hasattr(record, "net"):
             return False
         return True
 
 
 class HideReceivedMessages(object):
     def filter(self, record):
-        if hasattr(record, "netmsg") and record.netmsg.verb == "received":
+        if hasattr(record, "net") and record.net.verb == "received":
             return False
         return True
 
 
 class HideSentMessages(object):
     def filter(self, record):
-        if hasattr(record, "netmsg") and record.netmsg.verb == "sent":
+        if hasattr(record, "net") and record.net.verb == "sent":
             return False
         return True
 
@@ -325,8 +335,14 @@ class Message(types.SimpleNamespace):
     pass
 
 
-def _log_code(message):
-    logger.info(message, extra={"code": True})
+def _log_code(event, message, first=False, last=False):
+    code = Code()
+    code.filename = event.filename
+    code.lineno = event.lineno
+    code.first = first
+    code.last = last
+
+    logger.info(message, extra={"code": code})
 
 
 def assert_equal(lhs, rhs):
@@ -343,29 +359,38 @@ def assert_equal(lhs, rhs):
         raise AssertionError(f"{lhs} != {rhs}")
 
 
-def code_handler(handler=None, fmt=None, netmsgfmt=None, codefmt=None, sent=False, received=False):
+def code_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None, codepost=None, sent=False, received=False):
     if handler is None:
         handler = logging.StreamHandler()
 
     if fmt is None:
         fmt = "# {processName}: {msg}"
-    if netmsgfmt is None:
-        netmsgfmt = "# {processName}: {netmsg.comm.rank} {netmsg.arrow} {netmsg.other} {netmsg.tag} {netmsg.payload}"
+    if netfmt is None:
+        netfmt = "# {processName}: {net.comm.rank} {net.arrow} {net.other} {net.tag} {net.payload}"
     if codefmt is None:
         codefmt = "{msg}"
+    if codepost is None:
+        codepost = "\n"
 
     if not sent:
         handler.addFilter(HideSentMessages())
     if not received:
         handler.addFilter(HideReceivedMessages())
-    handler.setFormatter(Formatter(fmt=fmt, netmsgfmt=netmsgfmt, codefmt=codefmt))
+    handler.setFormatter(Formatter(fmt=fmt, netfmt=netfmt, codefmt=codefmt, codepre=codepre, codepost=codepost))
 
     return handler
 
 
-def netmsg_handler(handler=None, fmt=None, netmsgfmt=None, sent=True, received=True, code=False):
+def net_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None, codepost=None, sent=True, received=True, code=False):
     if handler is None:
         handler = logging.StreamHandler()
+
+    if fmt is None:
+        fmt = "{processName}: {msg}"
+    if netfmt is None:
+        netfmt = "{processName}: {net.arrow} {net.other} {net.tag} {net.payload}"
+    if codefmt is None:
+        codefmt = "{processName}: {msg}"
 
     if not code:
         handler.addFilter(HideCode())
@@ -373,7 +398,7 @@ def netmsg_handler(handler=None, fmt=None, netmsgfmt=None, sent=True, received=T
         handler.addFilter(HideSentMessages())
     if not received:
         handler.addFilter(HideReceivedMessages())
-    handler.setFormatter(Formatter(fmt=fmt, netmsgfmt=netmsgfmt))
+    handler.setFormatter(Formatter(fmt=fmt, netfmt=netfmt, codefmt=codefmt, codepre=codepre, codepost=codepost))
 
     return handler
 
@@ -389,7 +414,7 @@ def log(message=None):
     """Log general-purpose events into the transcription.
 
     Application code should use this to provide context for the more detailed
-    message, function trace, and code-generation transcript contents.
+    network and consistency verification transcript contents.
     """
     logger.info(message)
 
