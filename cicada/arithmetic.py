@@ -368,7 +368,7 @@ class Field(object):
         elementbytes = self.bytes
         randombytes = generator.bytes(elements * elementbytes)
 
-        values = [int.from_bytes(randombytes[start : start+elementbytes], "big") for start in range(0, elements * elementbytes, elementbytes)]
+        values = [int.from_bytes(randombytes[start : start+elementbytes], "big") % self._order for start in range(0, elements * elementbytes, elementbytes)]
         result = numpy.array(values, dtype=self.dtype).reshape(size)
         self._assert_unary_compatible(result, "result")
         return result
