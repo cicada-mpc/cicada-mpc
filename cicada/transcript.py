@@ -106,8 +106,12 @@ class _CallLogger(hunter.actions.Action):
 
         # Hide unimportant functions.
         if fqname in [
+            "cicada.additive.AdditiveProtocolSuite.add",
             "cicada.additive.AdditiveProtocolSuite.communicator",
             "cicada.additive.AdditiveProtocolSuite.field",
+            "cicada.additive.AdditiveProtocolSuite.field_add",
+            "cicada.additive.AdditiveProtocolSuite.reveal",
+            "cicada.additive.AdditiveProtocolSuite.share",
             "cicada.arithmetic.Field.bytes",
             "cicada.arithmetic.Field.dtype",
             "cicada.arithmetic.Field.order",
@@ -146,6 +150,7 @@ class _CallLogger(hunter.actions.Action):
             "cicada.communicator.socket.SocketCommunicator.scatter",
             "cicada.communicator.socket.SocketCommunicator.scatterv",
             "cicada.communicator.socket.SocketCommunicator.send",
+            "cicada.przs.PRZSProtocol.__call__",
             "cicada.przs.PRZSProtocol.field",
             "cicada.transcript.Formatter.format",
             "cicada.transcript.HideCode.filter",
@@ -179,7 +184,7 @@ class _CallLogger(hunter.actions.Action):
             locals = event.locals
             result = event.arg
 
-            if fqname == "cicada.arithmetic.Field.inplace_add":
+            if fqname in ["cicada.arithmetic.Field.inplace_add", "cicada.arithmetic.Field.inplace_subtract"]:
                 o = self.repr(args["self"])
                 lhs = self.repr(args["lhs"])
                 rhs = self.repr(args["rhs"])
@@ -216,7 +221,7 @@ class _CallLogger(hunter.actions.Action):
 
     def repr(self, o):
         if isinstance(o, numpy.ndarray):
-            return f"numpy.array({o.tolist()}, dtype={o.dtype})"
+            return f"numpy.array({o.tolist()}, dtype='{o.dtype}')"
         if isinstance(o, numpy.random.Generator):
             return f"numpy.random.Generator({self.repr(o.bit_generator)})"
         if isinstance(o, numpy.random.PCG64):
