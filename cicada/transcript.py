@@ -369,9 +369,9 @@ def code_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None
         handler = logging.StreamHandler()
 
     if fmt is None:
-        fmt = "# {processName}: {msg}"
+        fmt = "# {msg}"
     if netfmt is None:
-        netfmt = "# {processName}: {net.comm.rank} {net.arrow} {net.other} {net.tag} {net.payload}"
+        netfmt = "# {net.comm.rank} {net.arrow} {net.other} {net.tag} {net.payload}"
     if codefmt is None:
         codefmt = "{msg}"
     if codepost is None:
