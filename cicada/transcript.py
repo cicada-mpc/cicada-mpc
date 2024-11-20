@@ -34,6 +34,7 @@ import types
 import hunter
 import numpy
 
+from .additive import AdditiveProtocolSuite
 from .communicator.interface import tagname
 
 
@@ -104,71 +105,52 @@ class _CallLogger(hunter.actions.Action):
         if name.startswith("_") and not name.startswith("__"):
             return
 
-        # Hide unimportant functions.
-        if fqname in [
+        # Identify functions that should be displayed in the transcript.
+        whitelist = set([
             "cicada.additive.AdditiveProtocolSuite.add",
-            "cicada.additive.AdditiveProtocolSuite.communicator",
-            "cicada.additive.AdditiveProtocolSuite.field",
             "cicada.additive.AdditiveProtocolSuite.field_add",
             "cicada.additive.AdditiveProtocolSuite.reveal",
             "cicada.additive.AdditiveProtocolSuite.share",
-            "cicada.arithmetic.Field.bytes",
-            "cicada.arithmetic.Field.dtype",
-            "cicada.arithmetic.Field.order",
-            "cicada.communicator.interface.Communicator.ranks",
-            "cicada.communicator.interface.tagname",
-            "cicada.communicator.socket.SocketCommunicator.free",
-            "cicada.communicator.socket.SocketCommunicator.irecv.<locals>.Result.value",
-            "cicada.communicator.socket.SocketCommunicator.irecv.<locals>.Result.wait",
-            "cicada.communicator.socket.SocketCommunicator.isend.<locals>.Result.wait",
-            "cicada.communicator.socket.SocketCommunicator.rank",
-            "cicada.communicator.socket.SocketCommunicator.run",
-            "cicada.communicator.socket.SocketCommunicator.world_size",
-            "cicada.communicator.socket.connect.NetstringSocket.close",
-            "cicada.communicator.socket.connect.NetstringSocket.feed",
-            "cicada.communicator.socket.connect.NetstringSocket.fileno",
-            "cicada.communicator.socket.connect.NetstringSocket.messages",
-            "cicada.communicator.socket.connect.NetstringSocket.next_message",
-            "cicada.communicator.socket.connect.NetstringSocket.send",
-            "cicada.communicator.socket.connect.Timer.elapsed",
-            "cicada.communicator.socket.connect.Timer.expired",
-            "cicada.communicator.socket.connect.connect",
-            "cicada.communicator.socket.connect.direct",
-            "cicada.communicator.socket.connect.getLogger",
-            "cicada.communicator.socket.connect.getpeerurl",
-            "cicada.communicator.socket.connect.gettls",
-            "cicada.communicator.socket.connect.geturl",
-            "cicada.communicator.socket.connect.listen",
-            "cicada.communicator.socket.SocketCommunicator.allgather",
-            "cicada.communicator.socket.SocketCommunicator.barrier",
-            "cicada.communicator.socket.SocketCommunicator.broadcast",
-            "cicada.communicator.socket.SocketCommunicator.gather",
-            "cicada.communicator.socket.SocketCommunicator.gatherv",
-            "cicada.communicator.socket.SocketCommunicator.irecv",
-            "cicada.communicator.socket.SocketCommunicator.isend",
-            "cicada.communicator.socket.SocketCommunicator.recv",
-            "cicada.communicator.socket.SocketCommunicator.scatter",
-            "cicada.communicator.socket.SocketCommunicator.scatterv",
-            "cicada.communicator.socket.SocketCommunicator.send",
-            "cicada.przs.PRZSProtocol.__call__",
-            "cicada.przs.PRZSProtocol.field",
-            "cicada.transcript.Formatter.format",
-            "cicada.transcript.HideCode.filter",
-            "cicada.transcript.HideContextMessages.filter",
-            "cicada.transcript.HideNetworkMessages.filter",
-            "cicada.transcript.HideSentMessages.filter",
-            "cicada.transcript.HideReceivedMessages.filter",
-            "cicada.transcript.log",
-            "cicada.transcript.record",
-            "cicada.transcript.code_handler",
-            "cicada.transcript.net_handler",
-            "cicada.transcript.set_handler",
-            ]:
+            ])
+        display = True if fqname in whitelist else False
+
+        # Identify functions that should generate consistency verification code in the transcript.
+        whitelist = set([
+            "cicada.arithmetic.Field.__call__",
+            "cicada.arithmetic.Field.add",
+            "cicada.arithmetic.Field.full_like",
+            "cicada.arithmetic.Field.inplace_add",
+            "cicada.arithmetic.Field.inplace_subtract",
+            "cicada.arithmetic.Field.multiply",
+            "cicada.arithmetic.Field.negative",
+            "cicada.arithmetic.Field.ones",
+            "cicada.arithmetic.Field.ones_like",
+            "cicada.arithmetic.Field.subtract",
+            "cicada.arithmetic.Field.sum",
+            "cicada.arithmetic.Field.uniform",
+            "cicada.arithmetic.Field.zeros",
+            "cicada.arithmetic.Field.zeros_like",
+            "cicada.encoding.Bits.decode",
+            "cicada.encoding.Bits.encode",
+            "cicada.encoding.Boolean.decode",
+            "cicada.encoding.Boolean.encode",
+            "cicada.encoding.FixedPoint.decode",
+            "cicada.encoding.FixedPoint.encode",
+            "cicada.encoding.Identity.decode",
+            "cicada.encoding.Identity.encode",
+            ])
+        test = True if fqname in whitelist else False
+
+        # Convert display function calls into comments.
+        if event.kind == "call" and display:
+            args = event.locals
+            o = self.repr(args["self"])
+            signature = ", ".join([f"{key}={self.repr(value)}" for key, value in args.items() if key != "self"])
+            _log_code(event, f"# {o}.{name}({signature})", first=True, last=True)
             return
 
-        if event.kind == "call":
-            # Make copies of the function arguments where appropriate,
-            # in case they're modified in place by the function.
+        # Make copies of test function call arguments, in-case they're modified in-place.
+        if event.kind == "call" and test:
             args = {}
             for key, value in event.locals.items():
                 if key in ["self"]:
@@ -179,7 +161,8 @@ class _CallLogger(hunter.actions.Action):
             self.stack.append(args)
             return
 
-        if event.kind == "return":
+        # Convert test function calls into consistency verification statements.
+        if event.kind == "return" and test:
             args = self.stack.pop()
             locals = event.locals
             result = event.arg
@@ -220,6 +203,8 @@ class _CallLogger(hunter.actions.Action):
 
 
     def repr(self, o):
+        if isinstance(o, AdditiveProtocolSuite):
+            return f"cicada.additive.AdditiveProtocolSuite()"
         if isinstance(o, numpy.ndarray):
             return f"numpy.array({o.tolist()}, dtype='{o.dtype}')"
         if isinstance(o, numpy.random.Generator):
