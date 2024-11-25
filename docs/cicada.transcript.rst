@@ -6,3 +6,4 @@ cicada.transcript module
     :inherited-members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: filter

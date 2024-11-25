@@ -42,6 +42,70 @@ class _CallLogger(hunter.actions.Action):
     def __init__(self):
         self.stack = []
 
+        self.display_whitelist = set([
+            "cicada.additive.AdditiveProtocolSuite.absolute",
+            "cicada.additive.AdditiveProtocolSuite.add",
+            "cicada.additive.AdditiveProtocolSuite.bit_compose",
+            "cicada.additive.AdditiveProtocolSuite.bit_decompose",
+            "cicada.additive.AdditiveProtocolSuite.divide",
+            "cicada.additive.AdditiveProtocolSuite.dot",
+            "cicada.additive.AdditiveProtocolSuite.equal",
+            "cicada.additive.AdditiveProtocolSuite.field_add",
+            "cicada.additive.AdditiveProtocolSuite.field_dot",
+            "cicada.additive.AdditiveProtocolSuite.field_multiply",
+            "cicada.additive.AdditiveProtocolSuite.field_power",
+            "cicada.additive.AdditiveProtocolSuite.field_subtract",
+            "cicada.additive.AdditiveProtocolSuite.field_uniform",
+            "cicada.additive.AdditiveProtocolSuite.floor",
+            "cicada.additive.AdditiveProtocolSuite.less",
+            "cicada.additive.AdditiveProtocolSuite.less_zero",
+            "cicada.additive.AdditiveProtocolSuite.logical_and",
+            "cicada.additive.AdditiveProtocolSuite.logical_not",
+            "cicada.additive.AdditiveProtocolSuite.logical_or",
+            "cicada.additive.AdditiveProtocolSuite.logical_xor",
+            "cicada.additive.AdditiveProtocolSuite.maximum",
+            "cicada.additive.AdditiveProtocolSuite.minimum",
+            "cicada.additive.AdditiveProtocolSuite.multiplicative_inverse",
+            "cicada.additive.AdditiveProtocolSuite.multiply",
+            "cicada.additive.AdditiveProtocolSuite.negative",
+            "cicada.additive.AdditiveProtocolSuite.power",
+            "cicada.additive.AdditiveProtocolSuite.random_bitwise_secret",
+            "cicada.additive.AdditiveProtocolSuite.relu",
+            "cicada.additive.AdditiveProtocolSuite.reshare",
+            "cicada.additive.AdditiveProtocolSuite.reveal",
+            "cicada.additive.AdditiveProtocolSuite.right_shift",
+            "cicada.additive.AdditiveProtocolSuite.share",
+            "cicada.additive.AdditiveProtocolSuite.subtract",
+            "cicada.additive.AdditiveProtocolSuite.sum",
+            "cicada.additive.AdditiveProtocolSuite.zigmoid",
+            ])
+
+        self.test_whitelist = set([
+            "cicada.arithmetic.Field.__call__",
+            "cicada.arithmetic.Field.add",
+            "cicada.arithmetic.Field.full_like",
+            "cicada.arithmetic.Field.inplace_add",
+            "cicada.arithmetic.Field.inplace_subtract",
+            "cicada.arithmetic.Field.multiply",
+            "cicada.arithmetic.Field.negative",
+            "cicada.arithmetic.Field.ones",
+            "cicada.arithmetic.Field.ones_like",
+            "cicada.arithmetic.Field.subtract",
+            "cicada.arithmetic.Field.sum",
+            "cicada.arithmetic.Field.uniform",
+            "cicada.arithmetic.Field.zeros",
+            "cicada.arithmetic.Field.zeros_like",
+            "cicada.encoding.Bits.decode",
+            "cicada.encoding.Bits.encode",
+            "cicada.encoding.Boolean.decode",
+            "cicada.encoding.Boolean.encode",
+            "cicada.encoding.FixedPoint.decode",
+            "cicada.encoding.FixedPoint.encode",
+            "cicada.encoding.Identity.decode",
+            "cicada.encoding.Identity.encode",
+            ])
+
+
     def __call__(self, event):
         if not hasattr(event.function_object, "__qualname__"):
             return
@@ -106,40 +170,10 @@ class _CallLogger(hunter.actions.Action):
             return
 
         # Identify functions that should be displayed in the transcript.
-        whitelist = set([
-            "cicada.additive.AdditiveProtocolSuite.add",
-            "cicada.additive.AdditiveProtocolSuite.field_add",
-            "cicada.additive.AdditiveProtocolSuite.reveal",
-            "cicada.additive.AdditiveProtocolSuite.share",
-            ])
-        display = True if fqname in whitelist else False
+        display = True if fqname in self.display_whitelist else False
 
         # Identify functions that should generate consistency verification code in the transcript.
-        whitelist = set([
-            "cicada.arithmetic.Field.__call__",
-            "cicada.arithmetic.Field.add",
-            "cicada.arithmetic.Field.full_like",
-            "cicada.arithmetic.Field.inplace_add",
-            "cicada.arithmetic.Field.inplace_subtract",
-            "cicada.arithmetic.Field.multiply",
-            "cicada.arithmetic.Field.negative",
-            "cicada.arithmetic.Field.ones",
-            "cicada.arithmetic.Field.ones_like",
-            "cicada.arithmetic.Field.subtract",
-            "cicada.arithmetic.Field.sum",
-            "cicada.arithmetic.Field.uniform",
-            "cicada.arithmetic.Field.zeros",
-            "cicada.arithmetic.Field.zeros_like",
-            "cicada.encoding.Bits.decode",
-            "cicada.encoding.Bits.encode",
-            "cicada.encoding.Boolean.decode",
-            "cicada.encoding.Boolean.encode",
-            "cicada.encoding.FixedPoint.decode",
-            "cicada.encoding.FixedPoint.encode",
-            "cicada.encoding.Identity.decode",
-            "cicada.encoding.Identity.encode",
-            ])
-        test = True if fqname in whitelist else False
+        test = True if fqname in self.test_whitelist else False
 
         # Convert display function calls into comments.
         if event.kind == "call" and display:
@@ -215,6 +249,7 @@ class _CallLogger(hunter.actions.Action):
 
 
 class Code(types.SimpleNamespace):
+    """Stores code-related metadata for use in :class:`Formatter`."""
     pass
 
 
@@ -250,11 +285,11 @@ class Formatter(object):
     Parameters
     ----------
     fmt: :class:`str`, optional
-        Format string for general purpose events.
+        Format string for context records.
     netfmt: :class:`str`, optional
-        Format string for sent- and received-message events.
+        Format string for sent- and received-message records.
     codefmt: :class:`str`, optional
-        Format string for code-generation events.
+        Format string for consistency verification records.
     """
     def __init__(self, fmt, netfmt, codefmt, codepre, codepost):
         self._fmt = fmt
@@ -287,6 +322,7 @@ class Formatter(object):
 
 
 class HideCode(object):
+    """Log filter that hides code records."""
     def filter(self, record):
         if hasattr(record, "code"):
             return False
@@ -294,20 +330,15 @@ class HideCode(object):
 
 
 class HideContextMessages(object):
+    """Log filter that hides context message records."""
     def filter(self, record):
         if not hasattr(record, "code") and not hasattr(record, "net"):
             return False
         return True
 
 
-class HideNetworkMessages(object):
-    def filter(self, record):
-        if hasattr(record, "net"):
-            return False
-        return True
-
-
 class HideReceivedMessages(object):
+    """Log filter that hides network message records for received messages."""
     def filter(self, record):
         if hasattr(record, "net") and record.net.verb == "received":
             return False
@@ -315,6 +346,7 @@ class HideReceivedMessages(object):
 
 
 class HideSentMessages(object):
+    """Log filter that hides network message records for sent messages."""
     def filter(self, record):
         if hasattr(record, "net") and record.net.verb == "sent":
             return False
@@ -322,6 +354,7 @@ class HideSentMessages(object):
 
 
 class Message(types.SimpleNamespace):
+    """Stores message-related metadata for use in :class:`Formatter`."""
     pass
 
 
@@ -350,6 +383,24 @@ def assert_equal(lhs, rhs):
 
 
 def code_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None, codepost=None, sent=False, received=False):
+    """Create a :class:`logging.Handler`, configured to display consistency verification code records.
+
+    Parameters
+    ----------
+    handler: :class:`logging.Handler`, optional
+        The handler to be configured. Defaults to a new instance of
+        :class:`logging.StreamHandler` if :any:`None`.
+    fmt: :class:`str`, optional
+        Format string for context records.
+    netfmt: :class:`str`, optional
+        Format string for sent- and received-message records.
+    codefmt: :class:`str`, optional
+        Format string for consistency verification records.
+    codepre: :class:`str`, optional
+        Format string displayed before each group of consistency verification code records.
+    codpost: :class:`str`, optional
+        Format string displayed after each group of consistency verification code records.
+    """
     if handler is None:
         handler = logging.StreamHandler()
 
@@ -372,6 +423,9 @@ def code_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None
 
 
 def net_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None, codepost=None, sent=True, received=True, code=False):
+    """Create a log handler, configured to display network message records.
+
+    """
     if handler is None:
         handler = logging.StreamHandler()
 
@@ -394,6 +448,15 @@ def net_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None,
 
 
 def set_handler(logger, handler):
+    """Set the handler for a logger, removing any other handlers.
+
+    Parameters
+    ----------
+    logger: :class:`logging.Logger`, required
+        The logger to be modified.
+    handler: :class:`logging.Handler`, required
+        The handler to be assigned to `logger`.
+    """
     logger.level = logging.INFO
     while logger.handlers:
         logger.removeHandler(logger.handlers[0])
