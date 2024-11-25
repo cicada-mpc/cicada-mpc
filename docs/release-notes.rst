@@ -7,6 +7,16 @@
 Release Notes
 =============
 
+Cicada 2.0.0 - November 25th, 2024
+----------------------------------
+
+* Added support for Numpy 2.0.
+* Fully documented PRZSProtocol and cicada.arithmetic.Field, and added a glossary to the documentation.
+* Significant changes and simplification of the cicada.transcript API.
+* Added support for generating consistency verification code transcripts.
+* cicada.arithmetic.Field.uniform() could generate values outside the field in some cases.
+* Renamed cicada.logging to cicada.logger to avoid shadowing the builtin logging module.
+
 Cicada 1.2.0 - November 28th, 2023
 ----------------------------------
 

@@ -16,6 +16,6 @@
 
 """Functionality for fault-tolerant secure multiparty computation."""
 
-__version__ = "1.3.0-dev"
+__version__ = "2.0.0"
 
 
