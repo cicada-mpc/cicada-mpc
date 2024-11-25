@@ -37,7 +37,7 @@ import numpy
 from .active import ActiveProtocolSuite
 from .additive import AdditiveProtocolSuite
 from .communicator.interface import tagname
-from .shamir import ShamirProtocolSuite
+from .shamir import ShamirProtocolSuite, ShamirBasicProtocolSuite
 
 
 class _CallLogger(hunter.actions.Action):
@@ -116,6 +116,18 @@ class _CallLogger(hunter.actions.Action):
             "cicada.additive.AdditiveProtocolSuite.subtract",
             "cicada.additive.AdditiveProtocolSuite.sum",
             "cicada.additive.AdditiveProtocolSuite.zigmoid",
+
+            "cicada.shamir.ShamirBasicProtocolSuite.add",
+            "cicada.shamir.ShamirBasicProtocolSuite.bit_compose",
+            "cicada.shamir.ShamirBasicProtocolSuite.field_add",
+            "cicada.shamir.ShamirBasicProtocolSuite.field_subtract",
+            "cicada.shamir.ShamirBasicProtocolSuite.field_uniform",
+            "cicada.shamir.ShamirBasicProtocolSuite.negative",
+            "cicada.shamir.ShamirBasicProtocolSuite.reshare",
+            "cicada.shamir.ShamirBasicProtocolSuite.reveal",
+            "cicada.shamir.ShamirBasicProtocolSuite.share",
+            "cicada.shamir.ShamirBasicProtocolSuite.subtract",
+            "cicada.shamir.ShamirBasicProtocolSuite.sum",
 
             "cicada.shamir.ShamirProtocolSuite.absolute",
             "cicada.shamir.ShamirProtocolSuite.add",
@@ -315,6 +327,8 @@ class _CallLogger(hunter.actions.Action):
             return f"cicada.active.ActiveProtcolSuite()"
         if isinstance(o, AdditiveProtocolSuite):
             return f"cicada.additive.AdditiveProtocolSuite()"
+        if isinstance(o, ShamirBasicProtocolSuite):
+            return f"cicada.additive.ShamirBasicProtocolSuite()"
         if isinstance(o, ShamirProtocolSuite):
             return f"cicada.additive.ShamirProtocolSuite()"
         if isinstance(o, numpy.ndarray):
