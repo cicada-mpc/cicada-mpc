@@ -490,8 +490,12 @@ def code_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None
         Format string for consistency verification records.
     codepre: :class:`str`, optional
         Format string displayed before each group of consistency verification code records.
-    codpost: :class:`str`, optional
+    codepost: :class:`str`, optional
         Format string displayed after each group of consistency verification code records.
+    sent: :any:`bool`, optional
+        Enable displaying sent-message records if :any:`True`.
+    received: :any:`bool`, optional
+        Enable displaying received-message records if :any:`True`.
     """
     if handler is None:
         handler = logging.StreamHandler()
@@ -515,8 +519,29 @@ def code_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None
 
 
 def net_handler(handler=None, fmt=None, netfmt=None, codefmt=None, codepre=None, codepost=None, sent=True, received=True, code=False):
-    """Create a log handler, configured to display network message records.
+    """Create a :class:`logging.Handler`, configured to display network message records.
 
+    Parameters
+    ----------
+    handler: :class:`logging.Handler`, optional
+        The handler to be configured. Defaults to a new instance of
+        :class:`logging.StreamHandler` if :any:`None`.
+    fmt: :class:`str`, optional
+        Format string for context records.
+    netfmt: :class:`str`, optional
+        Format string for sent- and received-message records.
+    codefmt: :class:`str`, optional
+        Format string for consistency verification records.
+    codepre: :class:`str`, optional
+        Format string displayed before each group of consistency verification code records.
+    codepost: :class:`str`, optional
+        Format string displayed after each group of consistency verification code records.
+    sent: :any:`bool`, optional
+        Disable displaying sent-message records if :any:`False`.
+    received: :any:`bool`, optional
+        Disable displaying received-message records if :any:`False`.
+    code: :any:`bool`, optional
+        Display consistency verification code records if :any:`True`.
     """
     if handler is None:
         handler = logging.StreamHandler()
@@ -558,8 +583,9 @@ def set_handler(logger, handler):
 def log(message=None):
     """Log general-purpose events into the transcription.
 
-    Application code should use this to provide context for the more detailed
-    network and consistency verification transcript contents.
+    Application code should use this to incorporate high-level application
+    context information alongside the lower-level network and consistency
+    verification transcript contents.
     """
     logger.info(message)
 
