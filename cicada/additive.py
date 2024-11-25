@@ -17,7 +17,6 @@
 """Functionality for creating, manipulating, and revealing additive-shared secrets."""
 
 import inspect
-import logging
 import math
 
 import numpy

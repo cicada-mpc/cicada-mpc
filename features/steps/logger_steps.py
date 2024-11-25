@@ -20,7 +20,7 @@ import numbers
 from behave import *
 
 from cicada.communicator import SocketCommunicator
-import cicada.logging
+import cicada.logger
 
 import test
 
@@ -37,7 +37,7 @@ class LogWatcher(logging.Handler):
 @when(u'the players create a Cicada logger, they can access the underlying Python logger')
 def step_impl(context):
     def operation(communicator):
-        log = cicada.logging.Logger(logging.getLogger(), communicator)
+        log = cicada.logger.Logger(logging.getLogger(), communicator)
         test.assert_equal(log.logger, logging.getLogger())
 
     SocketCommunicator.run(world_size=context.players, fn=operation)
@@ -46,7 +46,7 @@ def step_impl(context):
 @when(u'the players create a Cicada logger, they can change the sync attribute')
 def step_impl(context):
     def operation(communicator):
-        log = cicada.logging.Logger(logging.getLogger(), communicator)
+        log = cicada.logger.Logger(logging.getLogger(), communicator)
         test.assert_equal(log.sync, True)
         log.sync = False
         test.assert_equal(log.sync, False)
@@ -57,7 +57,7 @@ def step_impl(context):
 @when(u'the players create a Cicada logger, they can temporarily change the sync attribute')
 def step_impl(context):
     def operation(communicator):
-        log = cicada.logging.Logger(logging.getLogger(), communicator)
+        log = cicada.logger.Logger(logging.getLogger(), communicator)
         test.assert_equal(log.sync, True)
         with log.override(sync=False):
             test.assert_equal(log.sync, False)
@@ -81,7 +81,7 @@ def step_impl(context, src, message, level):
         oldhandlers = logger.handlers[:]
         logger.handlers = [logwatcher]
 
-        log = cicada.logging.Logger(logger, communicator)
+        log = cicada.logger.Logger(logger, communicator)
 
         if level == logging.DEBUG:
             log.debug(message, src=src)

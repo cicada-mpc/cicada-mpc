@@ -16,7 +16,6 @@
 
 """Functionality for creating, manipulating, and revealing shamir-shared secrets."""
 
-import logging
 from math import ceil
 from random import randrange
 

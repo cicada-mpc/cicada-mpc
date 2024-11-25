@@ -24,7 +24,7 @@ API Reference
     cicada.communicator.socket.connect.rst
     cicada.encoding.rst
     cicada.interactive.rst
-    cicada.logging.rst
+    cicada.logger.rst
     cicada.przs.rst
     cicada.shamir.rst
     cicada.transcript.rst

@@ -45,7 +45,7 @@ def main(communicator):
     for i in items:
         for k in keys:
             bf[hash((k,i)) %B]=1
-    
+
     log.info(f'time to construct in the clear: {time()-t0}s', src=0)
     #log.info(bf, src=0)
 
@@ -58,7 +58,7 @@ def main(communicator):
                 acc_list[i] += 1
     log.info(f'time to make 100 centralized/clear queries: {time()-t0}s', src=0)
     log.info(f'acc for items in bf: {acc_list}', src=0)
-            
+
     acc = 0
     for k in keys:
         if bf[hash((k,107))%B]==1:
@@ -68,7 +68,7 @@ def main(communicator):
 
     one_share = protocol.share(src=0, secret=numpy.array(1, dtype=object), shape=())
     shared_bf = [protocol.share(src=0, secret=numpy.array(0, dtype=object), shape=()) for x in range(B)]
-    #creating shared bloom filter 
+    #creating shared bloom filter
     t0=time()
     for i in items:
         for k in keys:

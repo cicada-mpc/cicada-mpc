@@ -33,7 +33,7 @@ import cicada
 from cicada.additive import AdditiveProtocolSuite
 from cicada.communicator import SocketCommunicator
 from cicada.communicator.socket.connect import geturl
-from cicada.logging import Logger
+from cicada.logger import Logger
 
 
 def get_environment(world_size, rank, address, root_address, identity, trusted):

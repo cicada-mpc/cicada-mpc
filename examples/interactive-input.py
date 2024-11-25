@@ -19,7 +19,7 @@ import logging
 from cicada.additive import AdditiveProtocolSuite
 from cicada.communicator import SocketCommunicator
 from cicada.interactive import secret_input
-from cicada.logging import Logger
+from cicada.logger import Logger
 
 logging.basicConfig(level=logging.INFO)
 

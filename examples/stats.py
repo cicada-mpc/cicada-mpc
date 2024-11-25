@@ -19,7 +19,7 @@ import pprint
 
 from cicada.additive import AdditiveProtocolSuite
 from cicada.communicator import SocketCommunicator
-from cicada.logging import Logger
+from cicada.logger import Logger
 
 logging.basicConfig(level=logging.INFO)
 

@@ -24,7 +24,7 @@ import urllib
 
 import numpy
 
-from cicada import Logger
+from cicada.logger import Logger
 
 
 class Client(object):

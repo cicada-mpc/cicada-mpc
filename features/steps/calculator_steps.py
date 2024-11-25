@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import json
-import logging
 import socket
 import urllib.parse
 
@@ -26,8 +25,6 @@ from cicada.communicator import SocketCommunicator
 import cicada.encoding
 
 import test
-
-#logging.basicConfig(level=logging.INFO)
 
 
 def _print_stacks(context, player=None):

@@ -16,8 +16,6 @@
 
 """Functionality for creating, manipulating, and revealing additive-shared secrets."""
 
-import logging
-
 import numpy
 
 from cicada.additive import AdditiveArrayShare, AdditiveProtocolSuite
