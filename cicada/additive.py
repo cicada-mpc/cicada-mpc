@@ -784,7 +784,7 @@ class AdditiveProtocolSuite(object):
 
 
     def less(self, lhs, rhs):
-        """Privacy-preserving elementwise less-than comparison.
+        r"""Privacy-preserving elementwise less-than comparison.
 
         The result is the secret shared elementwise comparison :math:`lhs \lt rhs`.
         Note that the results will contain the field values :math:`0` or
@@ -827,7 +827,7 @@ class AdditiveProtocolSuite(object):
 
 
     def less_zero(self, operand):
-        """Privacy-preserving elementwise less-than-zero comparison.
+        r"""Privacy-preserving elementwise less-than-zero comparison.
 
         The result is the secret shared elementwise comparison :math:`operand \lt 0`.
         Note that the results will contain the field values :math:`0` or
