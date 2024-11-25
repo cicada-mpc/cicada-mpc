@@ -34,8 +34,10 @@ import types
 import hunter
 import numpy
 
+from .active import ActiveProtocolSuite
 from .additive import AdditiveProtocolSuite
 from .communicator.interface import tagname
+from .shamir import ShamirProtocolSuite
 
 
 class _CallLogger(hunter.actions.Action):
@@ -43,6 +45,42 @@ class _CallLogger(hunter.actions.Action):
         self.stack = []
 
         self.display_whitelist = set([
+            "cicada.active.ActiveProtocolSuite.absolute",
+            "cicada.active.ActiveProtocolSuite.add",
+            "cicada.active.ActiveProtocolSuite.bit_compose",
+            "cicada.active.ActiveProtocolSuite.bit_decompose",
+            "cicada.active.ActiveProtocolSuite.divide",
+            "cicada.active.ActiveProtocolSuite.dot",
+            "cicada.active.ActiveProtocolSuite.equal",
+            "cicada.active.ActiveProtocolSuite.field_add",
+            "cicada.active.ActiveProtocolSuite.field_dot",
+            "cicada.active.ActiveProtocolSuite.field_multiply",
+            "cicada.active.ActiveProtocolSuite.field_power",
+            "cicada.active.ActiveProtocolSuite.field_subtract",
+            "cicada.active.ActiveProtocolSuite.field_uniform",
+            "cicada.active.ActiveProtocolSuite.floor",
+            "cicada.active.ActiveProtocolSuite.less",
+            "cicada.active.ActiveProtocolSuite.less_zero",
+            "cicada.active.ActiveProtocolSuite.logical_and",
+            "cicada.active.ActiveProtocolSuite.logical_not",
+            "cicada.active.ActiveProtocolSuite.logical_or",
+            "cicada.active.ActiveProtocolSuite.logical_xor",
+            "cicada.active.ActiveProtocolSuite.maximum",
+            "cicada.active.ActiveProtocolSuite.minimum",
+            "cicada.active.ActiveProtocolSuite.multiplicative_inverse",
+            "cicada.active.ActiveProtocolSuite.multiply",
+            "cicada.active.ActiveProtocolSuite.negative",
+            "cicada.active.ActiveProtocolSuite.power",
+            "cicada.active.ActiveProtocolSuite.random_bitwise_secret",
+            "cicada.active.ActiveProtocolSuite.relu",
+            "cicada.active.ActiveProtocolSuite.reshare",
+            "cicada.active.ActiveProtocolSuite.reveal",
+            "cicada.active.ActiveProtocolSuite.right_shift",
+            "cicada.active.ActiveProtocolSuite.share",
+            "cicada.active.ActiveProtocolSuite.subtract",
+            "cicada.active.ActiveProtocolSuite.sum",
+            "cicada.active.ActiveProtocolSuite.zigmoid",
+
             "cicada.additive.AdditiveProtocolSuite.absolute",
             "cicada.additive.AdditiveProtocolSuite.add",
             "cicada.additive.AdditiveProtocolSuite.bit_compose",
@@ -78,6 +116,42 @@ class _CallLogger(hunter.actions.Action):
             "cicada.additive.AdditiveProtocolSuite.subtract",
             "cicada.additive.AdditiveProtocolSuite.sum",
             "cicada.additive.AdditiveProtocolSuite.zigmoid",
+
+            "cicada.shamir.ShamirProtocolSuite.absolute",
+            "cicada.shamir.ShamirProtocolSuite.add",
+            "cicada.shamir.ShamirProtocolSuite.bit_compose",
+            "cicada.shamir.ShamirProtocolSuite.bit_decompose",
+            "cicada.shamir.ShamirProtocolSuite.divide",
+            "cicada.shamir.ShamirProtocolSuite.dot",
+            "cicada.shamir.ShamirProtocolSuite.equal",
+            "cicada.shamir.ShamirProtocolSuite.field_add",
+            "cicada.shamir.ShamirProtocolSuite.field_dot",
+            "cicada.shamir.ShamirProtocolSuite.field_multiply",
+            "cicada.shamir.ShamirProtocolSuite.field_power",
+            "cicada.shamir.ShamirProtocolSuite.field_subtract",
+            "cicada.shamir.ShamirProtocolSuite.field_uniform",
+            "cicada.shamir.ShamirProtocolSuite.floor",
+            "cicada.shamir.ShamirProtocolSuite.less",
+            "cicada.shamir.ShamirProtocolSuite.less_zero",
+            "cicada.shamir.ShamirProtocolSuite.logical_and",
+            "cicada.shamir.ShamirProtocolSuite.logical_not",
+            "cicada.shamir.ShamirProtocolSuite.logical_or",
+            "cicada.shamir.ShamirProtocolSuite.logical_xor",
+            "cicada.shamir.ShamirProtocolSuite.maximum",
+            "cicada.shamir.ShamirProtocolSuite.minimum",
+            "cicada.shamir.ShamirProtocolSuite.multiplicative_inverse",
+            "cicada.shamir.ShamirProtocolSuite.multiply",
+            "cicada.shamir.ShamirProtocolSuite.negative",
+            "cicada.shamir.ShamirProtocolSuite.power",
+            "cicada.shamir.ShamirProtocolSuite.random_bitwise_secret",
+            "cicada.shamir.ShamirProtocolSuite.relu",
+            "cicada.shamir.ShamirProtocolSuite.reshare",
+            "cicada.shamir.ShamirProtocolSuite.reveal",
+            "cicada.shamir.ShamirProtocolSuite.right_shift",
+            "cicada.shamir.ShamirProtocolSuite.share",
+            "cicada.shamir.ShamirProtocolSuite.subtract",
+            "cicada.shamir.ShamirProtocolSuite.sum",
+            "cicada.shamir.ShamirProtocolSuite.zigmoid",
             ])
 
         self.test_whitelist = set([
@@ -237,8 +311,12 @@ class _CallLogger(hunter.actions.Action):
 
 
     def repr(self, o):
+        if isinstance(o, ActiveProtocolSuite):
+            return f"cicada.active.ActiveProtcolSuite()"
         if isinstance(o, AdditiveProtocolSuite):
             return f"cicada.additive.AdditiveProtocolSuite()"
+        if isinstance(o, ShamirProtocolSuite):
+            return f"cicada.additive.ShamirProtocolSuite()"
         if isinstance(o, numpy.ndarray):
             return f"numpy.array({o.tolist()}, dtype='{o.dtype}')"
         if isinstance(o, numpy.random.Generator):
