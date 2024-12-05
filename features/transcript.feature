@@ -1,30 +1,17 @@
 Feature: Transcripts
 
-    Scenario: Network Transcripts
+    Scenario: Broadcast sent message transcripts
         Given 2 players
-        When received message transcription is enabled and player 0 broadcasts "foo"
+        And a network message handler capturing sent messages
+        When transcription is enabled and player 0 broadcasts "foo"
+        Then the transcript for player 0 should match "Player 0: --> 0 BROADCAST foo\nPlayer 0: --> 1 BROADCAST foo\n"
+        And the transcript for player 1 should match ""
+
+    Scenario: Broadcast received message transcripts
+        Given 2 players
+        And a network message handler capturing received messages
+        When transcription is enabled and player 0 broadcasts "foo"
         Then the transcript for player 0 should match "Player 0: <-- 0 BROADCAST foo\n"
         And the transcript for player 1 should match "Player 1: <-- 0 BROADCAST foo\n"
 
 
-#    Scenario: Change Sync Permanently
-#        Given 3 players
-#        When the players create a Cicada logger, they can change the sync attribute
-#
-#
-#    Scenario: Change Sync Temporarily
-#        Given 3 players
-#        When the players create a Cicada logger, they can temporarily change the sync attribute
-#
-#
-#    Scenario Outline: Message Logging
-#        Given <players> players
-#        When the players log <message> with level <level> and src <src>, the message is logged correctly
-#
-#        Examples:
-#        | players | message | level            | src       |
-#        | 2       | "foo"   | logging.DEBUG    | None      |
-#        | 3       | "bar"   | logging.INFO     | 0         |
-#        | 4       | "blah"  | logging.WARNING  | [1]       |
-#        | 5       | "bleh"  | logging.ERROR    | [2, 3]    |
-#        | 6       | "bleh"  | logging.CRITICAL | None      |
