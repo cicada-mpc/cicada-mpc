@@ -34,10 +34,10 @@ import types
 import hunter
 import numpy
 
-from .active import ActiveProtocolSuite
+from .active import ActiveArrayShare, ActiveProtocolSuite
 from .additive import AdditiveArrayShare, AdditiveProtocolSuite
 from .communicator.interface import tagname
-from .shamir import ShamirProtocolSuite, ShamirBasicProtocolSuite
+from .shamir import ShamirArrayShare, ShamirProtocolSuite, ShamirBasicProtocolSuite
 
 
 class _CallLogger(hunter.actions.Action):
@@ -45,6 +45,8 @@ class _CallLogger(hunter.actions.Action):
         self.stack = []
 
         self.display_whitelist = set([
+            "cicada.active.ActiveArrayShare.__repr__",
+
             "cicada.active.ActiveProtocolSuite.absolute",
             "cicada.active.ActiveProtocolSuite.add",
             "cicada.active.ActiveProtocolSuite.bit_compose",
@@ -81,6 +83,8 @@ class _CallLogger(hunter.actions.Action):
             "cicada.active.ActiveProtocolSuite.sum",
             "cicada.active.ActiveProtocolSuite.zigmoid",
 
+            "cicada.additive.AdditiveArrayShare.__repr__",
+
             "cicada.additive.AdditiveProtocolSuite.absolute",
             "cicada.additive.AdditiveProtocolSuite.add",
             "cicada.additive.AdditiveProtocolSuite.bit_compose",
@@ -116,6 +120,8 @@ class _CallLogger(hunter.actions.Action):
             "cicada.additive.AdditiveProtocolSuite.subtract",
             "cicada.additive.AdditiveProtocolSuite.sum",
             "cicada.additive.AdditiveProtocolSuite.zigmoid",
+
+            "cicada.shamir.ShamirArrayShare.__repr__",
 
             "cicada.shamir.ShamirBasicProtocolSuite.add",
             "cicada.shamir.ShamirBasicProtocolSuite.bit_compose",
@@ -323,16 +329,20 @@ class _CallLogger(hunter.actions.Action):
 
 
     def repr(self, o):
+        if isinstance(o, ActiveArrayShare):
+            return f"cicada.active.ActiveArrayShare(storage=({self.repr(o.storage[0])}, {self.repr(o.storage[1])}))"
         if isinstance(o, ActiveProtocolSuite):
             return f"cicada.active.ActiveProtcolSuite()"
         if isinstance(o, AdditiveArrayShare):
             return f"cicada.additive.AdditiveArrayShare(storage={self.repr(o.storage)})"
         if isinstance(o, AdditiveProtocolSuite):
             return f"cicada.additive.AdditiveProtocolSuite()"
+        if isinstance(o, ShamirArrayShare):
+            return f"cicada.shamir.ShamirArrayShare(storage={self.repr(o.storage)})"
         if isinstance(o, ShamirBasicProtocolSuite):
-            return f"cicada.additive.ShamirBasicProtocolSuite()"
+            return f"cicada.shamir.ShamirBasicProtocolSuite()"
         if isinstance(o, ShamirProtocolSuite):
-            return f"cicada.additive.ShamirProtocolSuite()"
+            return f"cicada.shamir.ShamirProtocolSuite()"
         if isinstance(o, numpy.ndarray):
             return f"numpy.array({o.tolist()}, dtype='{o.dtype}')"
         if isinstance(o, numpy.random.Generator):

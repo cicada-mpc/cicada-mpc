@@ -20,7 +20,9 @@ import logging
 from behave import *
 
 from cicada.communicator import SocketCommunicator
+import cicada.active
 import cicada.additive
+import cicada.shamir
 import cicada.transcript
 import numpy
 
@@ -91,7 +93,25 @@ def step_impl(context, src, shape):
     with cicada.transcript.record():
         context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
 
-@when(u'transcription is enabled while adding zero to an additive share with shape {shape}')
+
+@when(u'transcription is enabled while formatting an active share with shape {shape}')
+def step_impl(context, shape):
+    shape = eval(shape)
+
+    def operation(communicator, handler):
+        cicada.transcript.set_handler(logging.getLogger(), handler)
+        protocol = cicada.active.ActiveProtocolSuite(communicator, threshold=2, seed=1234)
+        value = numpy.zeros(shape)
+        value = numpy.arange(value.size).reshape(shape)
+        share = protocol.share(src=0, secret=value, shape=shape)
+        with cicada.transcript.record():
+            rep = repr(share)
+        return handler.stream.getvalue()
+
+    context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
+
+
+@when(u'transcription is enabled while formatting an additive share with shape {shape}')
 def step_impl(context, shape):
     shape = eval(shape)
 
@@ -102,7 +122,24 @@ def step_impl(context, shape):
         value = numpy.arange(value.size).reshape(shape)
         share = protocol.share(src=0, secret=value, shape=shape)
         with cicada.transcript.record():
-            share = protocol.add(share, numpy.zeros(shape))
+            rep = repr(share)
+        return handler.stream.getvalue()
+
+    context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
+
+
+@when(u'transcription is enabled while formatting a shamir share with shape {shape}')
+def step_impl(context, shape):
+    shape = eval(shape)
+
+    def operation(communicator, handler):
+        cicada.transcript.set_handler(logging.getLogger(), handler)
+        protocol = cicada.shamir.ShamirProtocolSuite(communicator, threshold=2, seed=1234)
+        value = numpy.zeros(shape)
+        value = numpy.arange(value.size).reshape(shape)
+        share = protocol.share(src=0, secret=value, shape=shape)
+        with cicada.transcript.record():
+            rep = repr(share)
         return handler.stream.getvalue()
 
     context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
