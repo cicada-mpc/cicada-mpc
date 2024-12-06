@@ -32,6 +32,11 @@ def step_impl(context, players):
 	context.players = eval(players)
 
 
+@given(u'1 player')
+def step_impl(context):
+	context.players = 1
+
+
 @when(u'the players enter a barrier at different times')
 def step_impl(context):
     def operation(communicator):

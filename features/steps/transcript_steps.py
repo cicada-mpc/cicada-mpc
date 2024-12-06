@@ -25,6 +25,12 @@ import cicada.transcript
 import test
 
 
+@given(u'a default code message handler')
+def step_impl(context):
+    buffer = io.StringIO()
+    context.handler = cicada.transcript.code_handler(logging.StreamHandler(buffer))
+
+
 @given(u'a network message handler capturing sent messages')
 def step_impl(context):
     buffer = io.StringIO()
@@ -51,12 +57,27 @@ def step_impl(context, src, value):
         context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
 
 
+@when(u'transcription is enabled and player {src} generates an order {order} field array of {shape} ones')
+def step_impl(context, src, order, shape):
+    src = eval(src)
+    order = eval(order)
+    shape = eval(shape)
+
+    def operation(communicator, handler):
+        cicada.transcript.set_handler(logging.getLogger(), handler)
+        array = cicada.arithmetic.Field(order=order).ones(shape)
+        return handler.stream.getvalue()
+
+    with cicada.transcript.record():
+        context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
+
+
 @then(u'the transcript for player {rank} should match {result}')
 def step_impl(context, rank, result):
     rank = eval(rank)
     result = eval(result)
 
     transcript = context.transcripts[rank]
-    test.assert_equal(transcript, result)
+    test.assert_equal(transcript.strip(), result)
 
 
