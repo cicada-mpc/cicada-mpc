@@ -35,7 +35,7 @@ import hunter
 import numpy
 
 from .active import ActiveProtocolSuite
-from .additive import AdditiveProtocolSuite
+from .additive import AdditiveArrayShare, AdditiveProtocolSuite
 from .communicator.interface import tagname
 from .shamir import ShamirProtocolSuite, ShamirBasicProtocolSuite
 
@@ -325,6 +325,8 @@ class _CallLogger(hunter.actions.Action):
     def repr(self, o):
         if isinstance(o, ActiveProtocolSuite):
             return f"cicada.active.ActiveProtcolSuite()"
+        if isinstance(o, AdditiveArrayShare):
+            return f"cicada.additive.AdditiveArrayShare(storage={self.repr(o.storage)})"
         if isinstance(o, AdditiveProtocolSuite):
             return f"cicada.additive.AdditiveProtocolSuite()"
         if isinstance(o, ShamirBasicProtocolSuite):

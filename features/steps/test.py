@@ -26,7 +26,9 @@ def assert_dict_equal(first, second, msg=None):
     return unittest.TestCase().assertDictEqual(first, second, msg)
 
 def assert_equal(first, second, msg=None):
-    return unittest.TestCase().assertEqual(first, second, msg)
+    case = unittest.TestCase()
+    case.maxDiff = None
+    return case.assertEqual(first, second, msg)
 
 def assert_false(expr, msg=None):
     return unittest.TestCase().assertFalse(expr, msg)

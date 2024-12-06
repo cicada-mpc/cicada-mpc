@@ -20,7 +20,9 @@ import logging
 from behave import *
 
 from cicada.communicator import SocketCommunicator
+import cicada.additive
 import cicada.transcript
+import numpy
 
 import test
 
@@ -65,11 +67,45 @@ def step_impl(context, src, order, shape):
 
     def operation(communicator, handler):
         cicada.transcript.set_handler(logging.getLogger(), handler)
-        array = cicada.arithmetic.Field(order=order).ones(shape)
+        if communicator.rank == src:
+            array = cicada.arithmetic.Field(order=order).ones(shape)
         return handler.stream.getvalue()
 
     with cicada.transcript.record():
         context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
+
+
+@when(u'transcription is enabled and player {src} generates a field array from a numpy array with shape {shape}')
+def step_impl(context, src, shape):
+    src = eval(src)
+    shape = eval(shape)
+
+    def operation(communicator, handler):
+        cicada.transcript.set_handler(logging.getLogger(), handler)
+        if communicator.rank == src:
+            array = numpy.zeros(shape)
+            array = numpy.arange(array.size).reshape(shape)
+            array = cicada.arithmetic.Field()(array)
+        return handler.stream.getvalue()
+
+    with cicada.transcript.record():
+        context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
+
+@when(u'transcription is enabled while adding zero to an additive share with shape {shape}')
+def step_impl(context, shape):
+    shape = eval(shape)
+
+    def operation(communicator, handler):
+        cicada.transcript.set_handler(logging.getLogger(), handler)
+        protocol = cicada.additive.AdditiveProtocolSuite(communicator)
+        value = numpy.zeros(shape)
+        value = numpy.arange(value.size).reshape(shape)
+        share = protocol.share(src=0, secret=value, shape=shape)
+        with cicada.transcript.record():
+            share = protocol.add(share, numpy.zeros(shape))
+        return handler.stream.getvalue()
+
+    context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
 
 
 @then(u'the transcript for player {rank} should match {result}')
@@ -78,6 +114,7 @@ def step_impl(context, rank, result):
     result = eval(result)
 
     transcript = context.transcripts[rank]
+    print(transcript)
     test.assert_equal(transcript.strip(), result)
 
 
