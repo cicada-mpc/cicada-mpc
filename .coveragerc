@@ -4,4 +4,5 @@ concurrency = multiprocessing, thread
 omit =
     features/steps/*.py
     cicada/cli/*.py
+    cicada/transcript.py
 parallel = True
