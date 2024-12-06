@@ -30,6 +30,7 @@ jobs:
         coverage run --source cicada -m behave --tags=~wip --logging-level INFO --no-logcapture
         coverage combine
         coverage report
+        behave -i transcript --tags=~wip --logging-level INFO --no-logcapture
     - name: Upload coverage to Coveralls
       run: coveralls --service=github
       env:
