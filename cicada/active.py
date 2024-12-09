@@ -389,6 +389,11 @@ class ActiveProtocolSuite(object):
             self.sprotocol.dot(lhs.shamir, rhs.shamir, encoding=encoding)))
 
 
+    @property
+    def encoding(self):
+        return self.aprotocol.encoding
+
+
     def equal(self, lhs, rhs):
         """Elementwise probabilistic equality comparison between secret shared arrays.
 
