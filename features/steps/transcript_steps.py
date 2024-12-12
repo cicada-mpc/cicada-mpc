@@ -22,6 +22,7 @@ from behave import *
 from cicada.communicator import SocketCommunicator
 import cicada.active
 import cicada.additive
+import cicada.encoding
 import cicada.shamir
 import cicada.transcript
 import numpy
@@ -128,7 +129,7 @@ def step_impl(context, shape):
     context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
 
 
-@when(u'transcription is enabled while formatting a shamir share with shape {shape}')
+@when(u'transcription is enabled while formatting a Shamir share with shape {shape}')
 def step_impl(context, shape):
     shape = eval(shape)
 
@@ -142,6 +143,20 @@ def step_impl(context, shape):
             rep = repr(share)
         return handler.stream.getvalue()
 
+    context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler), show_traceback=True)
+
+
+@when(u'transcription is enabled while computing an absolute value with Shamir sharing')
+def step_impl(context):
+    def operation(communicator, handler):
+        cicada.transcript.set_handler(logging.getLogger(), handler)
+        protocol = cicada.shamir.ShamirProtocolSuite(communicator, order=127, threshold=2, seed=1234, encoding=cicada.encoding.FixedPoint(precision=2))
+        secret = numpy.array([1, -1])
+        share = protocol.share(src=0, secret=secret, shape=secret.shape)
+        with cicada.transcript.record():
+            share = protocol.absolute(share)
+        return handler.stream.getvalue()
+
     context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
 
 
@@ -151,7 +166,15 @@ def step_impl(context, rank, result):
     result = eval(result)
 
     transcript = context.transcripts[rank]
-    print(transcript)
     test.assert_equal(transcript.strip(), result)
+
+
+@then(u'the player transcripts can be executed without error')
+def step_impl(context):
+    for transcript in context.transcripts:
+        try:
+            exec(transcript)
+        except Exception as e:
+            raise e
 
 

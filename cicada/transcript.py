@@ -329,6 +329,8 @@ class _CallLogger(hunter.actions.Action):
 
 
     def repr(self, o):
+        if isinstance(o, list):
+            return f"[{', '.join(self.repr(item) for item in o)}]"
         if isinstance(o, ActiveArrayShare):
             return f"cicada.active.ActiveArrayShare(storage=({self.repr(o.storage[0])}, {self.repr(o.storage[1])}))"
         if isinstance(o, ActiveProtocolSuite):
@@ -344,7 +346,7 @@ class _CallLogger(hunter.actions.Action):
         if isinstance(o, ShamirProtocolSuite):
             return f"cicada.shamir.ShamirProtocolSuite()"
         if isinstance(o, numpy.ndarray):
-            return f"numpy.array({o.tolist()}, dtype='{o.dtype}')"
+            return f"numpy.array({self.repr(o.tolist())}, dtype='{o.dtype}')"
         if isinstance(o, numpy.random.Generator):
             return f"numpy.random.Generator({self.repr(o.bit_generator)})"
         if isinstance(o, numpy.random.PCG64):
