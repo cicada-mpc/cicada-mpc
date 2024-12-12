@@ -26,7 +26,7 @@ from cicada.communicator.interface import Communicator
 from cicada.encoding import FixedPoint, Identity, Boolean
 
 class ShamirArrayShare(object):
-    """Stores the local share of a secret shared array for :class:`ShamirProtocolSuite`.
+    """Stores the local share of a Shamir-shared secret array.
 
     Instances of :class:`ShamirArrayShare` should only be created using
     :class:`ShamirBasicProtocolSuite` or :class:`ShamirProtocolSuite`.
@@ -57,16 +57,15 @@ class ShamirArrayShare(object):
 
 
 class ShamirBasicProtocolSuite(object):
-    """Protocol suite implementing computation with Shamir-shared secrets.
+    """Protocol suite implementing limited computation with Shamir-shared secrets.
 
-    Multiplication is based on "Simplified VSS and fast-track multiparty
-    computations with applications to threshold cryptography" by Gennaro,
-    Rabin, and Rabin, which provides semi-honest security and does not require
-    Beaver triples or other offline computation.
+    :class:`ShamirBasicProtocolSuite` implements a limited set of operations
+    that can be performed on Shamir-shared secrets, chosen so that the minimum
+    number of shares :math:`k` needed to recover a secret is :math:`k <= n`,
+    where :math:`n` is the number of players.
 
-    Comparisons are based on "Multiparty computation for interval, equality,
-    and comparison without bit-decomposition protocol" by Nishide and Ohta, and
-    inherit the semi-honest security model from multiplication.
+    If you need a full set of operations including multiplication, use
+    :class:`ShamirProtocolSuite` instead.
 
     Note
     ----
@@ -650,7 +649,26 @@ class ShamirBasicProtocolSuite(object):
 
 
 class ShamirProtocolSuite(ShamirBasicProtocolSuite):
-    """MPC protocol that uses a communicator to share and manipulate shamir-shared secrets.
+    """Protocol suite implementing a full set of operations on Shamir-shared secrets.
+
+    :class:`ShamirProtocolSuite` provides a complete set of operations on
+    Shamir-shared secrets including multiplication and logical comparisons.
+    However, in order to do this, the minimum number of shares :math:`k` needed
+    to recover a secret must be constrained to :math:`k <= \\frac{n+1}{2}`, where
+    :math:`n` is the number of players.
+
+    If you don't need multiplication or logical comparisons, and do need a less
+    restrictive threshold :math:`k`, use :class:`ShamirBasicProtocolSuite`
+    instead.
+
+    Multiplication is based on "Simplified VSS and fast-track multiparty
+    computations with applications to threshold cryptography" by Gennaro,
+    Rabin, and Rabin, which provides semi-honest security and does not require
+    Beaver triples or other offline computation.
+
+    Comparisons are based on "Multiparty computation for interval, equality,
+    and comparison without bit-decomposition protocol" by Nishide and Ohta, and
+    inherit the semi-honest security model from multiplication.
 
     Note
     ----
