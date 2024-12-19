@@ -374,6 +374,30 @@ class Field(object):
         return result
 
 
+    def verify(self, array):
+        """Verify the given array for correctness.
+
+        Parameters
+        ----------
+        array: :class:`numpy.ndarray`, required
+            A field array created with a compatible field.
+
+
+        Raises
+        ------
+        :class:`ValueError`
+            If `array` is not a valid field array created with a compatible field.
+        """
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
+        if array.dtype != self.dtype:
+            raise ValueError(f"Expected array dtype to be object, got {array.dtype} instead.") # pragma: no cover
+
+        for index in numpy.ndindex(array.shape):
+            if not isinstance(array[index], int):
+                raise ValueError(f"All array values must be type 'int', value at index {index} is {type(array[index])}.") # pragma: no cover
+
+
     def zeros(self, shape):
         """Return a field array containing zeros.
 
