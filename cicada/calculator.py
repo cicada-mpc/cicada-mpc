@@ -275,7 +275,7 @@ def main(listen_socket, communicator):
                 "relu",
                 "sum",
                 "truncate",
-                "verify",
+                "_verify_storage",
                 "zigmoid",
                 ]:
                 protocol = protocol_stack[-1]

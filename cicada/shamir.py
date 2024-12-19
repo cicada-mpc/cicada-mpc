@@ -648,6 +648,29 @@ class ShamirBasicProtocolSuite(object):
         return self._d + 1
 
 
+    def _verify_storage(self, operand):
+        """Verify the storage in a secret share.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared array to be verified.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret shared array.
+
+        Raises
+        ------
+        :class:`ValueError`
+            If `operand` can't be verified.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        self.field._verify(operand.storage)
+        return operand
+
+
 class ShamirProtocolSuite(ShamirBasicProtocolSuite):
     """Protocol suite implementing a full set of operations on Shamir-shared secrets.
 
@@ -2026,9 +2049,32 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 #            result = self.field_multiply(op_pow_shares, enc_taylor_coef)
 #            result = self.sum(result)
 #            result = self.right_shift(result, bits=encoding.precision)
-#            result_list.append(result)    
+#            result_list.append(result)
 #        return ShamirArrayShare(numpy.array([s.storage for s in result_list], dtype=object))
 
+
+
+    def _verify_storage(self, operand):
+        """Verify the storage in a secret share.
+
+        Parameters
+        ----------
+        operand: :class:`ShamirArrayShare`, required
+            Secret shared array to be verified.
+
+        Returns
+        -------
+        value: :class:`ShamirArrayShare`
+            The secret shared array.
+
+        Raises
+        ------
+        :class:`ValueError`
+            If `operand` can't be verified.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        self.field._verify(operand.storage)
+        return operand
 
 
     def zigmoid(self, operand, *, encoding=None):

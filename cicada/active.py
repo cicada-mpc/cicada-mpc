@@ -1628,6 +1628,30 @@ class ActiveProtocolSuite(object):
 #        return result
 
 
+    def _verify_storage(self, operand):
+        """Verify the storage in a secret share.
+
+        Parameters
+        ----------
+        operand: :class:`AdditiveArrayShare`, required
+            Secret shared array to be verified.
+
+        Returns
+        -------
+        value: :class:`AdditiveArrayShare`
+            The secret shared array.
+
+        Raises
+        ------
+        :class:`ValueError`
+            If `operand` can't be verified.
+        """
+        self._assert_unary_compatible(operand, "operand")
+        self.aprotocol.field._verify(operand.additive.storage)
+        self.sprotocol.field._verify(operand.shamir.storage)
+        return operand
+
+
     def zigmoid(self, operand, *, encoding=None):
         r"""Privacy-preserving elementwise zigmoid of a secret shared array.
 
