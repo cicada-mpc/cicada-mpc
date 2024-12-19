@@ -1139,21 +1139,21 @@ class ActiveProtocolSuite(object):
         Parameters
         ----------
         lhs: :class:`ActiveArrayShare`, required
-            Secret shared values which iwll be raised to a power.
-        rhs: :class:`int` or integer :class:`numpy.ndarray`, required
-            Public integer power(s) to which each element in `lhs` will be raised.
+            Secret shared values which will be raised to a power.
+        rhs: integer :class:`numpy.ndarray` containing integers, required
+            Public non-negative integer power to which each element in `lhs`
+            will be raised.  Normal numpy broadcasting rules apply, so `rhs`
+            can be any shape that is compatible with `lhs`.
         encoding: :class:`object`, optional
-            Determines the number of bits to shift right the results.  The
-            protocol's :attr:`encoding` is used by default if :any:`None`.
+            Determines how far to right shift the results.  The protocol's
+            :attr:`encoding` is used by default if :any:`None`.
 
         Returns
         -------
         result: :class:`ActiveArrayShare`
             Secret-shared result of raising `lhs` to the power(s) in `rhs`.
         """
-        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
-            if isinstance(rhs, int):
-                rhs = self.field.full_like(lhs.storage, rhs)
+        if isinstance(lhs, ActiveArrayShare) and isinstance(rhs, numpy.ndarray):
             return ActiveArrayShare((
                 self.aprotocol.power(lhs.additive, rhs),
                 self.sprotocol.power(lhs.shamir, rhs)))
