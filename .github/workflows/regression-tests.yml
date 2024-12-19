@@ -2,9 +2,9 @@ name: Regression tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main storage-verification]
   pull_request:
-    branches: [ main ]
+    branches: [ main storage-verification]
 
 jobs:
   build:
