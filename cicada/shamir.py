@@ -1693,12 +1693,14 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         Parameters
         ----------
         lhs: :class:`ShamirArrayShare`, required
-            Secret shared values which iwll be raised to a power.
-        rhs: :class:`int` or integer :class:`numpy.ndarray`, required
-            Public integer power(s) to which each element in `lhs` will be raised.
+            Secret shared values which will be raised to a power.
+        rhs: :class:`numpy.ndarray` containing integers, required
+            Public non-negative integer power to which each element in `lhs` will be raised.
+            Normal numpy broadcasting rules apply, so `rhs` can be any shape that
+            is compatible with `lhs`.
         encoding: :class:`object`, optional
-            Determines the number of bits to shift right the results.  The
-            protocol's :attr:`encoding` is used by default if :any:`None`.
+            Determines how far to right shift the results.  The protocol's
+            :attr:`encoding` is used by default if :any:`None`.
 
         Returns
         -------
@@ -1707,25 +1709,17 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
         """
         encoding = self._require_encoding(encoding)
 
-        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
-            if isinstance(rhs, int):
-                rhs = self.field.full_like(lhs.storage, rhs)
-
-            ans=[]
-            for lhse, rhse in numpy.nditer([lhs.storage, rhs], flags=(["refs_ok"])):
-                rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
-                tmp = ShamirArrayShare(lhse)
-                it_ans = self.share(src = 0, secret=self.field.full_like(tmp.storage, encoding.encode(numpy.array(1), self.field)),shape=tmp.storage.shape, encoding=Identity())
-                limit = len(rhsbits)-1
-                for i, bit in enumerate(rhsbits):
-                    if bit:
-                        it_ans = self.field_multiply(it_ans, tmp)
-                        it_ans = self.right_shift(it_ans, bits=encoding.precision)
-                    if i < limit:
-                        tmp = self.field_multiply(tmp,tmp)
-                        tmp = self.right_shift(tmp, bits=encoding.precision)
-                ans.append(it_ans)
-            return ShamirArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
+            results=[]
+            with numpy.nditer([lhs.storage, rhs], flags=["refs_ok"]) as iterator:
+                for value, power in iterator:
+                    value = ShamirArrayShare(value)
+                    result = self.share(src=0, secret=numpy.array(1.0), shape=(), encoding=encoding)
+                    for i in range(power):
+                        result = self.field_multiply(result, value)
+                        result = self.right_shift(result, bits=encoding.precision)
+                    results.append(result)
+            return ShamirArrayShare(numpy.array([result.storage.item() for result in results], dtype=self.field.dtype).reshape(lhs.storage.shape))
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
@@ -1735,16 +1729,16 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
 
         Parameters
         ----------
-        lhs: :class:`ndarray`, required 
-            a publically known numpy array of integers and one of the two objects to be compared 
-        rhs: :class:`ShamirArrayShare`, required 
-            bit decomposed shared secret(s) and the other of the two objects to be compared 
-            the bitwidth of each value in rhs (deduced from its shape) is taken to be the 
-            bitwidth of interest for the comparison if the values in lhspub require more bits 
+        lhs: :class:`ndarray`, required
+            a publically known numpy array of integers and one of the two objects to be compared
+        rhs: :class:`ShamirArrayShare`, required
+            bit decomposed shared secret(s) and the other of the two objects to be compared
+            the bitwidth of each value in rhs (deduced from its shape) is taken to be the
+            bitwidth of interest for the comparison if the values in lhspub require more bits
             for their representation, the computation will be incorrect
 
-        note: this method is private as it does not consider the semantic mapping of meaning 
-        onto the field. The practical result of this is that every negative value will register as 
+        note: this method is private as it does not consider the semantic mapping of meaning
+        onto the field. The practical result of this is that every negative value will register as
         greater than every positive value due to the encoding.
 
 

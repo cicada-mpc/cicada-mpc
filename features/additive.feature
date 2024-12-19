@@ -758,6 +758,7 @@ Feature: Additive Protocol
 
         Examples:
         | players | a                      | b  | result                                |
+        | 3       | [-1]                   | 3  | [-1]                                  |
         | 3       | [-1, 2, 3.75, -2.0625] | 3  | [-1, 8, 52.734375, -8.773681640625]   |
 
 

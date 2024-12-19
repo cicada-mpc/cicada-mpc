@@ -1269,7 +1269,7 @@ class AdditiveProtocolSuite(object):
 
         Raises secret shared array values to public integer values.  Unlike
         :meth:`field_power`, :meth:`power` operates on encoded values, shifting
-        the results right to ensure correct decoded results.
+        the results to ensure correct decoded results.
 
         Note
         ----
@@ -1279,12 +1279,14 @@ class AdditiveProtocolSuite(object):
         Parameters
         ----------
         lhs: :class:`AdditiveArrayShare`, required
-            Secret shared values which iwll be raised to a power.
-        rhs: :class:`int` or integer :class:`numpy.ndarray`, required
-            Public integer power(s) to which each element in `lhs` will be raised.
+            Secret shared values which will be raised to a power.
+        rhs: :class:`numpy.ndarray` containing integers, required
+            Public non-negative integer power to which each element in `lhs` will be raised.
+            Normal numpy broadcasting rules apply, so `rhs` can be any shape that
+            is compatible with `lhs`.
         encoding: :class:`object`, optional
-            Determines the number of bits to shift right the results.  The
-            protocol's :attr:`encoding` is used by default if :any:`None`.
+            Determines how far to right shift the results.  The protocol's
+            :attr:`encoding` is used by default if :any:`None`.
 
         Returns
         -------
@@ -1293,25 +1295,17 @@ class AdditiveProtocolSuite(object):
         """
         encoding = self._require_encoding(encoding)
 
-        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, int)):
-            if isinstance(rhs, int):
-                rhs = self.field.full_like(lhs.storage, rhs)
-
-            ans=[]
-            for lhse, rhse in numpy.nditer([lhs.storage, rhs], flags=(["refs_ok"])):
-                rhsbits = [int(x) for x in bin(rhse)[2:]][::-1]
-                tmp = AdditiveArrayShare(lhse)
-                it_ans = self.share(src = 0, secret=self.field.full_like(tmp.storage, encoding.encode(numpy.array(1), self.field)),shape=tmp.storage.shape, encoding=Identity())
-                limit = len(rhsbits)-1
-                for i, bit in enumerate(rhsbits):
-                    if bit:
-                        it_ans = self.field_multiply(it_ans, tmp)
-                        it_ans = self.right_shift(it_ans, bits=encoding.precision)
-                    if i < limit:
-                        tmp = self.field_multiply(tmp,tmp)
-                        tmp = self.right_shift(tmp, bits=encoding.precision)
-                ans.append(it_ans)
-            return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            results=[]
+            with numpy.nditer([lhs.storage, rhs], flags=["refs_ok"]) as iterator:
+                for value, power in iterator:
+                    value = AdditiveArrayShare(value)
+                    result = self.share(src=0, secret=numpy.array(1.0), shape=(), encoding=encoding)
+                    for i in range(power):
+                        result = self.field_multiply(result, value)
+                        result = self.right_shift(result, bits=encoding.precision)
+                    results.append(result)
+            return AdditiveArrayShare(numpy.array([result.storage.item() for result in results], dtype=self.field.dtype).reshape(lhs.storage.shape))
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
