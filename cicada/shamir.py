@@ -1715,9 +1715,25 @@ class ShamirProtocolSuite(ShamirBasicProtocolSuite):
                 for value, power in iterator:
                     value = ShamirArrayShare(value)
                     result = self.share(src=0, secret=numpy.array(1.0), shape=(), encoding=encoding)
-                    for i in range(power):
-                        result = self.field_multiply(result, value)
-                        result = self.right_shift(result, bits=encoding.precision)
+
+#                    # Naive implementation performs n multiplications when raising to the n-th power.
+#                    for i in range(power):
+#                        result = self.field_multiply(result, value)
+#                        result = self.right_shift(result, bits=encoding.precision)
+
+                    # Fancy implementation performs exponentiation by squaring.
+                    while True:
+                        if power & 1:
+                            result = self.field_multiply(result, value)
+                            result = self.right_shift(result, bits=encoding.precision)
+
+                        if not power:
+                            break
+
+                        value = self.field_multiply(value, value)
+                        value = self.right_shift(value, bits=encoding.precision)
+                        power = power >> 1
+
                     results.append(result)
             return ShamirArrayShare(numpy.array([result.storage.item() for result in results], dtype=self.field.dtype).reshape(lhs.storage.shape))
 
