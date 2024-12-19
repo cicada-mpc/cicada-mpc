@@ -1565,8 +1565,7 @@ class AdditiveProtocolSuite(object):
         value: :class:`numpy.ndarray` or :any:`None`
             The revealed secret, if this player is a member of `dst`, or :any:`None`.
         """
-        if not isinstance(share, AdditiveArrayShare):
-            raise ValueError("share must be an instance of AdditiveArrayShare.") # pragma: no cover
+        self._assert_unary_compatible(share, "share")
 
         # Identify who will be receiving shares.
         if dst is None:
