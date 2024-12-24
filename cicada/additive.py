@@ -19,6 +19,7 @@
 import inspect
 import math
 
+import galois
 import numpy
 
 from cicada.arithmetic import Field
@@ -30,8 +31,8 @@ from cicada.przs import PRZSProtocol
 class AdditiveArrayShare(object):
     """Stores the local share of a secret shared array for :class:`AdditiveProtocolSuite`.
 
-    Instances of :class:`AdditiveArrayShare` should only be created
-    using :class:`AdditiveProtocolSuite`.
+    Instances of :class:`AdditiveArrayShare` should only be created using
+    :class:`AdditiveProtocolSuite`.
     """
     def __init__(self, storage):
         self.storage = storage
@@ -42,24 +43,23 @@ class AdditiveArrayShare(object):
 
 
     def __getitem__(self, index):
-        return AdditiveArrayShare(numpy.array(self._storage[index], dtype=self._storage.dtype)) # pragma: no cover
+        return AdditiveArrayShare(self._storage[index]) # pragma: no cover
 
 
     @property
     def storage(self):
         """Private storage for the local share of a secret shared array.
-        Access is provided only for serialization and communication -
-        callers must use :class:`AdditiveProtocolSuite` to manipulate secret
-        shares.
+        Access is provided only for serialization and communication - callers
+        must use :class:`AdditiveProtocolSuite` to manipulate secret shares.
         """
         return self._storage
 
 
     @storage.setter
     def storage(self, storage):
-        if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.") # pragma: no cover
-        self._storage = numpy.array(storage, dtype=object)
+        if not isinstance(storage, galois.FieldArray):
+            raise ValueError(f"Expected galois.FieldArray, got {type(storage)}.") # pragma: no cover
+        self._storage = storage
 
 
 class AdditiveProtocolSuite(object):
@@ -241,11 +241,9 @@ class AdditiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        result = numpy.empty(operand.storage.shape[:-1], dtype=object)
-        shift = numpy.power(2, numpy.arange(operand.storage.shape[-1], dtype=self.field.dtype)[::-1])
+        shift = self.field(numpy.power(2, numpy.arange(operand.storage.shape[-1])[::-1]))
         shifted = self.field.multiply(operand.storage, shift)
-        result = numpy.sum(shifted, axis=-1, out=result)
-        result %= self.field.order
+        result = numpy.sum(shifted, axis=-1)
         return AdditiveArrayShare(result)
 
 
@@ -1540,14 +1538,13 @@ class AdditiveProtocolSuite(object):
             Secret-shared, re-randomized version of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
-        recshares = []
-        for i in range(self.communicator.world_size):
-            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape, encoding=Identity()))
-        acc = numpy.zeros(operand.storage.shape, dtype=self.field.dtype)
-        for s in recshares:
-            acc += s.storage
-        acc %= self.field.order
-        return AdditiveArrayShare(acc)
+
+        result = self.field.zeros_like(operand.storage)
+        for rank in self.communicator.ranks:
+            share = self.share(src=rank, secret=operand.storage, shape=operand.storage.shape, encoding=Identity())
+            result += share.storage
+
+        return AdditiveArrayShare(result)
 
 
     def reveal(self, share, *, dst=None, encoding=None):

@@ -53,10 +53,18 @@ def step_impl(context, order):
     field = cicada.arithmetic.Field(order=order)
 
 
-@when(u'a field with order {order} is created, it should raise an exception')
+@when(u'a field with order {order} is created, it should raise a ValueError exception')
 def step_impl(context, order):
     order = eval(order)
     with unittest.TestCase().assertRaises(ValueError) as cm:
+        field = cicada.arithmetic.Field(order=order)
+    print(cm.exception)
+
+
+@when(u'a field with order {order} is created, it should raise a TypeError exception')
+def step_impl(context, order):
+    order = eval(order)
+    with unittest.TestCase().assertRaises(TypeError) as cm:
         field = cicada.arithmetic.Field(order=order)
     print(cm.exception)
 

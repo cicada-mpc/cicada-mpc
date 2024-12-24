@@ -20,6 +20,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
+    "galois",
     "netifaces",
     "numpy",
     "pynetstring",

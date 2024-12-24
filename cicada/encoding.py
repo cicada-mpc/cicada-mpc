@@ -18,11 +18,12 @@
 
 import numbers
 
+import galois
 import numpy
 
 
 class Bits(object):
-    """Converts arrays of bit values to and from field values.
+    """Converts arrays of bit values to and from field arrays.
     """
 
     def __eq__(self, other):
@@ -34,11 +35,11 @@ class Bits(object):
 
 
     def decode(self, array, field):
-        """Convert an array of field values to bit values.
+        """Convert a field array to an array of bit values.
 
         Parameters
         ----------
-        array: :class:`numpy.ndarray`, or :any:`None`, required
+        array: :class:`galois.FieldArray`, or :any:`None`, required
             Array of field values containing only :math:`0` or :math:`1`.
         field: :class:`cicada.arithmetic.Field`, required
             Field over which the values in `array` are defined.
@@ -56,21 +57,20 @@ class Bits(object):
         """
         if array is None:
             return array
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
-        if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: no cover
+
+        if not isinstance(array, field._field):
+            raise ValueError(f"Expected array to be a member of {field}, got {type(array)} instead.") # pragma: no cover
 
         # Strict enforcement - input must only contain zeros and ones.
-        result = array.astype(bool)
+        result = numpy.array(array, dtype=bool)
         if not numpy.array_equal(array, result):
             raise ValueError(f"Expected array to contain only zeros and ones, got {array} instead.") # pragma: no cover
 
-        return array.astype(numpy.uint8)
+        return result.astype(numpy.uint8)
 
 
     def encode(self, array, field):
-        """Convert an array of bit values to field values.
+        """Convert an array of bit values to a field array.
 
         Parameters
         ----------
@@ -81,7 +81,7 @@ class Bits(object):
 
         Returns
         -------
-        encoded: :class:`numpy.ndarray` or :any:`None`
+        encoded: :class:`galois.FieldArray` or :any:`None`
             Encoded array with the same shape as the input, containing the
             `field` values :math:`0` and :math:`1`, or :any:`None` if the input
             was :any:`None`.
@@ -98,16 +98,16 @@ class Bits(object):
             raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
 
         # Strict enforcement - input must only contain zeros and ones.
-        result = array.astype(bool)
-        if not numpy.array_equal(array, result):
+        test = array.astype(bool)
+        if not numpy.array_equal(array, test):
             raise ValueError(f"Expected array to contain only zeros and ones, got {array} instead.") # pragma: no cover
 
-        # Convert to the field.
-        return field(result)
+        # Convert to a field array.
+        return field(array)
 
 
 class Boolean(object):
-    """Converts arrays of boolean values to and from field values.
+    """Converts arrays of boolean values to and from field arrays.
     """
 
     def __eq__(self, other):
@@ -119,11 +119,11 @@ class Boolean(object):
 
 
     def decode(self, array, field):
-        """Convert an array of field values to boolean values.
+        """Convert field array to an array of boolean values.
 
         Parameters
         ----------
-        array: :class:`numpy.ndarray`, or :any:`None`, required
+        array: :class:`galois.FieldArray`, or :any:`None`, required
             Array of field values containing only :math:`0` or :math:`1`.
         field: :class:`cicada.arithmetic.Field`, required
             Field over which the values in `array` are defined.
@@ -136,16 +136,16 @@ class Boolean(object):
         """
         if array is None:
             return array
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
-        if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: nocover
 
-        return array.astype(bool)
+        if not isinstance(array, field._field):
+            raise ValueError(f"Expected array to be a member of {field}, got {type(array)} instead.") # pragma: no cover
+
+        # Permissive coercion of truthy values.
+        return numpy.array(array, dtype=bool)
 
 
     def encode(self, array, field):
-        """Convert an array of boolean values to field values.
+        """Convert an array of boolean values to a field array.
 
         Parameters
         ----------
@@ -156,7 +156,7 @@ class Boolean(object):
 
         Returns
         -------
-        encoded: :class:`numpy.ndarray` or :any:`None`
+        encoded: :class:`galois.FieldArray` or :any:`None`
             Encoded array with the same shape as the input, containing the
             `field` values :math:`0` and :math:`1`, or :any:`None` if the input
             was :any:`None`.
@@ -168,19 +168,19 @@ class Boolean(object):
             raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
 
         # Permissive coercion of truthy values.
-        result = array.astype(bool)
+        result = array.astype(bool).astype(numpy.uint8)
 
-        # Convert to the field.
+        # Convert to a field array.
         return field(result)
 
 
 class FixedPoint(object):
     """Encodes real values in a field using a fixed-point representation.
 
-    Encoded values are :class:`numpy.ndarray` instances containing Python
-    integers, with `precision` bits reserved for encoding fractional digits.
-    Decoded values will be :class:`numpy.ndarray` instances containining 64-bit
-    floating point values.
+    Encoded values are :class:`galois.FieldArray` instances with `precision`
+    bits reserved for encoding fractional digits, and the upper half of the
+    field used to store negative numbers.  Decoded values will be
+    :class:`numpy.ndarray` instances containining 64-bit floating point values.
 
     Parameters
     ----------
@@ -226,22 +226,21 @@ class FixedPoint(object):
         if array is None:
             return array
 
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
-        if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: nocover
+        if not isinstance(array, field._field):
+            raise ValueError(f"Expected array to be a member of {field}, got {type(array)} instead.") # pragma: nocover
 
-        order = field.order
+        order = type(array).order
         posbound = order // 2
 
-        # Set aside storage for the result (ensures that we return an array and not a scalar).
-        output = numpy.empty_like(array, dtype=numpy.float64)
+        # Set aside storage for the result (this ensures that we always return an array and never a scalar).
+        output = numpy.empty(array.shape, dtype=numpy.float64)
+
         # Convert from the field to a plain array of integers.
-        result = numpy.copy(array, subok=False)
+        result = numpy.array(array, dtype=numpy.float64)
         # Switch from twos-complement notation to negative values.
         result = numpy.where(result > posbound, -(order - result), result)
         # Shift values back to the right and convert to reals.
-        return numpy.divide(result.astype(numpy.float64), self._scale, out=output)
+        return numpy.divide(result, self._scale, out=output)
 
 
     def encode(self, array, field):
@@ -269,18 +268,18 @@ class FixedPoint(object):
             raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
 
         order = field.order
-        posbound = order // 2
+#        posbound = order // 2
 
         # Ensure we have an array, but only copy data if necessary.
         result = numpy.asarray(array, dtype=numpy.float64)
         # Shift array values left.  Don't do this inline!
         result = result * self._scale
-        # Test to be sure our values are in-range for the field.
-        if numpy.any(numpy.abs(result) >= posbound):
-            raise ValueError("Values to be encoded are too large for representation in the field.") # pragma: no cover
+#        # Test to be sure our values are in-range for the field.
+#        if numpy.any(numpy.abs(result) >= posbound):
+#            raise ValueError("Values to be encoded are too large for representation in the field.") # pragma: no cover
         # Convert to integers, using the Python modulo operator to handle negative values.
-        result = numpy.array([int(x) % order for x in numpy.nditer(result)], dtype=field.dtype).reshape(result.shape)
-        # Convert to a field.
+        result = numpy.array([int(x) % order for x in numpy.nditer(result)], dtype=object).reshape(result.shape)
+        # Convert to a field array.
         return field(result)
 
 
@@ -290,11 +289,7 @@ class FixedPoint(object):
 
 
 class Identity(object):
-    """Encodes and decodes field values without modification.
-
-    Encoded values are :class:`numpy.ndarray` instances containing Python
-    integers.  Decoded values will be the same.
-
+    """Converts arrays of integer values to and from field arrays.
     """
 
     def __eq__(self, other):
@@ -306,30 +301,33 @@ class Identity(object):
 
 
     def decode(self, array, field):
-        """Return an array of field values without modification.
+        """Convert a field array to an array of integers without modification.
 
         Parameters
         ----------
-        array: :class:`numpy.ndarray`, or :any:`None`, required
+        array: :class:`galois.FieldArray`, or :any:`None`, required
             Array of field values created with :meth:`encode`.
 
         Returns
         -------
         decoded: :class:`numpy.ndarray` or :any:`None`
-            An array of Python integers, or :any:`None` if the input was
-            :any:`None`.
+            An array of integers, or :any:`None` if the input was :any:`None`.
+            Note that the type of the returned array will vary, depending on
+            the size of the field. In the general case, the returned array will
+            contain Python :class:`int` values, which can represent arbitrarily
+            large integers.
         """
         if array is None:
             return array
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
-        if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: nocover
-        return array
+
+        if not isinstance(array, field._field):
+            raise ValueError(f"Expected array to be a member of {field}, got {type(array)} instead.") # pragma: nocover
+
+        return numpy.array(array)
 
 
     def encode(self, array, field):
-        """Convert array of integer values to an array of field values without modification.
+        """Convert an array of integer values to a field array without modification.
 
         Parameters
         ----------
@@ -341,10 +339,9 @@ class Identity(object):
 
         Returns
         -------
-        encoded: :class:`numpy.ndarray` or :any:`None`
-            Encoded array with the same shape as the input, containing the
-            fixed precision integer representation of `array`, or :any:`None`
-            if the input was :any:`None`.
+        encoded: :class:`galois.FieldArray` or :any:`None`
+            Encoded array with the same shape and elements as the input, or
+            :any:`None` if the input was :any:`None`.
         """
         if array is None:
             return array
@@ -352,5 +349,6 @@ class Identity(object):
         if not isinstance(array, numpy.ndarray):
             raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
 
-        # Convert to a field.
+        # Convert to a field array.
         return field(array)
+

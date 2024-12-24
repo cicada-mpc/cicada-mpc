@@ -11,8 +11,6 @@ Feature: Arithmetic
         | default Field        | [1]                | [1]                |
         | default Field        | [1,2,3]            | [1,2,3]            |
         | default Field        | [[1,2,3],[4,5,6]]  | [[1,2,3],[4,5,6]]  |
-        | Field with order 251 | -1                 | 250                |
-        | Field with order 251 | 252                | 1                  |
 
 
     Scenario Outline: Field Array Addition
@@ -23,12 +21,12 @@ Feature: Arithmetic
         Then the field array should match <c>
 
         Examples:
-        | field          | a         | b         | c        |
-        | default Field  | 1         | 1         | 2        |
-        | default Field  | 1         | 3         | 4        |
-        | default Field  | 1         | 0         | 1        |
-        | default Field  | 0         | 1         | 1        |
-        | default Field  | -1        | 1         | 0        |
+        | field                 | a         | b         | c        |
+        | default Field         | 1         | 1         | 2        |
+        | default Field         | 1         | 3         | 4        |
+        | default Field         | 1         | 0         | 1        |
+        | default Field         | 0         | 1         | 1        |
+        | Field with order 251  | 250       | 1         | 0        |
 
 
     Scenario Outline: Field Array In-Place Addition
@@ -39,12 +37,12 @@ Feature: Arithmetic
         Then the field array should match <c>
 
         Examples:
-        | field          | a         | b         | c        |
-        | default Field  | 1         | 1         | 2        |
-        | default Field  | 1         | 3         | 4        |
-        | default Field  | 1         | 0         | 1        |
-        | default Field  | 0         | 1         | 1        |
-        | default Field  | -1        | 1         | 0        |
+        | field                 | a         | b         | c        |
+        | default Field         | 1         | 1         | 2        |
+        | default Field         | 1         | 3         | 4        |
+        | default Field         | 1         | 0         | 1        |
+        | default Field         | 0         | 1         | 1        |
+        | Field with order 251  | 250       | 1         | 0        |
 
 
     Scenario Outline: Field Array In-Place Subtraction
@@ -55,11 +53,11 @@ Feature: Arithmetic
         Then the field array should match <c>
 
         Examples:
-        | field          | a         | b         | c        |
-        | default Field  | 1         | 1         | 0        |
-        | default Field  | 1         | 3         | -2       |
-        | default Field  | 1         | 0         | 1        |
-        | default Field  | 0         | 1         | -1       |
+        | field                 | a         | b         | c        |
+        | default Field         | 1         | 1         | 0        |
+        | Field with order 251  | 1         | 3         | 249      |
+        | default Field         | 1         | 0         | 1        |
+        | Field with order 251  | 0         | 1         | 250      |
 
 
     Scenario Outline: Field Array Negation
@@ -73,8 +71,8 @@ Feature: Arithmetic
         | Field with order 251      | 0         | 0                  |
         | Field with order 251      | 1         | 250                |
         | Field with order 251      | 3         | 248                |
-        | Field with order 251      | -1        | 1                  |
-        | Field with order 251      | -3        | 3                  |
+        | Field with order 251      | 250       | 1                  |
+        | Field with order 251      | 248       | 3                  |
         | Field with order 251      | [1, 2]    | [250, 249]         |
 
 
@@ -86,11 +84,11 @@ Feature: Arithmetic
         Then the field array should match <c>
 
         Examples:
-        | field          | a         | b         | c        |
-        | default Field  | 1         | 1         | 0        |
-        | default Field  | 1         | 3         | -2       |
-        | default Field  | 1         | 0         | 1        |
-        | default Field  | 0         | 1         | -1       |
+        | field                 | a         | b         | c        |
+        | default Field         | 1         | 1         | 0        |
+        | Field with order 251  | 1         | 3         | 249      |
+        | default Field         | 1         | 0         | 1        |
+        | Field with order 251  | 0         | 1         | 250      |
 
 
     Scenario Outline: Field Array Summation
@@ -119,14 +117,14 @@ Feature: Arithmetic
         When a field with order <order> is created, it <outcome>
 
         Examples:
-        | order          | outcome                       |
-        | None           | should not raise an exception |
-        | 251            | should not raise an exception |
-        | 7              | should not raise an exception |
-        | -251           | should raise an exception     |
-        | 7.1            | should raise an exception     |
-        | 4              | should raise an exception     |
-        | 256            | should raise an exception     |
+        | order          | outcome                                |
+        | None           | should not raise an exception          |
+        | 251            | should not raise an exception          |
+        | 7              | should not raise an exception          |
+        | -251           | should raise a ValueError exception    |
+        | 7.1            | should raise a TypeError exception     |
+        | 4              | should raise a ValueError exception    |
+        | 256            | should raise a ValueError exception    |
 
 
     Scenario Outline: Field Uniform Random
