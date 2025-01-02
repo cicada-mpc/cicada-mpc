@@ -521,7 +521,10 @@ def field(order):
         def ones_like(cls, other):
             return numpy.ones_like(other, dtype=object).view(cls)
 
-        def uniform(cls, *, size, generator):
+        def uniform(cls, *, size, generator=None):
+            if generator is None:
+                generator = numpy.random.default_rng()
+
             count = numpy.prod(size)
             randombytes = generator.bytes(count * cls.bytes)
             indices = zip(numpy.arange(count) * cls.bytes, (numpy.arange(count)+1) * cls.bytes)
