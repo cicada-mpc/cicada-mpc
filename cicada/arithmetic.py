@@ -439,3 +439,27 @@ class Field(object):
         return result
 
 
+def field(order):
+    def __add__(self, other):
+        return ((numpy.asarray(self) + other) % self.order).view(type(self))
+
+    def __iadd__(self, other):
+        storage = numpy.asarray(self)
+        storage += other
+        storage %= self.order
+        return self
+
+    def __new__(cls, array):
+        return numpy.asarray(array, dtype=object).view(cls)
+
+    def __repr__(self):
+        return f"FieldArray({self.tolist()!r}, order={self.order})"
+
+    return type("FieldArray", (numpy.ndarray,), dict(
+        __add__ = __add__,
+        __iadd__ = __iadd__,
+        __new__ = __new__,
+        __repr__ = __repr__,
+        order = order,
+        ))
+
