@@ -21,6 +21,7 @@ import copy
 import inspect
 import math
 import numbers
+import types
 
 import numpy
 
@@ -441,25 +442,33 @@ class Field(object):
 
 def field(order):
     def __add__(self, other):
-        return ((numpy.asarray(self) + other) % self.order).view(type(self))
+        return ((numpy.asarray(self) + other) % type(self).order).view(type(self))
 
     def __iadd__(self, other):
         storage = numpy.asarray(self)
         storage += other
-        storage %= self.order
+        storage %= type(self).order
         return self
 
     def __new__(cls, array):
         return numpy.asarray(array, dtype=object).view(cls)
 
     def __repr__(self):
-        return f"FieldArray({self.tolist()!r}, order={self.order})"
+        return f"FieldArray({self.tolist()!r}, order={type(self).order})"
 
-    return type("FieldArray", (numpy.ndarray,), dict(
-        __add__ = __add__,
-        __iadd__ = __iadd__,
-        __new__ = __new__,
-        __repr__ = __repr__,
-        order = order,
-        ))
+    class FieldMeta(type):
+        def __new__(cls, name, bases, dct):
+            instance = super().__new__(cls, name, bases, dct)
+            instance.__add__ = __add__
+            instance.__iadd__ = __iadd__
+            instance.__new__ = __new__
+            instance.__repr__ = __repr__
+            return instance
+
+        def __repr__(cls):
+            return f"Field(order={cls.order})"
+
+    FieldMeta.order = order
+
+    return types.new_class("FieldArray", (numpy.ndarray,), dict(metaclass=FieldMeta))
 
