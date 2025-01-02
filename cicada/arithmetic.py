@@ -450,24 +450,91 @@ def field(order):
         storage %= type(self).order
         return self
 
+    def __imul__(self, other):
+        storage = numpy.asarray(self)
+        storage *= other
+        storage %= type(self).order
+        return self
+
+    def __isub__(self, other):
+        storage = numpy.asarray(self)
+        storage -= other
+        storage %= type(self).order
+        return self
+
+    def __mul__(self, other):
+        return ((numpy.asarray(self) * other) % type(self).order).view(type(self))
+
     def __new__(cls, array):
         return numpy.asarray(array, dtype=object).view(cls)
 
     def __repr__(self):
         return f"FieldArray({self.tolist()!r}, order={type(self).order})"
 
+    def __sub__(self, other):
+        return ((numpy.asarray(self) - other) % type(self).order).view(type(self))
+
+    def negative(self):
+        return (0 - self) % type(self).order
+
+    def sum(self, axis=None, **kwargs):
+        return numpy.asarray(numpy.asarray(self).sum(axis=axis) % type(self).order).view(type(self))
+
     class FieldMeta(type):
         def __new__(cls, name, bases, dct):
             instance = super().__new__(cls, name, bases, dct)
             instance.__add__ = __add__
             instance.__iadd__ = __iadd__
+            instance.__imul__ = __imul__
+            instance.__isub__ = __isub__
+            instance.__mul__ = __mul__
+            instance.__neg__ = negative
             instance.__new__ = __new__
             instance.__repr__ = __repr__
+            instance.__sub__ = __sub__
+            instance.negative = negative
+            instance.sum = sum
             return instance
 
         def __repr__(cls):
             return f"Field(order={cls.order})"
 
+        @property
+        def bits(cls):
+            return cls.order.bit_length()
+
+        @property
+        def bytes(cls):
+            return math.ceil(cls.bits / 8)
+
+        def full(cls, shape, fill):
+            fill = int(fill) % cls.order
+            return numpy.full(shape, fill, dtype=object).view(cls)
+
+        def full_like(cls, other, fill):
+            fill = int(fill) % cls.order
+            return numpy.full_like(other, fill, dtype=object).view(cls)
+
+        def ones(cls, shape):
+            return numpy.ones(shape, dtype=object).view(cls)
+
+        def ones_like(cls, other):
+            return numpy.ones_like(other, dtype=object).view(cls)
+
+        def uniform(cls, *, size, generator):
+            count = numpy.prod(size)
+            randombytes = generator.bytes(count * cls.bytes)
+            indices = zip(numpy.arange(count) * cls.bytes, (numpy.arange(count)+1) * cls.bytes)
+            values = [int.from_bytes(randombytes[start:end], "big") % cls.order for start, end in indices]
+            return cls(values).reshape(size)
+
+        def zeros(cls, shape):
+            return numpy.zeros(shape, dtype=object).view(cls)
+
+        def zeros_like(cls, other):
+            return numpy.zeros_like(other, dtype=object).view(cls)
+
+    FieldMeta.dtype = object
     FieldMeta.order = order
 
     return types.new_class("FieldArray", (numpy.ndarray,), dict(metaclass=FieldMeta))
