@@ -108,7 +108,7 @@ def step_impl(context):
     field = context.fields[-1]
     b = context.fieldarrays.pop()
     a = context.fieldarrays.pop()
-    context.fieldarrays.append(field.subtract(a, b))
+    context.fieldarrays.append(a - b)
 
 
 @when(u'the second field array is added to the first')
@@ -116,7 +116,7 @@ def step_impl(context):
     field = context.fields[-1]
     b = context.fieldarrays.pop()
     a = context.fieldarrays.pop()
-    context.fieldarrays.append(field.add(a, b))
+    context.fieldarrays.append(a + b)
 
 
 @when(u'the second field array is added in-place to the first')
@@ -124,7 +124,7 @@ def step_impl(context):
     field = context.fields[-1]
     b = context.fieldarrays.pop()
     a = context.fieldarrays[-1]
-    field.inplace_add(a, b)
+    a += b
 
 
 @when(u'the second field array is subtracted in-place from the first')
@@ -132,7 +132,7 @@ def step_impl(context):
     field = context.fields[-1]
     b = context.fieldarrays.pop()
     a = context.fieldarrays[-1]
-    field.inplace_subtract(a, b)
+    a -= b
 
 
 @then(u'the field array should match {result}')
