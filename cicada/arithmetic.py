@@ -439,8 +439,12 @@ import numpy
 #        return result
 
 
+class Field(object):
+    pass
+
+
 @functools.cache
-def Field(order=None):
+def field(order=None):
     if order is None:
         order = 18446744073709551557
 
@@ -475,7 +479,7 @@ def Field(order=None):
 
     def __mul__(self, other):
         if not isinstance(other, type(self)):
-            raise ValueError("Cannot multiply arrays from different fields.")
+            raise ValueError(f"Cannot multiply arrays from different fields {type(self)} and {type(other)}.")
         return ((numpy.asarray(self) * other) % type(self).order).view(type(self))
 
     def __new__(cls, array):
@@ -505,7 +509,7 @@ def Field(order=None):
 
     require_integers = numpy.frompyfunc(require_integers, 1, 0)
 
-    class FieldMeta(type):
+    class FieldMeta(type, Field):
         def __new__(cls, name, bases, namespace):
             instance = super().__new__(cls, name, bases, namespace)
             instance.__add__ = __add__
