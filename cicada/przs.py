@@ -94,7 +94,7 @@ class PRZSProtocol(object):
             shape = (shape,)
 
         przs = self.field.uniform(size=shape, generator=self._g0)
-        self.field.inplace_subtract(przs, self.field.uniform(size=shape, generator=self._g1))
+        przs -= self.field.uniform(size=shape, generator=self._g1)
 
         return przs
 
