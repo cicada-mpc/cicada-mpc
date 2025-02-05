@@ -506,8 +506,8 @@ def Field(order=None):
     require_integers = numpy.frompyfunc(require_integers, 1, 0)
 
     class FieldMeta(type):
-        def __new__(cls, name, bases, dct):
-            instance = super().__new__(cls, name, bases, dct)
+        def __new__(cls, name, bases, namespace):
+            instance = super().__new__(cls, name, bases, namespace)
             instance.__add__ = __add__
             instance.__iadd__ = __iadd__
             instance.__imul__ = __imul__
