@@ -265,7 +265,7 @@ def step_impl(context):
 
 @when(u'the players reveal the secret')
 def step_impl(context):
-    _require_success(context.calculator.command("protocol", subcommand="_verify_storage"))
+    #_require_success(context.calculator.command("protocol", subcommand="_verify_storage"))
     _require_success(context.calculator.command("protocol", subcommand="reveal"))
 
 

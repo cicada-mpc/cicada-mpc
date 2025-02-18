@@ -443,6 +443,16 @@ class Field(object):
     pass
 
 
+def _new(order, *args, **kwargs):
+    print("_new", order, args, kwargs)
+    f = field(order=order)
+    return f([])
+
+
+def _setstate(obj, state):
+    print("_setstate", obj, state)
+
+
 @functools.cache
 def field(order=None):
     if order is None:
@@ -450,12 +460,16 @@ def field(order=None):
 
     def __add__(self, other):
         if not isinstance(other, type(self)):
-            raise ValueError("Cannot add arrays from different fields.")
+            raise ValueError(f"Cannot add arrays from different fields {type(self)} and {type(other)}.")
         return ((numpy.asarray(self) + other) % type(self).order).view(type(self))
+
+    def __reduce__(self):
+        print("__reduce__")
+        return (_new, (type(self).order,), self.view(numpy.ndarray).__getstate__(), None, None, _setstate)
 
     def __iadd__(self, other):
         if not isinstance(other, type(self)):
-            raise ValueError("Cannot add arrays from different fields.")
+            raise ValueError(f"Cannot add arrays from different fields {type(self)} and {type(other)}.")
         storage = numpy.asarray(self)
         storage += other
         storage %= type(self).order
@@ -463,7 +477,7 @@ def field(order=None):
 
     def __imul__(self, other):
         if not isinstance(other, type(self)):
-            raise ValueError("Cannot multiply arrays from different fields.")
+            raise ValueError(f"Cannot multiply arrays from different fields {type(self)} and {type(other)}.")
         storage = numpy.asarray(self)
         storage *= other
         storage %= type(self).order
@@ -471,7 +485,7 @@ def field(order=None):
 
     def __isub__(self, other):
         if not isinstance(other, type(self)):
-            raise ValueError("Cannot subtract arrays from different fields.")
+            raise ValueError(f"Cannot subtract arrays from different fields {type(self)} and {type(other)}.")
         storage = numpy.asarray(self)
         storage -= other
         storage %= type(self).order
@@ -494,7 +508,7 @@ def field(order=None):
 
     def __sub__(self, other):
         if not isinstance(other, type(self)):
-            raise ValueError("Cannot subtract arrays from different fields.")
+            raise ValueError(f"Cannot subtract arrays from different fields {type(self)} and {type(other)}.")
         return ((numpy.asarray(self) - other) % type(self).order).view(type(self))
 
     def negative(self):
@@ -513,6 +527,7 @@ def field(order=None):
         def __new__(cls, name, bases, namespace):
             instance = super().__new__(cls, name, bases, namespace)
             instance.__add__ = __add__
+            instance.__reduce__ = __reduce__
             instance.__iadd__ = __iadd__
             instance.__imul__ = __imul__
             instance.__isub__ = __isub__

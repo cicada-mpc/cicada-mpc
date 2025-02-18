@@ -21,7 +21,7 @@ import math
 
 import numpy
 
-from cicada.arithmetic import Field
+import cicada.arithmetic
 from cicada.communicator.interface import Communicator
 from cicada.encoding import FixedPoint, Identity, Boolean
 from cicada.przs import PRZSProtocol
@@ -57,9 +57,9 @@ class AdditiveArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
-        if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.") # pragma: no cover
-        self._storage = numpy.array(storage, dtype=object)
+        if not isinstance(type(storage), cicada.arithmetic.Field):
+            raise ValueError(f"Expected field array, got {type(storage)}.") # pragma: no cover
+        self._storage = storage
 
 
 class AdditiveProtocolSuite(object):
@@ -119,7 +119,7 @@ class AdditiveProtocolSuite(object):
         if encoding is None:
             encoding = FixedPoint()
 
-        field = Field(order=order)
+        field = cicada.arithmetic.field(order=order)
 
         self._communicator = communicator
         self._field = field
@@ -481,7 +481,7 @@ class AdditiveProtocolSuite(object):
         """
         # Private-private addition.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
-            return AdditiveArrayShare(self.field.add(lhs.storage, rhs.storage))
+            return AdditiveArrayShare(lhs.storage + rhs.storage)
 
         # Private-public addition.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
@@ -1586,13 +1586,13 @@ class AdditiveProtocolSuite(object):
         # Send data to the other players.
         secret = None
         for recipient in dst:
-            received_shares = self.communicator.gather(value=share.storage, dst=recipient)
+            received_shares = self.communicator.gather(value=share.storage.view(numpy.ndarray), dst=recipient)
 
             # If we're a recipient, recover the secret.
             if self.communicator.rank == recipient:
-                secret = received_shares[0].copy()
-                for received_share in received_shares[1:]:
-                    self.field.inplace_add(secret, received_share)
+                secret = self.field.zeros_like(received_shares[0])
+                for received_share in received_shares:
+                    secret += self.field(received_share)
 
         return encoding.decode(secret, self.field)
 
@@ -1724,7 +1724,7 @@ class AdditiveProtocolSuite(object):
         # Add the secret to the PRZS
         if self.communicator.rank == src:
             secret = encoding.encode(secret, self.field)
-            self.field.inplace_add(przs, secret)
+            przs += secret
         # Package the result.
         return AdditiveArrayShare(przs)
 
