@@ -21,9 +21,9 @@ import math
 
 import numpy
 
-import cicada.arithmetic
+from cicada.arithmetic import field, Field, FieldArray
 from cicada.communicator.interface import Communicator
-from cicada.encoding import FixedPoint, Identity, Boolean
+from cicada.encoding import Boolean, FixedPoint, Identity
 from cicada.przs import PRZSProtocol
 
 
@@ -57,7 +57,7 @@ class AdditiveArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
-        if not isinstance(type(storage), cicada.arithmetic.Field):
+        if not isinstance(type(storage), Field):
             raise ValueError(f"Expected field array, got {type(storage)}.") # pragma: no cover
         self._storage = storage
 
@@ -119,12 +119,11 @@ class AdditiveProtocolSuite(object):
         if encoding is None:
             encoding = FixedPoint()
 
-        field = cicada.arithmetic.field(order=order)
 
         self._communicator = communicator
-        self._field = field
+        self._field = field(order=order)
         self._encoding = encoding
-        self._przs = PRZSProtocol(communicator=communicator, field=field, seed=seed)
+        self._przs = PRZSProtocol(communicator=communicator, field=self._field, seed=seed)
 
 
     def _assert_binary_compatible(self, lhs, rhs, lhslabel, rhslabel):
@@ -469,9 +468,9 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
+        lhs: :class:`AdditiveArrayShare` or :term:`field array`, required
             Secret shared or public value to be added.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
+        rhs: :class:`AdditiveArrayShare` or :term:`field array`, required
             Secret shared or public value to be added.
 
         Returns
@@ -484,15 +483,15 @@ class AdditiveProtocolSuite(object):
             return AdditiveArrayShare(lhs.storage + rhs.storage)
 
         # Private-public addition.
-        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, FieldArray):
             if self.communicator.rank == 0:
-                return AdditiveArrayShare(self.field.add(lhs.storage, rhs))
+                return AdditiveArrayShare(lhs.storage + rhs)
             return lhs
 
         # Public-private addition.
-        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+        if isinstance(lhs, FieldArray) and isinstance(rhs, AdditiveArrayShare):
             if self.communicator.rank == 0:
-                return AdditiveArrayShare(self.field.add(lhs, rhs.storage))
+                return AdditiveArrayShare(lhs + rhs.storage)
             return rhs
 
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
