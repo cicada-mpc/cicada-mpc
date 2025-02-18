@@ -452,7 +452,7 @@ def _reconstruct(order):
     return f([])
 
 
-@functools.cache
+@functools.lru_cache(maxsize=None)
 def field(order=None):
     def probably_prime(n):
         """
