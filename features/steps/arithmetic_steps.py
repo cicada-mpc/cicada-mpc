@@ -27,7 +27,7 @@ import cicada.arithmetic
 def step_impl(context):
     if "fields" not in context:
         context.fields = []
-    context.fields.append(cicada.arithmetic.Field())
+    context.fields.append(cicada.arithmetic.field())
 
 
 @given(u'a Field with order {order}')
@@ -35,7 +35,7 @@ def step_impl(context, order):
     order = eval(order)
     if "fields" not in context:
         context.fields = []
-    context.fields.append(cicada.arithmetic.Field(order=order))
+    context.fields.append(cicada.arithmetic.field(order=order))
 
 
 @given(u'a field array {x}')
@@ -50,14 +50,14 @@ def step_impl(context, x):
 @when(u'a field with order {order} is created, it should not raise an exception')
 def step_impl(context, order):
     order = eval(order)
-    field = cicada.arithmetic.Field(order=order)
+    field = cicada.arithmetic.field(order=order)
 
 
 @when(u'a field with order {order} is created, it should raise an exception')
 def step_impl(context, order):
     order = eval(order)
     with unittest.TestCase().assertRaises(ValueError) as cm:
-        field = cicada.arithmetic.Field(order=order)
+        field = cicada.arithmetic.field(order=order)
     print(cm.exception)
 
 

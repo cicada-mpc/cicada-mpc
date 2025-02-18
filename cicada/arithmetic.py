@@ -454,8 +454,54 @@ def _reconstruct(order):
 
 @functools.cache
 def field(order=None):
+    def probably_prime(n):
+        """
+        Miller-Rabin probabilistic primality test.
+
+        A return value of False means n is certainly not prime. A return value of
+        True means n is very likely a prime.
+        """
+        if not isinstance(n, int):
+            return False # pragma: no cover
+        if n in [0,1,4,6,8,9]:
+            return False
+        if n in [2,3,5,7]:
+            return True
+
+        s = 0
+        d = n-1
+        while d%2==0:
+            d>>=1
+            s+=1
+        assert(2**s * d == n-1)
+
+        def trial_composite(a):
+            if pow(a, d, n) == 1:
+                return False
+            for i in range(s):
+                if pow(a, 2**i * d, n) == n-1:
+                    return False
+            return True
+        num_bytes = math.ceil(math.log2(n)/8)
+        for i in range(32):#number of trials more means higher accuracy - 32 -> error probability ~4^-32 ~2^-64
+            a =0
+            while a == 0 or a == 1:
+                a = int.from_bytes(numpy.random.bytes(num_bytes), 'big')%n
+            if trial_composite(a):
+                return False
+
+        return True
+
+
     if order is None:
         order = 18446744073709551557
+    else:
+        if not isinstance(order, numbers.Integral):
+            raise ValueError(f"Expected integer order, got {type(order)} instead.")
+        if order < 0:
+            raise ValueError(f"Expected non-negative order, got {order} instead.")
+        if not probably_prime(order):
+            raise ValueError(f"Expected order to be prime, got a composite instead.")
 
     def __add__(self, other):
         if not isinstance(other, type(self)):
