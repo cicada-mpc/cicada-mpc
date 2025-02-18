@@ -443,14 +443,13 @@ class Field(object):
     pass
 
 
-def _new(order, *args, **kwargs):
-    print("_new", order, args, kwargs)
-    f = field(order=order)
+class FieldArray(object):
+    pass
+
+
+def _reconstruct(order):
+    f = field(order)
     return f([])
-
-
-def _setstate(obj, state):
-    print("_setstate", obj, state)
 
 
 @functools.cache
@@ -464,8 +463,12 @@ def field(order=None):
         return ((numpy.asarray(self) + other) % type(self).order).view(type(self))
 
     def __reduce__(self):
-        print("__reduce__")
-        return (_new, (type(self).order,), self.view(numpy.ndarray).__getstate__(), None, None, _setstate)
+        view = self.view(numpy.ndarray)
+        state = view.__reduce__()
+        return (_reconstruct, (type(self).order,), state)
+
+    def __setstate__(self, state):
+        numpy.ndarray.__setstate__(self, state[2])
 
     def __iadd__(self, other):
         if not isinstance(other, type(self)):
@@ -528,6 +531,7 @@ def field(order=None):
             instance = super().__new__(cls, name, bases, namespace)
             instance.__add__ = __add__
             instance.__reduce__ = __reduce__
+            instance.__setstate__ = __setstate__
             instance.__iadd__ = __iadd__
             instance.__imul__ = __imul__
             instance.__isub__ = __isub__
@@ -589,5 +593,5 @@ def field(order=None):
 
     FieldMeta.order = order
 
-    return types.new_class("FieldArray", (numpy.ndarray,), dict(metaclass=FieldMeta))
+    return types.new_class("FieldArray", (numpy.ndarray, FieldArray), dict(metaclass=FieldMeta))
 
