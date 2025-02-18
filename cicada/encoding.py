@@ -20,6 +20,7 @@ import numbers
 
 import numpy
 
+import cicada.arithmetic
 
 class Bits(object):
     """Converts arrays of bit values to and from field values.
@@ -33,15 +34,13 @@ class Bits(object):
         return f"cicada.encoding.Bits()" # pragma: no cover
 
 
-    def decode(self, array, field):
+    def decode(self, array):
         """Convert an array of field values to bit values.
 
         Parameters
         ----------
-        array: :class:`numpy.ndarray`, or :any:`None`, required
-            Array of field values containing only :math:`0` or :math:`1`.
-        field: :class:`cicada.arithmetic.Field`, required
-            Field over which the values in `array` are defined.
+        array: :term:`field array`, or :any:`None`, required
+            Field array containing values that are only :math:`0` or :math:`1`.
 
         Returns
         -------
@@ -56,10 +55,8 @@ class Bits(object):
         """
         if array is None:
             return array
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
-        if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: no cover
+        if not isinstance(array, cicada.arithmetic.FieldArray):
+            raise ValueError(f"Expected array to be an instance of FieldArray, got {type(array)} instead.") # pragma: no cover
 
         # Strict enforcement - input must only contain zeros and ones.
         result = array.astype(bool)
@@ -81,7 +78,7 @@ class Bits(object):
 
         Returns
         -------
-        encoded: :class:`numpy.ndarray` or :any:`None`
+        encoded: :term:`field array` or :any:`None`
             Encoded array with the same shape as the input, containing the
             `field` values :math:`0` and :math:`1`, or :any:`None` if the input
             was :any:`None`.
@@ -118,13 +115,14 @@ class Boolean(object):
         return f"cicada.encoding.Boolean()" # pragma: no cover
 
 
-    def decode(self, array, field):
+    def decode(self, array):
         """Convert an array of field values to boolean values.
 
         Parameters
         ----------
-        array: :class:`numpy.ndarray`, or :any:`None`, required
-            Array of field values containing only :math:`0` or :math:`1`.
+        array: :term:`field array`, or :any:`None`, required
+            Array of field values. Zero values are converted to :math:`False`, while
+            non-zero values are converted to :math:`True`.
         field: :class:`cicada.arithmetic.Field`, required
             Field over which the values in `array` are defined.
 
@@ -136,10 +134,8 @@ class Boolean(object):
         """
         if array is None:
             return array
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: no cover
-        if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: nocover
+        if not isinstance(array, cicada.arithmetic.FieldArray):
+            raise ValueError(f"Expected array to be an instance of FieldArray, got {type(array)} instead.") # pragma: no cover
 
         return array.astype(bool)
 
@@ -151,12 +147,12 @@ class Boolean(object):
         ----------
         array: :class:`numpy.ndarray` or :any:`None`, required
             Array to convert.  Nonzero values are considered :math:`True`, zero values are considered :math:`False`.
-        field: :class:`cicada.arithmetic.Field`, required
+        field: :term:`field`, required
             Field over which the returned values are defined.
 
         Returns
         -------
-        encoded: :class:`numpy.ndarray` or :any:`None`
+        encoded: :term:`field array` or :any:`None`
             Encoded array with the same shape as the input, containing the
             `field` values :math:`0` and :math:`1`, or :any:`None` if the input
             was :any:`None`.
@@ -206,12 +202,12 @@ class FixedPoint(object):
         return f"cicada.encoding.FixedPoint(precision={self._precision})" # pragma: no cover
 
 
-    def decode(self, array, field):
+    def decode(self, array):
         """Convert an array of field values to an array of real values.
 
         Parameters
         ----------
-        array: :class:`numpy.ndarray`, or :any:`None`, required
+        array: :term:`field array`, or :any:`None`, required
             Array of field values created with :meth:`encode`.
         field: :class:`cicada.arithmetic.Field`, required
             Field used to create `array`.
@@ -226,12 +222,10 @@ class FixedPoint(object):
         if array is None:
             return array
 
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
-        if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: nocover
+        if not isinstance(array, cicada.arithmetic.FieldArray):
+            raise ValueError(f"Expected array to be an instance of FieldArray, got {type(array)} instead.") # pragma: nocover
 
-        order = field.order
+        order = type(array).order
         posbound = order // 2
 
         # Set aside storage for the result (ensures that we return an array and not a scalar).
@@ -257,7 +251,7 @@ class FixedPoint(object):
 
         Returns
         -------
-        encoded: :class:`numpy.ndarray` or :any:`None`
+        encoded: :term:`field array` or :any:`None`
             Encoded array with the same shape as the input, containing the
             fixed precision integer representation of `array`, or :any:`None`
             if the input was :any:`None`.
@@ -292,7 +286,7 @@ class FixedPoint(object):
 class Identity(object):
     """Encodes and decodes field values without modification.
 
-    Encoded values are :class:`numpy.ndarray` instances containing Python
+    Encoded values are :term:`field array` instances
     integers.  Decoded values will be the same.
 
     """
@@ -305,12 +299,12 @@ class Identity(object):
         return f"cicada.encoding.Identity()" # pragma: no cover
 
 
-    def decode(self, array, field):
+    def decode(self, array):
         """Return an array of field values without modification.
 
         Parameters
         ----------
-        array: :class:`numpy.ndarray`, or :any:`None`, required
+        array: :term:`field array`, or :any:`None`, required
             Array of field values created with :meth:`encode`.
 
         Returns
@@ -321,11 +315,9 @@ class Identity(object):
         """
         if array is None:
             return array
-        if not isinstance(array, numpy.ndarray):
+        if not isinstance(array, cicada.arithmetic.FieldArray):
             raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
-        if not array.dtype == field.dtype:
-            raise ValueError(f"Expected array dtype to be {field.dtype}, got {array.dtype} instead.") # pragma: nocover
-        return array
+        return array.view(numpy.ndarray)
 
 
     def encode(self, array, field):
@@ -341,7 +333,7 @@ class Identity(object):
 
         Returns
         -------
-        encoded: :class:`numpy.ndarray` or :any:`None`
+        encoded: :term:`field array` or :any:`None`
             Encoded array with the same shape as the input, containing the
             fixed precision integer representation of `array`, or :any:`None`
             if the input was :any:`None`.

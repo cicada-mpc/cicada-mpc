@@ -68,7 +68,7 @@ def step_impl(context, value):
     field = context.fields[-1]
 
     encoded = encoding.encode(value, field)
-    decoded = encoding.decode(encoded, field)
+    decoded = encoding.decode(encoded)
     context.decoded = decoded
 
 
