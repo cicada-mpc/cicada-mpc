@@ -321,7 +321,7 @@ def step_impl(context, rhs, digits):
     digits = eval(digits)
 
     for lhs in _require_success(context.calculator.command("opget")):
-        numpy.testing.assert_array_almost_equal(lhs, rhs, decimal=digits)
+        numpy.testing.assert_array_almost_equal(lhs.view(numpy.ndarray), rhs, decimal=digits)
 
 @then(u'the results should match {rhs} to within {digits} digits')
 def step_impl(context, rhs, digits):

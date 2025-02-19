@@ -1802,7 +1802,7 @@ class AdditiveProtocolSuite(object):
             Secret-shared sum of `operand`'s elements.
         """
         self._assert_unary_compatible(operand, "operand")
-        return AdditiveArrayShare(self.field.sum(operand.storage))
+        return AdditiveArrayShare(operand.storage.sum())
 
 
 #    def taylor_approx(self, func, operand, *, encoding=None, center=0, degree=7, scale=3):
