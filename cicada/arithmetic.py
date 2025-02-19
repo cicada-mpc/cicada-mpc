@@ -17,7 +17,6 @@
 """Functionality for working with field arithmetic.
 """
 
-import functools
 import math
 import numbers
 import types
@@ -452,8 +451,14 @@ def _reconstruct(order):
     return f([])
 
 
-@functools.lru_cache(maxsize=None)
 def field(order=None):
+    if order is None:
+        order = 18446744073709551557
+
+    if order in field.cache:
+        return field.cache[order]
+
+
     def probably_prime(n):
         """
         Miller-Rabin probabilistic primality test.
@@ -493,15 +498,12 @@ def field(order=None):
         return True
 
 
-    if order is None:
-        order = 18446744073709551557
-    else:
-        if not isinstance(order, numbers.Integral):
-            raise ValueError(f"Expected integer order, got {type(order)} instead.")
-        if order < 0:
-            raise ValueError(f"Expected non-negative order, got {order} instead.")
-        if not probably_prime(order):
-            raise ValueError(f"Expected order to be prime, got a composite instead.")
+    if not isinstance(order, numbers.Integral):
+        raise ValueError(f"Expected integer order, got {type(order)} instead.")
+    if order < 0:
+        raise ValueError(f"Expected non-negative order, got {order} instead.")
+    if not probably_prime(order):
+        raise ValueError(f"Expected order to be prime, got a composite instead.")
 
     def __add__(self, other):
         if not isinstance(other, type(self)):
@@ -639,5 +641,8 @@ def field(order=None):
 
     FieldMeta.order = order
 
-    return types.new_class("FieldArray", (numpy.ndarray, FieldArray), dict(metaclass=FieldMeta))
+    new_class = types.new_class("FieldArray", (numpy.ndarray, FieldArray), dict(metaclass=FieldMeta))
+    field.cache[order] = new_class
+    return new_class
 
+field.cache = {}
