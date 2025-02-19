@@ -1593,7 +1593,7 @@ class AdditiveProtocolSuite(object):
                 for received_share in received_shares:
                     secret += self.field(received_share)
 
-        return encoding.decode(secret, self.field)
+        return encoding.decode(secret)
 
 
     def right_shift(self, operand, *, bits, src=None, generator=None, trunc_mask=None, rem_mask=None):
