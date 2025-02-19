@@ -468,9 +468,9 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare` or :term:`field array`, required
+        lhs: :class:`AdditiveArrayShare`, :class:`numpy.ndarray`, or :term:`field array`, required
             Secret shared or public value to be added.
-        rhs: :class:`AdditiveArrayShare` or :term:`field array`, required
+        rhs: :class:`AdditiveArrayShare`, :class:`numpy.ndarray`, or :term:`field array`, required
             Secret shared or public value to be added.
 
         Returns
@@ -483,13 +483,17 @@ class AdditiveProtocolSuite(object):
             return AdditiveArrayShare(lhs.storage + rhs.storage)
 
         # Private-public addition.
-        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, FieldArray):
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, FieldArray)):
+            if not isinstance(rhs, FieldArray):
+                rhs = self.field(rhs)
             if self.communicator.rank == 0:
                 return AdditiveArrayShare(lhs.storage + rhs)
             return lhs
 
         # Public-private addition.
-        if isinstance(lhs, FieldArray) and isinstance(rhs, AdditiveArrayShare):
+        if isinstance(lhs, (numpy.ndarray, FieldArray)) and isinstance(rhs, AdditiveArrayShare):
+            if not isinstance(lhs, FieldArray):
+                lhs = self.field(lhs)
             if self.communicator.rank == 0:
                 return AdditiveArrayShare(lhs + rhs.storage)
             return rhs
