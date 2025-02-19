@@ -483,19 +483,25 @@ class AdditiveProtocolSuite(object):
             return AdditiveArrayShare(lhs.storage + rhs.storage)
 
         # Private-public addition.
-        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, (numpy.ndarray, FieldArray)):
-            if not isinstance(rhs, FieldArray):
-                rhs = self.field(rhs)
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, FieldArray):
             if self.communicator.rank == 0:
                 return AdditiveArrayShare(lhs.storage + rhs)
             return lhs
 
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
+            if self.communicator.rank == 0:
+                return AdditiveArrayShare(lhs.storage + self.field(rhs))
+            return lhs
+
         # Public-private addition.
-        if isinstance(lhs, (numpy.ndarray, FieldArray)) and isinstance(rhs, AdditiveArrayShare):
-            if not isinstance(lhs, FieldArray):
-                lhs = self.field(lhs)
+        if isinstance(lhs, FieldArray) and isinstance(rhs, AdditiveArrayShare):
             if self.communicator.rank == 0:
                 return AdditiveArrayShare(lhs + rhs.storage)
+            return rhs
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
+            if self.communicator.rank == 0:
+                return AdditiveArrayShare(self.field(lhs) + rhs.storage)
             return rhs
 
         raise NotImplementedError(f"Privacy-preserving addition not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
