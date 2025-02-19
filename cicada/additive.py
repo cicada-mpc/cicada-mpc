@@ -608,15 +608,21 @@ class AdditiveProtocolSuite(object):
             for other_x, other_y in zip(X, Y):
                 result += x * other_y + other_x * y
 
-            return AdditiveArrayShare(numpy.array(result % self.field.order, dtype=self.field.dtype))
+            return AdditiveArrayShare(result)
 
         # Public-private multiplication.
+        if isinstance(lhs, self.field) and isinstance(rhs, AdditiveArrayShare):
+            return AdditiveArrayShare(lhs * rhs.storage)
+
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
-            return AdditiveArrayShare(self.field.multiply(lhs, rhs.storage))
+            return AdditiveArrayShare(self.field(lhs) * rhs.storage)
 
         # Private-public multiplication.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, FieldArray):
+            return AdditiveArrayShare(lhs.storage * rhs)
+
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
-            return AdditiveArrayShare(self.field.multiply(lhs.storage, rhs))
+            return AdditiveArrayShare(lhs.storage * self.field(rhs))
 
         raise NotImplementedError(f"Privacy-preserving multiplication not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
