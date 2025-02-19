@@ -1209,8 +1209,8 @@ class AdditiveProtocolSuite(object):
 
         Note
         ----
-        This is a collective operation that *must* be called
-        by all players that are members of :attr:`communicator`.
+        This is a collective operation that *must* be called by all players
+        that are members of :attr:`communicator`.
 
         Parameters
         ----------
@@ -1223,7 +1223,8 @@ class AdditiveProtocolSuite(object):
             Secret-shared elementwise additive inverse of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
-        return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
+        #return self.field_subtract(self.field.full_like(operand.storage, self.field.order), operand)
+        return AdditiveArrayShare(-operand.storage)
 
 
 #    def pade_approx(self, func, operand, *, encoding=None, center=0, degree=12, scale=3):
