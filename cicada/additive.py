@@ -240,12 +240,9 @@ class AdditiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        result = numpy.empty(operand.storage.shape[:-1], dtype=object)
-        shift = numpy.power(2, numpy.arange(operand.storage.shape[-1], dtype=self.field.dtype)[::-1])
-        shifted = self.field.multiply(operand.storage, shift)
-        result = numpy.sum(shifted, axis=-1, out=result)
-        result %= self.field.order
-        return AdditiveArrayShare(result)
+        shift = self.field(numpy.power(2, numpy.arange(operand.storage.shape[-1])))[::-1]
+        shifted = operand.storage * shift
+        return AdditiveArrayShare(shifted.sum(axis=-1))
 
 
     def bit_decompose(self, operand, *, bits=None):
