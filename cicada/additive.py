@@ -468,9 +468,9 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare`, :class:`numpy.ndarray`, or :term:`field array`, required
+        lhs: :class:`AdditiveArrayShare`, :class:`FieldArray`, or :class:`numpy.ndarray`, required
             Secret shared or public value to be added.
-        rhs: :class:`AdditiveArrayShare`, :class:`numpy.ndarray`, or :term:`field array`, required
+        rhs: :class:`AdditiveArrayShare`, :class:`FieldArray`, or :class:`numpy.ndarray`, required
             Secret shared or public value to be added.
 
         Returns
@@ -483,7 +483,7 @@ class AdditiveProtocolSuite(object):
             return AdditiveArrayShare(lhs.storage + rhs.storage)
 
         # Private-public addition.
-        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, FieldArray):
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, self.field):
             if self.communicator.rank == 0:
                 return AdditiveArrayShare(lhs.storage + rhs)
             return lhs
@@ -494,7 +494,7 @@ class AdditiveProtocolSuite(object):
             return lhs
 
         # Public-private addition.
-        if isinstance(lhs, FieldArray) and isinstance(rhs, AdditiveArrayShare):
+        if isinstance(lhs, self.field) and isinstance(rhs, AdditiveArrayShare):
             if self.communicator.rank == 0:
                 return AdditiveArrayShare(lhs + rhs.storage)
             return rhs
@@ -684,9 +684,9 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
+        lhs: :class:`AdditiveArrayShare`, :class:`FieldArray`, or :class:`numpy.ndarray`, required
             Secret shared or public value to be subtracted.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
+        rhs: :class:`AdditiveArrayShare`, :class:`FieldArray`, or :class:`numpy.ndarray`, required
             Secret shared or public value to be subtracted.
 
         Returns
@@ -696,18 +696,28 @@ class AdditiveProtocolSuite(object):
         """
         # Private-private subtraction.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
-            return AdditiveArrayShare(self.field.subtract(lhs.storage, rhs.storage))
+            return AdditiveArrayShare(lhs.storage - rhs.storage)
 
         # Public-private subtraction.
+        if isinstance(lhs, self.field) and isinstance(rhs, AdditiveArrayShare):
+            if self.communicator.rank == 0:
+                return AdditiveArrayShare(lhs - rhs.storage)
+            return AdditiveArrayShare(-rhs.storage)
+
         if isinstance(lhs, numpy.ndarray) and isinstance(rhs, AdditiveArrayShare):
             if self.communicator.rank == 0:
-                return AdditiveArrayShare(self.field.subtract(lhs, rhs.storage))
-            return AdditiveArrayShare(self.field.negative(rhs.storage))
+                return AdditiveArrayShare(self.field(lhs) - rhs.storage)
+            return AdditiveArrayShare(-rhs.storage)
 
         # Private-public subtraction.
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, self.field):
+            if self.communicator.rank == 0:
+                return AdditiveArrayShare(lhs.storage - rhs)
+            return AdditiveArrayShare(lhs.storage)
+
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             if self.communicator.rank == 0:
-                return AdditiveArrayShare(self.field.subtract(lhs.storage, rhs))
+                return AdditiveArrayShare(lhs.storage - self.field(rhs))
             return AdditiveArrayShare(lhs.storage)
 
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
