@@ -23,7 +23,7 @@ import numpy
 
 from cicada.arithmetic import field, Field, FieldArray
 from cicada.communicator.interface import Communicator
-from cicada.encoding import Boolean, FixedPoint, Identity
+from cicada.encoding import Bits, Boolean, FixedPoint, Identity
 from cicada.przs import PRZSProtocol
 
 
@@ -275,6 +275,7 @@ class AdditiveProtocolSuite(object):
 
         if bits is None:
             bits = self.field.bits
+
         list_o_bits = []
         two_inv = numpy.array(pow(2, self.field.order-2, self.field.order), dtype=self.field.dtype)
         for element in operand.storage.flat: # Iterates in "C" order.
@@ -332,7 +333,7 @@ class AdditiveProtocolSuite(object):
                 if check:
                     raise ZeroDivisionError()
             else:
-                if check.any():   
+                if check.any():
                     raise ZeroDivisionError()
             oops = True
             while oops:
@@ -1413,20 +1414,15 @@ class AdditiveProtocolSuite(object):
         return AdditiveArrayShare(numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
 
 
-    def random_bitwise_secret(self, *, bits, shape=None, src=None, generator=None):
-        """Return secret values created by combining randomly generated bits.
+    def random_bits(self, *, shape=None, src=None, generator=None):
+        """Return securely generated random bits.
 
-        This method returns two outputs - a secret shared array of randomly
-        generated bits, and a secret shared array of values created by
-        combining the bits in big-endian order.  It is secure against
-        non-colluding semi-honest adversaries.  A subset of players (by
-        default: all) generate and secret share vectors of pseudo-random bits
-        which are then XOR-ed together elementwise.  Communication and
-        computation costs increase with the number of bits and the number of
-        players, while security increases with the number of players.
-
-        The bit array will have one more dimension than the secret array,
-        containing the bits in big-endian order.
+        This method returns a secret shared array of randomly generated bits.
+        It is secure against non-colluding semi-honest adversaries.  A subset
+        of players (by default: all) generate and secret share pseudo-random
+        bits which are then XOR-ed together.  Communication and computation
+        costs increase with the number of bits and the number of players, while
+        security increases with the number of players.
 
         .. warning::
 
@@ -1444,11 +1440,8 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        bits: :class:`int`, required
-            Number of bits to generate.
         shape: sequence of :class:`int`, optional
-            Shape of the output `secrets` array.  The output `bits` array will have this
-            shape, plus one extra dimension for the bits.
+            Shape of the output `bits` array.
         src: sequence of :class:`int`, optional
             Players that will contribute to random bit generation.  By default,
             all players contribute.
@@ -1460,60 +1453,29 @@ class AdditiveProtocolSuite(object):
         -------
         bits: :class:`AdditiveArrayShare`
             Secret shared array of randomly-generated bits, with shape
-            :math:`shape \\times bits`.
-        secrets: :class:`AdditiveArrayShare`
-            Secret shared array of values created by combining the generated
-            bits in big-endian order, with shape `shape`.
+            :math:`shape`.
         """
-        bits = int(bits)
-        shape_was_none = False
-        if bits < 1:
-            raise ValueError(f"bits must be a positive integer, got {bits} instead.") # pragma: no cover
-
+        if shape is None:
+            shape = ()
         if src is None:
             src = self.communicator.ranks
         if not src:
             raise ValueError(f"src must include at least one player, got {src} instead.") # pragma: no cover
-
         if generator is None:
             generator = numpy.random.default_rng()
-        if shape is None:
-            shape = ()
-            shape_was_none = True
-        bit_res = []
-        share_res = []
-        numzeros = numpy.zeros(shape)
-        for loopop in numzeros.flat:
-            # Each participating player generates a vector of random bits.
-            if self.communicator.rank in src:
-                local_bits = generator.choice(2, size=bits).astype(self.field.dtype)
-            else:
-                local_bits = None
 
-            # Each participating player secret shares their bit vectors.
-            player_bit_shares = []
-            for rank in src:
-                player_bit_shares.append(self.share(src=rank, secret=local_bits, shape=(bits,), encoding=Identity()))
+        # Each participating player generates a secret-shared array of random bits.
+        all_bits = []
+        for rank in src:
+            local_bits = generator.choice(2, size=shape) if self.communicator.rank == rank else None
+            all_bits.append(self.share(src=rank, secret=local_bits, shape=shape, encoding=Bits()))
 
-            # Generate the final bit vector by xor-ing everything together elementwise.
-            bit_share = player_bit_shares[0]
-            for player_bit_share in player_bit_shares[1:]:
-                bit_share = self.logical_xor(bit_share, player_bit_share)
+        # Generate the final bits by xor-ing everything together elementwise.
+        bits = all_bits[0]
+        for local_bits in all_bits[1:]:
+            result = self.logical_xor(bits, local_bits)
 
-            # Shift and combine the resulting bits in big-endian order to produce a random value.
-            shift = numpy.power(2, numpy.arange(bits, dtype=self.field.dtype)[::-1])
-            shifted = self.field.multiply(shift, bit_share.storage)
-            secret_share = AdditiveArrayShare(numpy.array(numpy.sum(shifted), dtype=self.field.dtype))
-            bit_res.append(bit_share)
-            share_res.append(secret_share)
-        if shape_was_none:
-            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.field.dtype).reshape(bits))
-            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.field.dtype).reshape(shape))#, order="C"))
-        else:
-            bit_share = AdditiveArrayShare(numpy.array([x.storage for x in bit_res], dtype=self.field.dtype).reshape(shape+(bits,)))#, order="C"))
-            secret_share = AdditiveArrayShare(numpy.array([x.storage for x in share_res], dtype=self.field.dtype).reshape(shape))#, order="C"))
-
-        return bit_share, secret_share
+        return bits
 
 
     def relu(self, operand):

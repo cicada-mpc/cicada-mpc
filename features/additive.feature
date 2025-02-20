@@ -760,26 +760,24 @@ Feature: Additive Protocol
 
 
     @calculator
-    Scenario Outline: Random Bitwise Secret
+    Scenario Outline: Random Bits
         Given a calculator service with <players> players
         And a new Additive protocol suite
-        When the players generate <bits> random bits
-        And the players reveal the field values
-        And the players swap
+        When the players generate <shape> random bits
         And the players reveal the secret bits
-        And the players swap
-        Then the value of the bits in big-endian order should match the random value.
+        Then the results should match shape <shape>
+        And the result values should be 0 or 1
 
         Examples:
-        | players | bits  |
-        | 3       | 1     |
-        | 3       | 2     |
-        | 3       | 4     |
-        | 3       | 8     |
-        | 4       | 1     |
-        | 4       | 2     |
-        | 4       | 4     |
-        | 4       | 8     |
+        | players | shape |
+        | 3       | ()    |
+        | 3       | (1,)  |
+        | 3       | (4,)  |
+        | 3       | (2, 8)|
+        | 4       | ()    |
+        | 4       | (1,)  |
+        | 4       | (4,)  |
+        | 4       | (2, 8)|
 
 
     @calculator

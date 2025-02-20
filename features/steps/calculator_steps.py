@@ -234,7 +234,7 @@ def step_impl(context):
 def step_impl(context, bits):
     bits = eval(bits)
     _require_success(context.calculator.command("oppush", value=bits))
-    _require_success(context.calculator.command("protocol", subcommand="random_bitwise_secret"))
+    _require_success(context.calculator.command("protocol", subcommand="random_bits"))
 
 
 @when(u'the players generate a private uniform array with shape {shape}')
@@ -345,6 +345,14 @@ def step_impl(context):
     values = _require_success(context.calculator.command("opgetn", n=2))
     for lhs, rhs in values:
         test.assert_false(numpy.array_equal(lhs, rhs))
+
+
+@then(u'the result values should be 0 or 1')
+def step_impl(context):
+    player_bits = _require_success(context.calculator.command("oppop"))
+    for bits in player_bits:
+        for bit in bits.flatten():
+            test.assert_true(bit in [0, 1])
 
 
 @then(u'the value of the bits in big-endian order should match the random value.')

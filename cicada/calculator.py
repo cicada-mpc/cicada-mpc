@@ -313,13 +313,12 @@ def main(listen_socket, communicator):
                 operand_stack.append(share)
                 _send_result(client)
 
-            # Random bitwise secret.
-            elif command == "protocol" and kwargs["subcommand"] == "random_bitwise_secret":
+            # Random bits.
+            elif command == "protocol" and kwargs["subcommand"] == "random_bits":
                 protocol = protocol_stack[-1]
-                bits = operand_stack.pop()
-                bits, secret = protocol.random_bitwise_secret(bits=bits)
+                shape = operand_stack.pop()
+                bits = protocol.random_bits(shape=shape)
                 operand_stack.append(bits)
-                operand_stack.append(secret)
                 _send_result(client)
 
             # Uniform random secret generation.
