@@ -1590,14 +1590,14 @@ class AdditiveProtocolSuite(object):
         This is a collective operation that *must* be called
         by all players that are members of :attr:`communicator`.
 
-        Also, this approach may probabilstically introduce a small error in the least significant bits 
-        of the result. The is that we generate masks for the two sections of the secret shared value 
-        of interest, one to be used in clearing out the low order bits, the other for masking the 
-        higher order bits that will remain. There is a chance that adding the masks in will generate 
-        a carry into the region that will remain after the shift. Therefore there is a chance that the 
-        effects of that carry will remain in the least significant bits of the final result, which, 
-        with the default parameters and encoding, means there could be an error in the final result on 
-        the order of 2^-16, and with decreasing probability 2^-15, or 2^-14 depending on how far the 
+        Also, this approach may probabilstically introduce a small error in the least significant bits
+        of the result. The is that we generate masks for the two sections of the secret shared value
+        of interest, one to be used in clearing out the low order bits, the other for masking the
+        higher order bits that will remain. There is a chance that adding the masks in will generate
+        a carry into the region that will remain after the shift. Therefore there is a chance that the
+        effects of that carry will remain in the least significant bits of the final result, which,
+        with the default parameters and encoding, means there could be an error in the final result on
+        the order of 2^-16, and with decreasing probability 2^-15, or 2^-14 depending on how far the
         carry propagates.
 
 
