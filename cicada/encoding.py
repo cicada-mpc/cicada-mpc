@@ -39,7 +39,7 @@ class Bits(object):
 
         Parameters
         ----------
-        array: :term:`field array`, or :any:`None`, required
+        array: :class:`FieldArray`, or :any:`None`, required
             Field array containing values that are only :math:`0` or :math:`1`.
 
         Returns
@@ -78,7 +78,7 @@ class Bits(object):
 
         Returns
         -------
-        encoded: :term:`field array` or :any:`None`
+        encoded: :class:`FieldArray` or :any:`None`
             Encoded array with the same shape as the input, containing the
             `field` values :math:`0` and :math:`1`, or :any:`None` if the input
             was :any:`None`.
@@ -120,7 +120,7 @@ class Boolean(object):
 
         Parameters
         ----------
-        array: :term:`field array`, or :any:`None`, required
+        array: :class:`FieldArray`, or :any:`None`, required
             Array of field values. Zero values are converted to :math:`False`, while
             non-zero values are converted to :math:`True`.
         field: :class:`cicada.arithmetic.Field`, required
@@ -152,7 +152,7 @@ class Boolean(object):
 
         Returns
         -------
-        encoded: :term:`field array` or :any:`None`
+        encoded: :class:`FieldArray` or :any:`None`
             Encoded array with the same shape as the input, containing the
             `field` values :math:`0` and :math:`1`, or :any:`None` if the input
             was :any:`None`.
@@ -207,7 +207,7 @@ class FixedPoint(object):
 
         Parameters
         ----------
-        array: :term:`field array`, or :any:`None`, required
+        array: :class:`FieldArray`, or :any:`None`, required
             Array of field values created with :meth:`encode`.
         field: :class:`cicada.arithmetic.Field`, required
             Field used to create `array`.
@@ -251,7 +251,7 @@ class FixedPoint(object):
 
         Returns
         -------
-        encoded: :term:`field array` or :any:`None`
+        encoded: :class:`FieldArray` or :any:`None`
             Encoded array with the same shape as the input, containing the
             fixed precision integer representation of `array`, or :any:`None`
             if the input was :any:`None`.
@@ -286,8 +286,8 @@ class FixedPoint(object):
 class Identity(object):
     """Encodes and decodes field values without modification.
 
-    Encoded values are :term:`field array` instances
-    integers.  Decoded values will be the same.
+    Encoded values are :class:`FieldArray` instances.
+    Decoded values will be the same.
 
     """
 
@@ -304,7 +304,7 @@ class Identity(object):
 
         Parameters
         ----------
-        array: :term:`field array`, or :any:`None`, required
+        array: :class:`FieldArray`, or :any:`None`, required
             Array of field values created with :meth:`encode`.
 
         Returns
@@ -317,7 +317,7 @@ class Identity(object):
             return array
         if not isinstance(array, cicada.arithmetic.FieldArray):
             raise ValueError(f"Expected array to be an instance of numpy.ndarray, got {type(array)} instead.") # pragma: nocover
-        return array.view(numpy.ndarray)
+        return array
 
 
     def encode(self, array, field):
@@ -333,7 +333,7 @@ class Identity(object):
 
         Returns
         -------
-        encoded: :term:`field array` or :any:`None`
+        encoded: :class:`FieldArray` or :any:`None`
             Encoded array with the same shape as the input, containing the
             fixed precision integer representation of `array`, or :any:`None`
             if the input was :any:`None`.
