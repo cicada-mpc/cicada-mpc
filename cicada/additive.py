@@ -553,9 +553,9 @@ class AdditiveProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
+        lhs: :class:`AdditiveArrayShare` :class:`FieldArray`, or :class:`numpy.ndarray`, required
             Secret shared or public value to be multiplied.
-        rhs: :class:`AdditiveArrayShare` or :class:`numpy.ndarray`, required
+        rhs: :class:`AdditiveArrayShare` :class:`FieldArray`, or :class:`numpy.ndarray`, required
             Secret shared or public value to be multiplied.
 
         Returns
@@ -616,7 +616,7 @@ class AdditiveProtocolSuite(object):
             return AdditiveArrayShare(self.field(lhs) * rhs.storage)
 
         # Private-public multiplication.
-        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, FieldArray):
+        if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, self.field):
             return AdditiveArrayShare(lhs.storage * rhs)
 
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
