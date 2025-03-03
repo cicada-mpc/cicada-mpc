@@ -653,19 +653,27 @@ class AdditiveProtocolSuite(object):
             if isinstance(rhs, int):
                 rhs = self.field.full_like(lhs.storage, rhs)
 
-            ans = []
-            for lhse, rhse in numpy.nditer([lhs.storage, rhs], flags=(["refs_ok"])):
-                rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
-                tmp = AdditiveArrayShare(lhse)
-                it_ans = self.share(src = 0, secret=self.field.full_like(lhse, 1), shape=lhse.shape, encoding=Identity())
-                limit = len(rhsbits)-1
-                for i, bit in enumerate(rhsbits):
-                    if bit:
-                        it_ans = self.field_multiply(it_ans, tmp)
-                    if i < limit:
-                        tmp = self.field_multiply(tmp,tmp)
-                ans.append(it_ans)
-            return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+            results = []
+            for value, power in numpy.nditer([lhs.storage, rhs], order="C", flags=["refs_ok"]):
+                value = AdditiveArrayShare(self.field(value))
+                result = self.share(src=0, secret=self.field(1), shape=(), encoding=Identity())
+
+                # Snazzy implementation performs exponentiation by squaring.
+                while True:
+                    if power & 1:
+                       result = self.field_multiply(result, value)
+
+                    if not power:
+                        break
+
+                    value = self.field_multiply(value, value)
+                    power = power >> 1
+
+                results.append(result)
+
+            results = self.field([result.storage.item() for result in results])
+            results = results.reshape(lhs.storage.shape, order="C")
+            return AdditiveArrayShare(results)
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
@@ -1320,32 +1328,31 @@ class AdditiveProtocolSuite(object):
 
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             results=[]
-            with numpy.nditer([lhs.storage, rhs], order="C", flags=["refs_ok"]) as iterator:
-                for value, power in iterator:
-                    value = AdditiveArrayShare(self.field(value))
-                    result = self.share(src=0, secret=numpy.array(1.0), shape=(), encoding=encoding)
+            for value, power in numpy.nditer([lhs.storage, rhs], order="C", flags=["refs_ok"]):
+                value = AdditiveArrayShare(self.field(value))
+                result = self.share(src=0, secret=numpy.array(1.0), shape=(), encoding=encoding)
 
 #                    # Naive implementation performs n multiplications when raising to the n-th power.
 #                    for i in range(power):
 #                        result = self.field_multiply(result, value)
 #                        result = self.right_shift(result, bits=encoding.precision)
 
-                    # Fancy implementation performs exponentiation by squaring.
-                    while True:
-                        if power & 1:
-                            result = self.field_multiply(result, value)
-                            result = self.right_shift(result, bits=encoding.precision)
+                # Fancy implementation performs exponentiation by squaring.
+                while True:
+                    if power & 1:
+                        result = self.field_multiply(result, value)
+                        result = self.right_shift(result, bits=encoding.precision)
 
-                        if not power:
-                            break
+                    if not power:
+                        break
 
-                        value = self.field_multiply(value, value)
-                        value = self.right_shift(value, bits=encoding.precision)
-                        power = power >> 1
+                    value = self.field_multiply(value, value)
+                    value = self.right_shift(value, bits=encoding.precision)
+                    power = power >> 1
 
-                    results.append(result)
+                results.append(result)
 
-            results = self.field([value.storage.item() for value in results])
+            results = self.field([result.storage.item() for result in results])
             results = results.reshape(lhs.storage.shape, order="C")
             return AdditiveArrayShare(results)
 
