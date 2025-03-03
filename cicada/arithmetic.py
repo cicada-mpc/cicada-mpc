@@ -151,8 +151,13 @@ def field(order=None):
             raise ValueError(f"Cannot subtract arrays from different fields {type(self)} and {type(other)}.")
         return ((numpy.asarray(self) - other) % type(self).order).view(type(self))
 
+    def negative_implementation(value):
+        return (0 - value) % order
+
+    negative_implementation = numpy.frompyfunc(negative_implementation, 1, 1)
+
     def negative(self):
-        return (0 - self) % type(self).order
+        return negative_implementation(self)
 
     def sum(self, axis=None, **kwargs):
         return numpy.asarray(numpy.asarray(self).sum(axis=axis) % type(self).order).view(type(self))
