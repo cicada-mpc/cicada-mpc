@@ -1141,9 +1141,8 @@ class AdditiveProtocolSuite(object):
         masked_op = self.field_multiply(mask, operand)
         revealed_masked_op = self.reveal(masked_op, encoding=Identity())
         nppowmod = numpy.vectorize(lambda a, b, c: pow(int(a), int(b), int(c)), otypes=[self.field.dtype])
-        inv = numpy.array(nppowmod(revealed_masked_op, self.field.order-2, self.field.order), dtype=self.field.dtype)
-        op_inv_share = self.field.multiply(inv, mask.storage)
-        return AdditiveArrayShare(op_inv_share)
+        inv = self.field(nppowmod(revealed_masked_op, self.field.order-2, self.field.order))
+        return AdditiveArrayShare(inv * mask.storage)
 
 
     def multiply(self, lhs, rhs, *, encoding=None):
