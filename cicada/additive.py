@@ -1623,33 +1623,35 @@ class AdditiveProtocolSuite(object):
         if not isinstance(operand, AdditiveArrayShare):
             raise ValueError(f"Expected operand to be an instance of AdditiveArrayShare, got {type(operand)} instead.") # pragma: no cover
 
-        shift_left = self.field.full_like(operand.storage, 2**bits)
+        # Amount to shift the remaining_mask to the left.
+        shift_left = self.field(2**bits)
         # Multiplicative inverse of shift_left.
-        shift_right = self.field.full_like(operand.storage, pow(2**bits, self.field.order-2, self.field.order))
+        shift_right = self.field(pow(2**bits, self.field.order-2, self.field.order))
 
         if trunc_mask:
             truncation_mask = trunc_mask
         else:
             # Generate random bits that will mask the region to be truncated.
-            _, truncation_mask = self.random_bitwise_secret(bits=bits, src=src, generator=generator, shape=operand.storage.shape)
+            truncation_mask = self.bit_compose(self.random_bits(src=src, generator=generator, shape=operand.storage.shape + (bits,)))
         if rem_mask:
             remaining_mask = rem_mask
         else:
             # Generate random bits that will mask everything outside the region to be truncated.
-            _, remaining_mask = self.random_bitwise_secret(bits=self.field.bits-bits, src=src, generator=generator, shape=operand.storage.shape)
-        remaining_mask.storage = self.field.multiply(remaining_mask.storage, shift_left)
+            remaining_mask = self.bit_compose(self.random_bits(src=src, generator=generator, shape=operand.storage.shape + (self.field.bits-bits,)))
+
+        remaining_mask.storage = remaining_mask.storage * shift_left
 
         # Combine the two masks.
         mask = self.field_add(remaining_mask, truncation_mask)
 
         # Mask the array element.
-        masked_element = self.field_add(mask, operand)
+        masked_element = self.field_add(operand, mask)
 
         # Reveal the element to all players (because it's masked, no player learns the underlying secret).
         masked_element = self.reveal(masked_element, encoding=Identity())
 
         # Retain just the bits within the region to be truncated, which need to be removed.
-        masked_truncation_bits = numpy.array(masked_element % shift_left, dtype=self.field.dtype)
+        masked_truncation_bits = masked_element % shift_left
 
         # Remove the mask, leaving just the bits to be removed from the
         # truncation region.  Because the result of the subtraction is
@@ -1660,9 +1662,7 @@ class AdditiveProtocolSuite(object):
         result = self.field_subtract(operand, truncation_bits)
 
         # Truncate the element by shifting right to get rid of the (now cleared) bits in the truncation region.
-        result = self.field.multiply(result.storage, shift_right)
-
-        return AdditiveArrayShare(result)
+        return AdditiveArrayShare(result.storage * shift_right)
 
 
     def share(self, *, src, secret, shape, encoding=None):
