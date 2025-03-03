@@ -1320,9 +1320,9 @@ class AdditiveProtocolSuite(object):
 
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             results=[]
-            with numpy.nditer([lhs.storage, rhs], flags=["refs_ok"]) as iterator:
+            with numpy.nditer([lhs.storage, rhs], order="C", flags=["refs_ok"]) as iterator:
                 for value, power in iterator:
-                    value = AdditiveArrayShare(value)
+                    value = AdditiveArrayShare(self.field(value))
                     result = self.share(src=0, secret=numpy.array(1.0), shape=(), encoding=encoding)
 
 #                    # Naive implementation performs n multiplications when raising to the n-th power.
@@ -1344,7 +1344,10 @@ class AdditiveProtocolSuite(object):
                         power = power >> 1
 
                     results.append(result)
-            return AdditiveArrayShare(numpy.array([result.storage.item() for result in results], dtype=self.field.dtype).reshape(lhs.storage.shape))
+
+            results = self.field([value.storage.item() for value in results])
+            results = results.reshape(lhs.storage.shape, order="C")
+            return AdditiveArrayShare(results)
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
