@@ -42,7 +42,7 @@ class AdditiveArrayShare(object):
 
 
     def __getitem__(self, index):
-        return AdditiveArrayShare(numpy.array(self._storage[index], dtype=self._storage.dtype)) # pragma: no cover
+        return AdditiveArrayShare(self.storage[index]) # pragma: no cover
 
 
     @property
