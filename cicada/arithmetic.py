@@ -162,11 +162,11 @@ def field(order=None):
     def sum(self, axis=None, **kwargs):
         return numpy.asarray(numpy.asarray(self).sum(axis=axis) % type(self).order).view(type(self))
 
-    def require_integers(value):
+    def require_integer(value):
         if not isinstance(value, (int, numpy.integer)):
             raise ValueError(f"Field values must be integers, {value!r} is not allowed.")
 
-    require_integers = numpy.frompyfunc(require_integers, 1, 0)
+    require_integers = numpy.frompyfunc(require_integer, 1, 0)
 
     class FieldMeta(type, Field):
         def __new__(cls, name, bases, namespace):
@@ -189,6 +189,11 @@ def field(order=None):
         def __repr__(cls):
             return f"Field(order={cls.order})"
 
+        def _require_field_value(cls, value):
+            require_integer(value)
+            if value < 0 or value >= cls.order:
+                raise ValueError(f"Field values must be in the range [0, {order}).")
+
         @property
         def bits(cls):
             return cls.order.bit_length()
@@ -202,11 +207,11 @@ def field(order=None):
             return object
 
         def full(cls, shape, fill):
-            fill = int(fill) % cls.order
+            cls._require_field_value(fill)
             return numpy.full(shape, fill, dtype=cls.dtype).view(cls)
 
         def full_like(cls, other, fill):
-            fill = int(fill) % cls.order
+            cls._require_field_value(fill)
             return numpy.full_like(other, fill, dtype=cls.dtype).view(cls)
 
         def ones(cls, shape):
