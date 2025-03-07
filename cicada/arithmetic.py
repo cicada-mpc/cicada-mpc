@@ -97,15 +97,7 @@ def field(order=None):
     def __add__(self, other):
         if not isinstance(other, type(self)):
             raise ValueError(f"Cannot add arrays from different fields {type(self)} and {type(other)}.")
-        return ((numpy.asarray(self) + other) % type(self).order).view(type(self))
-
-    def __reduce__(self):
-        view = self.view(numpy.ndarray)
-        state = view.__reduce__()
-        return (_reconstruct, (type(self).order,), state)
-
-    def __setstate__(self, state):
-        numpy.ndarray.__setstate__(self, state[2])
+        return numpy.asarray(numpy.asarray(numpy.asarray(self) + numpy.asarray(other), dtype=type(self).dtype) % type(self).order, dtype=type(self).dtype).view(type(self))
 
     def __iadd__(self, other):
         if not isinstance(other, type(self)):
@@ -113,6 +105,13 @@ def field(order=None):
         array = numpy.asarray(self)
         array += other
         array %= type(self).order
+        return self
+
+    def __imod__(self, other):
+        if not isinstance(other, type(self)):
+            raise ValueError(f"Cannot compute modulo from different fields {type(self)} and {type(other)}.")
+        array = numpy.asarray(self)
+        array %= other
         return self
 
     def __imul__(self, other):
@@ -131,10 +130,15 @@ def field(order=None):
         array %= type(self).order
         return self
 
+    def __mod__(self, other):
+        if not isinstance(other, type(self)):
+            raise ValueError(f"Cannot compute modulo from different fields {type(self)} and {type(other)}.")
+        return numpy.asarray(numpy.asarray(self) % numpy.asarray(other), dtype=type(self).dtype).view(type(self))
+
     def __mul__(self, other):
         if not isinstance(other, type(self)):
             raise ValueError(f"Cannot multiply arrays from different fields {type(self)} and {type(other)}.")
-        return ((numpy.asarray(self) * other) % type(self).order).view(type(self))
+        return numpy.asarray(numpy.asarray(numpy.asarray(self) * numpy.asarray(other), dtype=type(self).dtype) % type(self).order, dtype=type(self).dtype).view(type(self))
 
     def __new__(cls, array):
         array = numpy.asarray(array, dtype=cls.dtype)
@@ -143,13 +147,21 @@ def field(order=None):
             raise ValueError(f"Field values must be in the range [0, {order}).")
         return array.view(cls)
 
+    def __reduce__(self):
+        view = self.view(numpy.ndarray)
+        state = view.__reduce__()
+        return (_reconstruct, (type(self).order,), state)
+
     def __repr__(self):
         return f"FieldArray({self.tolist()!r}, order={type(self).order})"
+
+    def __setstate__(self, state):
+        numpy.ndarray.__setstate__(self, state[2])
 
     def __sub__(self, other):
         if not isinstance(other, type(self)):
             raise ValueError(f"Cannot subtract arrays from different fields {type(self)} and {type(other)}.")
-        return ((numpy.asarray(self) - other) % type(self).order).view(type(self))
+        return numpy.asarray(numpy.asarray(numpy.asarray(self) - numpy.asarray(other), dtype=type(self).dtype) % type(self).order, dtype=type(self).dtype).view(type(self))
 
     def negative_implementation(value):
         return (0 - value) % order
@@ -160,7 +172,7 @@ def field(order=None):
         return negative_implementation(self)
 
     def sum(self, axis=None, **kwargs):
-        return numpy.asarray(numpy.asarray(self).sum(axis=axis) % type(self).order).view(type(self))
+        return numpy.asarray(self.view(numpy.ndarray).sum(axis=axis) % type(self).order).view(type(self))
 
     def require_integer(value):
         if not isinstance(value, (int, numpy.integer)):
@@ -175,8 +187,10 @@ def field(order=None):
             instance.__reduce__ = __reduce__
             instance.__setstate__ = __setstate__
             instance.__iadd__ = __iadd__
+            instance.__imod__ = __imod__
             instance.__imul__ = __imul__
             instance.__isub__ = __isub__
+            instance.__mod__ = __mod__
             instance.__mul__ = __mul__
             instance.__neg__ = negative
             instance.__new__ = __new__
