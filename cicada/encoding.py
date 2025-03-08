@@ -191,7 +191,7 @@ class FixedPoint(object):
             raise ValueError(f"Expected non-negative precision, got {precision} instead.") # pragma: no cover
 
         self._precision = precision
-        self._scale = int(2**self._precision)
+        self._scale = int(2 ** self._precision)
 
 
     def __eq__(self, other):
@@ -209,8 +209,6 @@ class FixedPoint(object):
         ----------
         array: :class:`FieldArray`, or :any:`None`, required
             Array of field values created with :meth:`encode`.
-        field: :class:`cicada.arithmetic.Field`, required
-            Field used to create `array`.
 
         Returns
         -------
@@ -228,12 +226,12 @@ class FixedPoint(object):
         order = type(array).order
         posbound = order // 2
 
-        # Set aside storage for the result (ensures that we return an array and not a scalar).
-        output = numpy.empty_like(array, dtype=numpy.float64)
         # Convert from the field to a plain array of integers.
-        result = numpy.copy(array, subok=False)
+        result = numpy.asarray(array)
         # Switch from twos-complement notation to negative values.
         result = numpy.where(result > posbound, -(order - result), result)
+        # Set aside storage for the result (ensures that we return an array and not a scalar).
+        output = numpy.empty(array.shape, dtype=numpy.float64) # Do NOT use empty_like().
         # Shift values back to the right and convert to reals.
         return numpy.divide(result.astype(numpy.float64), self._scale, out=output)
 
