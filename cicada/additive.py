@@ -333,7 +333,7 @@ class AdditiveProtocolSuite(object):
 
         # Private-private division.
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, AdditiveArrayShare):
-            zshare = self.share(src=0, secret=numpy.zeros_like(rhs.storage), shape=rhs.storage.shape)
+            zshare = self.share(src=0, secret=self.field.zeros_like(rhs.storage), shape=rhs.shape)
             check = self.reveal(self.equal(rhs, zshare), encoding=Boolean())
             if not len(check.shape):
                 if check:
@@ -344,10 +344,10 @@ class AdditiveProtocolSuite(object):
             oops = True
             while oops:
                 if rmask is None:
-                    _, rmask = self.random_bitwise_secret(bits=encoding.precision, shape=rhs.storage.shape)
+                    rmask = self.bit_compose(self.random_bits(shape=rhs.shape + (encoding.precision,)))
                 else:
                     oops = False
-                if not len(rhs.storage.shape):
+                if not len(rhs.shape):
                     if self.reveal(self.equal(rmask, zshare), encoding=Boolean()):
                         rmask = None
                 else:
@@ -364,7 +364,7 @@ class AdditiveProtocolSuite(object):
             else:
                 almost_there = self.right_shift(self.field_multiply(lhs, rmask), bits=encoding.precision)
             divisor = encoding.encode(numpy.array(1 / revealrhsmasked), self.field)
-            quotient = AdditiveArrayShare(self.field.multiply(almost_there.storage, divisor))
+            quotient = AdditiveArrayShare(almost_there.storage * divisor)
             if mask3 != None and rem3 != None:
                 return self.right_shift(quotient, bits=encoding.precision, trunc_mask=mask3, rem_mask=rem3)
             else:
