@@ -44,6 +44,10 @@ class AdditiveArrayShare(object):
     def __getitem__(self, index):
         return AdditiveArrayShare(self.storage[index]) # pragma: no cover
 
+    @property
+    def shape(self):
+        """Returns the shape of the secret shared array."""
+        return self._storage.shape
 
     @property
     def storage(self):
