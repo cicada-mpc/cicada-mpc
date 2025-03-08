@@ -155,6 +155,15 @@ def field(order=None):
     def __repr__(self):
         return f"FieldArray({self.tolist()!r}, order={type(self).order})"
 
+    def __setitem__(self, key, value):
+        value = numpy.asarray(value)
+        require_integers(value)
+        if numpy.any(numpy.logical_or(value < 0, value >= type(self).order)):
+            raise ValueError(f"Field values must be in the range [0, {order}).")
+        if not isinstance(key, (slice, type(Ellipsis))):
+            value = value.item()
+        self.view(numpy.ndarray)[key] = value
+
     def __setstate__(self, state):
         numpy.ndarray.__setstate__(self, state[2])
 
@@ -195,6 +204,7 @@ def field(order=None):
             instance.__neg__ = negative
             instance.__new__ = __new__
             instance.__repr__ = __repr__
+            instance.__setitem__ = __setitem__
             instance.__sub__ = __sub__
             instance.negative = negative
             instance.sum = sum
