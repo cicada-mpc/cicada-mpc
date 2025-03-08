@@ -804,8 +804,8 @@ class AdditiveProtocolSuite(object):
         encoding = self._require_encoding(encoding)
 
         one = self.share(src=0, secret=self.field.full_like(operand.storage, 2**encoding.precision), shape=operand.storage.shape, encoding=Identity())
-        shift_op = self.field.full_like(operand.storage, 2**encoding.precision)
-        pl2 = self.field.full_like(operand.storage, self.field.order-1)
+        shift_op = self.field(2 ** encoding.precision)
+        pl2 = self.field(self.field.order - 1)
 
         abs_op = self.absolute(operand)
         frac_bits = encoding.precision
@@ -813,9 +813,9 @@ class AdditiveProtocolSuite(object):
         lsbs = self.bit_decompose(abs_op, bits=encoding.precision)
         lsbs_composed = self.bit_compose(lsbs)
         lsbs_inv = self.negative(lsbs_composed)
-        two_lsbs = AdditiveArrayShare(self.field.multiply(lsbs_composed.storage, self.field.full_like(lsbs_composed.storage, 2)))
+        two_lsbs = AdditiveArrayShare(lsbs_composed.storage * self.field(2))
         ltz = self.less_zero(operand)
-        ones2sub = AdditiveArrayShare(self.field.multiply(self.field_power(lsbs_composed, pl2).storage, shift_op))
+        ones2sub = AdditiveArrayShare(self.field_power(lsbs_composed, pl2).storage * shift_op)
         sel_2_lsbs = self.field_multiply(self.field_subtract(two_lsbs, ones2sub), ltz)
         return self.field_add(self.field_add(sel_2_lsbs, lsbs_inv), operand)
 
