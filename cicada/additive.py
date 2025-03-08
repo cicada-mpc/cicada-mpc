@@ -283,16 +283,16 @@ class AdditiveProtocolSuite(object):
             bits = self.field.bits
 
         list_o_bits = []
-        two_inv = numpy.array(pow(2, self.field.order-2, self.field.order), dtype=self.field.dtype)
+        two_inv = self.field(pow(2, self.field.order-2, self.field.order))
         for element in operand.storage.flat: # Iterates in "C" order.
-            loopop = AdditiveArrayShare(numpy.array(element, dtype=self.field.dtype))
+            loopop = AdditiveArrayShare(self.field(element))
             elebits = []
             for i in range(bits):
                 elebits.append(self._lsb(loopop))
                 loopop = self.field_subtract(loopop, elebits[-1])
-                loopop = AdditiveArrayShare(self.field.multiply(loopop.storage, two_inv))
+                loopop = AdditiveArrayShare(loopop.storage * two_inv)
             list_o_bits.append(elebits[::-1])
-        return AdditiveArrayShare(numpy.array([x.storage for y in list_o_bits for x in y]).reshape(operand.storage.shape+(bits,)))
+        return AdditiveArrayShare(self.field([x.storage.item() for y in list_o_bits for x in y]).reshape(operand.shape + (bits,)))
 
 
     @property
