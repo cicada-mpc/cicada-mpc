@@ -941,7 +941,7 @@ class AdditiveProtocolSuite(object):
             Secret-shared elementwise logical NOT of `operand`.
         """
         self._assert_unary_compatible(operand, "operand")
-        return self.field_subtract(self.field.ones_like(operand.storage), operand)
+        return self.field_subtract(self.field(1), operand)
 
 
     def logical_or(self, lhs, rhs):
