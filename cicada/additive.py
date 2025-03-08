@@ -1545,11 +1545,10 @@ class AdditiveProtocolSuite(object):
         self._assert_unary_compatible(operand, "operand")
         recshares = []
         for i in range(self.communicator.world_size):
-            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.storage.shape, encoding=Identity()))
-        acc = numpy.zeros(operand.storage.shape, dtype=self.field.dtype)
+            recshares.append(self.share(src=i, secret=operand.storage, shape=operand.shape, encoding=Identity()))
+        acc = self.field.zeros_like(operand.storage)
         for s in recshares:
             acc += s.storage
-        acc %= self.field.order
         return AdditiveArrayShare(acc)
 
 
