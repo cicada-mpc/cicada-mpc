@@ -31,6 +31,8 @@ def step_impl(context):
     context.sources = []
     for directory, subdirectories, filenames in os.walk(root_dir):
         for filename in filenames:
+            if filename in ["player-0.py", "player-1.py", "player-2.py"]:
+                continue
             extension = os.path.splitext(filename)[1]
             if extension == ".py":
                 pass
