@@ -38,7 +38,7 @@ class AdditiveArrayShare(object):
 
 
     def __repr__(self):
-        return f"cicada.additive.AdditiveArrayShare(storage={self._storage})" # pragma: no cover
+        return f"AdditiveArrayShare(storage={self._storage!r})" # pragma: no cover
 
 
     def __getitem__(self, index):
@@ -240,7 +240,9 @@ class AdditiveProtocolSuite(object):
         """
         self._assert_unary_compatible(operand, "operand")
 
-        shift = self.field(numpy.power(2, numpy.arange(operand.storage.shape[-1])))[::-1]
+        bits = operand.storage.shape[-1]
+        exponents = numpy.flip(numpy.arange(bits, dtype=object))
+        shift = self.field(numpy.power(2, exponents))
         shifted = operand.storage * shift
         return AdditiveArrayShare(shifted.sum(axis=-1))
 
@@ -1028,25 +1030,28 @@ class AdditiveProtocolSuite(object):
             Additive shared array containing the elementwise least significant
             bits of `operand`.
         """
-        one = numpy.array(1, dtype=self.field.dtype)
-        lop = AdditiveArrayShare(operand.storage.flatten())
-        tmpBW, tmp = self.random_bitwise_secret(bits=self.field.bits, shape=lop.storage.shape)
-        maskedlop = self.field_add(lop, tmp)
-        c = self.reveal(maskedlop, encoding=Identity())
-        comp_result = self._public_bitwise_less_than(lhspub=c, rhs=tmpBW)
-        c = (c % 2)
-        c0xr0 = numpy.empty(c.shape, dtype = self.field.dtype)
-        for i, lc in enumerate(c):
+        flattened = AdditiveArrayShare(operand.storage.flatten(order="C"))
+        bits = self.random_bits(shape=flattened.storage.shape + (self.field.bits,))
+        mask = self.bit_compose(bits)
+        masked = self.field_add(flattened, mask)
+        masked = self.reveal(masked, encoding=Identity())
+
+        comp_result = self._public_bitwise_less_than(masked, bits)
+
+        masked %= self.field(2)
+
+        c0xr0 = self.field.zeros(masked.shape)
+        for i, lc in enumerate(masked):
             if lc:
-                c0xr0[i] = self.field_subtract(lhs=one, rhs=AdditiveArrayShare(numpy.array(tmpBW.storage[i][-1], dtype=self.field.dtype))).storage
+                c0xr0[i] = self.field_subtract(self.field(1), AdditiveArrayShare(self.field(bits.storage[i][-1]))).storage
             else:
-                c0xr0[i] = tmpBW.storage[i][-1]
+                c0xr0[i] = bits.storage[i][-1]
         c0xr0 = AdditiveArrayShare(c0xr0)
-        result = self.field_multiply(lhs=comp_result, rhs=c0xr0)
-        result = AdditiveArrayShare(self.field.multiply(lhs=self.field.full_like(result.storage, 2), rhs=result.storage))
-        result = self.field_subtract(lhs=c0xr0, rhs=result)
-        result = self.field_add(lhs=comp_result, rhs=result)
-        return AdditiveArrayShare(result.storage.reshape(operand.storage.shape))
+        result = self.field_multiply(comp_result, c0xr0)
+        result = AdditiveArrayShare(self.field(2) * result.storage)
+        result = self.field_subtract(c0xr0, result)
+        result = self.field_add(comp_result, result)
+        return AdditiveArrayShare(result.storage.reshape(operand.storage.shape, order="C"))
 
 
     def maximum(self, lhs, rhs):
@@ -1359,12 +1364,12 @@ class AdditiveProtocolSuite(object):
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
 
-    def _public_bitwise_less_than(self, *, lhspub, rhs):
+    def _public_bitwise_less_than(self, lhspub, rhs):
         """Comparison Operator
 
         Parameters
         ----------
-        lhs: :class:`ndarray`, required
+        lhspub: :class:`ndarray`, required
             a publically known numpy array of integers and one of the two objects to be compared
         rhs: :class:`AdditiveArrayShare`, required
             bit decomposed shared secret(s) and the other of the two objects to be compared
@@ -1383,18 +1388,21 @@ class AdditiveProtocolSuite(object):
         """
         if lhspub.shape != rhs.storage.shape[:-1]:
             raise ValueError('rhs is not of the expected shape - it should be the same as lhs except the last dimension') # pragma: no cover
+
         bitwidth = rhs.storage.shape[-1]
+
         lhsbits = []
         for val in lhspub:
             tmplist = [int(x) for x in bin(val)[2:]]
             if len(tmplist) < bitwidth:
                 tmplist = [0 for x in range(bitwidth-len(tmplist))] + tmplist
             lhsbits.append(tmplist)
-        lhsbits = numpy.array(lhsbits, dtype=self.field.dtype)
+        lhsbits = self.field(lhsbits)
+
         assert(lhsbits.shape == rhs.storage.shape)
-        one = numpy.array(1, dtype=self.field.dtype)
         flatlhsbits = lhsbits.reshape((-1, lhsbits.shape[-1]))
         flatrhsbits = rhs.storage.reshape((-1, rhs.storage.shape[-1]))
+
         results=[]
         for j in range(len(flatlhsbits)):
             xord = []
@@ -1402,25 +1410,25 @@ class AdditiveProtocolSuite(object):
             msbdiff=[]
             rhs_bit_at_msb_diff = []
             for i in range(bitwidth):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.field.dtype))
+                rhsbit=AdditiveArrayShare(self.field(flatrhsbits[j,i]))
                 if flatlhsbits[j][i] == 1:
-                    xord.append(self.field_subtract(lhs=one, rhs=rhsbit))
+                    xord.append(self.field_subtract(self.field(1), rhsbit))
                 else:
                     xord.append(rhsbit)
             preord = [xord[0]]
             for i in range(1,bitwidth):
-                preord.append(self.logical_or(lhs=preord[i-1], rhs=xord[i]))
+                preord.append(self.logical_or(preord[i-1], xord[i]))
             msbdiff = [preord[0]]
             for i in range(1,bitwidth):
-                msbdiff.append(self.field_subtract(lhs=preord[i], rhs=preord[i-1]))
+                msbdiff.append(self.field_subtract(preord[i], preord[i-1]))
             for i in range(bitwidth):
-                rhsbit=AdditiveArrayShare(storage=numpy.array(flatrhsbits[j,i], dtype=self.field.dtype))
+                rhsbit=AdditiveArrayShare(self.field(flatrhsbits[j,i]))
                 rhs_bit_at_msb_diff.append(self.field_multiply(rhsbit, msbdiff[i]))
             result = rhs_bit_at_msb_diff[0]
             for i in range(1,bitwidth):
-                result = self.field_add(lhs=result, rhs=rhs_bit_at_msb_diff[i])
+                result = self.field_add(result, rhs_bit_at_msb_diff[i])
             results.append(result)
-        return AdditiveArrayShare(numpy.array([x.storage for x in results], dtype=self.field.dtype).reshape(rhs.storage.shape[:-1]))
+        return AdditiveArrayShare(self.field([x.storage.item() for x in results]).reshape(rhs.storage.shape[:-1]))
 
 
     def random_bits(self, *, shape=None, src=None, generator=None):
