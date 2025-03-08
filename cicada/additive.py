@@ -884,8 +884,7 @@ class AdditiveProtocolSuite(object):
             Secret-shared comparison :math:`operand \lt 0`.
         """
         self._assert_unary_compatible(operand, "operand")
-        two = self.field.full_like(operand.storage, 2)
-        result = self.field_multiply(two, operand)
+        result = self.field_multiply(self.field(2), operand)
         return self._lsb(result)
 
 
