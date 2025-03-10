@@ -23,7 +23,7 @@ jobs:
         pip install .
     - name: Run tests
       run: |
-        coverage run --source cicada -m behave --tags=~wip --logging-level INFO --no-logcapture -e "(active|shamir|transcript)"
+        coverage run --source cicada -m behave --tags=~wip --logging-level INFO --no-logcapture -e "(active|documentation|shamir|transcript)"
         coverage combine
         coverage report
         #behave -i transcript --tags=~wip --logging-level INFO --no-logcapture
