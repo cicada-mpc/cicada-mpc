@@ -21,7 +21,7 @@ from random import randrange
 
 import numpy
 
-from cicada.arithmetic import Field
+from cicada.arithmetic import field, Field, FieldArray
 from cicada.communicator.interface import Communicator
 from cicada.encoding import FixedPoint, Identity, Boolean
 
@@ -36,7 +36,15 @@ class ShamirArrayShare(object):
 
 
     def __repr__(self):
-        return f"cicada.shamir.ShamirArrayShare(storage={self._storage})" # pragma: no cover
+        return f"ShamirArrayShare(storage={self._storage!r})" # pragma: no cover
+
+    def __getitem__(self, index):
+        return ShamirArrayShare(self.storage[index]) # pragma: no cover
+
+    @property
+    def shape(self):
+        """Returns the shape of the secret shared array."""
+        return self._storage.shape
 
 
     @property
@@ -51,9 +59,9 @@ class ShamirArrayShare(object):
 
     @storage.setter
     def storage(self, storage):
-        if not isinstance(storage, numpy.ndarray):
-            raise ValueError(f"Expected numpy.ndarray, got {type(storage)}.") # pragma: no cover
-        self._storage = numpy.array(storage, dtype=object)
+        if not isinstance(type(storage), Field):
+            raise ValueError(f"Expected field array, got {type(storage)}.") # pragma: no cover
+        self._storage = storage
 
 
 class ShamirBasicProtocolSuite(object):
@@ -108,7 +116,6 @@ class ShamirBasicProtocolSuite(object):
             raise ValueError("threshold must be >= 2") # pragma: no cover
         if threshold > communicator.world_size:
             raise ValueError("threshold must be <= world_size") # pragma: no cover
-        self._d = threshold-1
 
         if seed is None:
             seed = numpy.random.default_rng(seed=None).integers(low=0, high=2**63-1, endpoint=True)
@@ -125,8 +132,9 @@ class ShamirBasicProtocolSuite(object):
             indices = numpy.array(communicator.ranks) + 1
 
         self._communicator = communicator
-        self._field = Field(order=order)
+        self._field = field(order=order)
         self._encoding = encoding
+        self._threshold = threshold
         self._indices = self._field(indices)
         self._revealing_coef = self._lagrange_coef()
 
@@ -273,9 +281,9 @@ class ShamirBasicProtocolSuite(object):
 
         Parameters
         ----------
-        lhs: :class:`ShamirArrayShare` or :class:`numpy.ndarray`, required
+        lhs: :class:`ShamirArrayShare`, :class:`FieldArray`, or :class:`numpy.ndarray`, required
             Secret shared or public value to be added.
-        rhs: :class:`ShamirArrayShare` or :class:`numpy.ndarray`, required
+        rhs: :class:`ShamirArrayShare`, :class:`FieldArray`, or :class:`numpy.ndarray`, required
             Secret shared or public value to be added.
 
         Returns
@@ -285,15 +293,21 @@ class ShamirBasicProtocolSuite(object):
         """
         # Private-private addition.
         if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, ShamirArrayShare):
-            return ShamirArrayShare(self.field.add(lhs.storage, rhs.storage))
-
-        # Public-private addition.
-        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
-             return ShamirArrayShare(self.field.add(lhs, rhs.storage))
+            return ShamirArrayShare(lhs.storage + rhs.storage)
 
         # Private-public addition.
+        if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, self.field):
+            return ShamirArrayShare(lhs.storage + rhs)
+
         if isinstance(lhs, ShamirArrayShare) and isinstance(rhs, numpy.ndarray):
-            return ShamirArrayShare(self.field.add(lhs.storage, rhs))
+            return ShamirArrayShare(lhs.storage + self.field(rhs))
+
+        # Public-private addition.
+        if isinstance(lhs, self.field) and isinstance(rhs, ShamirArrayShare):
+             return ShamirArrayShare(lhs + rhs.storage)
+
+        if isinstance(lhs, numpy.ndarray) and isinstance(rhs, ShamirArrayShare):
+             return ShamirArrayShare(self.field(lhs) + rhs.storage)
 
         raise NotImplementedError(f"Privacy-preserving subtraction not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
@@ -506,6 +520,7 @@ class ShamirBasicProtocolSuite(object):
         secret = None
         for recipient in dst:
             received_shares = self.communicator.gatherv(src=src, value=share, dst=recipient)
+            print(f"Player {self.communicator.rank} received shares: {received_shares!r}")
             if received_shares:
                 received_storage = numpy.array([x.storage for x in received_shares], dtype=self.field.dtype)
                 if self.communicator.rank == recipient:
@@ -553,10 +568,7 @@ class ShamirBasicProtocolSuite(object):
 
         encoding = self._require_encoding(encoding)
 
-        dst=self.communicator.ranks
-        ldst=len(dst)
-        shares = []
-        sharesn = numpy.zeros(shape+(ldst,))
+        shares = None
 
         if self.communicator.rank == src:
             if not isinstance(secret, numpy.ndarray):
@@ -564,14 +576,19 @@ class ShamirBasicProtocolSuite(object):
             if secret.shape != shape:
                 raise ValueError(f"Expected secret.shape {shape}, got {secret.shape} instead.") # pragma: no cover
 
-            secret = encoding.encode(secret, self.field)
+            secret = encoding.encode(secret, self.field).flatten(order="C")
 
-            coef = self.field.uniform(size=shape+(self._d,), generator=self._generator)
-            for index in numpy.ndindex(shape):
+            coefficients = numpy.column_stack((secret, self.field.uniform(size=secret.shape + (self._threshold-1,), generator=self._generator)))
+            exponents = self.field(numpy.arange(self.threshold))
+
+            shares = []
+            for a in coefficients:
                 for x in self._indices:
-                    shares.append((numpy.dot(numpy.power(numpy.full((self._d,), x),numpy.arange(1, self._d+1)), coef[index])+secret[index])%self.field.order)
-            sharesn = numpy.array(shares, dtype=self.field.dtype).reshape(shape+(ldst,)).T
-        share = numpy.array(self.communicator.scatter(src=src, values=sharesn), dtype=self.field.dtype).T
+                    shares.append(numpy.sum(a * numpy.power(x, exponents)).item())
+            shares = self.field(shares).reshape(len(secret), -1).T
+
+        share = self.communicator.scatter(src=src, values=shares).reshape(shape, order="C")
+        print(f"Player {self.communicator.rank} share: {share!r}")
         return ShamirArrayShare(share)
 
 
@@ -645,7 +662,7 @@ class ShamirBasicProtocolSuite(object):
     @property
     def threshold(self):
         """Return the threshold (minimum number of players required to reveal a secret)."""
-        return self._d + 1
+        return self._threshold
 
 
     def _verify_storage(self, operand):

@@ -34,6 +34,7 @@ import types
 import hunter
 import numpy
 
+from .arithmetic import Field, FieldArray
 from .active import ActiveArrayShare, ActiveProtocolSuite
 from .additive import AdditiveArrayShare, AdditiveProtocolSuite
 from .communicator.interface import tagname
@@ -73,7 +74,7 @@ class _CallLogger(hunter.actions.Action):
             "cicada.active.ActiveProtocolSuite.multiply",
             "cicada.active.ActiveProtocolSuite.negative",
             "cicada.active.ActiveProtocolSuite.power",
-            "cicada.active.ActiveProtocolSuite.random_bitwise_secret",
+            "cicada.active.ActiveProtocolSuite.random_bits",
             "cicada.active.ActiveProtocolSuite.relu",
             "cicada.active.ActiveProtocolSuite.reshare",
             "cicada.active.ActiveProtocolSuite.reveal",
@@ -111,7 +112,7 @@ class _CallLogger(hunter.actions.Action):
             "cicada.additive.AdditiveProtocolSuite.multiply",
             "cicada.additive.AdditiveProtocolSuite.negative",
             "cicada.additive.AdditiveProtocolSuite.power",
-            "cicada.additive.AdditiveProtocolSuite.random_bitwise_secret",
+            "cicada.additive.AdditiveProtocolSuite.random_bits",
             "cicada.additive.AdditiveProtocolSuite.relu",
             "cicada.additive.AdditiveProtocolSuite.reshare",
             "cicada.additive.AdditiveProtocolSuite.reveal",
@@ -161,7 +162,7 @@ class _CallLogger(hunter.actions.Action):
             "cicada.shamir.ShamirProtocolSuite.multiply",
             "cicada.shamir.ShamirProtocolSuite.negative",
             "cicada.shamir.ShamirProtocolSuite.power",
-            "cicada.shamir.ShamirProtocolSuite.random_bitwise_secret",
+            "cicada.shamir.ShamirProtocolSuite.random_bits",
             "cicada.shamir.ShamirProtocolSuite.relu",
             "cicada.shamir.ShamirProtocolSuite.reshare",
             "cicada.shamir.ShamirProtocolSuite.reveal",
@@ -173,20 +174,25 @@ class _CallLogger(hunter.actions.Action):
             ])
 
         self.test_whitelist = set([
-            "cicada.arithmetic.Field.__call__",
-            "cicada.arithmetic.Field.add",
-            "cicada.arithmetic.Field.full_like",
-            "cicada.arithmetic.Field.inplace_add",
-            "cicada.arithmetic.Field.inplace_subtract",
-            "cicada.arithmetic.Field.multiply",
-            "cicada.arithmetic.Field.negative",
-            "cicada.arithmetic.Field.ones",
-            "cicada.arithmetic.Field.ones_like",
-            "cicada.arithmetic.Field.subtract",
-            "cicada.arithmetic.Field.sum",
-            "cicada.arithmetic.Field.uniform",
-            "cicada.arithmetic.Field.zeros",
-            "cicada.arithmetic.Field.zeros_like",
+            "cicada.arithmetic.field.<locals>.FieldMeta.full",
+            "cicada.arithmetic.field.<locals>.FieldMeta.full_like",
+            "cicada.arithmetic.field.<locals>.FieldMeta.ones",
+            "cicada.arithmetic.field.<locals>.FieldMeta.ones_like",
+            "cicada.arithmetic.field.<locals>.FieldMeta.uniform",
+            "cicada.arithmetic.field.<locals>.FieldMeta.zeros",
+            "cicada.arithmetic.field.<locals>.FieldMeta.zeros_like",
+
+            "cicada.arithmetic.field.<locals>.__iadd__",
+            "cicada.arithmetic.field.<locals>.__isub__",
+
+#            "cicada.arithmetic.Field.__call__",
+#            "cicada.arithmetic.Field.add",
+#            "cicada.arithmetic.Field.inplace_add",
+#            "cicada.arithmetic.Field.inplace_subtract",
+#            "cicada.arithmetic.Field.multiply",
+#            "cicada.arithmetic.Field.negative",
+#            "cicada.arithmetic.Field.subtract",
+#            "cicada.arithmetic.Field.sum",
             "cicada.encoding.Bits.decode",
             "cicada.encoding.Bits.encode",
             "cicada.encoding.Boolean.decode",
@@ -205,6 +211,8 @@ class _CallLogger(hunter.actions.Action):
         fqname = event.module + "." + event.function_object.__qualname__
         qname = event.function_object.__qualname__
         name = event.function_object.__name__
+
+        print(fqname)
 
         #####################################################################################
         # Log sent messages
@@ -279,7 +287,9 @@ class _CallLogger(hunter.actions.Action):
         if event.kind == "call" and test:
             args = {}
             for key, value in event.locals.items():
-                if key in ["self"]:
+                if isinstance(value, FieldArray):
+                    args[key] = copy.deepcopy(value)
+                elif key in ["self"]:
                     args[key] = value
                 else:
                     args[key] = copy.deepcopy(value)
@@ -293,18 +303,22 @@ class _CallLogger(hunter.actions.Action):
             locals = event.locals
             result = event.arg
 
-            if fqname in ["cicada.arithmetic.Field.inplace_add", "cicada.arithmetic.Field.inplace_subtract"]:
-                o = self.repr(args["self"])
-                lhs = self.repr(args["lhs"])
-                rhs = self.repr(args["rhs"])
-                result = self.repr(locals["lhs"])
+            if fqname in [
+                "cicada.arithmetic.field.<locals>.FieldMeta.full",
+                "cicada.arithmetic.field.<locals>.FieldMeta.full_like",
+                "cicada.arithmetic.field.<locals>.FieldMeta.ones",
+                "cicada.arithmetic.field.<locals>.FieldMeta.ones_like",
+                "cicada.arithmetic.field.<locals>.FieldMeta.zeros",
+                "cicada.arithmetic.field.<locals>.FieldMeta.zeros_like",
+                ]:
+                field = self.repr(args["cls"])
+                signature = ", ".join([f"{key}={self.repr(value)}" for key, value in args.items() if key != "cls"])
+                result = self.repr(result)
 
-                _log_code(event, f"lhs = {lhs}", first=True)
-                _log_code(event, f"{o}.{name}(lhs=lhs, rhs={rhs})")
-                _log_code(event, f"cicada.transcript.assert_equal(lhs, {result})", last=True)
+                _log_code(event, f"cicada.transcript.assert_equal({field}.{name}({signature}), {result})")
 
-            elif fqname == "cicada.arithmetic.Field.uniform":
-                o = self.repr(args["self"])
+            elif fqname == "cicada.arithmetic.field.<locals>.FieldMeta.uniform":
+                field = self.repr(args["cls"])
                 size = self.repr(args["size"])
                 bg = self.repr(args["generator"].bit_generator)
                 state = self.repr(args["generator"].bit_generator.state)
@@ -312,7 +326,21 @@ class _CallLogger(hunter.actions.Action):
 
                 _log_code(event, f"bg = {bg}", first=True)
                 _log_code(event, f"bg.state = {state}")
-                _log_code(event, f"cicada.transcript.assert_equal({o}.{name}(size={size}, generator=numpy.random.Generator(bg)), {result})", last=True)
+                _log_code(event, f"cicada.transcript.assert_equal({field}.{name}(size={size}, generator=numpy.random.Generator(bg)), {result})", last=True)
+
+            elif fqname in [
+                "cicada.arithmetic.field.<locals>.__iadd__",
+                ]:
+                print(args)
+                print(locals)
+
+                lhs = self.repr(args["self"])
+                rhs = self.repr(args["other"])
+                result = self.repr(locals["self"])
+
+                _log_code(event, f"lhs = {lhs}", first=True)
+                _log_code(event, f"lhs += {rhs}")
+                _log_code(event, f"cicada.transcript.assert_equal(lhs, {result})", last=True)
 
             elif "self" in args:
                 o = self.repr(args["self"])
@@ -331,6 +359,8 @@ class _CallLogger(hunter.actions.Action):
     def repr(self, o):
         if isinstance(o, list):
             return f"[{', '.join(self.repr(item) for item in o)}]"
+        if isinstance(o, Field):
+            return f"cicada.arithmetic.field(order={o.order})"
         if isinstance(o, ActiveArrayShare):
             return f"cicada.active.ActiveArrayShare(storage=({self.repr(o.storage[0])}, {self.repr(o.storage[1])}))"
         if isinstance(o, ActiveProtocolSuite):
