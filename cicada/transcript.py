@@ -155,6 +155,7 @@ class _CallLogger(hunter.actions.Action):
             "cicada.shamir.ShamirProtocolSuite.logical_not",
             "cicada.shamir.ShamirProtocolSuite.logical_or",
             "cicada.shamir.ShamirProtocolSuite.logical_xor",
+            "cicada.shamir.ShamirProtocolSuite.matvec",
             "cicada.shamir.ShamirProtocolSuite.maximum",
             "cicada.shamir.ShamirProtocolSuite.minimum",
             "cicada.shamir.ShamirProtocolSuite.multiplicative_inverse",
