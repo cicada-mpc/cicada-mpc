@@ -268,7 +268,7 @@ class _CallLogger(hunter.actions.Action):
         # Identify functions that should generate consistency verification code in the transcript.
         test = True if fqname in self.test_whitelist else False
 
-        # Convert display function calls into comments.
+        # Generate output comments for some function calls.
         if event.kind == "call" and display:
             args = event.locals
             o = self.repr(args["self"])
@@ -276,7 +276,7 @@ class _CallLogger(hunter.actions.Action):
             _log_code(event, f"# {o}.{name}({signature})", first=True, last=True)
             return
 
-        # Make copies of test function call arguments, in-case they're modified in-place.
+        # Make copies of function arguments, in-case they're modified in-place.
         if event.kind == "call" and test:
             args = {}
             for key, value in event.locals.items():
@@ -288,7 +288,7 @@ class _CallLogger(hunter.actions.Action):
             self.stack.append(args)
             return
 
-        # Convert test function calls into consistency verification statements.
+        # Generate consistency verification statements for some function calls.
         if event.kind == "return" and test:
             args = self.stack.pop()
             locals = event.locals
