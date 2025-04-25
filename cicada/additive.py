@@ -641,7 +641,7 @@ class AdditiveProtocolSuite(object):
                 rhs = self.field.full_like(lhs.storage, rhs)
 
             ans = []
-            for lhse, rhse in numpy.nditer([lhs.storage, rhs], flags=(["refs_ok"])):
+            for lhse, rhse in numpy.nditer([lhs.storage, rhs], order="C", flags=(["refs_ok"])):
                 rhsbits = [int(x) for x in bin(int(rhse))[2:]][::-1]
                 tmp = AdditiveArrayShare(lhse)
                 it_ans = self.share(src = 0, secret=self.field.full_like(lhse, 1), shape=lhse.shape, encoding=Identity())
@@ -652,7 +652,7 @@ class AdditiveProtocolSuite(object):
                     if i < limit:
                         tmp = self.field_multiply(tmp,tmp)
                 ans.append(it_ans)
-            return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape))
+            return AdditiveArrayShare(numpy.array([x.storage for x in ans], dtype=self.field.dtype).reshape(lhs.storage.shape, order="C"))
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
@@ -1297,7 +1297,7 @@ class AdditiveProtocolSuite(object):
 
         if isinstance(lhs, AdditiveArrayShare) and isinstance(rhs, numpy.ndarray):
             results=[]
-            with numpy.nditer([lhs.storage, rhs], flags=["refs_ok"]) as iterator:
+            with numpy.nditer([lhs.storage, rhs], order="C", flags=["refs_ok"]) as iterator:
                 for value, power in iterator:
                     value = AdditiveArrayShare(value)
                     result = self.share(src=0, secret=numpy.array(1.0), shape=(), encoding=encoding)
@@ -1321,7 +1321,7 @@ class AdditiveProtocolSuite(object):
                         power = power >> 1
 
                     results.append(result)
-            return AdditiveArrayShare(numpy.array([result.storage.item() for result in results], dtype=self.field.dtype).reshape(lhs.storage.shape))
+            return AdditiveArrayShare(numpy.array([result.storage.item() for result in results], dtype=self.field.dtype).reshape(lhs.storage.shape, order="C"))
 
         raise NotImplementedError(f"Privacy-preserving exponentiation not implemented for the given types: {type(lhs)} and {type(rhs)}.") # pragma: no cover
 
