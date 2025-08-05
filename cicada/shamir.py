@@ -39,6 +39,10 @@ class ShamirArrayShare(object):
         return f"cicada.shamir.ShamirArrayShare(storage={self._storage})" # pragma: no cover
 
 
+    def __getitem__(self, index):
+        return ShamirArrayShare(numpy.array(self._storage[index], dtype=self._storage.dtype)) # pragma: no cover
+
+
     @property
     def storage(self):
         """Private storage for the local share of a secret shared array.
