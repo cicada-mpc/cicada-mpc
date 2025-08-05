@@ -7,10 +7,10 @@ Feature: Encodings
 
         Examples:
         | lhs                          | rhs                          | result   |
-        | default FixedPoint encoding  | Default FixedPoint encoding  | equal    |
+        | default FixedPoint encoding  | default FixedPoint encoding  | equal    |
         | default FixedPoint encoding  | 16 bit FixedPoint encoding   | equal    |
         | default FixedPoint encoding  | 13 bit FixedPoint encoding   | unequal  |
-        | Identity encoding            | Default FixedPoint encoding  | unequal  |
+        | Identity encoding            | default FixedPoint encoding  | unequal  |
         | Identity encoding            | Identity encoding            | equal    |
         | Bits encoding                | Bits encoding                | equal    |
         | Bits encoding                | Identity encoding            | unequal  |
