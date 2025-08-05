@@ -52,7 +52,7 @@ Feature: Transcripts
     Scenario: Shamir absolute transcript formatting
         Given 3 players
         And a default code message handler
-        When transcription is enabled while computing an absolute value with Shamir sharing
+        When transcription is enabled while computing an absolute value with shamir sharing
         Then the player transcripts can be executed without error
 
 

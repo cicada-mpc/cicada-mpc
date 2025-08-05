@@ -129,7 +129,7 @@ def step_impl(context, shape):
     context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler))
 
 
-@when(u'transcription is enabled while formatting a Shamir share with shape {shape}')
+@when(u'transcription is enabled while formatting a shamir share with shape {shape}')
 def step_impl(context, shape):
     shape = eval(shape)
 
@@ -146,7 +146,7 @@ def step_impl(context, shape):
     context.transcripts = SocketCommunicator.run(world_size=context.players, fn=operation, kwargs=dict(handler=context.handler), show_traceback=True)
 
 
-@when(u'transcription is enabled while computing an absolute value with Shamir sharing')
+@when(u'transcription is enabled while computing an absolute value with shamir sharing')
 def step_impl(context):
     def operation(communicator, handler):
         cicada.transcript.set_handler(logging.getLogger(), handler)
