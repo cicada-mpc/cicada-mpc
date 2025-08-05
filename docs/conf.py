@@ -110,6 +110,7 @@ nbsphinx_thumbnails = {
     "user-guide/running-cicada-programs": "_static/logo.png",
     "user-guide/self-conscious-statisticians": "_static/logo.png",
     "user-guide/shamir": "_static/logo.png",
+    "user-guide/slicing": "_static/logo.png",
     "user-guide/sockets": "_static/logo.png",
     "user-guide/transcripts": "_static/logo.png",
     "user-guide/zigmoid": "_static/zigmoid.png",
