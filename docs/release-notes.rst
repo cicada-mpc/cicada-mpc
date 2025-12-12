@@ -7,6 +7,20 @@
 Release Notes
 =============
 
+Cicada 2.1.0 - December 12th, 2025
+----------------------------------
+
+* Began running regression tests using Python 3.13.
+* Added regression tests for transcription.
+* ActiveProtocolSuite was missing the encoding attribute.
+* Added API to validate secret share storage.
+* Simplified the implementation of power(), and expanded the related documentation.
+* ShamirProtocolSuite.matvec() wasn't transcribed properly.
+* FixedPoint.encode() could produce incorrect results in some circumstances.
+* Eliminated potential bug in field_power() and power().
+* Added slicing support to ShamirArrayShare for symmetry with AdditiveArrayShare.
+* Added a user guide article on array slicing.
+
 Cicada 2.0.0 - November 25th, 2024
 ----------------------------------
 
